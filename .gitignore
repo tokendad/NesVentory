@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.log
+*.sqlite3
+
+# Environments
+.venv/
+env/
+venv/
+
+# VS Code / PyCharm
+.vscode/
+.idea/
+
+# Byte-compiled
+*.so
+
+# Docker
+*.pid
+
+# Misc
+.DS_Store
+*.coverage
+htmlcov/
+dist/
+build/

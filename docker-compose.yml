@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    container_name: inventree_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: inventree
+      POSTGRES_PASSWORD: inventree
+      POSTGRES_DB: inventree
+    volumes:
+      - inventree_db_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"  # host:container, adjust if needed
+
+  backend:
+    build:
+      context: ./backend
+    container_name: inventree_backend
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      INV_DB_HOST: db
+      INV_DB_PORT: 5432
+      INV_DB_USER: inventree
+      INV_DB_PASS: inventree
+      INV_DB_NAME: inventree
+      INV_SECRET_KEY: "change-me-in-production"
+      INV_DEBUG: "true"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app:ro
+
+volumes:
+  inventree_db_data:
