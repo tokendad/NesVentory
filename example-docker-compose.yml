@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:16
+    container_name: inventree_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: inventree
+      POSTGRES_PASSWORD: inventree
+      POSTGRES_DB: inventree
+    volumes:
+      - inventree_db_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+
+  backend:
+    build:
+      context: ./backend
+    container_name: inventree_backend
+    restart: unless-stopped
+    depends_on:
+      - db
+    env_file:
+      - .env
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./backend/app:/app/app:ro
+
+volumes:
+  inventree_db_data:

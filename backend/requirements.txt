@@ -1,8 +1,23 @@
+# FastAPI + Server
 fastapi==0.115.2
 uvicorn[standard]==0.30.6
+
+# Database drivers
 SQLAlchemy==2.0.36
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.9          # sync PostgreSQL driver (needed for SQLAlchemy metadata creation)
+asyncpg==0.30.0                 # async PostgreSQL driver (required because DATABASE_URL uses +asyncpg)
+
+# Security / Auth
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+
+# Pydantic & Settings
 pydantic==2.9.2
 pydantic-settings==2.6.1
+email-validator==2.1.1
+
+# File upload parsing
+python-multipart==0.0.9
+
+# Optional utilities (recommended)
+python-dotenv==1.0.1

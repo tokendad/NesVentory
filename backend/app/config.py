@@ -1,30 +1,23 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="INV_", env_file=".env", env_file_encoding="utf-8")
+    # Database (sync driver)
+    DATABASE_URL: str
 
-    DEBUG: bool = True
+    # Auth / security
+    SECRET_KEY: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
-    DB_HOST: str = "db"
-    DB_PORT: int = 5432
-    DB_USER: str = "inventree"
-    DB_PASS: str = "inventree"
-    DB_NAME: str = "inventree"
+    # Backend port (used dynamically by Uvicorn & app root)
+    BACKEND_PORT: int = 8001
 
-    SECRET_KEY: str = "change-me-in-production"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 1 day
-    ALGORITHM: str = "HS256"
-
-    @property
-    def database_url(self) -> str:
-        return (
-            f"postgresql+psycopg2://{self.DB_USER}:{self.DB_PASS}"
-            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-        )
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
 
 
-@lru_cache
+@lru_cache()
 def get_settings() -> Settings:
     return Settings()

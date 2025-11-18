@@ -4,10 +4,19 @@ from typing import Optional, List
 from pydantic import BaseModel, EmailStr
 
 
-# --- Auth / User ---
+# -------------------------------------------------------------------
+#  Core Base Model (applies to all models automatically)
+# -------------------------------------------------------------------
+class CoreModel(BaseModel):
+    model_config = {
+        "protected_namespaces": ()  # Remove pydantic v2 protected prefix warnings
+    }
 
 
-class UserBase(BaseModel):
+# -------------------------------------------------------------------
+#  Auth / User Models
+# -------------------------------------------------------------------
+class UserBase(CoreModel):
     email: EmailStr
 
 
@@ -24,19 +33,19 @@ class UserRead(UserBase):
         from_attributes = True
 
 
-class Token(BaseModel):
+class Token(CoreModel):
     access_token: str
     token_type: str = "bearer"
 
 
-class TokenData(BaseModel):
+class TokenData(CoreModel):
     user_id: Optional[int] = None
 
 
-# --- Locations ---
-
-
-class LocationBase(BaseModel):
+# -------------------------------------------------------------------
+#  Locations
+# -------------------------------------------------------------------
+class LocationBase(CoreModel):
     name: str
     description: Optional[str] = None
     parent_id: Optional[int] = None
@@ -53,14 +62,14 @@ class LocationRead(LocationBase):
         from_attributes = True
 
 
-# --- Items ---
-
-
-class ItemBase(BaseModel):
+# -------------------------------------------------------------------
+#  Items
+# -------------------------------------------------------------------
+class ItemBase(CoreModel):
     name: str
     description: Optional[str] = None
     manufacturer: Optional[str] = None
-    model_number: Optional[str] = None
+    model_number: Optional[str] = None      # Causes pydantic warnings if CoreModel isn't used
     serial_number: Optional[str] = None
     purchase_date: Optional[date] = None
     purchase_price: Optional[float] = None
@@ -85,10 +94,10 @@ class ItemRead(ItemBase):
         from_attributes = True
 
 
-# --- Maintenance ---
-
-
-class MaintenanceTaskBase(BaseModel):
+# -------------------------------------------------------------------
+#  Maintenance Tasks
+# -------------------------------------------------------------------
+class MaintenanceTaskBase(CoreModel):
     item_id: int
     name: str
     description: Optional[str] = None

@@ -27,3 +27,6 @@ venv/
 htmlcov/
 dist/
 build/
+
+InvenTree/.env
+InvenTree/docker-compose.yml
