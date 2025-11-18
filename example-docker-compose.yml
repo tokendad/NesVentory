@@ -15,6 +15,7 @@ services:
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile
     container_name: inventree_backend
     restart: unless-stopped
     depends_on:
@@ -24,7 +25,7 @@ services:
     ports:
       - "8001:8001"
     volumes:
-      - ./backend/app:/app/app:ro
+      - ./backend:/app/app:ro
 
 volumes:
   inventree_db_data:

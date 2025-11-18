@@ -1,3 +1,4 @@
+
 import uuid
 from datetime import datetime, date
 
@@ -15,12 +16,10 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
-from sqlalchemy.types import String
 
 from .database import Base
 
 
-# Updated Enum for UserRole with proper string-based Enum
 class UserRole(str, Enum):
     ADMIN = "admin"
     EDITOR = "editor"
@@ -34,10 +33,7 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=True)
-
-    # Pass the values of the Enum directly to avoid type confusion
-    role = Column(Enum(UserRole.ADMIN, UserRole.EDITOR, UserRole.VIEWER, name="user_role", type_=String),
-                  nullable=False, default=UserRole.ADMIN)
+    role = Column(Enum(UserRole, name="user_role"), nullable=False, default=UserRole.ADMIN)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -78,6 +74,16 @@ class Item(Base):
     upc = Column(String(64), nullable=True, index=True)
 
     # Embedded warranties as JSONB array of objects
+    # [
+    #   {
+    #       "type": "manufacturer" | "extended",
+    #       "provider": "...",
+    #       "policy_number": "...",
+    #       "duration_months": 24,
+    #       "expiration_date": "2025-12-31",
+    #       "notes": "..."
+    #   }
+    # ]
     warranties = Column(JSONB, nullable=True)
 
     # Relationships

@@ -3,11 +3,12 @@ version: "3.9"
 services:
   nesventory_db:
     image: postgres:16
+    container_name: nesventory_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: nesventory
-      POSTGRES_USER: nesventory
-      POSTGRES_PASSWORD: nesventory
+      POSTGRES_DB: ${DB_NAME:-nesventory}
+      POSTGRES_USER: ${DB_USER:-nesventory}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-nesventory}
     volumes:
       - nesventory_db_data:/var/lib/postgresql/data
     networks:
@@ -15,33 +16,33 @@ services:
 
   nesventory_backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: nesventory_backend
     restart: unless-stopped
     env_file:
       - .env
     environment:
       DB_HOST: nesventory_db
-    volumes:
-      - ./backend:/app      
     depends_on:
       - nesventory_db
     ports:
-      - "8001:8001"
+      - "${BACKEND_PORT:-8001}:8001"
     networks:
       - nesventory_net
 
   nesventory_frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: nesventory_frontend
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      VITE_API_BASE_URL: "http://localhost:8001"
+      VITE_API_BASE_URL: "http://localhost:${BACKEND_PORT:-8001}"
     ports:
-      - "5174:80"
+      - "${FRONTEND_PORT:-5173}:5173"
     networks:
       - nesventory_net
 
