@@ -17,8 +17,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
     setLoading(true);
     try {
       const resp = await login(email, password);
-      localStorage.setItem("inventree_token", resp.access_token);
-      localStorage.setItem("inventree_user_email", email);
+      localStorage.setItem("NesVentory_token", resp.access_token);
+      localStorage.setItem("NesVentory_user_email", email);
       onSuccess(resp.access_token, email);
     } catch (err: any) {
       setError(err.message || "Login failed");
@@ -32,7 +32,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
       <div className="login-card">
         <div className="login-header">
           <span className="logo-dot large" />
-          <h1>InvenTree</h1>
+          <h1>NesVentory</h1>
           <p className="muted">Sign in to your home inventory</p>
         </div>
         <form onSubmit={handleSubmit} className="login-form">
