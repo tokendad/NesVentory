@@ -1,14 +1,14 @@
 services:
   db:
     image: postgres:16
-    container_name: inventree_db
+    container_name: nesventory_db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: inventree
-      POSTGRES_PASSWORD: inventree
-      POSTGRES_DB: inventree
+      POSTGRES_USER: nesventory
+      POSTGRES_PASSWORD: nesventory
+      POSTGRES_DB: nesventory
     volumes:
-      - inventree_db_data:/var/lib/postgresql/data
+      - nesventory_db_data:/var/lib/postgresql/data
     ports:
       - "5433:5432"
 
@@ -16,7 +16,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: inventree_backend
+    container_name: nesventory_backend
     restart: unless-stopped
     depends_on:
       - db
@@ -28,4 +28,4 @@ services:
       - ./backend:/app/app:ro
 
 volumes:
-  inventree_db_data:
+  nesventory_db_data:

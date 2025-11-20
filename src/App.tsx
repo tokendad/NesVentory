@@ -10,10 +10,10 @@ type View = "dashboard" | "items";
 
 const App: React.FC = () => {
   const [token, setToken] = useState<string | null>(
-    () => localStorage.getItem("inventree_token")
+    () => localStorage.getItem("NesVentory_token")
   );
   const [userEmail, setUserEmail] = useState<string | undefined>(
-    () => localStorage.getItem("inventree_user_email") || undefined
+    () => localStorage.getItem("NesVentory_user_email") || undefined
   );
   const [items, setItems] = useState<Item[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -56,8 +56,8 @@ const App: React.FC = () => {
   }, [token]);
 
   function handleLogout() {
-    localStorage.removeItem("inventree_token");
-    localStorage.removeItem("inventree_user_email");
+    localStorage.removeItem("NesVentory_token");
+    localStorage.removeItem("NesVentory_user_email");
     setToken(null);
     setUserEmail(undefined);
     setItems([]);

@@ -64,7 +64,7 @@ export async function login(
 }
 
 function authHeaders() {
-  const token = localStorage.getItem("inventree_token");
+  const token = localStorage.getItem("NesVentory_token");
   if (!token) return {};
   return {
     Authorization: `Bearer ${token}`,

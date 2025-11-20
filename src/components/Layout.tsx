@@ -13,7 +13,7 @@ const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail 
       <header className="app-header">
         <div className="app-header-left">
           <span className="logo-dot" />
-          <span className="app-title">InvenTree</span>
+          <span className="app-title">NesVentory</span>
         </div>
         <div className="app-header-right">
           {userEmail && <span className="user-email">{userEmail}</span>}
