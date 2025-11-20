@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+from uuid import UUID
 from .. import models, schemas
 from ..deps import get_db
 
@@ -22,7 +23,7 @@ def create_item(payload: schemas.ItemCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{item_id}", response_model=schemas.Item)
-def get_item(item_id: int, db: Session = Depends(get_db)):
+def get_item(item_id: UUID, db: Session = Depends(get_db)):
     item = db.query(models.Item).filter(models.Item.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -31,7 +32,7 @@ def get_item(item_id: int, db: Session = Depends(get_db)):
 
 @router.put("/{item_id}", response_model=schemas.Item)
 def update_item(
-    item_id: int,
+    item_id: UUID,
     payload: schemas.ItemUpdate,
     db: Session = Depends(get_db),
 ):
@@ -49,7 +50,7 @@ def update_item(
 
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_item(item_id: int, db: Session = Depends(get_db)):
+def delete_item(item_id: UUID, db: Session = Depends(get_db)):
     item = db.query(models.Item).filter(models.Item.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")

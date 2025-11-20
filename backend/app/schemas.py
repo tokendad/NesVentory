@@ -1,11 +1,36 @@
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, List
+from uuid import UUID
 from pydantic import BaseModel
+from decimal import Decimal
 
+
+# --- User Schemas ---
+
+class UserBase(BaseModel):
+    email: str
+    full_name: Optional[str] = None
+
+
+class UserCreate(UserBase):
+    password: str
+
+
+class User(UserBase):
+    id: UUID
+    role: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# --- Location Schemas ---
 
 class LocationBase(BaseModel):
     name: str
-    parent_id: Optional[int] = None
+    parent_id: Optional[UUID] = None
 
 
 class LocationCreate(LocationBase):
@@ -14,27 +39,34 @@ class LocationCreate(LocationBase):
 
 class LocationUpdate(BaseModel):
     name: Optional[str] = None
-    parent_id: Optional[int] = None
+    parent_id: Optional[UUID] = None
 
 
 class Location(LocationBase):
-    id: int
+    id: UUID
+    full_path: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True
 
 
+# --- Item Schemas ---
+
 class ItemBase(BaseModel):
     name: str
     description: Optional[str] = None
-    manufacturer: Optional[str] = None
-    model: Optional[str] = None
+    brand: Optional[str] = None
+    model_number: Optional[str] = None
     serial_number: Optional[str] = None
-    purchase_date: Optional[datetime] = None
-    purchase_price: Optional[int] = None
+    purchase_date: Optional[date] = None
+    purchase_price: Optional[Decimal] = None
+    estimated_value: Optional[Decimal] = None
     retailer: Optional[str] = None
-    warranty_info: Optional[str] = None
-    location_id: Optional[int] = None
+    upc: Optional[str] = None
+    warranties: Optional[List[dict]] = None
+    location_id: Optional[UUID] = None
 
 
 class ItemCreate(ItemBase):
@@ -44,18 +76,45 @@ class ItemCreate(ItemBase):
 class ItemUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    manufacturer: Optional[str] = None
-    model: Optional[str] = None
+    brand: Optional[str] = None
+    model_number: Optional[str] = None
     serial_number: Optional[str] = None
-    purchase_date: Optional[datetime] = None
-    purchase_price: Optional[int] = None
+    purchase_date: Optional[date] = None
+    purchase_price: Optional[Decimal] = None
+    estimated_value: Optional[Decimal] = None
     retailer: Optional[str] = None
-    warranty_info: Optional[str] = None
-    location_id: Optional[int] = None
+    upc: Optional[str] = None
+    warranties: Optional[List[dict]] = None
+    location_id: Optional[UUID] = None
 
 
 class Item(ItemBase):
-    id: int
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# --- Maintenance Task Schemas ---
+
+class MaintenanceTaskBase(BaseModel):
+    item_id: UUID
+    name: str
+    description: Optional[str] = None
+    next_due_date: Optional[date] = None
+    recurrence_type: str
+    recurrence_interval: Optional[int] = None
+    last_completed: Optional[date] = None
+
+
+class MaintenanceTaskCreate(MaintenanceTaskBase):
+    pass
+
+
+class MaintenanceTask(MaintenanceTaskBase):
+    id: UUID
     created_at: datetime
     updated_at: datetime
 

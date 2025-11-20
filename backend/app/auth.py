@@ -8,8 +8,8 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from .config import get_settings
-from . import models, schemas
-from .database import get_db
+from . import models
+from .deps import get_db
 
 settings = get_settings()
 
@@ -41,7 +41,7 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[models
     user = get_user_by_email(db, email=email)
     if not user:
         return None
-    if not verify_password(password, user.hashed_password):
+    if not verify_password(password, user.password_hash):
         return None
     return user
 
@@ -57,7 +57,7 @@ async def get_current_user(
     )
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        user_id: int = int(payload.get("sub"))
+        user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
     except (JWTError, ValueError):
