@@ -4,10 +4,20 @@ from .config import settings
 
 # 🔥 IMPORTANT: Load all SQLAlchemy models so tables get created
 from . import models
-from .database import Base, engine
+from .database import Base, engine, SessionLocal
+from .seed_data import seed_database
+from .routers import items, locations, auth
 
-# If you want auto-create tables on startup (optional)
-# Base.metadata.create_all(bind=engine)
+# Auto-create tables on startup and seed with test data
+Base.metadata.create_all(bind=engine)
+
+# Seed the database with test data if it's empty
+try:
+    db = SessionLocal()
+    seed_database(db)
+    db.close()
+except Exception as e:
+    print(f"Error seeding database: {e}")
 
 app = FastAPI(title="Nesventory API")
 
@@ -26,26 +36,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include routers
+app.include_router(items.router, prefix="/api")
+app.include_router(locations.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
-
-# TEMPORARY — will be replaced with real DB queries later
-@app.get("/api/items")
-def list_items():
-    return [
-        {
-            "id": 1,
-            "name": "Sample TV",
-            "location": "Living Room",
-            "value": 500,
-            "category": "Electronics",
-        },
-        {
-            "id": 2,
-            "name": "Sofa",
-            "location": "Living Room",
-            "value": 800,
-            "category": "Furniture",
-        },
-    ]

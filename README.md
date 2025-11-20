@@ -6,6 +6,7 @@ This is a starter stack for a home inventory app:
 - React + TypeScript + Vite frontend (`/src`)
 - Postgres database
 - Docker Compose orchestration
+- **Pre-populated test data** (users, locations, items, maintenance tasks)
 
 ## Quick start
 
@@ -32,3 +33,19 @@ npm run dev
 
 - Backend health: http://localhost:8001/api/health
 - Frontend UI: http://localhost:5173
+
+## Test Data
+
+The application automatically seeds the database with test data on first startup, including:
+- 3 test users (admin, editor, viewer)
+- 9 locations (hierarchical structure)
+- 8 sample items (electronics, appliances, tools, etc.)
+- 4 maintenance tasks
+
+See [SEEDING.md](SEEDING.md) for complete documentation on the test data and how to use it.
+
+### Test Credentials
+
+- **Admin**: admin@nesventory.local / admin123
+- **Editor**: editor@nesventory.local / editor123
+- **Viewer**: viewer@nesventory.local / viewer123

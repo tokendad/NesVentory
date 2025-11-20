@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
 
+    # For compatibility with auth.py
+    SECRET_KEY: str = "CHANGE_ME_SUPER_SECRET"
+    ALGORITHM: str = "HS256"
+
     CORS_ORIGINS: List[AnyHttpUrl] | List[str] = []
 
     @field_validator("CORS_ORIGINS", mode="before")
@@ -34,3 +38,8 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def get_settings():
+    """Helper function to get settings instance."""
+    return settings
