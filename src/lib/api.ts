@@ -13,8 +13,14 @@ export interface Item {
   manufacturer?: string | null;
   model_number?: string | null;
   serial_number?: string | null;
+  manufacture_date?: string | null;
   purchase_date?: string | null;
   purchase_price?: number | null;
+  estimated_value?: number | null;
+  retailer?: string | null;
+  upc?: string | null;
+  warranties?: any[] | null;
+  custom_fields?: Record<string, any> | null;
   location_id?: number | string | null;
 }
 

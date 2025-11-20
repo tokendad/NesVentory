@@ -28,7 +28,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
           <thead>
             <tr>
               <th>Name</th>
-              <th>Brand</th>
+              <th>Manufacturer</th>
               <th>Model</th>
               <th>Serial</th>
               <th>Purchase Date</th>

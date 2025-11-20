@@ -57,15 +57,17 @@ class Location(LocationBase):
 class ItemBase(BaseModel):
     name: str
     description: Optional[str] = None
-    brand: Optional[str] = None
+    manufacturer: Optional[str] = None
     model_number: Optional[str] = None
     serial_number: Optional[str] = None
+    manufacture_date: Optional[date] = None
     purchase_date: Optional[date] = None
     purchase_price: Optional[Decimal] = None
     estimated_value: Optional[Decimal] = None
     retailer: Optional[str] = None
     upc: Optional[str] = None
     warranties: Optional[List[dict]] = None
+    custom_fields: Optional[dict] = None
     location_id: Optional[UUID] = None
 
 
@@ -76,15 +78,17 @@ class ItemCreate(ItemBase):
 class ItemUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    brand: Optional[str] = None
+    manufacturer: Optional[str] = None
     model_number: Optional[str] = None
     serial_number: Optional[str] = None
+    manufacture_date: Optional[date] = None
     purchase_date: Optional[date] = None
     purchase_price: Optional[Decimal] = None
     estimated_value: Optional[Decimal] = None
     retailer: Optional[str] = None
     upc: Optional[str] = None
     warranties: Optional[List[dict]] = None
+    custom_fields: Optional[dict] = None
     location_id: Optional[UUID] = None
 
 

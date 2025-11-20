@@ -65,10 +65,11 @@ class Item(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
 
-    brand = Column(String(255), nullable=True)
+    manufacturer = Column(String(255), nullable=True)
     model_number = Column(String(255), nullable=True)
     serial_number = Column(String(255), nullable=True)
 
+    manufacture_date = Column(Date, nullable=True)
     purchase_date = Column(Date, nullable=True)
     purchase_price = Column(Numeric(12, 2), nullable=True)
     estimated_value = Column(Numeric(12, 2), nullable=True)
@@ -79,6 +80,9 @@ class Item(Base):
 
     # Embedded warranties as JSONB array of objects
     warranties = Column(JSONB, nullable=True)
+
+    # Custom fields for user-defined data
+    custom_fields = Column(JSONB, nullable=True)
 
     # Relationships
     location_id = Column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=True)

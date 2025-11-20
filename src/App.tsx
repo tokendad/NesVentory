@@ -125,7 +125,7 @@ const App: React.FC = () => {
                   <thead>
                     <tr>
                       <th>Name</th>
-                      <th>Brand</th>
+                      <th>Manufacturer</th>
                       <th>Location</th>
                     </tr>
                   </thead>
