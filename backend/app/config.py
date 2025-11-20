@@ -8,7 +8,7 @@ def _get_version() -> str:
     """Read version from VERSION file in repository root."""
     # Search upward from this file to find the VERSION file
     current = pathlib.Path(__file__).resolve()
-    for parent in [current.parent] + list(current.parents):
+    for parent in current.parents:
         version_file = parent / "VERSION"
         if version_file.exists():
             return version_file.read_text().strip()
