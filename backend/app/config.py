@@ -6,7 +6,9 @@ import pathlib
 
 def _get_version() -> str:
     """Read version from VERSION file in repository root."""
-    version_file = pathlib.Path(__file__).parent.parent.parent / "VERSION"
+    # Get the repository root (3 levels up from this file: app/config.py -> app -> backend -> root)
+    repo_root = pathlib.Path(__file__).resolve().parents[2]
+    version_file = repo_root / "VERSION"
     if version_file.exists():
         return version_file.read_text().strip()
     return "1.0.0-alpha"  # Fallback version
