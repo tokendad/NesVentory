@@ -9,6 +9,12 @@ SQLALCHEMY_DATABASE_URL = (
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL, future=True)
 
+try:
+    with engine.connect() as connection:
+        print("Database connected successfully")
+except Exception as e:
+    print(f"Database connection failed: {e}")
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()

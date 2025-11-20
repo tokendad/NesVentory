@@ -142,7 +142,11 @@ class MaintenanceTask(Base):
     description = Column(Text, nullable=True)
 
     next_due_date = Column(Date, nullable=True)
-    recurrence_type = Column(Enum(RecurrenceType, name="recurrence_type"), nullable=False, default=RecurrenceType.NONE)
+    recurrence_type = Column(
+        Enum(RecurrenceType.NONE, RecurrenceType.MONTHLY, RecurrenceType.YEARLY, RecurrenceType.CUSTOM_DAYS, name="recurrence_type"),
+        nullable=False,
+        default=RecurrenceType.NONE
+    )
     recurrence_interval = Column(Integer, nullable=True)  # e.g. every 90 days for custom_days
 
     last_completed = Column(Date, nullable=True)
