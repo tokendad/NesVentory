@@ -1,5 +1,7 @@
 # Nesventory Starter Stack
 
+**Version: 1.0.0-alpha**
+
 This is a starter stack for a home inventory app:
 
 - FastAPI backend (`/backend`)

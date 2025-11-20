@@ -1,10 +1,12 @@
 from typing import List
 from pydantic_settings import BaseSettings
 from pydantic import AnyHttpUrl, field_validator
+import pathlib
 
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "NesVentory"
+    VERSION: str = "1.0.0-alpha"
 
     BACKEND_PORT: int = 8001
     FRONTEND_PORT: int = 5173
