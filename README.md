@@ -34,7 +34,16 @@ npm run dev
 4. Open:
 
 - Backend health: http://localhost:8001/api/health
+- Backend version: http://localhost:8001/api/version
 - Frontend UI: http://localhost:5173
+
+## API Endpoints
+
+- `/api/health` - Health check endpoint
+- `/api/version` - Get application version and name
+- `/api/auth/*` - Authentication endpoints
+- `/api/items/*` - Inventory item management
+- `/api/locations/*` - Location management
 
 ## Test Data
 

@@ -4,9 +4,17 @@ from pydantic import AnyHttpUrl, field_validator
 import pathlib
 
 
+def _get_version() -> str:
+    """Read version from VERSION file in repository root."""
+    version_file = pathlib.Path(__file__).parent.parent.parent / "VERSION"
+    if version_file.exists():
+        return version_file.read_text().strip()
+    return "1.0.0-alpha"  # Fallback version
+
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "NesVentory"
-    VERSION: str = "1.0.0-alpha"
+    VERSION: str = _get_version()
 
     BACKEND_PORT: int = 8001
     FRONTEND_PORT: int = 5173
