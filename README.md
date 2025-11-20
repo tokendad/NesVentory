@@ -44,6 +44,17 @@ The application automatically seeds the database with test data on first startup
 
 See [SEEDING.md](SEEDING.md) for complete documentation on the test data and how to use it.
 
+## Item Fields
+
+NesVentory supports comprehensive item tracking with fields for:
+- Manufacturer information (name, model, serial number, manufacture date)
+- Purchase information (date, price, retailer, estimated value)
+- Warranty tracking (manufacturer and extended warranties)
+- Multiple photos (primary, asset tags, detail shots)
+- Custom user-defined fields for additional data
+
+See [ITEM_FIELDS.md](ITEM_FIELDS.md) for complete documentation on all available item fields and examples.
+
 ### Test Credentials
 
 - **Admin**: admin@nesventory.local / admin123
