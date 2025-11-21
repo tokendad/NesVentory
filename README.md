@@ -60,3 +60,24 @@ See [SEEDING.md](SEEDING.md) for complete documentation on the test data and how
 - **Admin**: admin@nesventory.local / admin123
 - **Editor**: editor@nesventory.local / editor123
 - **Viewer**: viewer@nesventory.local / viewer123
+
+## Troubleshooting
+
+### Database Schema Errors
+
+If you encounter errors like `foreign key constraint cannot be implemented` or type mismatch errors (e.g., `uuid and integer`), this means the database volume contains an old schema that is incompatible with the current code.
+
+**Solution**: Reset the database by removing the Docker volume:
+
+```bash
+# Stop the containers
+docker compose down
+
+# Remove the database volume
+docker volume rm nesventory_nesventory_db_data
+
+# Restart with a fresh database
+docker compose up --build
+```
+
+**Note**: This will delete all data in the database. The application will automatically recreate the tables with the correct schema and re-seed with test data on startup.
