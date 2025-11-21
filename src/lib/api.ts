@@ -12,7 +12,6 @@ export interface Item {
   name: string;
   description?: string | null;
   brand?: string | null;
-  manufacturer?: string | null;
   model_number?: string | null;
   serial_number?: string | null;
   purchase_date?: string | null;
