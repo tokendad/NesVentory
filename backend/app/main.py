@@ -19,7 +19,10 @@ try:
 except Exception as e:
     print(f"Error seeding database: {e}")
 
-app = FastAPI(title="Nesventory API")
+app = FastAPI(
+    title="Nesventory API",
+    version=settings.VERSION,
+)
 
 # CORS origins now come from environment (.env or config)
 def get_cors_origins():
@@ -44,3 +47,10 @@ app.include_router(auth.router, prefix="/api")
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+@app.get("/api/version")
+def version():
+    return {
+        "version": settings.VERSION,
+        "name": settings.PROJECT_NAME
+    }

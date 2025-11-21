@@ -1,10 +1,23 @@
 from typing import List
 from pydantic_settings import BaseSettings
 from pydantic import AnyHttpUrl, field_validator
+import pathlib
+
+
+def _get_version() -> str:
+    """Read version from VERSION file in repository root."""
+    # Search upward from this file to find the VERSION file
+    current = pathlib.Path(__file__).resolve()
+    for parent in current.parents:
+        version_file = parent / "VERSION"
+        if version_file.exists():
+            return version_file.read_text().strip()
+    return "1.0.0-alpha"  # Fallback version if VERSION file not found
 
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "NesVentory"
+    VERSION: str = _get_version()
 
     BACKEND_PORT: int = 8001
     FRONTEND_PORT: int = 5173
