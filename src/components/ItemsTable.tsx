@@ -6,6 +6,8 @@ interface ItemsTableProps {
   loading: boolean;
   error?: string | null;
   onRefresh: () => void;
+  onAddItem: () => void;
+  onItemClick: (item: Item) => void;
 }
 
 const ItemsTable: React.FC<ItemsTableProps> = ({
@@ -13,14 +15,21 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   loading,
   error,
   onRefresh,
+  onAddItem,
+  onItemClick,
 }) => {
   return (
     <section className="panel">
       <div className="panel-header">
         <h2>Items</h2>
-        <button className="btn-outline" onClick={onRefresh} disabled={loading}>
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
+        <div style={{ display: "flex", gap: "0.75rem" }}>
+          <button className="btn-outline" onClick={onRefresh} disabled={loading}>
+            {loading ? "Refreshing..." : "Refresh"}
+          </button>
+          <button className="btn-primary" onClick={onAddItem}>
+            Add Item
+          </button>
+        </div>
       </div>
       {error && <div className="error-banner">{error}</div>}
       <div className="table-wrapper">
@@ -44,9 +53,9 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
               </tr>
             )}
             {items.map((item) => (
-              <tr key={item.id}>
+              <tr key={item.id} onClick={() => onItemClick(item)} style={{ cursor: "pointer" }}>
                 <td>{item.name}</td>
-                <td>{item.manufacturer || "—"}</td>
+                <td>{item.brand || "—"}</td>
                 <td>{item.model_number || "—"}</td>
                 <td>{item.serial_number || "—"}</td>
                 <td>{item.purchase_date || "—"}</td>

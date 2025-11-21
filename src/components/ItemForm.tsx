@@ -1,0 +1,249 @@
+import React, { useState } from "react";
+import type { ItemCreate, Location } from "../lib/api";
+
+interface ItemFormProps {
+  onSubmit: (item: ItemCreate) => Promise<void>;
+  onCancel: () => void;
+  locations: Location[];
+  initialData?: Partial<ItemCreate>;
+  isEditing?: boolean;
+}
+
+const ItemForm: React.FC<ItemFormProps> = ({
+  onSubmit,
+  onCancel,
+  locations,
+  initialData,
+  isEditing = false,
+}) => {
+  const [formData, setFormData] = useState<ItemCreate>({
+    name: initialData?.name || "",
+    description: initialData?.description || "",
+    brand: initialData?.brand || "",
+    model_number: initialData?.model_number || "",
+    serial_number: initialData?.serial_number || "",
+    purchase_date: initialData?.purchase_date || "",
+    purchase_price: initialData?.purchase_price || undefined,
+    estimated_value: initialData?.estimated_value || undefined,
+    retailer: initialData?.retailer || "",
+    upc: initialData?.upc || "",
+    location_id: initialData?.location_id || null,
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        name === "purchase_price" || name === "estimated_value"
+          ? value === ""
+            ? undefined
+            : parseFloat(value)
+          : name === "location_id"
+          ? value === ""
+            ? null
+            : value
+          : value,
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      await onSubmit(formData);
+    } catch (err: any) {
+      setError(err.message || "Failed to save item");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>{isEditing ? "Edit Item" : "Add New Item"}</h2>
+          <button className="modal-close" onClick={onCancel}>
+            ✕
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="item-form">
+          {error && <div className="error-banner">{error}</div>}
+          
+          <div className="form-group">
+            <label htmlFor="name">Name *</label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="description">Description</label>
+            <textarea
+              id="description"
+              name="description"
+              value={formData.description || ""}
+              onChange={handleChange}
+              rows={3}
+              disabled={loading}
+            />
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="brand">Brand</label>
+              <input
+                type="text"
+                id="brand"
+                name="brand"
+                value={formData.brand || ""}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="model_number">Model Number</label>
+              <input
+                type="text"
+                id="model_number"
+                name="model_number"
+                value={formData.model_number || ""}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="serial_number">Serial Number</label>
+              <input
+                type="text"
+                id="serial_number"
+                name="serial_number"
+                value={formData.serial_number || ""}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="upc">UPC</label>
+              <input
+                type="text"
+                id="upc"
+                name="upc"
+                value={formData.upc || ""}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="purchase_date">Purchase Date</label>
+              <input
+                type="date"
+                id="purchase_date"
+                name="purchase_date"
+                value={formData.purchase_date || ""}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="retailer">Retailer</label>
+              <input
+                type="text"
+                id="retailer"
+                name="retailer"
+                value={formData.retailer || ""}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="purchase_price">Purchase Price</label>
+              <input
+                type="number"
+                id="purchase_price"
+                name="purchase_price"
+                value={formData.purchase_price ?? ""}
+                onChange={handleChange}
+                step="0.01"
+                min="0"
+                disabled={loading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="estimated_value">Estimated Value</label>
+              <input
+                type="number"
+                id="estimated_value"
+                name="estimated_value"
+                value={formData.estimated_value ?? ""}
+                onChange={handleChange}
+                step="0.01"
+                min="0"
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="location_id">Location</label>
+            <select
+              id="location_id"
+              name="location_id"
+              value={formData.location_id?.toString() || ""}
+              onChange={handleChange}
+              disabled={loading}
+            >
+              <option value="">-- No Location --</option>
+              {locations.map((location) => (
+                <option key={location.id} value={location.id.toString()}>
+                  {location.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-actions">
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={onCancel}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? "Saving..." : isEditing ? "Update" : "Create"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default ItemForm;

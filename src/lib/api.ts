@@ -10,11 +10,31 @@ export interface LoginResponse {
 export interface Item {
   id: number | string;
   name: string;
-  manufacturer?: string | null;
+  description?: string | null;
+  brand?: string | null;
   model_number?: string | null;
   serial_number?: string | null;
   purchase_date?: string | null;
   purchase_price?: number | null;
+  estimated_value?: number | null;
+  retailer?: string | null;
+  upc?: string | null;
+  location_id?: number | string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ItemCreate {
+  name: string;
+  description?: string | null;
+  brand?: string | null;
+  model_number?: string | null;
+  serial_number?: string | null;
+  purchase_date?: string | null;
+  purchase_price?: number | null;
+  estimated_value?: number | null;
+  retailer?: string | null;
+  upc?: string | null;
   location_id?: number | string | null;
 }
 
@@ -63,7 +83,7 @@ export async function login(
   return handleResponse<LoginResponse>(res);
 }
 
-function authHeaders() {
+function authHeaders(): Record<string, string> {
   const token = localStorage.getItem("NesVentory_token");
   if (!token) return {};
   return {
@@ -89,4 +109,60 @@ export async function fetchLocations(): Promise<Location[]> {
     },
   });
   return handleResponse<Location[]>(res);
+}
+
+export async function createItem(item: ItemCreate): Promise<Item> {
+  const res = await fetch(`${API_BASE_URL}/api/items`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(item),
+  });
+  return handleResponse<Item>(res);
+}
+
+export async function fetchItem(itemId: string): Promise<Item> {
+  const res = await fetch(`${API_BASE_URL}/api/items/${itemId}`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<Item>(res);
+}
+
+export async function updateItem(itemId: string, item: Partial<ItemCreate>): Promise<Item> {
+  const res = await fetch(`${API_BASE_URL}/api/items/${itemId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(item),
+  });
+  return handleResponse<Item>(res);
+}
+
+export async function deleteItem(itemId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/items/${itemId}`, {
+    method: "DELETE",
+    headers: {
+      ...authHeaders(),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text;
+    try {
+      const data = JSON.parse(text);
+      message = (data.detail as string) || JSON.stringify(data);
+    } catch {
+      // ignore
+    }
+    throw new Error(message || `HTTP ${res.status}`);
+  }
 }
