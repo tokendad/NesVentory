@@ -172,7 +172,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
                       </div>
                     )}
                   </div>
-                  {index < item.warranties.length - 1 && <hr style={{ margin: '1rem 0', border: 'none', borderTop: '1px solid #e0e0e0' }} />}
+                  {index < item.warranties!.length - 1 && <hr style={{ margin: '1rem 0', border: 'none', borderTop: '1px solid #e0e0e0' }} />}
                 </div>
               ))}
             </div>
