@@ -30,6 +30,3 @@ build/
 
 # Node modules
 node_modules/
-
-InvenTree/.env
-InvenTree/docker-compose.yml
