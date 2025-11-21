@@ -72,7 +72,7 @@ function authHeaders() {
 }
 
 export async function fetchItems(): Promise<Item[]> {
-  const res = await fetch(`${API_BASE_URL}/items`, {
+  const res = await fetch(`${API_BASE_URL}/api/items`, {
     headers: {
       "Accept": "application/json",
       ...authHeaders(),
@@ -82,7 +82,7 @@ export async function fetchItems(): Promise<Item[]> {
 }
 
 export async function fetchLocations(): Promise<Location[]> {
-  const res = await fetch(`${API_BASE_URL}/locations`, {
+  const res = await fetch(`${API_BASE_URL}/api/locations`, {
     headers: {
       "Accept": "application/json",
       ...authHeaders(),
