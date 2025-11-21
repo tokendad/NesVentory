@@ -88,7 +88,7 @@ class Item(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     location = relationship("Location", back_populates="items")
-    photos = relationship("Photo", back_populates="item", foreign_keys="Photo.item_id", cascade="all, delete-orphan")
+    photos = relationship("Photo", back_populates="item", foreign_keys="[Photo.item_id]", cascade="all, delete-orphan")
     documents = relationship("Document", back_populates="item", cascade="all, delete-orphan")
     maintenance_tasks = relationship("MaintenanceTask", back_populates="item", cascade="all, delete-orphan")
 
