@@ -5,6 +5,13 @@ from pydantic import BaseModel
 from decimal import Decimal
 
 
+# --- Token Schemas ---
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
 # --- User Schemas ---
 
 class UserBase(BaseModel):
