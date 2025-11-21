@@ -60,8 +60,8 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 <td>{item.serial_number || "—"}</td>
                 <td>{item.purchase_date || "—"}</td>
                 <td>
-                  {item.purchase_price != null
-                    ? `$${item.purchase_price.toFixed(2)}`
+                  {item.purchase_price != null && !isNaN(Number(item.purchase_price))
+                    ? `$${Number(item.purchase_price).toFixed(2)}`
                     : "—"}
                 </td>
               </tr>
