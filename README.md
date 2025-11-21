@@ -12,13 +12,18 @@ This is a starter stack for a home inventory app:
 
 ## Quick start
 
-1. Copy `.env.example` to `.env`:
+1. Copy `.env.example` to `.env` and configure your environment:
 
 ```bash
 cp .env.example .env
 ```
 
-2. Build and start the backend and database:
+2. **IMPORTANT:** Edit `.env` and set secure values for:
+   - `SECRET_KEY` - Generate with: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+   - `JWT_SECRET_KEY` - Generate with: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+   - `DB_PASSWORD` - Use a strong, unique password
+
+3. Build and start the backend and database:
 
 ```bash
 docker compose up --build
@@ -60,6 +65,22 @@ See [SEEDING.md](SEEDING.md) for complete documentation on the test data and how
 - **Admin**: admin@nesventory.local / admin123
 - **Editor**: editor@nesventory.local / editor123
 - **Viewer**: viewer@nesventory.local / viewer123
+
+## Security Best Practices
+
+### Environment Variables
+- **Never commit `.env` to version control** - it contains sensitive credentials
+- Always use strong, unique secrets for `SECRET_KEY`, `JWT_SECRET_KEY`, and `DB_PASSWORD`
+- Generate secure random secrets using: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+- For production, use environment-specific values and rotate secrets regularly
+
+### Production Deployment
+- Change all default passwords and secret keys
+- Use HTTPS for all communication
+- Set appropriate `CORS_ORIGINS` for your frontend domain(s)
+- Consider disabling the automatic database seeding (see `backend/app/main.py`)
+- Use a dedicated database user with minimal required privileges
+- Keep dependencies up to date and monitor for security vulnerabilities
 
 ## Troubleshooting
 
