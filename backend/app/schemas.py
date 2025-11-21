@@ -59,6 +59,49 @@ class Location(LocationBase):
         from_attributes = True
 
 
+# --- Photo Schemas ---
+
+class PhotoBase(BaseModel):
+    item_id: UUID
+    path: str
+    mime_type: Optional[str] = None
+    is_primary: bool = False
+    is_data_tag: bool = False
+
+
+class PhotoCreate(PhotoBase):
+    pass
+
+
+class Photo(PhotoBase):
+    id: UUID
+    uploaded_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# --- Document Schemas ---
+
+class DocumentBase(BaseModel):
+    item_id: UUID
+    filename: str
+    mime_type: Optional[str] = None
+    path: str
+
+
+class DocumentCreate(DocumentBase):
+    pass
+
+
+class Document(DocumentBase):
+    id: UUID
+    uploaded_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # --- Item Schemas ---
 
 class ItemBase(BaseModel):
@@ -99,6 +142,8 @@ class Item(ItemBase):
     id: UUID
     created_at: datetime
     updated_at: datetime
+    photos: List['Photo'] = []
+    documents: List['Document'] = []
 
     class Config:
         from_attributes = True

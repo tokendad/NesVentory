@@ -7,6 +7,34 @@ export interface LoginResponse {
   token_type: string;
 }
 
+export interface Warranty {
+  type: 'manufacturer' | 'extended';
+  provider?: string | null;
+  policy_number?: string | null;
+  duration_months?: number | null;
+  expiration_date?: string | null;
+  notes?: string | null;
+}
+
+export interface Photo {
+  id: string;
+  item_id: string;
+  path: string;
+  mime_type?: string | null;
+  is_primary: boolean;
+  is_data_tag: boolean;
+  uploaded_at: string;
+}
+
+export interface Document {
+  id: string;
+  item_id: string;
+  filename: string;
+  mime_type?: string | null;
+  path: string;
+  uploaded_at: string;
+}
+
 export interface Item {
   id: number | string;
   name: string;
@@ -20,6 +48,9 @@ export interface Item {
   retailer?: string | null;
   upc?: string | null;
   location_id?: number | string | null;
+  warranties?: Warranty[] | null;
+  photos?: Photo[];
+  documents?: Document[];
   created_at?: string;
   updated_at?: string;
 }
@@ -36,6 +67,7 @@ export interface ItemCreate {
   retailer?: string | null;
   upc?: string | null;
   location_id?: number | string | null;
+  warranties?: Warranty[] | null;
 }
 
 export interface Location {
