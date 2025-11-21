@@ -4,10 +4,12 @@ services:
   nesventory_db:
     image: postgres:16
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      POSTGRES_DB: nesventory
-      POSTGRES_USER: nesventory
-      POSTGRES_PASSWORD: nesventory
+      POSTGRES_DB: ${DB_NAME:-nesventory}
+      POSTGRES_USER: ${DB_USER:-nesventory}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - nesventory_db_data:/var/lib/postgresql/data
     networks:

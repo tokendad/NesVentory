@@ -25,15 +25,15 @@ class Settings(BaseSettings):
     DB_HOST: str = "nesventory_db"
     DB_PORT: int = 5432
     DB_USER: str = "nesventory"
-    DB_PASSWORD: str = "nesventory"
+    DB_PASSWORD: str  # No default - must be set in environment
     DB_NAME: str = "nesventory"
 
-    JWT_SECRET_KEY: str = "CHANGE_ME_SUPER_SECRET"
+    JWT_SECRET_KEY: str  # No default - must be set in environment
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
 
     # For compatibility with auth.py
-    SECRET_KEY: str = "CHANGE_ME_SUPER_SECRET"
+    SECRET_KEY: str  # No default - must be set in environment
     ALGORITHM: str = "HS256"
 
     CORS_ORIGINS: List[AnyHttpUrl] | List[str] = []
