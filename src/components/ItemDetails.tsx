@@ -172,7 +172,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
                       </div>
                     )}
                   </div>
-                  {index < item.warranties!.length - 1 && <hr style={{ margin: '1rem 0', border: 'none', borderTop: '1px solid #e0e0e0' }} />}
+                  {index < item.warranties!.length - 1 && <hr className="warranty-separator" />}
                 </div>
               ))}
             </div>
@@ -190,7 +190,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
                       className="item-photo"
                     />
                     {photo.is_primary && <span className="photo-badge">Primary</span>}
-                    {photo.is_data_tag && <span className="photo-badge">Data Tag</span>}
+                    {!photo.is_primary && photo.is_data_tag && <span className="photo-badge">Data Tag</span>}
                   </div>
                 ))}
               </div>

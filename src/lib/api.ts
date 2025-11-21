@@ -48,7 +48,7 @@ export interface Item {
   retailer?: string | null;
   upc?: string | null;
   location_id?: number | string | null;
-  warranties?: Warranty[] | null;
+  warranties?: Warranty[];
   photos?: Photo[];
   documents?: Document[];
   created_at?: string;
@@ -67,7 +67,7 @@ export interface ItemCreate {
   retailer?: string | null;
   upc?: string | null;
   location_id?: number | string | null;
-  warranties?: Warranty[] | null;
+  warranties?: Warranty[];
 }
 
 export interface Location {
