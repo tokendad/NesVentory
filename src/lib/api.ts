@@ -52,7 +52,7 @@ export async function login(
   body.set("username", username);
   body.set("password", password);
 
-  const res = await fetch(`${API_BASE_URL}/token`, {
+  const res = await fetch(`${API_BASE_URL}/api/token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
