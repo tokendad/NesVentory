@@ -105,16 +105,16 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
                   <span className="detail-value">{item.retailer}</span>
                 </div>
               )}
-              {item.purchase_price != null && (
+              {item.purchase_price != null && !isNaN(Number(item.purchase_price)) && (
                 <div className="detail-item">
                   <span className="detail-label">Purchase Price:</span>
-                  <span className="detail-value">${item.purchase_price.toFixed(2)}</span>
+                  <span className="detail-value">${Number(item.purchase_price).toFixed(2)}</span>
                 </div>
               )}
-              {item.estimated_value != null && (
+              {item.estimated_value != null && !isNaN(Number(item.estimated_value)) && (
                 <div className="detail-item">
                   <span className="detail-label">Estimated Value:</span>
-                  <span className="detail-value">${item.estimated_value.toFixed(2)}</span>
+                  <span className="detail-value">${Number(item.estimated_value).toFixed(2)}</span>
                 </div>
               )}
             </div>
