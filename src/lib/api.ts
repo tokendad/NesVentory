@@ -84,7 +84,7 @@ export async function login(
   return handleResponse<LoginResponse>(res);
 }
 
-function authHeaders() {
+function authHeaders(): Record<string, string> {
   const token = localStorage.getItem("NesVentory_token");
   if (!token) return {};
   return {
