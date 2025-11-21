@@ -4,7 +4,18 @@ import Layout from "./components/Layout";
 import DashboardCards from "./components/DashboardCards";
 import ItemsTable from "./components/ItemsTable";
 import LocationsTree from "./components/LocationsTree";
-import { fetchItems, fetchLocations, type Item, type Location } from "./lib/api";
+import ItemForm from "./components/ItemForm";
+import ItemDetails from "./components/ItemDetails";
+import {
+  fetchItems,
+  fetchLocations,
+  createItem,
+  updateItem,
+  deleteItem,
+  type Item,
+  type ItemCreate,
+  type Location,
+} from "./lib/api";
 
 type View = "dashboard" | "items";
 
@@ -22,6 +33,9 @@ const App: React.FC = () => {
   const [itemsError, setItemsError] = useState<string | null>(null);
   const [locationsError, setLocationsError] = useState<string | null>(null);
   const [view, setView] = useState<View>("dashboard");
+  const [showItemForm, setShowItemForm] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [editingItem, setEditingItem] = useState(false);
 
   async function loadItems() {
     setItemsLoading(true);
@@ -62,6 +76,43 @@ const App: React.FC = () => {
     setUserEmail(undefined);
     setItems([]);
     setLocations([]);
+  }
+
+  async function handleCreateItem(item: ItemCreate) {
+    await createItem(item);
+    setShowItemForm(false);
+    await loadItems();
+  }
+
+  async function handleUpdateItem(item: ItemCreate) {
+    if (!selectedItem) return;
+    await updateItem(selectedItem.id.toString(), item);
+    setEditingItem(false);
+    setSelectedItem(null);
+    await loadItems();
+  }
+
+  async function handleDeleteItem() {
+    if (!selectedItem) return;
+    await deleteItem(selectedItem.id.toString());
+    setSelectedItem(null);
+    await loadItems();
+  }
+
+  function handleItemClick(item: Item) {
+    setSelectedItem(item);
+  }
+
+  function handleEditClick() {
+    setEditingItem(true);
+  }
+
+  function getLocationName(locationId: number | string | null | undefined): string {
+    if (!locationId) return "—";
+    const location = locations.find(
+      (loc) => loc.id.toString() === locationId.toString()
+    );
+    return location?.name || "—";
   }
 
   if (!token) {
@@ -130,13 +181,25 @@ const App: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {items.slice(0, 5).map((item) => (
-                      <tr key={item.id}>
-                        <td>{item.name}</td>
-                        <td>{item.manufacturer || "—"}</td>
-                        <td>{item.location_id ?? "—"}</td>
-                      </tr>
-                    ))}
+                    {items
+                      .slice()
+                      .sort((a, b) => {
+                        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                        return dateB - dateA;
+                      })
+                      .slice(0, 10)
+                      .map((item) => (
+                        <tr
+                          key={item.id}
+                          onClick={() => handleItemClick(item)}
+                          style={{ cursor: "pointer" }}
+                        >
+                          <td>{item.name}</td>
+                          <td>{item.brand || "—"}</td>
+                          <td>{getLocationName(item.location_id)}</td>
+                        </tr>
+                      ))}
                     {items.length === 0 && !itemsLoading && (
                       <tr>
                         <td colSpan={3} className="empty-row">
@@ -157,6 +220,36 @@ const App: React.FC = () => {
             loading={itemsLoading}
             error={itemsError}
             onRefresh={loadItems}
+            onAddItem={() => setShowItemForm(true)}
+            onItemClick={handleItemClick}
+          />
+        )}
+        {showItemForm && (
+          <ItemForm
+            onSubmit={handleCreateItem}
+            onCancel={() => setShowItemForm(false)}
+            locations={locations}
+          />
+        )}
+        {selectedItem && !editingItem && (
+          <ItemDetails
+            item={selectedItem}
+            locations={locations}
+            onEdit={handleEditClick}
+            onDelete={handleDeleteItem}
+            onClose={() => setSelectedItem(null)}
+          />
+        )}
+        {selectedItem && editingItem && (
+          <ItemForm
+            onSubmit={handleUpdateItem}
+            onCancel={() => {
+              setEditingItem(false);
+              setSelectedItem(null);
+            }}
+            locations={locations}
+            initialData={selectedItem}
+            isEditing={true}
           />
         )}
       </Layout>
