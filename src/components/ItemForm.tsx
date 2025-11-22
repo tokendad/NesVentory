@@ -13,6 +13,12 @@ interface ItemFormProps {
   isEditing?: boolean;
 }
 
+// Get current date in YYYY-MM-DD format for new items
+const getCurrentDate = () => {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+};
+
 const ItemForm: React.FC<ItemFormProps> = ({
   onSubmit,
   onCancel,
@@ -20,12 +26,6 @@ const ItemForm: React.FC<ItemFormProps> = ({
   initialData,
   isEditing = false,
 }) => {
-  // Get current date in YYYY-MM-DD format for new items
-  const getCurrentDate = () => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  };
-
   const [formData, setFormData] = useState<ItemCreate>({
     name: initialData?.name || "",
     description: initialData?.description || "",
