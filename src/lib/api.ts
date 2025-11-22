@@ -207,11 +207,11 @@ export interface ApplicationStatus {
 
 export interface DatabaseStatus {
   status: string;
-  version: string;
-  version_full: string;
-  size: string;
-  size_bytes: number;
-  location: string;
+  version?: string;
+  version_full?: string;
+  size?: string;
+  size_bytes?: number;
+  location?: string;
   latest_version?: string | null;
   is_version_current?: boolean | null;
   error?: string;

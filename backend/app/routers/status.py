@@ -100,11 +100,9 @@ async def get_status(db: Session = Depends(get_db)):
                 latest_major = int(latest_parts[0])
                 
                 # Compare major versions first
-                if current_major > latest_major:
-                    is_version_current = True
-                elif current_major < latest_major:
+                if current_major < latest_major:
                     is_version_current = False
-                else:
+                elif current_major == latest_major:
                     # Same major version, compare minor if available
                     if len(current_parts) >= 2 and len(latest_parts) >= 2:
                         current_minor = int(current_parts[1])
@@ -112,6 +110,8 @@ async def get_status(db: Session = Depends(get_db)):
                         is_version_current = current_minor >= latest_minor
                     else:
                         is_version_current = True
+                # If current_major > latest_major, leave is_version_current as None
+                # This indicates an unexpected state (possibly dev/beta version)
         except (ValueError, IndexError):
             pass
     

@@ -111,7 +111,7 @@ const Status: React.FC = () => {
 
           <div className="card">
             <div className="card-label">PostgreSQL Version</div>
-            <div className="card-value">{database.version}</div>
+            <div className="card-value">{database.version || "Unknown"}</div>
             <div className="card-footnote">
               {database.is_version_current === true && (
                 <span className="status-ok">✓ Up to date</span>
@@ -135,7 +135,7 @@ const Status: React.FC = () => {
 
           <div className="card">
             <div className="card-label">Database Size</div>
-            <div className="card-value">{database.size}</div>
+            <div className="card-value">{database.size || "Unknown"}</div>
             <div className="card-footnote">
               {database.size_bytes !== undefined
                 ? `${database.size_bytes.toLocaleString()} bytes`
@@ -146,7 +146,7 @@ const Status: React.FC = () => {
           <div className="card">
             <div className="card-label">Location</div>
             <div className="card-value" style={{ fontSize: "0.75rem", wordBreak: "break-all" }}>
-              {database.location}
+              {database.location || "Unknown"}
             </div>
           </div>
         </div>
