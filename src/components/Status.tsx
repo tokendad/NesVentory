@@ -137,7 +137,9 @@ const Status: React.FC = () => {
             <div className="card-label">Database Size</div>
             <div className="card-value">{database.size}</div>
             <div className="card-footnote">
-              {database.size_bytes.toLocaleString()} bytes
+              {database.size_bytes !== undefined
+                ? `${database.size_bytes.toLocaleString()} bytes`
+                : "Size unavailable"}
             </div>
           </div>
 

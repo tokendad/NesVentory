@@ -17,10 +17,11 @@ async def get_latest_postgres_version() -> Optional[str]:
             response = await client.get("https://www.postgresql.org/versions.json")
             if response.status_code == 200:
                 versions_data = response.json()
-                if versions_data and len(versions_data) > 0:
+                if isinstance(versions_data, list) and len(versions_data) > 0:
                     # Get the first (latest) version
                     latest = versions_data[0]
-                    return str(latest.get("numeric", ""))
+                    if isinstance(latest, dict) and "numeric" in latest:
+                        return str(latest.get("numeric", ""))
     except Exception:
         pass
     return None
@@ -90,9 +91,27 @@ async def get_status(db: Session = Depends(get_db)):
     is_version_current = None
     if latest_postgres_version and database_info.get("version") != "Unknown":
         try:
-            current_major = int(database_info["version"].split(".")[0])
-            latest_major = int(latest_postgres_version.split(".")[0])
-            is_version_current = current_major >= latest_major
+            # Parse version strings (e.g., "16.11" or "15.1")
+            current_parts = database_info["version"].split(".")
+            latest_parts = latest_postgres_version.split(".")
+            
+            if len(current_parts) >= 1 and len(latest_parts) >= 1:
+                current_major = int(current_parts[0])
+                latest_major = int(latest_parts[0])
+                
+                # Compare major versions first
+                if current_major > latest_major:
+                    is_version_current = True
+                elif current_major < latest_major:
+                    is_version_current = False
+                else:
+                    # Same major version, compare minor if available
+                    if len(current_parts) >= 2 and len(latest_parts) >= 2:
+                        current_minor = int(current_parts[1])
+                        latest_minor = int(latest_parts[1])
+                        is_version_current = current_minor >= latest_minor
+                    else:
+                        is_version_current = True
         except (ValueError, IndexError):
             pass
     
