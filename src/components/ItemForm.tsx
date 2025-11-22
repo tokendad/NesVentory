@@ -1,8 +1,15 @@
 import React, { useState } from "react";
 import type { ItemCreate, Location } from "../lib/api";
+import { uploadPhoto } from "../lib/api";
+
+interface PhotoUpload {
+  file: File;
+  preview: string;
+  type: string;
+}
 
 interface ItemFormProps {
-  onSubmit: (item: ItemCreate) => Promise<void>;
+  onSubmit: (item: ItemCreate, photos: PhotoUpload[]) => Promise<void>;
   onCancel: () => void;
   locations: Location[];
   initialData?: Partial<ItemCreate>;
@@ -31,6 +38,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<PhotoUpload[]>([]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -56,12 +64,37 @@ const ItemForm: React.FC<ItemFormProps> = ({
     setLoading(true);
     setError(null);
     try {
-      await onSubmit(formData);
+      await onSubmit(formData, photos);
     } catch (err: any) {
       setError(err.message || "Failed to save item");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newPhotos: PhotoUpload[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.type.startsWith("image/")) {
+        const preview = URL.createObjectURL(file);
+        newPhotos.push({ file, preview, type });
+      }
+    }
+
+    setPhotos((prev) => [...prev, ...newPhotos]);
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos((prev) => {
+      const updated = [...prev];
+      URL.revokeObjectURL(updated[index].preview);
+      updated.splice(index, 1);
+      return updated;
+    });
   };
 
   return (
@@ -225,6 +258,101 @@ const ItemForm: React.FC<ItemFormProps> = ({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="form-section">
+            <h3>Photos</h3>
+            
+            <div className="photo-upload-section">
+              <div className="photo-type-upload">
+                <label htmlFor="photo-default">Default/Primary Photo</label>
+                <input
+                  type="file"
+                  id="photo-default"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, "default")}
+                  disabled={loading}
+                  multiple
+                />
+                <span className="help-text">Primary photo for the item</span>
+              </div>
+
+              <div className="photo-type-upload">
+                <label htmlFor="photo-data-tag">Data Tag</label>
+                <input
+                  type="file"
+                  id="photo-data-tag"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, "data_tag")}
+                  disabled={loading}
+                  multiple
+                />
+                <span className="help-text">Photo of serial number or data tag</span>
+              </div>
+
+              <div className="photo-type-upload">
+                <label htmlFor="photo-receipt">Receipt</label>
+                <input
+                  type="file"
+                  id="photo-receipt"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, "receipt")}
+                  disabled={loading}
+                  multiple
+                />
+                <span className="help-text">Purchase receipt</span>
+              </div>
+
+              <div className="photo-type-upload">
+                <label htmlFor="photo-warranty">Warranty Information</label>
+                <input
+                  type="file"
+                  id="photo-warranty"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, "warranty")}
+                  disabled={loading}
+                  multiple
+                />
+                <span className="help-text">Warranty documents or cards</span>
+              </div>
+
+              <div className="photo-type-upload">
+                <label htmlFor="photo-optional">Additional Photos</label>
+                <input
+                  type="file"
+                  id="photo-optional"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, "optional")}
+                  disabled={loading}
+                  multiple
+                />
+                <span className="help-text">Any additional photos</span>
+              </div>
+            </div>
+
+            {photos.length > 0 && (
+              <div className="photo-previews">
+                <h4>Selected Photos ({photos.length})</h4>
+                <div className="photo-preview-grid">
+                  {photos.map((photo, index) => (
+                    <div key={index} className="photo-preview-item">
+                      <img src={photo.preview} alt={`Preview ${index + 1}`} />
+                      <div className="photo-preview-info">
+                        <span className="photo-type-badge">{photo.type.replace('_', ' ')}</span>
+                        <button
+                          type="button"
+                          className="remove-photo-btn"
+                          onClick={() => removePhoto(index)}
+                          disabled={loading}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="form-actions">

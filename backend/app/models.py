@@ -105,6 +105,7 @@ class Photo(Base):
 
     is_primary = Column(Boolean, default=False, nullable=False)
     is_data_tag = Column(Boolean, default=False, nullable=False)
+    photo_type = Column(String(64), nullable=True)  # 'default', 'data_tag', 'receipt', 'warranty', 'optional'
 
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

@@ -13,10 +13,17 @@ import {
   createItem,
   updateItem,
   deleteItem,
+  uploadPhoto,
   type Item,
   type ItemCreate,
   type Location,
 } from "./lib/api";
+
+interface PhotoUpload {
+  file: File;
+  preview: string;
+  type: string;
+}
 
 type View = "dashboard" | "items" | "status";
 
@@ -79,15 +86,47 @@ const App: React.FC = () => {
     setLocations([]);
   }
 
-  async function handleCreateItem(item: ItemCreate) {
-    await createItem(item);
+  async function handleCreateItem(item: ItemCreate, photos: PhotoUpload[]) {
+    const createdItem = await createItem(item);
+    
+    // Upload photos if any
+    if (photos.length > 0) {
+      for (const photo of photos) {
+        const isPrimary = photo.type === "default";
+        const isDataTag = photo.type === "data_tag";
+        await uploadPhoto(
+          createdItem.id.toString(),
+          photo.file,
+          photo.type,
+          isPrimary,
+          isDataTag
+        );
+      }
+    }
+    
     setShowItemForm(false);
     await loadItems();
   }
 
-  async function handleUpdateItem(item: ItemCreate) {
+  async function handleUpdateItem(item: ItemCreate, photos: PhotoUpload[]) {
     if (!selectedItem) return;
-    await updateItem(selectedItem.id.toString(), item);
+    const updatedItem = await updateItem(selectedItem.id.toString(), item);
+    
+    // Upload photos if any
+    if (photos.length > 0) {
+      for (const photo of photos) {
+        const isPrimary = photo.type === "default";
+        const isDataTag = photo.type === "data_tag";
+        await uploadPhoto(
+          updatedItem.id.toString(),
+          photo.file,
+          photo.type,
+          isPrimary,
+          isDataTag
+        );
+      }
+    }
+    
     setEditingItem(false);
     setSelectedItem(null);
     await loadItems();
