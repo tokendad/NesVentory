@@ -67,6 +67,7 @@ class PhotoBase(BaseModel):
     mime_type: Optional[str] = None
     is_primary: bool = False
     is_data_tag: bool = False
+    photo_type: Optional[str] = None
 
 
 class PhotoCreate(PhotoBase):

@@ -1,8 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { ItemCreate, Location } from "../lib/api";
+import { uploadPhoto } from "../lib/api";
+import { formatPhotoType } from "../lib/utils";
+import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES } from "../lib/constants";
+import type { PhotoUpload } from "../lib/types";
 
 interface ItemFormProps {
-  onSubmit: (item: ItemCreate) => Promise<void>;
+  onSubmit: (item: ItemCreate, photos: PhotoUpload[]) => Promise<void>;
   onCancel: () => void;
   locations: Location[];
   initialData?: Partial<ItemCreate>;
@@ -31,6 +35,14 @@ const ItemForm: React.FC<ItemFormProps> = ({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<PhotoUpload[]>([]);
+
+  // Cleanup preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      photos.forEach((photo) => URL.revokeObjectURL(photo.preview));
+    };
+  }, [photos]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -56,12 +68,52 @@ const ItemForm: React.FC<ItemFormProps> = ({
     setLoading(true);
     setError(null);
     try {
-      await onSubmit(formData);
+      await onSubmit(formData, photos);
     } catch (err: any) {
       setError(err.message || "Failed to save item");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newPhotos: PhotoUpload[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      // Validate file type
+      if (ALLOWED_PHOTO_MIME_TYPES.includes(file.type)) {
+        const preview = URL.createObjectURL(file);
+        newPhotos.push({ file, preview, type });
+      } else {
+        const allowedTypes = ALLOWED_PHOTO_MIME_TYPES.map(mt => mt.replace('image/', '')).join(', ').toUpperCase();
+        setError(`Invalid file type: ${file.name}. Allowed types: ${allowedTypes}`);
+      }
+    }
+
+    // For default and data_tag types, only one photo is allowed
+    // Remove any existing photos of the same type before adding new ones
+    if (type === PHOTO_TYPES.DEFAULT || type === PHOTO_TYPES.DATA_TAG) {
+      setPhotos((prev) => {
+        // Revoke URLs for photos being removed
+        prev.filter(p => p.type === type).forEach(p => URL.revokeObjectURL(p.preview));
+        // Remove existing photos of this type and add new one
+        return [...prev.filter(p => p.type !== type), ...newPhotos];
+      });
+    } else {
+      setPhotos((prev) => [...prev, ...newPhotos]);
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setPhotos((prev) => {
+      const updated = [...prev];
+      URL.revokeObjectURL(updated[index].preview);
+      updated.splice(index, 1);
+      return updated;
+    });
   };
 
   return (
@@ -225,6 +277,99 @@ const ItemForm: React.FC<ItemFormProps> = ({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="form-section">
+            <h3>Photos</h3>
+            
+            <div className="photo-upload-section">
+              <div className="photo-type-upload">
+                <label htmlFor="photo-default">Default/Primary Photo</label>
+                <input
+                  type="file"
+                  id="photo-default"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DEFAULT)}
+                  disabled={loading}
+                />
+                <span className="help-text">Primary photo for the item</span>
+              </div>
+
+              <div className="photo-type-upload">
+                <label htmlFor="photo-data-tag">Data Tag</label>
+                <input
+                  type="file"
+                  id="photo-data-tag"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DATA_TAG)}
+                  disabled={loading}
+                />
+                <span className="help-text">Photo of serial number or data tag</span>
+              </div>
+
+              <div className="photo-type-upload">
+                <label htmlFor="photo-receipt">Receipt</label>
+                <input
+                  type="file"
+                  id="photo-receipt"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.RECEIPT)}
+                  disabled={loading}
+                  multiple
+                />
+                <span className="help-text">Purchase receipt</span>
+              </div>
+
+              <div className="photo-type-upload">
+                <label htmlFor="photo-warranty">Warranty Information</label>
+                <input
+                  type="file"
+                  id="photo-warranty"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.WARRANTY)}
+                  disabled={loading}
+                  multiple
+                />
+                <span className="help-text">Warranty documents or cards</span>
+              </div>
+
+              <div className="photo-type-upload">
+                <label htmlFor="photo-optional">Additional Photos</label>
+                <input
+                  type="file"
+                  id="photo-optional"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
+                  disabled={loading}
+                  multiple
+                />
+                <span className="help-text">Any additional photos</span>
+              </div>
+            </div>
+
+            {photos.length > 0 && (
+              <div className="photo-previews">
+                <h4>Selected Photos ({photos.length})</h4>
+                <div className="photo-preview-grid">
+                  {photos.map((photo, index) => (
+                    <div key={index} className="photo-preview-item">
+                      <img src={photo.preview} alt={`Preview ${index + 1}`} />
+                      <div className="photo-preview-info">
+                        <span className="photo-type-badge">{formatPhotoType(photo.type)}</span>
+                        <button
+                          type="button"
+                          className="remove-photo-btn"
+                          onClick={() => removePhoto(index)}
+                          disabled={loading}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="form-actions">

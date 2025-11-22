@@ -13,10 +13,13 @@ import {
   createItem,
   updateItem,
   deleteItem,
+  uploadPhoto,
   type Item,
   type ItemCreate,
   type Location,
 } from "./lib/api";
+import { PHOTO_TYPES } from "./lib/constants";
+import type { PhotoUpload } from "./lib/types";
 
 type View = "dashboard" | "items" | "status";
 
@@ -79,18 +82,36 @@ const App: React.FC = () => {
     setLocations([]);
   }
 
-  async function handleCreateItem(item: ItemCreate) {
-    await createItem(item);
+  async function handleCreateItem(item: ItemCreate, photos: PhotoUpload[]) {
+    const createdItem = await createItem(item);
+    await uploadPhotosForItem(createdItem.id.toString(), photos);
     setShowItemForm(false);
     await loadItems();
   }
 
-  async function handleUpdateItem(item: ItemCreate) {
+  async function handleUpdateItem(item: ItemCreate, photos: PhotoUpload[]) {
     if (!selectedItem) return;
-    await updateItem(selectedItem.id.toString(), item);
+    const updatedItem = await updateItem(selectedItem.id.toString(), item);
+    await uploadPhotosForItem(updatedItem.id.toString(), photos);
     setEditingItem(false);
     setSelectedItem(null);
     await loadItems();
+  }
+
+  async function uploadPhotosForItem(itemId: string, photos: PhotoUpload[]) {
+    if (photos.length > 0) {
+      for (const photo of photos) {
+        const isPrimary = photo.type === PHOTO_TYPES.DEFAULT;
+        const isDataTag = photo.type === PHOTO_TYPES.DATA_TAG;
+        await uploadPhoto(
+          itemId,
+          photo.file,
+          photo.type,
+          isPrimary,
+          isDataTag
+        );
+      }
+    }
   }
 
   async function handleDeleteItem() {

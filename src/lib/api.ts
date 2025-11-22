@@ -23,6 +23,7 @@ export interface Photo {
   mime_type?: string | null;
   is_primary: boolean;
   is_data_tag: boolean;
+  photo_type?: string | null;
   uploaded_at: string;
 }
 
@@ -229,4 +230,49 @@ export async function fetchStatus(): Promise<SystemStatus> {
     },
   });
   return handleResponse<SystemStatus>(res);
+}
+
+export async function uploadPhoto(
+  itemId: string,
+  file: File,
+  photoType?: string,
+  isPrimary: boolean = false,
+  isDataTag: boolean = false
+): Promise<Photo> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("is_primary", isPrimary.toString());
+  formData.append("is_data_tag", isDataTag.toString());
+  if (photoType) {
+    formData.append("photo_type", photoType);
+  }
+
+  const res = await fetch(`${API_BASE_URL}/api/items/${itemId}/photos`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+    },
+    body: formData,
+  });
+  return handleResponse<Photo>(res);
+}
+
+export async function deletePhoto(itemId: string, photoId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/items/${itemId}/photos/${photoId}`, {
+    method: "DELETE",
+    headers: {
+      ...authHeaders(),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text;
+    try {
+      const data = JSON.parse(text);
+      message = (data.detail as string) || JSON.stringify(data);
+    } catch {
+      // ignore
+    }
+    throw new Error(message || `HTTP ${res.status}`);
+  }
 }
