@@ -16,15 +16,35 @@ RUN pip install --user -r requirements.txt
 
 FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
+# Environment variables for user/group configuration
+ARG PUID=1000
+ARG PGID=1000
+ENV PUID=${PUID} \
+    PGID=${PGID} \
+    UMASK=002 \
+    TZ=Etc/UTC \
+    PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+# Install timezone data
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create user and group with specified IDs
+RUN groupadd -g ${PGID} nesventory && \
+    useradd -u ${PUID} -g nesventory -s /bin/bash -m nesventory
+
 COPY --from=builder /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 
-COPY . /app
+# Copy application files and set ownership
+COPY --chown=nesventory:nesventory . /app
+
+# Switch to nesventory user
+USER nesventory
 
 EXPOSE 8001
 
