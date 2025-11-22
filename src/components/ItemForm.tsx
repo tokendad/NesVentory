@@ -20,13 +20,19 @@ const ItemForm: React.FC<ItemFormProps> = ({
   initialData,
   isEditing = false,
 }) => {
+  // Get current date in YYYY-MM-DD format for new items
+  const getCurrentDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+
   const [formData, setFormData] = useState<ItemCreate>({
     name: initialData?.name || "",
     description: initialData?.description || "",
     brand: initialData?.brand || "",
     model_number: initialData?.model_number || "",
     serial_number: initialData?.serial_number || "",
-    purchase_date: initialData?.purchase_date || "",
+    purchase_date: initialData?.purchase_date || (!isEditing ? getCurrentDate() : ""),
     purchase_price: initialData?.purchase_price || undefined,
     estimated_value: initialData?.estimated_value || undefined,
     retailer: initialData?.retailer || "",
