@@ -1,13 +1,15 @@
 import React from "react";
+import { User } from "../lib/api";
 
 interface LayoutProps {
   sidebar: React.ReactNode;
   children: React.ReactNode;
   onLogout: () => void;
-  userEmail?: string;
+  user?: User | null;
+  onUserClick?: () => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail }) => {
+const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, user, onUserClick }) => {
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -16,7 +18,15 @@ const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail 
           <span className="app-title">NesVentory</span>
         </div>
         <div className="app-header-right">
-          {userEmail && <span className="user-email">{userEmail}</span>}
+          {user && (
+            <button 
+              className="user-email clickable" 
+              onClick={onUserClick}
+              title="User Settings"
+            >
+              {user.email}
+            </button>
+          )}
           <button className="btn-outline" onClick={onLogout}>
             Logout
           </button>

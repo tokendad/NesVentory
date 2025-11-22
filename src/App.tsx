@@ -6,15 +6,19 @@ import ItemsTable from "./components/ItemsTable";
 import LocationsTree from "./components/LocationsTree";
 import ItemForm from "./components/ItemForm";
 import ItemDetails from "./components/ItemDetails";
+import UserSettings from "./components/UserSettings";
+import AdminPanel from "./components/AdminPanel";
 import {
   fetchItems,
   fetchLocations,
   createItem,
   updateItem,
   deleteItem,
+  getCurrentUser,
   type Item,
   type ItemCreate,
   type Location,
+  type User,
 } from "./lib/api";
 
 type View = "dashboard" | "items";
@@ -23,9 +27,7 @@ const App: React.FC = () => {
   const [token, setToken] = useState<string | null>(
     () => localStorage.getItem("NesVentory_token")
   );
-  const [userEmail, setUserEmail] = useState<string | undefined>(
-    () => localStorage.getItem("NesVentory_user_email") || undefined
-  );
+  const [user, setUser] = useState<User | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [itemsLoading, setItemsLoading] = useState(false);
@@ -36,6 +38,18 @@ const App: React.FC = () => {
   const [showItemForm, setShowItemForm] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [editingItem, setEditingItem] = useState(false);
+  const [showUserSettings, setShowUserSettings] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+
+  async function loadUser() {
+    try {
+      const userData = await getCurrentUser();
+      setUser(userData);
+      localStorage.setItem("NesVentory_user_email", userData.email);
+    } catch (err: any) {
+      console.error("Failed to load user:", err);
+    }
+  }
 
   async function loadItems() {
     setItemsLoading(true);
@@ -65,6 +79,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!token) return;
+    loadUser();
     loadItems();
     loadLocations();
   }, [token]);
@@ -73,7 +88,7 @@ const App: React.FC = () => {
     localStorage.removeItem("NesVentory_token");
     localStorage.removeItem("NesVentory_user_email");
     setToken(null);
-    setUserEmail(undefined);
+    setUser(null);
     setItems([]);
     setLocations([]);
   }
@@ -121,7 +136,8 @@ const App: React.FC = () => {
         <LoginForm
           onSuccess={(newToken, email) => {
             setToken(newToken);
-            setUserEmail(email);
+            localStorage.setItem("NesVentory_token", newToken);
+            localStorage.setItem("NesVentory_user_email", email);
           }}
         />
       </div>
@@ -142,6 +158,14 @@ const App: React.FC = () => {
       >
         Items
       </button>
+      {user?.role === "admin" && (
+        <button
+          className="nav-link"
+          onClick={() => setShowAdminPanel(true)}
+        >
+          Admin
+        </button>
+      )}
       <hr />
       <LocationsTree
         locations={locations}
@@ -153,7 +177,17 @@ const App: React.FC = () => {
 
   return (
     <div className="app-root">
-      <Layout sidebar={sidebar} onLogout={handleLogout} userEmail={userEmail}>
+      <Layout 
+        sidebar={sidebar} 
+        onLogout={handleLogout} 
+        user={user}
+        onUserClick={() => setShowUserSettings(true)}
+      >
+        {user && view === "dashboard" && (
+          <div className="dashboard-user-info">
+            <p>Logged in as: <strong>{user.email}</strong> ({user.role})</p>
+          </div>
+        )}
         {view === "dashboard" && (
           <>
             <DashboardCards
@@ -251,6 +285,19 @@ const App: React.FC = () => {
             initialData={selectedItem}
             isEditing={true}
           />
+        )}
+        {showUserSettings && user && (
+          <UserSettings
+            user={user}
+            onClose={() => setShowUserSettings(false)}
+            onUpdate={(updatedUser) => {
+              setUser(updatedUser);
+              setShowUserSettings(false);
+            }}
+          />
+        )}
+        {showAdminPanel && user?.role === "admin" && (
+          <AdminPanel onClose={() => setShowAdminPanel(false)} />
         )}
       </Layout>
     </div>

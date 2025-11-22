@@ -6,7 +6,7 @@ from .config import settings
 from . import models
 from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
-from .routers import items, locations, auth
+from .routers import items, locations, auth, users
 
 # Auto-create tables on startup and seed with test data
 Base.metadata.create_all(bind=engine)
@@ -43,6 +43,7 @@ app.add_middleware(
 app.include_router(items.router, prefix="/api")
 app.include_router(locations.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
 
 @app.get("/api/health")
 def health():

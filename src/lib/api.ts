@@ -7,6 +7,51 @@ export interface LoginResponse {
   token_type: string;
 }
 
+export interface User {
+  id: string;
+  email: string;
+  full_name?: string | null;
+  role: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserUpdate {
+  email?: string;
+  full_name?: string;
+  role?: string;
+}
+
+export interface PasswordUpdate {
+  current_password: string;
+  new_password: string;
+}
+
+export interface SystemHealth {
+  status: string;
+  database: string;
+  counts: {
+    users: number;
+    items: number;
+    locations: number;
+  };
+}
+
+export interface DatabaseSize {
+  total_size_bytes: number;
+  total_size_pretty: string;
+  tables: Array<{
+    table: string;
+    size: string;
+    size_bytes: number;
+  }>;
+  media: {
+    photos: number;
+    documents: number;
+    note: string;
+  };
+}
+
 export interface Warranty {
   type: 'manufacturer' | 'extended';
   provider?: string | null;
@@ -198,3 +243,117 @@ export async function deleteItem(itemId: string): Promise<void> {
     throw new Error(message || `HTTP ${res.status}`);
   }
 }
+
+// User endpoints
+
+export async function getCurrentUser(): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/me`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<User>(res);
+}
+
+export async function updateCurrentUser(update: UserUpdate): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/me`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(update),
+  });
+  return handleResponse<User>(res);
+}
+
+export async function updatePassword(passwordUpdate: PasswordUpdate): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/me/password`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(passwordUpdate),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text;
+    try {
+      const data = JSON.parse(text);
+      message = (data.detail as string) || JSON.stringify(data);
+    } catch {
+      // ignore
+    }
+    throw new Error(message || `HTTP ${res.status}`);
+  }
+}
+
+// Admin endpoints
+
+export async function getAllUsers(): Promise<User[]> {
+  const res = await fetch(`${API_BASE_URL}/api/users`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<User[]>(res);
+}
+
+export async function updateUser(userId: string, update: UserUpdate): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(update),
+  });
+  return handleResponse<User>(res);
+}
+
+export async function deleteUser(userId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+    method: "DELETE",
+    headers: {
+      ...authHeaders(),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text;
+    try {
+      const data = JSON.parse(text);
+      message = (data.detail as string) || JSON.stringify(data);
+    } catch {
+      // ignore
+    }
+    throw new Error(message || `HTTP ${res.status}`);
+  }
+}
+
+export async function getSystemHealth(): Promise<SystemHealth> {
+  const res = await fetch(`${API_BASE_URL}/api/admin/health`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<SystemHealth>(res);
+}
+
+export async function getDatabaseSize(): Promise<DatabaseSize> {
+  const res = await fetch(`${API_BASE_URL}/api/admin/database-size`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<DatabaseSize>(res);
+}
+

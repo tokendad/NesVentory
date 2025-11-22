@@ -96,6 +96,16 @@ body {
   background: rgba(15, 23, 42, 0.8);
 }
 
+.user-email.clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.user-email.clickable:hover {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: var(--accent);
+}
+
 .app-body {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
@@ -792,3 +802,227 @@ tbody tr:hover {
   color: var(--muted);
 }
 
+
+/* Dashboard User Info */
+.dashboard-user-info {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.dashboard-user-info p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.dashboard-user-info strong {
+  color: var(--text);
+}
+
+/* Settings Section */
+.settings-section {
+  margin-bottom: 1.5rem;
+}
+
+.settings-section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: var(--accent);
+  font-size: 1.1rem;
+}
+
+/* Admin Tabs */
+.admin-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.admin-tabs .tab {
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.95rem;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.admin-tabs .tab:hover {
+  color: var(--text);
+  background: var(--accent-soft);
+}
+
+.admin-tabs .tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Health Cards */
+.health-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.health-card {
+  padding: 1.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.health-card h4 {
+  margin: 0 0 0.75rem 0;
+  color: var(--accent);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.health-card .status {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.health-card .status.healthy {
+  color: #10b981;
+}
+
+.health-card .status.unhealthy {
+  color: var(--danger);
+}
+
+.health-card .status.degraded {
+  color: #f59e0b;
+}
+
+.health-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.health-card ul li {
+  padding: 0.25rem 0;
+  color: var(--text);
+}
+
+/* Database Size */
+.db-summary {
+  padding: 1rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.db-summary h4 {
+  margin: 0;
+  color: var(--accent);
+}
+
+.media-info {
+  padding: 1rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+}
+
+.media-info h4 {
+  margin: 0 0 0.75rem 0;
+  color: var(--accent);
+}
+
+.media-info p {
+  margin: 0.5rem 0;
+  color: var(--text);
+}
+
+.media-info .note {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* Role Badge */
+.role-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.role-badge.admin {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.role-badge.editor {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.role-badge.viewer {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--muted);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+/* Button Variants */
+.btn-small {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  margin-right: 0.5rem;
+}
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+/* Modal Size Variants */
+.modal-content.large {
+  max-width: 600px;
+}
+
+.modal-content.xlarge {
+  max-width: 900px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Alert Messages */
+.alert {
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.alert-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.alert-success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
