@@ -19,12 +19,7 @@ import {
   type Location,
 } from "./lib/api";
 import { PHOTO_TYPES } from "./lib/constants";
-
-interface PhotoUpload {
-  file: File;
-  preview: string;
-  type: string;
-}
+import type { PhotoUpload } from "./lib/types";
 
 type View = "dashboard" | "items" | "status";
 

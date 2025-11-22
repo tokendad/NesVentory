@@ -3,12 +3,7 @@ import type { ItemCreate, Location } from "../lib/api";
 import { uploadPhoto } from "../lib/api";
 import { formatPhotoType } from "../lib/utils";
 import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES } from "../lib/constants";
-
-interface PhotoUpload {
-  file: File;
-  preview: string;
-  type: string;
-}
+import type { PhotoUpload } from "../lib/types";
 
 interface ItemFormProps {
   onSubmit: (item: ItemCreate, photos: PhotoUpload[]) => Promise<void>;
@@ -93,11 +88,23 @@ const ItemForm: React.FC<ItemFormProps> = ({
         const preview = URL.createObjectURL(file);
         newPhotos.push({ file, preview, type });
       } else {
-        setError(`Invalid file type: ${file.name}. Allowed types: JPEG, PNG, GIF, WebP`);
+        const allowedTypes = ALLOWED_PHOTO_MIME_TYPES.map(mt => mt.replace('image/', '')).join(', ').toUpperCase();
+        setError(`Invalid file type: ${file.name}. Allowed types: ${allowedTypes}`);
       }
     }
 
-    setPhotos((prev) => [...prev, ...newPhotos]);
+    // For default and data_tag types, only one photo is allowed
+    // Remove any existing photos of the same type before adding new ones
+    if (type === PHOTO_TYPES.DEFAULT || type === PHOTO_TYPES.DATA_TAG) {
+      setPhotos((prev) => {
+        // Revoke URLs for photos being removed
+        prev.filter(p => p.type === type).forEach(p => URL.revokeObjectURL(p.preview));
+        // Remove existing photos of this type and add new one
+        return [...prev.filter(p => p.type !== type), ...newPhotos];
+      });
+    } else {
+      setPhotos((prev) => [...prev, ...newPhotos]);
+    }
   };
 
   const removePhoto = (index: number) => {
