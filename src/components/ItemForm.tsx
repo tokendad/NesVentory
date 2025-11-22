@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import type { ItemCreate, Location } from "../lib/api";
 import { uploadPhoto } from "../lib/api";
+import { formatPhotoType } from "../lib/utils";
 
 interface PhotoUpload {
   file: File;
@@ -272,7 +273,6 @@ const ItemForm: React.FC<ItemFormProps> = ({
                   accept="image/*"
                   onChange={(e) => handlePhotoChange(e, "default")}
                   disabled={loading}
-                  multiple
                 />
                 <span className="help-text">Primary photo for the item</span>
               </div>
@@ -285,7 +285,6 @@ const ItemForm: React.FC<ItemFormProps> = ({
                   accept="image/*"
                   onChange={(e) => handlePhotoChange(e, "data_tag")}
                   disabled={loading}
-                  multiple
                 />
                 <span className="help-text">Photo of serial number or data tag</span>
               </div>
@@ -338,7 +337,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                     <div key={index} className="photo-preview-item">
                       <img src={photo.preview} alt={`Preview ${index + 1}`} />
                       <div className="photo-preview-info">
-                        <span className="photo-type-badge">{photo.type.replace('_', ' ')}</span>
+                        <span className="photo-type-badge">{formatPhotoType(photo.type)}</span>
                         <button
                           type="button"
                           className="remove-photo-btn"

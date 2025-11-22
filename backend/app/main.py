@@ -49,7 +49,9 @@ app.include_router(status.router, prefix="/api")
 app.include_router(photos.router, prefix="/api")
 
 # Setup uploads directory and mount static files
-UPLOAD_DIR = Path("/app/uploads")
+import os
+UPLOAD_BASE = os.getenv("UPLOAD_DIR", "/app/uploads")
+UPLOAD_DIR = Path(UPLOAD_BASE)
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 (UPLOAD_DIR / "photos").mkdir(exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")

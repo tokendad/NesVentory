@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import type { Item, Location } from "../lib/api";
 import { getApiBaseUrl } from "../lib/api";
+import { formatPhotoType } from "../lib/utils";
 
 interface ItemDetailsProps {
   item: Item;
@@ -182,7 +183,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
               <h3>Images</h3>
               <div className="photos-grid">
                 {item.photos.map((photo) => {
-                  let badgeText = photo.photo_type ? photo.photo_type.replace('_', ' ') : 'Photo';
+                  let badgeText = formatPhotoType(photo.photo_type);
                   if (photo.is_primary) badgeText = 'Primary';
                   else if (photo.is_data_tag) badgeText = 'Data Tag';
                   

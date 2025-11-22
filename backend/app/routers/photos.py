@@ -4,16 +4,23 @@ from typing import List, Optional
 from uuid import UUID
 import os
 import shutil
+import logging
 from pathlib import Path
 from datetime import datetime
 from .. import models, schemas
 from ..deps import get_db
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/items", tags=["photos"])
 
-# Directory to store uploaded photos
-UPLOAD_DIR = Path("/app/uploads/photos")
+# Directory to store uploaded photos - use environment variable or default
+UPLOAD_BASE = os.getenv("UPLOAD_DIR", "/app/uploads")
+UPLOAD_DIR = Path(UPLOAD_BASE) / "photos"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+# Allowed file types for photo uploads
+ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
 
 
 @router.post("/{item_id}/photos", response_model=schemas.Photo, status_code=status.HTTP_201_CREATED)
@@ -32,11 +39,10 @@ async def upload_photo(
         raise HTTPException(status_code=404, detail="Item not found")
     
     # Validate file type
-    allowed_types = ["image/jpeg", "image/png", "image/gif", "image/webp"]
-    if file.content_type not in allowed_types:
+    if file.content_type not in ALLOWED_PHOTO_TYPES:
         raise HTTPException(
             status_code=400, 
-            detail=f"Invalid file type. Allowed types: {', '.join(allowed_types)}"
+            detail=f"Invalid file type. Allowed types: {', '.join(ALLOWED_PHOTO_TYPES)}"
         )
     
     # Generate unique filename
@@ -104,7 +110,7 @@ def delete_photo(
         try:
             file_path.unlink()
         except Exception as e:
-            print(f"Warning: Failed to delete file {file_path}: {e}")
+            logger.warning(f"Failed to delete file {file_path}: {e}")
     
     db.delete(photo)
     db.commit()
