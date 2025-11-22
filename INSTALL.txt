@@ -1,0 +1,334 @@
+================================================================================
+NesVentory Installation Guide
+================================================================================
+
+Version: 1.1.0-alpha
+
+This guide provides detailed instructions for installing and running NesVentory
+using Docker Compose or Docker CLI commands.
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. Prerequisites
+2. Installation with Docker Compose (Recommended)
+3. Installation with Docker CLI
+4. Environment Configuration
+5. Accessing the Application
+6. Default Login Credentials
+7. Verification Steps
+8. Troubleshooting
+9. Stopping the Application
+
+================================================================================
+1. PREREQUISITES
+================================================================================
+
+Before installing NesVentory, ensure you have the following installed:
+
+- Docker (version 20.10 or higher)
+- Docker Compose (version 2.0 or higher)
+- Node.js (version 18 or higher) - for frontend development
+- npm (version 9 or higher) - for frontend development
+- Git (for cloning the repository)
+
+To verify your Docker installation:
+  docker --version
+  docker compose version
+
+To verify your Node.js installation:
+  node --version
+  npm --version
+
+================================================================================
+2. INSTALLATION WITH DOCKER COMPOSE (RECOMMENDED)
+================================================================================
+
+Docker Compose is the recommended method as it orchestrates both the database
+and backend services automatically.
+
+Step 1: Clone the Repository
+-----------------------------
+git clone https://github.com/tokendad/NesVentory.git
+cd NesVentory
+
+Step 2: Configure Environment Variables
+----------------------------------------
+Copy the example environment file and configure your settings:
+
+  cp .env.example .env
+
+IMPORTANT: Edit the .env file and set secure values for:
+  - SECRET_KEY - Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+  - JWT_SECRET_KEY - Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+  - DB_PASSWORD - Use a strong, unique password
+
+Step 3: Build and Start Services
+---------------------------------
+Build and start the backend and database services:
+
+  docker compose up --build
+
+This command will:
+  - Build the backend Docker image
+  - Pull the PostgreSQL 16 image
+  - Create a Docker network for the services
+  - Start the database and backend containers
+  - Automatically create tables and seed test data
+
+To run in detached mode (background):
+  docker compose up -d --build
+
+To view logs when running in detached mode:
+  docker compose logs -f
+
+Step 4: Start Frontend Development Server
+------------------------------------------
+In a separate terminal window, start the frontend:
+
+  npm install
+  npm run dev
+
+================================================================================
+3. INSTALLATION WITH DOCKER CLI
+================================================================================
+
+If you prefer to use Docker CLI commands instead of Docker Compose, follow
+these steps:
+
+Step 1: Create Docker Network
+------------------------------
+docker network create nesventory_net
+
+Step 2: Create Database Volume
+-------------------------------
+docker volume create nesventory_db_data
+
+Step 3: Start PostgreSQL Database
+----------------------------------
+docker run -d \
+  --name nesventory_db \
+  --network nesventory_net \
+  -e POSTGRES_DB=nesventory \
+  -e POSTGRES_USER=nesventory \
+  -e POSTGRES_PASSWORD=your-secure-password \
+  -v nesventory_db_data:/var/lib/postgresql/data \
+  --restart unless-stopped \
+  postgres:16
+
+Step 4: Build Backend Image
+----------------------------
+cd backend
+docker build -t nesventory-backend .
+cd ..
+
+Step 5: Start Backend Service
+------------------------------
+docker run -d \
+  --name nesventory_backend \
+  --network nesventory_net \
+  -e DB_HOST=nesventory_db \
+  -e DB_PORT=5432 \
+  -e DB_USER=nesventory \
+  -e DB_PASSWORD=your-secure-password \
+  -e DB_NAME=nesventory \
+  -e SECRET_KEY=your-super-secret-key \
+  -e JWT_SECRET_KEY=your-jwt-secret-key \
+  -e CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173 \
+  -v $(pwd)/backend:/app \
+  -p 8001:8001 \
+  --restart unless-stopped \
+  nesventory-backend
+
+Step 6: Start Frontend
+-----------------------
+npm install
+npm run dev
+
+================================================================================
+4. ENVIRONMENT CONFIGURATION
+================================================================================
+
+The application uses environment variables for configuration. Key variables:
+
+Required Security Settings:
+  SECRET_KEY                    - Application secret key
+  JWT_SECRET_KEY                - JWT token signing key
+  DB_PASSWORD                   - Database password
+
+Database Settings:
+  DB_HOST                       - Database host (default: nesventory_db)
+  DB_PORT                       - Database port (default: 5432)
+  DB_USER                       - Database user (default: nesventory)
+  DB_NAME                       - Database name (default: nesventory)
+
+Application Settings:
+  PROJECT_NAME                  - Project name (default: NesVentory)
+  BACKEND_PORT                  - Backend port (default: 8001)
+  FRONTEND_PORT                 - Frontend port (default: 5173)
+  ACCESS_TOKEN_EXPIRE_MINUTES   - JWT expiration (default: 30)
+
+CORS Settings:
+  CORS_ORIGINS                  - Comma-separated allowed origins
+
+See .env.example for a complete template with all available options.
+
+================================================================================
+5. ACCESSING THE APPLICATION
+================================================================================
+
+Once all services are running, you can access:
+
+  Frontend UI:        http://localhost:5173
+  Backend API:        http://localhost:8001
+  API Documentation:  http://localhost:8001/docs
+  Health Check:       http://localhost:8001/api/health
+  Version Info:       http://localhost:8001/api/version
+
+================================================================================
+6. DEFAULT LOGIN CREDENTIALS
+================================================================================
+
+The application automatically seeds the database with three test users:
+
+  Admin User:
+    Email:    admin@nesventory.local
+    Password: admin123
+    Access:   Full administrative access
+
+  Editor User:
+    Email:    editor@nesventory.local
+    Password: editor123
+    Access:   Can create and modify items
+
+  Viewer User:
+    Email:    viewer@nesventory.local
+    Password: viewer123
+    Access:   Read-only access
+
+WARNING: These are default credentials for testing only!
+For production deployments, change all passwords immediately.
+
+================================================================================
+7. VERIFICATION STEPS
+================================================================================
+
+To verify the installation is successful:
+
+1. Check Docker Containers are Running:
+   docker compose ps
+   
+   Expected output should show:
+   - nesventory_db (running)
+   - nesventory_backend (running)
+
+2. Check Backend Health:
+   curl http://localhost:8001/api/health
+   
+   Expected response: {"status":"healthy"}
+
+3. Check Backend Version:
+   curl http://localhost:8001/api/version
+   
+   Expected response: {"name":"NesVentory","version":"1.1.0-alpha"}
+
+4. Check Frontend:
+   Open http://localhost:5173 in your browser
+   You should see the login page
+
+5. Test Login:
+   Use the admin credentials to log in:
+   Email: admin@nesventory.local
+   Password: admin123
+
+6. Check Database Seeding:
+   curl http://localhost:8001/api/items
+   (Requires authentication token)
+   
+   Should return the 8 pre-seeded test items
+
+================================================================================
+8. TROUBLESHOOTING
+================================================================================
+
+Database Connection Issues:
+---------------------------
+If the backend cannot connect to the database:
+  - Verify the database container is running: docker compose ps
+  - Check database logs: docker compose logs nesventory_db
+  - Verify DB_PASSWORD matches in both services
+
+Database Schema Errors:
+-----------------------
+If you see foreign key or type mismatch errors:
+  1. Stop containers: docker compose down
+  2. Remove database volume: docker volume rm nesventory_nesventory_db_data
+  3. Restart: docker compose up --build
+
+Port Already in Use:
+--------------------
+If port 8001 or 5173 is already in use:
+  - Change BACKEND_PORT or FRONTEND_PORT in .env
+  - Update docker-compose.yml ports section
+  - Restart services
+
+Frontend Cannot Connect to Backend:
+------------------------------------
+  - Verify backend is running and accessible
+  - Check CORS_ORIGINS in .env includes your frontend URL
+  - Ensure no firewall is blocking the connection
+
+View Container Logs:
+--------------------
+  docker compose logs -f nesventory_backend
+  docker compose logs -f nesventory_db
+
+Rebuild from Scratch:
+---------------------
+  docker compose down -v
+  docker compose up --build
+
+================================================================================
+9. STOPPING THE APPLICATION
+================================================================================
+
+Using Docker Compose:
+---------------------
+Stop services (keeps data):
+  docker compose down
+
+Stop services and remove volumes (deletes all data):
+  docker compose down -v
+
+Using Docker CLI:
+-----------------
+Stop containers:
+  docker stop nesventory_backend nesventory_db
+
+Remove containers:
+  docker rm nesventory_backend nesventory_db
+
+Remove network:
+  docker network rm nesventory_net
+
+Remove volume (deletes all data):
+  docker volume rm nesventory_db_data
+
+Stop Frontend:
+--------------
+Press Ctrl+C in the terminal running npm run dev
+
+================================================================================
+ADDITIONAL RESOURCES
+================================================================================
+
+- Project README: README.md
+- Database Seeding Documentation: SEEDING.md
+- API Documentation: http://localhost:8001/docs (when running)
+- GitHub Repository: https://github.com/tokendad/NesVentory
+
+For issues and support, please visit:
+https://github.com/tokendad/NesVentory/issues
+
+================================================================================
