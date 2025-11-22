@@ -113,8 +113,6 @@ docker run -d \
   -e POSTGRES_DB=nesventory \
   -e POSTGRES_USER=nesventory \
   -e POSTGRES_PASSWORD=your-secure-password \
-  -e PUID=1000 \
-  -e PGID=1000 \
   -e TZ=Etc/UTC \
   -v nesventory_db_data:/var/lib/postgresql/data \
   --restart unless-stopped \
@@ -199,8 +197,8 @@ Docker User Configuration (Optional):
                                   Find your group ID with: id -g
   
   UMASK                         - File creation permission mask (default: 002)
-                                  002 = Files: 775 (rwxrwxr-x), Dirs: 755
-                                  022 = Files: 644 (rw-r--r--), Dirs: 755
+                                  002 = Files: 664 (rw-rw-r--), Dirs: 775 (rwxrwxr-x)
+                                  022 = Files: 644 (rw-r--r--), Dirs: 755 (rwxr-xr-x)
   
   TZ                            - Timezone for container (default: Etc/UTC)
                                   Use IANA timezone names (e.g., America/New_York)

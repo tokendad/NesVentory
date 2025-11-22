@@ -37,8 +37,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN groupadd -g ${PGID} nesventory && \
     useradd -u ${PUID} -g nesventory -s /bin/bash -m nesventory
 
-COPY --from=builder /root/.local /root/.local
-ENV PATH=/root/.local/bin:$PATH
+# Copy Python packages to nesventory user's local directory
+COPY --from=builder /root/.local /home/nesventory/.local
+RUN chown -R nesventory:nesventory /home/nesventory/.local
+ENV PATH=/home/nesventory/.local/bin:$PATH
 
 # Copy application files and set ownership
 COPY --chown=nesventory:nesventory . /app
