@@ -140,7 +140,7 @@ async def create_user(
         email=user_create.email,
         password_hash=get_password_hash(user_create.password),
         full_name=user_create.full_name,
-        role=getattr(user_create, 'role', models.UserRole.VIEWER)
+        role=user_create.role or models.UserRole.VIEWER
     )
     db.add(new_user)
     db.commit()
@@ -207,6 +207,17 @@ async def delete_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
+    
+    # Prevent deleting the last admin
+    if user.role == models.UserRole.ADMIN:
+        admin_count = db.query(models.User).filter(
+            models.User.role == models.UserRole.ADMIN
+        ).count()
+        if admin_count <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete the last admin user"
+            )
     
     db.delete(user)
     db.commit()

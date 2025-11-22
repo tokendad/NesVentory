@@ -8,6 +8,7 @@ import ItemForm from "./components/ItemForm";
 import ItemDetails from "./components/ItemDetails";
 import UserSettings from "./components/UserSettings";
 import AdminPanel from "./components/AdminPanel";
+import { STORAGE_KEYS } from "./lib/constants";
 import {
   fetchItems,
   fetchLocations,
@@ -25,7 +26,7 @@ type View = "dashboard" | "items";
 
 const App: React.FC = () => {
   const [token, setToken] = useState<string | null>(
-    () => localStorage.getItem("NesVentory_token")
+    () => localStorage.getItem(STORAGE_KEYS.TOKEN)
   );
   const [user, setUser] = useState<User | null>(null);
   const [items, setItems] = useState<Item[]>([]);
@@ -45,7 +46,7 @@ const App: React.FC = () => {
     try {
       const userData = await getCurrentUser();
       setUser(userData);
-      localStorage.setItem("NesVentory_user_email", userData.email);
+      localStorage.setItem(STORAGE_KEYS.USER_EMAIL, userData.email);
     } catch (err: any) {
       console.error("Failed to load user:", err);
     }
@@ -85,8 +86,8 @@ const App: React.FC = () => {
   }, [token]);
 
   function handleLogout() {
-    localStorage.removeItem("NesVentory_token");
-    localStorage.removeItem("NesVentory_user_email");
+    localStorage.removeItem(STORAGE_KEYS.TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.USER_EMAIL);
     setToken(null);
     setUser(null);
     setItems([]);
@@ -136,8 +137,8 @@ const App: React.FC = () => {
         <LoginForm
           onSuccess={(newToken, email) => {
             setToken(newToken);
-            localStorage.setItem("NesVentory_token", newToken);
-            localStorage.setItem("NesVentory_user_email", email);
+            localStorage.setItem(STORAGE_KEYS.TOKEN, newToken);
+            localStorage.setItem(STORAGE_KEYS.USER_EMAIL, email);
           }}
         />
       </div>

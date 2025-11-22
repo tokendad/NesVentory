@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { STORAGE_KEYS } from "../lib/constants";
 import {
   updateCurrentUser,
   updatePassword,
@@ -37,7 +38,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
       const updatedUser = await updateCurrentUser(update);
       onUpdate(updatedUser);
       setSuccess("Profile updated successfully");
-      localStorage.setItem("NesVentory_user_email", updatedUser.email);
+      localStorage.setItem(STORAGE_KEYS.USER_EMAIL, updatedUser.email);
     } catch (err: any) {
       setError(err.message || "Failed to update profile");
     } finally {

@@ -1,3 +1,5 @@
+import { STORAGE_KEYS } from "./constants";
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ||
   "http://localhost:8001";
@@ -161,7 +163,7 @@ export async function login(
 }
 
 function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem("NesVentory_token");
+  const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
   if (!token) return {};
   return {
     Authorization: `Bearer ${token}`,
