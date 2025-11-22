@@ -34,8 +34,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Create user and group with specified IDs
-RUN groupadd -g ${PGID} nesventory && \
-    useradd -u ${PUID} -g nesventory -s /bin/bash -m nesventory
+# Note: Uses -o to allow non-unique IDs if they conflict with base image
+RUN groupadd -o -g ${PGID} nesventory 2>/dev/null || true && \
+    useradd -o -u ${PUID} -g ${PGID} -s /bin/bash -m nesventory 2>/dev/null || true
 
 # Copy Python packages to nesventory user's local directory
 COPY --from=builder /root/.local /home/nesventory/.local

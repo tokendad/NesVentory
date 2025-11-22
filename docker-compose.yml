@@ -36,6 +36,8 @@ services:
       UMASK: ${UMASK:-002}
       TZ: ${TZ:-Etc/UTC}
     volumes:
+      # Development mode: Mount source code for live reloading
+      # For production, remove this mount and bake code into the image
       - ./backend:/app
       # Optional: Data volume to hold configuration and database backups
       # Uncomment and adjust the path below for persistent config storage
