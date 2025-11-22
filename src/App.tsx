@@ -6,6 +6,7 @@ import ItemsTable from "./components/ItemsTable";
 import LocationsTree from "./components/LocationsTree";
 import ItemForm from "./components/ItemForm";
 import ItemDetails from "./components/ItemDetails";
+import Status from "./components/Status";
 import {
   fetchItems,
   fetchLocations,
@@ -17,7 +18,7 @@ import {
   type Location,
 } from "./lib/api";
 
-type View = "dashboard" | "items";
+type View = "dashboard" | "items" | "status";
 
 const App: React.FC = () => {
   const [token, setToken] = useState<string | null>(
@@ -142,6 +143,12 @@ const App: React.FC = () => {
       >
         Items
       </button>
+      <button
+        className={view === "status" ? "nav-link active" : "nav-link"}
+        onClick={() => setView("status")}
+      >
+        Status
+      </button>
       <hr />
       <LocationsTree
         locations={locations}
@@ -224,6 +231,7 @@ const App: React.FC = () => {
             onItemClick={handleItemClick}
           />
         )}
+        {view === "status" && <Status />}
         {showItemForm && (
           <ItemForm
             onSubmit={handleCreateItem}
