@@ -39,18 +39,17 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content large" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{item.name}</h2>
-          <button className="modal-close" onClick={onClose}>
-            ✕
-          </button>
-        </div>
-        
-        {deleteError && <div className="error-banner">{deleteError}</div>}
-        
-        <div className="item-details">
+    <section className="panel item-details-panel">
+      <div className="panel-header">
+        <h2>{item.name}</h2>
+        <button className="modal-close" onClick={onClose}>
+          ✕
+        </button>
+      </div>
+      
+      {deleteError && <div className="error-banner">{deleteError}</div>}
+      
+      <div className="item-details">
           <div className="details-section">
             <h3>Basic Information</h3>
             <div className="details-grid">
@@ -221,25 +220,24 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
           )}
         </div>
 
-        <div className="modal-actions">
-          <button
-            className="btn-danger"
-            onClick={handleDelete}
-            disabled={deleting}
-          >
-            {deleting ? "Deleting..." : "Delete"}
+      <div className="panel-actions">
+        <button
+          className="btn-danger"
+          onClick={handleDelete}
+          disabled={deleting}
+        >
+          {deleting ? "Deleting..." : "Delete"}
+        </button>
+        <div style={{ marginLeft: "auto", display: "flex", gap: "0.75rem" }}>
+          <button className="btn-outline" onClick={onClose}>
+            Close
           </button>
-          <div style={{ marginLeft: "auto", display: "flex", gap: "0.75rem" }}>
-            <button className="btn-outline" onClick={onClose}>
-              Close
-            </button>
-            <button className="btn-primary" onClick={onEdit}>
-              Edit
-            </button>
-          </div>
+          <button className="btn-primary" onClick={onEdit}>
+            Edit
+          </button>
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 
