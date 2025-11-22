@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { ItemCreate, Location } from "../lib/api";
 import { uploadPhoto } from "../lib/api";
 import { formatPhotoType } from "../lib/utils";
+import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES } from "../lib/constants";
 
 interface PhotoUpload {
   file: File;
@@ -40,6 +41,13 @@ const ItemForm: React.FC<ItemFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [photos, setPhotos] = useState<PhotoUpload[]>([]);
+
+  // Cleanup preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      photos.forEach((photo) => URL.revokeObjectURL(photo.preview));
+    };
+  }, [photos]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -80,9 +88,12 @@ const ItemForm: React.FC<ItemFormProps> = ({
     const newPhotos: PhotoUpload[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      if (file.type.startsWith("image/")) {
+      // Validate file type
+      if (ALLOWED_PHOTO_MIME_TYPES.includes(file.type)) {
         const preview = URL.createObjectURL(file);
         newPhotos.push({ file, preview, type });
+      } else {
+        setError(`Invalid file type: ${file.name}. Allowed types: JPEG, PNG, GIF, WebP`);
       }
     }
 
@@ -271,7 +282,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                   type="file"
                   id="photo-default"
                   accept="image/*"
-                  onChange={(e) => handlePhotoChange(e, "default")}
+                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DEFAULT)}
                   disabled={loading}
                 />
                 <span className="help-text">Primary photo for the item</span>
@@ -283,7 +294,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                   type="file"
                   id="photo-data-tag"
                   accept="image/*"
-                  onChange={(e) => handlePhotoChange(e, "data_tag")}
+                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DATA_TAG)}
                   disabled={loading}
                 />
                 <span className="help-text">Photo of serial number or data tag</span>
@@ -295,7 +306,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                   type="file"
                   id="photo-receipt"
                   accept="image/*"
-                  onChange={(e) => handlePhotoChange(e, "receipt")}
+                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.RECEIPT)}
                   disabled={loading}
                   multiple
                 />
@@ -308,7 +319,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                   type="file"
                   id="photo-warranty"
                   accept="image/*"
-                  onChange={(e) => handlePhotoChange(e, "warranty")}
+                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.WARRANTY)}
                   disabled={loading}
                   multiple
                 />
@@ -321,7 +332,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                   type="file"
                   id="photo-optional"
                   accept="image/*"
-                  onChange={(e) => handlePhotoChange(e, "optional")}
+                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
                   disabled={loading}
                   multiple
                 />

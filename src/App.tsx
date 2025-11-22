@@ -18,6 +18,7 @@ import {
   type ItemCreate,
   type Location,
 } from "./lib/api";
+import { PHOTO_TYPES } from "./lib/constants";
 
 interface PhotoUpload {
   file: File;
@@ -88,22 +89,7 @@ const App: React.FC = () => {
 
   async function handleCreateItem(item: ItemCreate, photos: PhotoUpload[]) {
     const createdItem = await createItem(item);
-    
-    // Upload photos if any
-    if (photos.length > 0) {
-      for (const photo of photos) {
-        const isPrimary = photo.type === "default";
-        const isDataTag = photo.type === "data_tag";
-        await uploadPhoto(
-          createdItem.id.toString(),
-          photo.file,
-          photo.type,
-          isPrimary,
-          isDataTag
-        );
-      }
-    }
-    
+    await uploadPhotosForItem(createdItem.id.toString(), photos);
     setShowItemForm(false);
     await loadItems();
   }
@@ -111,14 +97,19 @@ const App: React.FC = () => {
   async function handleUpdateItem(item: ItemCreate, photos: PhotoUpload[]) {
     if (!selectedItem) return;
     const updatedItem = await updateItem(selectedItem.id.toString(), item);
-    
-    // Upload photos if any
+    await uploadPhotosForItem(updatedItem.id.toString(), photos);
+    setEditingItem(false);
+    setSelectedItem(null);
+    await loadItems();
+  }
+
+  async function uploadPhotosForItem(itemId: string, photos: PhotoUpload[]) {
     if (photos.length > 0) {
       for (const photo of photos) {
-        const isPrimary = photo.type === "default";
-        const isDataTag = photo.type === "data_tag";
+        const isPrimary = photo.type === PHOTO_TYPES.DEFAULT;
+        const isDataTag = photo.type === PHOTO_TYPES.DATA_TAG;
         await uploadPhoto(
-          updatedItem.id.toString(),
+          itemId,
           photo.file,
           photo.type,
           isPrimary,
@@ -126,10 +117,6 @@ const App: React.FC = () => {
         );
       }
     }
-    
-    setEditingItem(false);
-    setSelectedItem(null);
-    await loadItems();
   }
 
   async function handleDeleteItem() {
