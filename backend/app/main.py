@@ -8,7 +8,7 @@ from .config import settings
 from . import models
 from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
-from .routers import items, locations, auth, status, photos
+from .routers import items, locations, auth, status, photos, users
 
 # Auto-create tables on startup and seed with test data
 Base.metadata.create_all(bind=engine)
@@ -47,6 +47,7 @@ app.include_router(locations.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(status.router, prefix="/api")
 app.include_router(photos.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
 
 # Setup uploads directory and mount static files
 import os

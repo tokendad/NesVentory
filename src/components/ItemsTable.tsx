@@ -1,5 +1,6 @@
 import React from "react";
-import type { Item } from "../lib/api";
+import type { Item, User } from "../lib/api";
+import { formatDate, formatCurrency } from "../lib/i18n";
 
 interface ItemsTableProps {
   items: Item[];
@@ -8,6 +9,7 @@ interface ItemsTableProps {
   onRefresh: () => void;
   onAddItem: () => void;
   onItemClick: (item: Item) => void;
+  currentUser: User | null;
 }
 
 const ItemsTable: React.FC<ItemsTableProps> = ({
@@ -17,6 +19,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   onRefresh,
   onAddItem,
   onItemClick,
+  currentUser,
 }) => {
   return (
     <section className="panel">
@@ -58,11 +61,9 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 <td>{item.brand || "—"}</td>
                 <td>{item.model_number || "—"}</td>
                 <td>{item.serial_number || "—"}</td>
-                <td>{item.purchase_date || "—"}</td>
+                <td>{formatDate(item.purchase_date, currentUser?.locale, currentUser?.timezone)}</td>
                 <td>
-                  {item.purchase_price != null && !isNaN(Number(item.purchase_price))
-                    ? `$${Number(item.purchase_price).toFixed(2)}`
-                    : "—"}
+                  {formatCurrency(item.purchase_price, currentUser?.locale, currentUser?.currency)}
                 </td>
               </tr>
             ))}

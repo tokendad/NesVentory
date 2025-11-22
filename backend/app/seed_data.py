@@ -2,6 +2,7 @@
 Database seeding script for NesVentory.
 Pre-populates the database with test users, locations, and items.
 """
+import os
 import uuid
 from datetime import datetime, date, timedelta
 from decimal import Decimal
@@ -46,6 +47,9 @@ def seed_database(db: Session) -> None:
 
 def create_users(db: Session) -> list:
     """Create test users with different roles."""
+    # Get default timezone from environment
+    default_tz = os.getenv("TZ", "Etc/UTC")
+    
     users = [
         models.User(
             id=uuid.uuid4(),
@@ -53,6 +57,9 @@ def create_users(db: Session) -> list:
             password_hash=get_password_hash("admin123"),
             full_name="Admin User",
             role=models.UserRole.ADMIN,
+            locale="en-US",
+            timezone=default_tz,
+            currency="USD",
         ),
         models.User(
             id=uuid.uuid4(),
@@ -60,6 +67,9 @@ def create_users(db: Session) -> list:
             password_hash=get_password_hash("editor123"),
             full_name="Editor User",
             role=models.UserRole.EDITOR,
+            locale="en-US",
+            timezone=default_tz,
+            currency="USD",
         ),
         models.User(
             id=uuid.uuid4(),
@@ -67,6 +77,9 @@ def create_users(db: Session) -> list:
             password_hash=get_password_hash("viewer123"),
             full_name="Viewer User",
             role=models.UserRole.VIEWER,
+            locale="en-US",
+            timezone=default_tz,
+            currency="USD",
         ),
     ]
 

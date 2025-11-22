@@ -7,6 +7,7 @@ import LocationsTree from "./components/LocationsTree";
 import ItemForm from "./components/ItemForm";
 import ItemDetails from "./components/ItemDetails";
 import Status from "./components/Status";
+import UserSettings from "./components/UserSettings";
 import {
   fetchItems,
   fetchLocations,
@@ -14,14 +15,16 @@ import {
   updateItem,
   deleteItem,
   uploadPhoto,
+  getCurrentUser,
   type Item,
   type ItemCreate,
   type Location,
+  type User,
 } from "./lib/api";
 import { PHOTO_TYPES } from "./lib/constants";
 import type { PhotoUpload } from "./lib/types";
 
-type View = "dashboard" | "items" | "status";
+type View = "dashboard" | "items" | "status" | "settings";
 
 const App: React.FC = () => {
   const [token, setToken] = useState<string | null>(
@@ -30,6 +33,7 @@ const App: React.FC = () => {
   const [userEmail, setUserEmail] = useState<string | undefined>(
     () => localStorage.getItem("NesVentory_user_email") || undefined
   );
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [itemsLoading, setItemsLoading] = useState(false);
@@ -71,13 +75,24 @@ const App: React.FC = () => {
     if (!token) return;
     loadItems();
     loadLocations();
+    loadCurrentUser();
   }, [token]);
+
+  async function loadCurrentUser() {
+    try {
+      const user = await getCurrentUser();
+      setCurrentUser(user);
+    } catch (err: any) {
+      console.error("Failed to load user:", err);
+    }
+  }
 
   function handleLogout() {
     localStorage.removeItem("NesVentory_token");
     localStorage.removeItem("NesVentory_user_email");
     setToken(null);
     setUserEmail(undefined);
+    setCurrentUser(null);
     setItems([]);
     setLocations([]);
   }
@@ -170,6 +185,12 @@ const App: React.FC = () => {
       >
         Status
       </button>
+      <button
+        className={view === "settings" ? "nav-link active" : "nav-link"}
+        onClick={() => setView("settings")}
+      >
+        Settings
+      </button>
       <hr />
       <LocationsTree
         locations={locations}
@@ -250,9 +271,18 @@ const App: React.FC = () => {
             onRefresh={loadItems}
             onAddItem={() => setShowItemForm(true)}
             onItemClick={handleItemClick}
+            currentUser={currentUser}
           />
         )}
         {view === "status" && <Status />}
+        {view === "settings" && (
+          <UserSettings
+            onClose={() => {
+              setView("dashboard");
+              loadCurrentUser(); // Reload user data when settings are closed
+            }}
+          />
+        )}
         {showItemForm && (
           <ItemForm
             onSubmit={handleCreateItem}
@@ -267,6 +297,7 @@ const App: React.FC = () => {
             onEdit={handleEditClick}
             onDelete={handleDeleteItem}
             onClose={() => setSelectedItem(null)}
+            currentUser={currentUser}
           />
         )}
         {selectedItem && editingItem && (

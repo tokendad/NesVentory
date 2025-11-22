@@ -78,6 +78,25 @@ export interface Location {
   children?: Location[];
 }
 
+export interface User {
+  id: string;
+  email: string;
+  full_name?: string | null;
+  role: string;
+  locale?: string | null;
+  timezone?: string | null;
+  currency?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserUpdate {
+  full_name?: string | null;
+  locale?: string | null;
+  timezone?: string | null;
+  currency?: string | null;
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const text = await res.text();
@@ -276,3 +295,36 @@ export async function deletePhoto(itemId: string, photoId: string): Promise<void
     throw new Error(message || `HTTP ${res.status}`);
   }
 }
+
+export async function getCurrentUser(): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/users/me`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<User>(res);
+}
+
+export async function updateCurrentUser(userUpdate: UserUpdate): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/users/me`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(userUpdate),
+  });
+  return handleResponse<User>(res);
+}
+
+export async function getDefaultTimezone(): Promise<{ timezone: string }> {
+  const res = await fetch(`${API_BASE_URL}/api/users/me/default-timezone`, {
+    headers: {
+      "Accept": "application/json",
+    },
+  });
+  return handleResponse<{ timezone: string }>(res);
+}
+

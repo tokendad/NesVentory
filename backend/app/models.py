@@ -39,6 +39,11 @@ class User(Base):
     role = Column(Enum(UserRole.ADMIN, UserRole.EDITOR, UserRole.VIEWER, name="user_role", type_=String),
                   nullable=False, default=UserRole.ADMIN)
 
+    # Internationalization settings
+    locale = Column(String(10), nullable=True, default="en-US")  # e.g., 'en-US', 'fr-FR', 'de-DE'
+    timezone = Column(String(64), nullable=True, default="Etc/UTC")  # IANA timezone, e.g., 'America/New_York'
+    currency = Column(String(3), nullable=True, default="USD")  # ISO 4217 currency code
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
