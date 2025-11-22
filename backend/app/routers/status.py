@@ -5,7 +5,6 @@ from ..config import settings
 from ..deps import get_db
 import httpx
 from typing import Dict, Any, Optional
-import os
 
 router = APIRouter()
 

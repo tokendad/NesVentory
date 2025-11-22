@@ -12,8 +12,9 @@ const Status: React.FC = () => {
     try {
       const data = await fetchStatus();
       setStatus(data);
-    } catch (err: any) {
-      setError(err.message || "Failed to load status");
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to load status";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
