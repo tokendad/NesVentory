@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from uuid import UUID
 
-from ..deps import get_db, get_current_user
+from ..deps import get_db
+from ..auth import get_current_user
 from ..models import User as UserModel
 from ..schemas import User as UserSchema, UserUpdate
 from .. import crud
