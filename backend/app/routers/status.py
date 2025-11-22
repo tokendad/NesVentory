@@ -13,7 +13,7 @@ async def get_latest_postgres_version() -> Optional[str]:
     """Fetch the latest PostgreSQL version from official sources."""
     try:
         # Try to fetch from PostgreSQL official website
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=2.0) as client:
             response = await client.get("https://www.postgresql.org/versions.json")
             if response.status_code == 200:
                 versions_data = response.json()
