@@ -32,7 +32,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
     try {
       const update: UserUpdate = {
         email,
-        full_name: fullName || null,
+        full_name: fullName || undefined,
       };
       const updatedUser = await updateCurrentUser(update);
       onUpdate(updatedUser);
