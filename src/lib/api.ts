@@ -198,3 +198,35 @@ export async function deleteItem(itemId: string): Promise<void> {
     throw new Error(message || `HTTP ${res.status}`);
   }
 }
+
+export interface ApplicationStatus {
+  name: string;
+  version: string;
+  status: string;
+}
+
+export interface DatabaseStatus {
+  status: string;
+  version?: string;
+  version_full?: string;
+  size?: string;
+  size_bytes?: number;
+  location?: string;
+  latest_version?: string | null;
+  is_version_current?: boolean | null;
+  error?: string;
+}
+
+export interface SystemStatus {
+  application: ApplicationStatus;
+  database: DatabaseStatus;
+}
+
+export async function fetchStatus(): Promise<SystemStatus> {
+  const res = await fetch(`${API_BASE_URL}/api/status`, {
+    headers: {
+      "Accept": "application/json",
+    },
+  });
+  return handleResponse<SystemStatus>(res);
+}
