@@ -23,9 +23,19 @@ class UserCreate(UserBase):
     password: str
 
 
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    locale: Optional[str] = None
+    timezone: Optional[str] = None
+    currency: Optional[str] = None
+
+
 class User(UserBase):
     id: UUID
     role: str
+    locale: Optional[str] = None
+    timezone: Optional[str] = None
+    currency: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
