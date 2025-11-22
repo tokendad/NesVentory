@@ -32,19 +32,26 @@ async def update_current_user(
     Update the current authenticated user's settings.
     Allows updating full_name, locale, timezone, and currency.
     """
-    # Update only the fields that are provided
-    if user_update.full_name is not None:
-        current_user.full_name = user_update.full_name
-    if user_update.locale is not None:
-        current_user.locale = user_update.locale
-    if user_update.timezone is not None:
-        current_user.timezone = user_update.timezone
-    if user_update.currency is not None:
-        current_user.currency = user_update.currency
-    
-    db.commit()
-    db.refresh(current_user)
-    return current_user
+    try:
+        # Update only the fields that are provided
+        if user_update.full_name is not None:
+            current_user.full_name = user_update.full_name
+        if user_update.locale is not None:
+            current_user.locale = user_update.locale
+        if user_update.timezone is not None:
+            current_user.timezone = user_update.timezone
+        if user_update.currency is not None:
+            current_user.currency = user_update.currency
+        
+        db.commit()
+        db.refresh(current_user)
+        return current_user
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update user settings: {str(e)}"
+        )
 
 
 @router.get("/me/default-timezone")

@@ -2,6 +2,21 @@
  * Internationalization formatting utilities for dates, times, and currency
  */
 
+// Common date format options
+const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+};
+
+const DATETIME_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+};
+
 /**
  * Format a date string according to the user's locale
  */
@@ -15,11 +30,12 @@ export function formatDate(
   const effectiveLocale = locale || "en-US";
   const date = new Date(dateString);
   
-  const options: Intl.DateTimeFormatOptions = {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  };
+  // Validate the date
+  if (isNaN(date.getTime())) {
+    return "—";
+  }
+  
+  const options: Intl.DateTimeFormatOptions = { ...DATE_FORMAT_OPTIONS };
   
   if (timezone) {
     options.timeZone = timezone;
@@ -29,11 +45,7 @@ export function formatDate(
     return new Intl.DateTimeFormat(effectiveLocale, options).format(date);
   } catch (e) {
     // Fallback if locale or timezone is invalid
-    return new Intl.DateTimeFormat("en-US", { 
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit"
-    }).format(date);
+    return new Intl.DateTimeFormat("en-US", DATE_FORMAT_OPTIONS).format(date);
   }
 }
 
@@ -50,13 +62,12 @@ export function formatDateTime(
   const effectiveLocale = locale || "en-US";
   const date = new Date(dateTimeString);
   
-  const options: Intl.DateTimeFormatOptions = {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  };
+  // Validate the date
+  if (isNaN(date.getTime())) {
+    return "—";
+  }
+  
+  const options: Intl.DateTimeFormatOptions = { ...DATETIME_FORMAT_OPTIONS };
   
   if (timezone) {
     options.timeZone = timezone;
@@ -66,13 +77,7 @@ export function formatDateTime(
     return new Intl.DateTimeFormat(effectiveLocale, options).format(date);
   } catch (e) {
     // Fallback if locale or timezone is invalid
-    return new Intl.DateTimeFormat("en-US", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date);
+    return new Intl.DateTimeFormat("en-US", DATETIME_FORMAT_OPTIONS).format(date);
   }
 }
 
