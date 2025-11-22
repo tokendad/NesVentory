@@ -113,9 +113,14 @@ docker run -d \
   -e POSTGRES_DB=nesventory \
   -e POSTGRES_USER=nesventory \
   -e POSTGRES_PASSWORD=your-secure-password \
+  -e TZ=Etc/UTC \
   -v nesventory_db_data:/var/lib/postgresql/data \
   --restart unless-stopped \
   postgres:16
+
+Optional Volume Mount:
+  Add this to the docker run command above to sync with host timezone:
+  -v /etc/localtime:/etc/localtime:ro
 
 Step 4: Build Backend Image
 ----------------------------
@@ -136,10 +141,26 @@ docker run -d \
   -e SECRET_KEY=your-super-secret-key \
   -e JWT_SECRET_KEY=your-jwt-secret-key \
   -e CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173 \
+  -e PUID=1000 \
+  -e PGID=1000 \
+  -e UMASK=002 \
+  -e TZ=Etc/UTC \
   -v $(pwd)/backend:/app \
   -p 8001:8001 \
   --restart unless-stopped \
   nesventory-backend
+
+Optional Volume Mounts:
+  Add these to the docker run command above for additional functionality:
+  
+  -v /data/DockerConfigs/nesventory:/config \
+    (Persistent configuration and backups)
+  
+  -v /media:/media \
+    (Media files and images)
+  
+  -v /etc/localtime:/etc/localtime:ro \
+    (Sync with host timezone)
 
 Step 6: Start Frontend
 -----------------------
@@ -162,6 +183,26 @@ Database Settings:
   DB_PORT                       - Database port (default: 5432)
   DB_USER                       - Database user (default: nesventory)
   DB_NAME                       - Database name (default: nesventory)
+  POSTGRES_DB                   - PostgreSQL database name (for db container)
+  POSTGRES_USER                 - PostgreSQL user name (for db container)
+  POSTGRES_PASSWORD             - PostgreSQL password (for db container)
+
+Docker User Configuration (Optional):
+  PUID                          - User ID for container process (default: 1000)
+                                  Controls file ownership for created files
+                                  Find your user ID with: id -u
+  
+  PGID                          - Group ID for container process (default: 1000)
+                                  Controls group ownership for created files
+                                  Find your group ID with: id -g
+  
+  UMASK                         - File creation permission mask (default: 002)
+                                  002 = Files: 664 (rw-rw-r--), Dirs: 775 (rwxrwxr-x)
+                                  022 = Files: 644 (rw-r--r--), Dirs: 755 (rwxr-xr-x)
+  
+  TZ                            - Timezone for container (default: Etc/UTC)
+                                  Use IANA timezone names (e.g., America/New_York)
+                                  List: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 
 Application Settings:
   PROJECT_NAME                  - Project name (default: NesVentory)
@@ -171,6 +212,23 @@ Application Settings:
 
 CORS Settings:
   CORS_ORIGINS                  - Comma-separated allowed origins
+
+Docker Volume Configuration:
+  The docker-compose.yml file includes optional volume mounts that can be
+  uncommented and configured based on your needs:
+
+  Config Volume:
+    - /data/DockerConfigs/nesventory:/config
+      Stores persistent configuration and database backups
+  
+  Media Volume:
+    - /media:/media
+      Stores uploaded images and media attachments
+  
+  Timezone Sync:
+    - /etc/localtime:/etc/localtime:ro
+      Synchronizes container timezone with host system
+      Alternative to setting TZ environment variable
 
 See .env.example for a complete template with all available options.
 
