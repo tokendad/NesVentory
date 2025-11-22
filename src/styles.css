@@ -545,7 +545,8 @@ tbody tr:hover {
   color: var(--text);
 }
 
-.modal-actions {
+.modal-actions,
+.panel-actions {
   display: flex;
   gap: 0.75rem;
   margin-top: 1.5rem;
@@ -640,6 +641,10 @@ tbody tr:hover {
 }
 
 /* Item Details Styles */
+.item-details-panel {
+  margin-bottom: 1.5rem;
+}
+
 .item-details {
   display: flex;
   flex-direction: column;
