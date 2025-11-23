@@ -11,6 +11,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [newRole, setNewRole] = useState<string>("");
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   async function loadUsers() {
     setLoading(true);
@@ -30,13 +31,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
   }, []);
 
   async function handleRoleChange(userId: string, role: string) {
+    setUpdateError(null);
     try {
       const updatedUser = await updateUser(userId, { role });
       setUsers(users.map(u => u.id === userId ? updatedUser : u));
       setEditingUserId(null);
       setNewRole("");
     } catch (err: any) {
-      alert(`Failed to update role: ${err.message}`);
+      setUpdateError(`Failed to update role: ${err.message}`);
     }
   }
 
@@ -61,6 +63,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
         </div>
         {loading && <p>Loading users...</p>}
         {error && <p className="error-message">{error}</p>}
+        {updateError && <p className="error-message">{updateError}</p>}
         {!loading && !error && (
           <div className="table-wrapper">
             <table className="items-table">

@@ -54,6 +54,7 @@ const App: React.FC = () => {
   const [showRegisterForm, setShowRegisterForm] = useState(false);
   const [showUserSettings, setShowUserSettings] = useState(false);
   const [showAdminPage, setShowAdminPage] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   async function loadItems() {
     setItemsLoading(true);
@@ -176,18 +177,40 @@ const App: React.FC = () => {
           <RegisterForm
             onSuccess={() => {
               setShowRegisterForm(false);
-              alert("Registration successful! Please log in.");
+              setRegistrationSuccess(true);
             }}
             onCancel={() => setShowRegisterForm(false)}
           />
         ) : (
-          <LoginForm
-            onSuccess={(newToken, email) => {
-              setToken(newToken);
-              setUserEmail(email);
-            }}
-            onRegisterClick={() => setShowRegisterForm(true)}
-          />
+          <div>
+            {registrationSuccess && (
+              <div style={{
+                position: "fixed",
+                top: "1rem",
+                left: "50%",
+                transform: "translateX(-50%)",
+                backgroundColor: "#4caf50",
+                color: "white",
+                padding: "1rem 2rem",
+                borderRadius: "4px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                zIndex: 1000
+              }}>
+                Registration successful! Please log in.
+              </div>
+            )}
+            <LoginForm
+              onSuccess={(newToken, email) => {
+                setToken(newToken);
+                setUserEmail(email);
+                setRegistrationSuccess(false);
+              }}
+              onRegisterClick={() => {
+                setShowRegisterForm(true);
+                setRegistrationSuccess(false);
+              }}
+            />
+          </div>
         )}
       </div>
     );

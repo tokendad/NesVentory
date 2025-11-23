@@ -27,7 +27,8 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
     try {
       const updates: { full_name?: string; password?: string } = {};
       
-      if (fullName !== user.full_name) {
+      // Handle null vs empty string comparison correctly
+      if ((fullName || null) !== user.full_name) {
         updates.full_name = fullName;
       }
       

@@ -12,7 +12,9 @@ router = APIRouter()
 @router.post("/users", response_model=schemas.UserRead, status_code=status.HTTP_201_CREATED)
 def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     """
-    Register a new user. Default role is 'viewer'.
+    Register a new user. Default role is 'viewer' for security.
+    Note: The User model default is ADMIN for backwards compatibility with seeding,
+    but registration explicitly sets VIEWER for new user registrations.
     """
     existing = db.query(models.User).filter(models.User.email == user_in.email).first()
     if existing:
@@ -77,7 +79,7 @@ def update_user(
     if "role" in user_in and user_in["role"] is not None and current_user.role == models.UserRole.ADMIN:
         try:
             user.role = models.UserRole(user_in["role"])
-        except Exception:
+        except ValueError:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
 
     db.add(user)

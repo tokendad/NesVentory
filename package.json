@@ -1,6 +1,6 @@
 {
   "name": "nesventory-frontend",
-  "version": "1.1.2-alpha",
+  "version": "1.1.1",
   "private": true,
   "scripts": {
     "dev": "vite",
