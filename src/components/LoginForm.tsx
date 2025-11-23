@@ -3,9 +3,10 @@ import { login } from "../lib/api";
 
 interface LoginFormProps {
   onSuccess: (token: string, email: string) => void;
+  onRegisterClick?: () => void;
 }
 
-const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
+const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -60,6 +61,16 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
           <button className="btn-primary" type="submit" disabled={loading}>
             {loading ? "Signing in..." : "Sign in"}
           </button>
+          {onRegisterClick && (
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={onRegisterClick}
+              style={{ marginTop: "0.5rem" }}
+            >
+              Register New Account
+            </button>
+          )}
         </form>
         <p className="login-footer">
           API: <code>{import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}</code>

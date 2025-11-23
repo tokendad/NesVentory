@@ -5,9 +5,11 @@ interface LayoutProps {
   children: React.ReactNode;
   onLogout: () => void;
   userEmail?: string;
+  userName?: string;
+  onUserClick?: () => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail }) => {
+const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail, userName, onUserClick }) => {
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -16,7 +18,16 @@ const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail 
           <span className="app-title">NesVentory</span>
         </div>
         <div className="app-header-right">
-          {userEmail && <span className="user-email">{userEmail}</span>}
+          {(userName || userEmail) && (
+            <span 
+              className="user-email" 
+              onClick={onUserClick}
+              style={{ cursor: onUserClick ? "pointer" : "default" }}
+              title="Click to edit profile"
+            >
+              {userName || userEmail}
+            </span>
+          )}
           <button className="btn-outline" onClick={onLogout}>
             Logout
           </button>

@@ -33,6 +33,16 @@ class User(UserBase):
         from_attributes = True
 
 
+class UserRead(UserBase):
+    id: UUID
+    role: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # --- Location Schemas ---
 
 class LocationBase(BaseModel):
