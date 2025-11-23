@@ -276,3 +276,66 @@ export async function deletePhoto(itemId: string, photoId: string): Promise<void
     throw new Error(message || `HTTP ${res.status}`);
   }
 }
+
+// --- User APIs ---
+
+export interface User {
+  id: string;
+  email: string;
+  full_name?: string | null;
+  role: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserCreate {
+  email: string;
+  password: string;
+  full_name?: string | null;
+}
+
+export async function registerUser(userCreate: UserCreate): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/users`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
+    body: JSON.stringify(userCreate),
+  });
+  return handleResponse<User>(res);
+}
+
+export async function getCurrentUser(): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/users/me`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<User>(res);
+}
+
+export async function fetchUsers(): Promise<User[]> {
+  const res = await fetch(`${API_BASE_URL}/api/users`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<User[]>(res);
+}
+
+export async function updateUser(userId: string, updates: Partial<{full_name: string, password: string, role: string}>): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(updates),
+  });
+  return handleResponse<User>(res);
+}
+

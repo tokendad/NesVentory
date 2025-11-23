@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from "react";
 import LoginForm from "./components/LoginForm";
+import RegisterForm from "./components/RegisterForm";
+import UserSettings from "./components/UserSettings";
+import AdminPage from "./components/AdminPage";
 import Layout from "./components/Layout";
 import DashboardCards from "./components/DashboardCards";
 import ItemsTable from "./components/ItemsTable";
@@ -14,14 +17,16 @@ import {
   updateItem,
   deleteItem,
   uploadPhoto,
+  getCurrentUser,
   type Item,
   type ItemCreate,
   type Location,
+  type User,
 } from "./lib/api";
 import { PHOTO_TYPES } from "./lib/constants";
 import type { PhotoUpload } from "./lib/types";
 
-type View = "dashboard" | "items" | "status";
+type View = "dashboard" | "items" | "status" | "admin";
 
 const App: React.FC = () => {
   const [token, setToken] = useState<string | null>(
@@ -29,6 +34,12 @@ const App: React.FC = () => {
   );
   const [userEmail, setUserEmail] = useState<string | undefined>(
     () => localStorage.getItem("NesVentory_user_email") || undefined
+  );
+  const [currentUser, setCurrentUser] = useState<User | null>(
+    () => {
+      const stored = localStorage.getItem("NesVentory_currentUser");
+      return stored ? JSON.parse(stored) : null;
+    }
   );
   const [items, setItems] = useState<Item[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -40,6 +51,10 @@ const App: React.FC = () => {
   const [showItemForm, setShowItemForm] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [editingItem, setEditingItem] = useState(false);
+  const [showRegisterForm, setShowRegisterForm] = useState(false);
+  const [showUserSettings, setShowUserSettings] = useState(false);
+  const [showAdminPage, setShowAdminPage] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   async function loadItems() {
     setItemsLoading(true);
@@ -67,17 +82,30 @@ const App: React.FC = () => {
     }
   }
 
+  async function loadCurrentUser() {
+    try {
+      const user = await getCurrentUser();
+      setCurrentUser(user);
+      localStorage.setItem("NesVentory_currentUser", JSON.stringify(user));
+    } catch (err: any) {
+      console.error("Failed to load current user:", err);
+    }
+  }
+
   useEffect(() => {
     if (!token) return;
     loadItems();
     loadLocations();
+    loadCurrentUser();
   }, [token]);
 
   function handleLogout() {
     localStorage.removeItem("NesVentory_token");
     localStorage.removeItem("NesVentory_user_email");
+    localStorage.removeItem("NesVentory_currentUser");
     setToken(null);
     setUserEmail(undefined);
+    setCurrentUser(null);
     setItems([]);
     setLocations([]);
   }
@@ -137,15 +165,53 @@ const App: React.FC = () => {
     return location?.name || "—";
   }
 
+  function handleUserSettingsUpdate(updatedUser: User) {
+    setCurrentUser(updatedUser);
+    localStorage.setItem("NesVentory_currentUser", JSON.stringify(updatedUser));
+  }
+
   if (!token) {
     return (
       <div className="app-root">
-        <LoginForm
-          onSuccess={(newToken, email) => {
-            setToken(newToken);
-            setUserEmail(email);
-          }}
-        />
+        {showRegisterForm ? (
+          <RegisterForm
+            onSuccess={() => {
+              setShowRegisterForm(false);
+              setRegistrationSuccess(true);
+            }}
+            onCancel={() => setShowRegisterForm(false)}
+          />
+        ) : (
+          <div>
+            {registrationSuccess && (
+              <div style={{
+                position: "fixed",
+                top: "1rem",
+                left: "50%",
+                transform: "translateX(-50%)",
+                backgroundColor: "#4caf50",
+                color: "white",
+                padding: "1rem 2rem",
+                borderRadius: "4px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                zIndex: 1000
+              }}>
+                Registration successful! Please log in.
+              </div>
+            )}
+            <LoginForm
+              onSuccess={(newToken, email) => {
+                setToken(newToken);
+                setUserEmail(email);
+                setRegistrationSuccess(false);
+              }}
+              onRegisterClick={() => {
+                setShowRegisterForm(true);
+                setRegistrationSuccess(false);
+              }}
+            />
+          </div>
+        )}
       </div>
     );
   }
@@ -170,6 +236,14 @@ const App: React.FC = () => {
       >
         Status
       </button>
+      {currentUser?.role === "admin" && (
+        <button
+          className={view === "admin" ? "nav-link active" : "nav-link"}
+          onClick={() => setShowAdminPage(true)}
+        >
+          Admin
+        </button>
+      )}
       <hr />
       <LocationsTree
         locations={locations}
@@ -181,7 +255,13 @@ const App: React.FC = () => {
 
   return (
     <div className="app-root">
-      <Layout sidebar={sidebar} onLogout={handleLogout} userEmail={userEmail}>
+      <Layout 
+        sidebar={sidebar} 
+        onLogout={handleLogout} 
+        userEmail={userEmail}
+        userName={currentUser?.full_name || undefined}
+        onUserClick={() => setShowUserSettings(true)}
+      >
         {view === "dashboard" && (
           <>
             <DashboardCards
@@ -280,6 +360,16 @@ const App: React.FC = () => {
             initialData={selectedItem}
             isEditing={true}
           />
+        )}
+        {showUserSettings && currentUser && (
+          <UserSettings
+            user={currentUser}
+            onClose={() => setShowUserSettings(false)}
+            onUpdate={handleUserSettingsUpdate}
+          />
+        )}
+        {showAdminPage && currentUser?.role === "admin" && (
+          <AdminPage onClose={() => setShowAdminPage(false)} />
         )}
       </Layout>
     </div>

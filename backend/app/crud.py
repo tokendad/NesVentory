@@ -10,12 +10,24 @@ from .auth import get_password_hash
 
 
 def create_user(db: Session, user_in: schemas.UserCreate) -> models.User:
+    """
+    Create a user helper used by seeding or other internal flows.
+    Ensures the password is hashed and fields align with the model.
+    """
     hashed_pw = get_password_hash(user_in.password)
-    db_user = models.User(email=user_in.email, hashed_password=hashed_pw)
+    db_user = models.User(email=user_in.email, password_hash=hashed_pw, full_name=user_in.full_name, role=models.UserRole.VIEWER)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
+
+
+def get_users(db: Session) -> List[models.User]:
+    return db.query(models.User).all()
+
+
+def get_user(db: Session, user_id) -> Optional[models.User]:
+    return db.query(models.User).filter(models.User.id == user_id).first()
 
 
 # --- Locations ---

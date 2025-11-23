@@ -33,6 +33,18 @@ class User(UserBase):
         from_attributes = True
 
 
+# UserRead is an alias for API response consistency
+# keeping both allows flexibility for future divergence
+class UserRead(UserBase):
+    id: UUID
+    role: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # --- Location Schemas ---
 
 class LocationBase(BaseModel):
