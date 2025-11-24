@@ -93,7 +93,7 @@ Then simply run:
 docker compose up -d
 ```
 
-**Note**: The frontend is now built automatically as part of the Docker build process. You no longer need to manually run `npm install` and `npm run build`!
+**Note**: The frontend is now built automatically as part of the Docker build process. You no longer need to manually run `npm install` and `npm run build`.
 
 ## Architecture Details
 

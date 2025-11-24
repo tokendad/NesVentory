@@ -10,7 +10,9 @@ WORKDIR /frontend
 COPY package.json package-lock.json ./
 
 # Install dependencies (including dev dependencies needed for build)
-# Disable strict SSL due to certificate issues in build environment
+# Note: strict-ssl is disabled for compatibility with CI/CD environments
+# that may have self-signed certificates. In production environments,
+# consider removing this line and ensuring proper SSL certificates.
 RUN npm config set strict-ssl false && npm install
 
 # Copy frontend source code
