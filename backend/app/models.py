@@ -109,7 +109,8 @@ class Item(Base):
     # UPC / barcode
     upc = Column(String(64), nullable=True, index=True)
 
-    # Use JSON for SQLite compatibility (same as JSONB for PostgreSQL)
+    # JSON column for cross-database compatibility (SQLite/PostgreSQL)
+    # Note: PostgreSQL JSONB offers better performance, but JSON works across both
     warranties = Column(JSON, nullable=True)
 
     # Relationships

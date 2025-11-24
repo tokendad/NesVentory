@@ -79,8 +79,20 @@ def version():
 @app.get("/{full_path:path}")
 async def serve_frontend(full_path: str):
     """Serve the frontend application for all non-API routes."""
+    # Prevent path traversal attacks
+    if ".." in full_path or full_path.startswith("/"):
+        return FileResponse(STATIC_DIR / "index.html")
+    
     # Check if this is a static file request
-    static_file = STATIC_DIR / full_path
+    static_file = (STATIC_DIR / full_path).resolve()
+    
+    # Ensure the resolved path is within STATIC_DIR
+    try:
+        static_file.relative_to(STATIC_DIR.resolve())
+    except ValueError:
+        # Path traversal attempt detected
+        return FileResponse(STATIC_DIR / "index.html")
+    
     if static_file.is_file():
         return FileResponse(static_file)
     
