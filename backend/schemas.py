@@ -4,6 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, date
 from typing import List, Optional, Literal
+from decimal import Decimal
 
 from pydantic import BaseModel, Field, EmailStr
 
@@ -34,6 +35,14 @@ class UserRead(UserBase):
 class LocationBase(BaseModel):
     name: str
     parent_id: Optional[uuid.UUID] = None
+    friendly_name: Optional[str] = None
+    description: Optional[str] = None
+    address: Optional[str] = None
+    owner_info: Optional[dict] = None
+    insurance_info: Optional[dict] = None
+    estimated_property_value: Optional[Decimal] = None
+    estimated_value_with_items: Optional[Decimal] = None
+    location_type: Optional[str] = None
 
 
 class LocationCreate(LocationBase):
@@ -43,6 +52,14 @@ class LocationCreate(LocationBase):
 class LocationUpdate(BaseModel):
     name: Optional[str] = None
     parent_id: Optional[uuid.UUID] = None
+    friendly_name: Optional[str] = None
+    description: Optional[str] = None
+    address: Optional[str] = None
+    owner_info: Optional[dict] = None
+    insurance_info: Optional[dict] = None
+    estimated_property_value: Optional[Decimal] = None
+    estimated_value_with_items: Optional[Decimal] = None
+    location_type: Optional[str] = None
 
 
 class LocationRead(LocationBase):
