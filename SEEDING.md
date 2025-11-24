@@ -181,3 +181,132 @@ For production deployments:
 - Use environment variables to control whether seeding occurs
 - Create a separate migration/initialization script
 - Never use default passwords in production
+
+## Troubleshooting
+
+### No Items or Locations After Startup
+
+If you start the application and find no items or locations in the database:
+
+1. **Check the Backend Logs**
+   - Look for warning messages like:
+     - `⚠️  WARNING: No items found in database after seeding!`
+     - `⚠️  WARNING: No locations found in database after seeding!`
+   - These indicate that seeding attempted but failed to create data
+
+2. **Common Causes**
+   - **Database Already Has Users**: The seeding script only runs if there are no users in the database. If users exist but items/locations don't, the seed was skipped.
+   - **Database Connection Issues**: Check that the database is accessible and the connection settings are correct.
+   - **Migration/Schema Issues**: Ensure all database tables are created correctly.
+   - **Permission Issues**: Verify the application has write permissions to the database.
+
+3. **Solutions**
+   
+   **Option A: Reset the Database (Recommended for Development)**
+   ```bash
+   # Using Docker Compose
+   docker compose down -v  # Removes volumes and all data
+   docker compose up --build
+   
+   # Using Docker CLI
+   docker stop nesventory_backend nesventory_db
+   docker rm nesventory_backend nesventory_db
+   docker volume rm nesventory_db_data
+   # Then restart services
+   ```
+   
+   **Option B: Manual Seeding**
+   
+   If you need to manually trigger seeding:
+   
+   1. Access the backend container:
+      ```bash
+      docker exec -it nesventory_backend bash
+      ```
+   
+   2. Open a Python shell:
+      ```bash
+      python
+      ```
+   
+   3. Run the seeding script:
+      ```python
+      from app.database import SessionLocal
+      from app.seed_data import seed_database
+      
+      db = SessionLocal()
+      seed_database(db)
+      db.close()
+      ```
+   
+   4. Exit and restart the application
+   
+   **Option C: Clear Users to Trigger Auto-Seed**
+   
+   If you want to keep the database but trigger a re-seed:
+   
+   1. Connect to the database and delete all users:
+      ```bash
+      # Using psql in the database container
+      docker exec -it nesventory_db psql -U nesventory -d nesventory
+      ```
+      
+      ```sql
+      DELETE FROM users;
+      DELETE FROM items;
+      DELETE FROM locations;
+      ```
+   
+   2. Restart the backend service to trigger seeding
+
+### Verifying Seed Data
+
+After seeding, verify the data was created:
+
+1. **Check via API**
+   ```bash
+   # Get authentication token first
+   curl -X POST http://localhost:8001/api/token \
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d "username=admin@nesventory.local&password=admin123"
+   
+   # Use the token to check items (replace TOKEN with actual token)
+   curl http://localhost:8001/api/items \
+     -H "Authorization: Bearer TOKEN"
+   
+   # Check locations
+   curl http://localhost:8001/api/locations \
+     -H "Authorization: Bearer TOKEN"
+   ```
+
+2. **Check via Database**
+   ```bash
+   docker exec -it nesventory_db psql -U nesventory -d nesventory
+   ```
+   
+   ```sql
+   SELECT COUNT(*) FROM users;      -- Should return 3
+   SELECT COUNT(*) FROM items;      -- Should return 8
+   SELECT COUNT(*) FROM locations;  -- Should return 9
+   ```
+
+### Database Shows "Unhealthy" Status
+
+If the Status panel shows the database as "unhealthy":
+
+1. **For SQLite Users**: This is expected. The health check is optimized for PostgreSQL. SQLite databases will show limited information (version, size, location may be "Unknown" or "Not available").
+
+2. **For PostgreSQL Users**: 
+   - Check database connectivity
+   - Verify database credentials in `.env` file
+   - Check Docker logs: `docker compose logs nesventory_db`
+   - Ensure PostgreSQL container is running: `docker compose ps`
+
+### Missing Seed Data Categories
+
+If only some categories of seed data are missing:
+
+1. Check the error messages in backend logs for specific failures
+2. Review database constraints and foreign key relationships
+3. Manually inspect the seed_data.py file for any errors
+4. Try Option A (Reset Database) from above

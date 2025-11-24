@@ -1,6 +1,7 @@
+// V2.0: In unified container, API is served from the same origin
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ||
-  "http://localhost:8001";
+  "";  // Empty string means same origin
 
 export interface LoginResponse {
   access_token: string;

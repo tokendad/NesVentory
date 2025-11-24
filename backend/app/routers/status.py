@@ -4,9 +4,13 @@ from sqlalchemy import text
 from ..config import settings
 from ..deps import get_db
 import httpx
+import re
 from typing import Dict, Any, Optional
 
 router = APIRouter()
+
+# Regex pattern for extracting version numbers
+SQLITE_VERSION_PATTERN = r'(\d+\.\d+(?:\.\d+)?)'
 
 
 async def get_latest_postgres_version() -> Optional[str]:
@@ -30,41 +34,67 @@ async def get_latest_postgres_version() -> Optional[str]:
 def get_database_info(db: Session) -> Dict[str, Any]:
     """Get database health and information."""
     try:
-        # Get PostgreSQL version
+        # Get database version to determine database type
         version_result = db.execute(text("SELECT version()")).fetchone()
-        postgres_version_full = version_result[0] if version_result else "Unknown"
+        version_full = version_result[0] if version_result else "Unknown"
         
-        # Extract numeric version (e.g., "16.1" from "PostgreSQL 16.1...")
-        postgres_version = "Unknown"
-        if "PostgreSQL" in postgres_version_full:
-            parts = postgres_version_full.split()
+        # Detect database type
+        is_postgres = "PostgreSQL" in version_full
+        is_sqlite = "sqlite" in version_full.lower()
+        
+        db_version = "Unknown"
+        db_size_readable = "Unknown"
+        db_size_bytes = 0
+        data_directory = "Unknown"
+        
+        if is_postgres:
+            # Extract PostgreSQL numeric version (e.g., "16.1" from "PostgreSQL 16.1...")
+            parts = version_full.split()
             if len(parts) > 1:
-                postgres_version = parts[1]
+                db_version = parts[1]
+            
+            # Get database size (PostgreSQL-specific)
+            try:
+                db_size_result = db.execute(
+                    text("SELECT pg_database_size(current_database())")
+                ).fetchone()
+                db_size_bytes = db_size_result[0] if db_size_result else 0
+                
+                # Convert to human-readable format
+                if db_size_bytes >= 1024 ** 3:  # GB
+                    db_size_readable = f"{db_size_bytes / (1024 ** 3):.2f} GB"
+                elif db_size_bytes >= 1024 ** 2:  # MB
+                    db_size_readable = f"{db_size_bytes / (1024 ** 2):.2f} MB"
+                elif db_size_bytes >= 1024:  # KB
+                    db_size_readable = f"{db_size_bytes / 1024:.2f} KB"
+                else:
+                    db_size_readable = f"{db_size_bytes} bytes"
+            except Exception:
+                db_size_readable = "Unknown"
+            
+            # Get database location (data directory) - PostgreSQL-specific
+            try:
+                data_dir_result = db.execute(text("SHOW data_directory")).fetchone()
+                data_directory = data_dir_result[0] if data_dir_result else "Unknown"
+            except Exception:
+                data_directory = "Unknown"
         
-        # Get database size
-        db_size_result = db.execute(
-            text("SELECT pg_database_size(current_database())")
-        ).fetchone()
-        db_size_bytes = db_size_result[0] if db_size_result else 0
-        
-        # Convert to human-readable format
-        if db_size_bytes >= 1024 ** 3:  # GB
-            db_size_readable = f"{db_size_bytes / (1024 ** 3):.2f} GB"
-        elif db_size_bytes >= 1024 ** 2:  # MB
-            db_size_readable = f"{db_size_bytes / (1024 ** 2):.2f} MB"
-        elif db_size_bytes >= 1024:  # KB
-            db_size_readable = f"{db_size_bytes / 1024:.2f} KB"
-        else:
-            db_size_readable = f"{db_size_bytes} bytes"
-        
-        # Get database location (data directory)
-        data_dir_result = db.execute(text("SHOW data_directory")).fetchone()
-        data_directory = data_dir_result[0] if data_dir_result else "Unknown"
+        elif is_sqlite:
+            # For SQLite, try to extract just the version number
+            # Example: "3.37.2" from "3.37.2 2022-01-06 13:25:41..."
+            version_match = re.search(SQLITE_VERSION_PATTERN, version_full)
+            if version_match:
+                db_version = version_match.group(1)
+            else:
+                db_version = version_full
+            # Size and location not available for SQLite in the same way
+            db_size_readable = "Not available (SQLite)"
+            data_directory = "Not available (SQLite)"
         
         return {
             "status": "healthy",
-            "version": postgres_version,
-            "version_full": postgres_version_full,
+            "version": db_version,
+            "version_full": version_full,
             "size": db_size_readable,
             "size_bytes": db_size_bytes,
             "location": data_directory,
@@ -73,6 +103,11 @@ def get_database_info(db: Session) -> Dict[str, Any]:
         return {
             "status": "unhealthy",
             "error": str(e),
+            "version": "Unknown",
+            "version_full": str(e),
+            "size": "Unknown",
+            "size_bytes": 0,
+            "location": "Unknown",
         }
 
 

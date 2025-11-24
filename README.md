@@ -1,8 +1,20 @@
 # NesVentory - Home Inventory Management System
 
-**Version: 1.1.0-alpha**
+**Version: 2.0.0**
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
+
+## What's New in Version 2.0
+
+🎉 **Unified Container with SQLite** - Maximum simplicity:
+- ✅ Single Docker container (no separate frontend/backend/database)
+- ✅ Embedded SQLite database (no PostgreSQL setup needed)
+- ✅ Single port configuration (8001)
+- ✅ Built-in frontend serving
+- ✅ Seamless single-command startup
+- ✅ 60% smaller image size (~800MB vs ~2GB)
+- ✅ Only 2 required environment variables
+- ✅ File-based database for easy backup
 
 ## Features
 
@@ -19,9 +31,9 @@ NesVentory is a modern home inventory management application that helps you trac
 ## Tech Stack
 
 - **Backend**: FastAPI (Python 3.11)
-- **Frontend**: React + TypeScript + Vite
-- **Database**: PostgreSQL 16
-- **Containerization**: Docker & Docker Compose
+- **Frontend**: React + TypeScript + Vite (built and served by backend)
+- **Database**: SQLite (embedded, file-based)
+- **Containerization**: Docker (single unified container)
 
 ## 🚀 Getting Started
 
