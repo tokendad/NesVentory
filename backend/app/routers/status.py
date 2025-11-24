@@ -4,9 +4,13 @@ from sqlalchemy import text
 from ..config import settings
 from ..deps import get_db
 import httpx
+import re
 from typing import Dict, Any, Optional
 
 router = APIRouter()
+
+# Regex pattern for extracting version numbers
+SQLITE_VERSION_PATTERN = r'(\d+\.\d+(?:\.\d+)?)'
 
 
 async def get_latest_postgres_version() -> Optional[str]:
@@ -78,8 +82,7 @@ def get_database_info(db: Session) -> Dict[str, Any]:
         elif is_sqlite:
             # For SQLite, try to extract just the version number
             # Example: "3.37.2" from "3.37.2 2022-01-06 13:25:41..."
-            import re
-            version_match = re.search(r'(\d+\.\d+(?:\.\d+)?)', version_full)
+            version_match = re.search(SQLITE_VERSION_PATTERN, version_full)
             if version_match:
                 db_version = version_match.group(1)
             else:
