@@ -37,6 +37,14 @@ export interface Document {
   uploaded_at: string;
 }
 
+export interface Tag {
+  id: string;
+  name: string;
+  is_predefined: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Item {
   id: number | string;
   name: string;
@@ -53,6 +61,7 @@ export interface Item {
   warranties?: Warranty[];
   photos?: Photo[];
   documents?: Document[];
+  tags?: Tag[];
   created_at?: string;
   updated_at?: string;
 }
@@ -70,6 +79,7 @@ export interface ItemCreate {
   upc?: string | null;
   location_id?: number | string | null;
   warranties?: Warranty[];
+  tag_ids?: string[];
 }
 
 export interface Location {
@@ -339,4 +349,49 @@ export async function updateUser(userId: string, updates: Partial<{full_name: st
   });
   return handleResponse<User>(res);
 }
+
+// Tag API functions
+export async function fetchTags(): Promise<Tag[]> {
+  const res = await fetch(`${API_BASE_URL}/api/tags`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<Tag[]>(res);
+}
+
+export async function createTag(name: string): Promise<Tag> {
+  const res = await fetch(`${API_BASE_URL}/api/tags`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ name, is_predefined: false }),
+  });
+  return handleResponse<Tag>(res);
+}
+
+export async function deleteTag(tagId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/tags/${tagId}`, {
+    method: "DELETE",
+    headers: {
+      ...authHeaders(),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text;
+    try {
+      const data = JSON.parse(text);
+      message = (data.detail as string) || JSON.stringify(data);
+    } catch {
+      // ignore
+    }
+    throw new Error(message || `HTTP ${res.status}`);
+  }
+}
+
 

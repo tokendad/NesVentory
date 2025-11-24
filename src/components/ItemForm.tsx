@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import type { ItemCreate, Location } from "../lib/api";
-import { uploadPhoto } from "../lib/api";
+import type { ItemCreate, Location, Tag } from "../lib/api";
+import { uploadPhoto, fetchTags, createTag } from "../lib/api";
 import { formatPhotoType } from "../lib/utils";
 import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES } from "../lib/constants";
 import type { PhotoUpload } from "../lib/types";
@@ -9,7 +9,7 @@ interface ItemFormProps {
   onSubmit: (item: ItemCreate, photos: PhotoUpload[]) => Promise<void>;
   onCancel: () => void;
   locations: Location[];
-  initialData?: Partial<ItemCreate>;
+  initialData?: Partial<ItemCreate> & { tags?: Tag[] };
   isEditing?: boolean;
 }
 
@@ -38,10 +38,20 @@ const ItemForm: React.FC<ItemFormProps> = ({
     retailer: initialData?.retailer || "",
     upc: initialData?.upc || "",
     location_id: initialData?.location_id || null,
+    tag_ids: initialData?.tags?.map(t => t.id) || [],
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [photos, setPhotos] = useState<PhotoUpload[]>([]);
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+  const [newTagName, setNewTagName] = useState("");
+
+  // Load tags on mount
+  useEffect(() => {
+    fetchTags()
+      .then(setAvailableTags)
+      .catch(err => console.error("Failed to load tags:", err));
+  }, []);
 
   // Cleanup preview URLs on unmount
   useEffect(() => {
@@ -120,6 +130,35 @@ const ItemForm: React.FC<ItemFormProps> = ({
       updated.splice(index, 1);
       return updated;
     });
+  };
+
+  const handleTagToggle = (tagId: string) => {
+    setFormData(prev => {
+      const currentTags = prev.tag_ids || [];
+      const isSelected = currentTags.includes(tagId);
+      return {
+        ...prev,
+        tag_ids: isSelected
+          ? currentTags.filter(id => id !== tagId)
+          : [...currentTags, tagId]
+      };
+    });
+  };
+
+  const handleCreateTag = async () => {
+    if (!newTagName.trim()) return;
+    
+    try {
+      const tag = await createTag(newTagName.trim());
+      setAvailableTags(prev => [...prev, tag]);
+      setFormData(prev => ({
+        ...prev,
+        tag_ids: [...(prev.tag_ids || []), tag.id]
+      }));
+      setNewTagName("");
+    } catch (err: any) {
+      setError(err.message || "Failed to create tag");
+    }
   };
 
   return (
@@ -283,6 +322,43 @@ const ItemForm: React.FC<ItemFormProps> = ({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="form-section">
+            <h3>Tags</h3>
+            <div className="tags-selection">
+              {availableTags.map((tag) => (
+                <label key={tag.id} className="tag-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={(formData.tag_ids || []).includes(tag.id)}
+                    onChange={() => handleTagToggle(tag.id)}
+                    disabled={loading}
+                  />
+                  <span className={tag.is_predefined ? "tag-predefined" : "tag-custom"}>
+                    {tag.name}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="new-tag-input">
+              <input
+                type="text"
+                placeholder="Create new tag..."
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleCreateTag())}
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={handleCreateTag}
+                disabled={loading || !newTagName.trim()}
+                className="btn-outline"
+              >
+                Add Tag
+              </button>
+            </div>
           </div>
 
           <div className="form-section">
