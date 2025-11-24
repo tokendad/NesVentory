@@ -105,7 +105,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 </td>
               </tr>
             )}
-            {items.length > 0 && filteredItems.length === 0 && !loading && (
+            {items.length > 0 && filteredItems.length === 0 && searchQuery.trim() && !loading && (
               <tr>
                 <td colSpan={7} className="empty-row">
                   No items match your search.
