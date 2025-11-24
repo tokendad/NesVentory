@@ -1,24 +1,28 @@
 # NesVentory - Home Inventory Management System
 
-**Version: 2.3.0**
+**Version: 2.4.0**
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
-## What's New in Version 2.3.0
+## What's New in Version 2.4.0
 
-🎉 **Encircle Import Feature**:
-- ✅ Import items from Encircle detailed XLSX export files
-- ✅ Automatic image matching by description or number prefix
-- ✅ Bulk image upload support
-- ✅ Automatic location creation from import data
-- ✅ RCV (Replacement Cost Value) import support
+🏠 **Multiple Homes & Multi-Family Support**:
+- ✅ Support for multiple primary locations (homes, properties)
+- ✅ Multi-family home support (apartments, condos, units)
+- ✅ Landlord information tracking for property buildings
+- ✅ Tenant information tracking for individual units
+- ✅ User-level location access control
+- ✅ Admin panel for managing user location permissions
 
 ## Features
 
 - 📦 **Inventory Management** - Track all your household items with detailed information
 - 📍 **Location Hierarchy** - Organize items by rooms and sub-locations
+- 🏘️ **Multi-Property Support** - Manage multiple homes and multi-family properties
+- 👥 **Landlord/Tenant Management** - Track landlord and tenant info for rental properties
 - 📥 **Encircle Import** - Import items and photos from Encircle XLSX exports
 - 🔐 **Multi-user Support** - Role-based access control (Admin, Editor, Viewer)
+- 🔒 **Location Access Control** - Restrict user access to specific properties
 - 🛠️ **Maintenance Tracking** - Schedule and track recurring maintenance tasks
 - 🌐 **International Formats** - Support for 25+ locales and 20+ currencies
 - 📱 **Modern UI** - Responsive React frontend with TypeScript

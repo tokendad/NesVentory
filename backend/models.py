@@ -13,6 +13,7 @@ from sqlalchemy import (
     Numeric,
     Text,
     Date,
+    Table,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -26,6 +27,15 @@ class UserRole(str, Enum):
     VIEWER = "viewer"
 
 
+# Association table for many-to-many relationship between users and locations (access control)
+user_location_access = Table(
+    'user_location_access',
+    Base.metadata,
+    Column('user_id', UUID(as_uuid=True), ForeignKey('users.id'), primary_key=True),
+    Column('location_id', UUID(as_uuid=True), ForeignKey('locations.id'), primary_key=True)
+)
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -37,6 +47,9 @@ class User(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationship for location access (many-to-many)
+    allowed_locations = relationship("Location", secondary=user_location_access, back_populates="allowed_users")
 
 
 class LocationType(str, Enum):
@@ -58,6 +71,9 @@ class Location(Base):
     parent_id = Column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=True)
     full_path = Column(String(1024), nullable=True)
     
+    # Flag for primary/main locations (homes)
+    is_primary_location = Column(Boolean, default=False, nullable=False)
+    
     # New detail fields
     friendly_name = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)
@@ -72,6 +88,29 @@ class Location(Base):
     #   "notes": "..."
     # }
     owner_info = Column(JSONB, nullable=True)
+    
+    # Landlord information for multi-family/apartment buildings
+    # {
+    #   "name": "...",
+    #   "company": "...",
+    #   "phone": "...",
+    #   "email": "...",
+    #   "address": "...",
+    #   "notes": "..."
+    # }
+    landlord_info = Column(JSONB, nullable=True)
+    
+    # Tenant information for units/apartments
+    # {
+    #   "name": "...",
+    #   "phone": "...",
+    #   "email": "...",
+    #   "lease_start": "...",
+    #   "lease_end": "...",
+    #   "rent_amount": ...,
+    #   "notes": "..."
+    # }
+    tenant_info = Column(JSONB, nullable=True)
     
     # Insurance information stored as JSONB for PostgreSQL compatibility
     # Note: backend/app/models.py uses JSON for SQLite compatibility
@@ -100,6 +139,9 @@ class Location(Base):
 
     parent = relationship("Location", remote_side=[id], backref="children")
     items = relationship("Item", back_populates="location")
+    
+    # Relationship for user access control (many-to-many)
+    allowed_users = relationship("User", secondary=user_location_access, back_populates="allowed_locations")
 
 
 class Item(Base):

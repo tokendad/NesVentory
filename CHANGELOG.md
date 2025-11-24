@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.4.0] - 2025-11-24
+### Added
+- **Multiple homes and multi-family homes support**:
+  - Added `is_primary_location` boolean field to Location model to designate primary/main locations (homes)
+  - Added `landlord_info` JSON field to Location model for storing landlord details on multi-family/apartment buildings
+    - Supports: name, company, phone, email, address, notes
+  - Added `tenant_info` JSON field to Location model for storing tenant details on units/apartments
+    - Supports: name, phone, email, lease_start, lease_end, rent_amount, notes
+- **User location access control**:
+  - New `user_location_access` association table for many-to-many relationship between users and locations
+  - Added `allowed_locations` relationship to User model for restricting access to specific locations
+  - New API endpoints for managing user location access:
+    - `PUT /api/users/{user_id}/locations` - Set which locations a user can access
+    - `GET /api/users/{user_id}/locations` - Get list of accessible locations for a user
+  - Users with empty allowed_locations list have access to all locations (default behavior)
+- **Admin panel enhancements**:
+  - Added "Location Access" column to user management table
+  - Added "Edit Access" button to manage user location permissions
+  - Location access editor with checkboxes for primary/main locations
+- **LocationsTree UI improvements**:
+  - Visual indicators for primary locations (HOME badge)
+  - Visual indicators for locations with landlord info (LANDLORD badge)
+  - Visual indicators for locations with tenant info (TENANT badge)
+  - Location type badges showing property classification
+
+### Changed
+- Updated Location schemas in both SQLite and PostgreSQL models
+- Updated frontend Location interface to include all new fields
+- Updated User interface to include `allowed_location_ids`
+- Bumped project version to 2.4.0
+
 ## [2.3.0] - 2025-11-24
 ### Added
 - Encircle XLSX import feature for importing items and images from Encircle detailed export files
