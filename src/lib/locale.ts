@@ -66,7 +66,7 @@ export const COMMON_CURRENCIES = [
   { code: 'CAD', name: 'Canadian Dollar (C$)' },
   { code: 'AUD', name: 'Australian Dollar (A$)' },
   { code: 'CHF', name: 'Swiss Franc (CHF)' },
-  { code: 'CNY', name: 'Chinese Yuan (¥)' },
+  { code: 'CNY', name: 'Chinese Yuan (CN¥)' },
   { code: 'INR', name: 'Indian Rupee (₹)' },
   { code: 'MXN', name: 'Mexican Peso (MX$)' },
   { code: 'BRL', name: 'Brazilian Real (R$)' },

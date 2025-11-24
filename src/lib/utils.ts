@@ -55,16 +55,14 @@ export function formatCurrency(
     return new Intl.NumberFormat(userLocale, {
       style: 'currency',
       currency: userCurrency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      // Let Intl API determine decimal places based on currency
+      // (e.g., JPY and KRW use 0, USD uses 2)
     }).format(value);
   } catch (error) {
     // Fallback to USD if currency code is invalid
     return new Intl.NumberFormat(userLocale, {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
     }).format(value);
   }
 }

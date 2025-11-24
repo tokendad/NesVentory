@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { 
   getLocaleConfig, 
   saveLocaleConfig, 
@@ -28,7 +28,8 @@ const LocaleSettings: React.FC<LocaleSettingsProps> = ({ onClose }) => {
 
   const handleReset = () => {
     resetLocaleConfig();
-    setConfig(getLocaleConfig());
+    const resetConfig = getLocaleConfig();
+    setConfig(resetConfig);
   };
 
   return (

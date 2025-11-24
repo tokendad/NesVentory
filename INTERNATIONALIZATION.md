@@ -91,7 +91,7 @@ NesVentory supports the following currencies:
 | CAD | Canadian Dollar (C$) |
 | AUD | Australian Dollar (A$) |
 | CHF | Swiss Franc (CHF) |
-| CNY | Chinese Yuan (¥) |
+| CNY | Chinese Yuan (CN¥) |
 | INR | Indian Rupee (₹) |
 | MXN | Mexican Peso (MX$) |
 | BRL | Brazilian Real (R$) |
