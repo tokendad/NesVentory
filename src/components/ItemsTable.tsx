@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import type { Item } from "../lib/api";
 import { formatCurrency, formatDate } from "../lib/utils";
 
@@ -19,6 +19,39 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   onAddItem,
   onItemClick,
 }) => {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredItems = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return items;
+    }
+    const query = searchQuery.toLowerCase().trim();
+    return items.filter((item) => {
+      // Search across all text fields
+      const searchableFields = [
+        item.name,
+        item.description,
+        item.brand,
+        item.model_number,
+        item.serial_number,
+        item.retailer,
+        item.upc,
+      ];
+      
+      // Check if any field contains the query
+      const fieldMatch = searchableFields.some(
+        (field) => field && field.toLowerCase().includes(query)
+      );
+      
+      // Check if any tag name contains the query
+      const tagMatch = item.tags?.some(
+        (tag) => tag.name.toLowerCase().includes(query)
+      );
+      
+      return fieldMatch || tagMatch;
+    });
+  }, [items, searchQuery]);
+
   return (
     <section className="panel">
       <div className="panel-header">
@@ -31,6 +64,24 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
             Add Item
           </button>
         </div>
+      </div>
+      <div className="search-bar">
+        <input
+          type="text"
+          placeholder="Search items by name, brand, model, serial, tags..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="search-input"
+        />
+        {searchQuery && (
+          <button
+            className="search-clear"
+            onClick={() => setSearchQuery("")}
+            title="Clear search"
+          >
+            ×
+          </button>
+        )}
       </div>
       {error && <div className="error-banner">{error}</div>}
       <div className="table-wrapper">
@@ -54,7 +105,14 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 </td>
               </tr>
             )}
-            {items.map((item) => (
+            {items.length > 0 && filteredItems.length === 0 && searchQuery.trim() && !loading && (
+              <tr>
+                <td colSpan={7} className="empty-row">
+                  No items match your search.
+                </td>
+              </tr>
+            )}
+            {filteredItems.map((item) => (
               <tr key={item.id} onClick={() => onItemClick(item)} style={{ cursor: "pointer" }}>
                 <td>{item.name}</td>
                 <td>{item.brand || "—"}</td>
