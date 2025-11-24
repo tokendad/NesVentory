@@ -15,7 +15,17 @@ def list_items(db: Session = Depends(get_db)):
 
 @router.post("/", response_model=schemas.Item, status_code=status.HTTP_201_CREATED)
 def create_item(payload: schemas.ItemCreate, db: Session = Depends(get_db)):
-    item = models.Item(**payload.model_dump())
+    # Extract tag_ids from payload
+    tag_ids = payload.tag_ids
+    payload_dict = payload.model_dump(exclude={'tag_ids'})
+    
+    item = models.Item(**payload_dict)
+    
+    # Add tags if provided
+    if tag_ids:
+        tags = db.query(models.Tag).filter(models.Tag.id.in_(tag_ids)).all()
+        item.tags = tags
+    
     db.add(item)
     db.commit()
     db.refresh(item)
@@ -40,9 +50,17 @@ def update_item(
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    data = payload.model_dump(exclude_unset=True)
+    # Extract tag_ids from payload
+    tag_ids = payload.tag_ids
+    data = payload.model_dump(exclude_unset=True, exclude={'tag_ids'})
+    
     for key, value in data.items():
         setattr(item, key, value)
+    
+    # Update tags if provided
+    if tag_ids is not None:
+        tags = db.query(models.Tag).filter(models.Tag.id.in_(tag_ids)).all()
+        item.tags = tags
 
     db.commit()
     db.refresh(item)

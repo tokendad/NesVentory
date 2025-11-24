@@ -133,6 +133,25 @@ class Document(DocumentBase):
 
 # --- Item Schemas ---
 
+# Tag schemas defined first due to forward reference
+class TagBase(BaseModel):
+    name: str
+    is_predefined: bool = False
+
+
+class TagCreate(TagBase):
+    pass
+
+
+class Tag(TagBase):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class ItemBase(BaseModel):
     name: str
     description: Optional[str] = None
@@ -149,7 +168,7 @@ class ItemBase(BaseModel):
 
 
 class ItemCreate(ItemBase):
-    pass
+    tag_ids: Optional[List[UUID]] = None
 
 
 class ItemUpdate(BaseModel):
@@ -165,6 +184,7 @@ class ItemUpdate(BaseModel):
     upc: Optional[str] = None
     warranties: Optional[List[dict]] = None
     location_id: Optional[UUID] = None
+    tag_ids: Optional[List[UUID]] = None
 
 
 class Item(ItemBase):
@@ -173,6 +193,7 @@ class Item(ItemBase):
     updated_at: datetime
     photos: List['Photo'] = []
     documents: List['Document'] = []
+    tags: List['Tag'] = []
 
     class Config:
         from_attributes = True
