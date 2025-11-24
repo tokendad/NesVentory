@@ -63,7 +63,8 @@ class Location(Base):
     description = Column(Text, nullable=True)
     address = Column(Text, nullable=True)
     
-    # Owner information stored as JSONB for flexibility
+    # Owner information stored as JSONB for PostgreSQL compatibility
+    # Note: backend/app/models.py uses JSON for SQLite compatibility
     # {
     #   "owner_name": "...",
     #   "spouse_name": "...",
@@ -72,7 +73,8 @@ class Location(Base):
     # }
     owner_info = Column(JSONB, nullable=True)
     
-    # Insurance information stored as JSONB
+    # Insurance information stored as JSONB for PostgreSQL compatibility
+    # Note: backend/app/models.py uses JSON for SQLite compatibility
     # {
     #   "company_name": "...",
     #   "policy_number": "...",
@@ -85,7 +87,12 @@ class Location(Base):
     estimated_property_value = Column(Numeric(12, 2), nullable=True)
     estimated_value_with_items = Column(Numeric(12, 2), nullable=True)
     
-    location_type = Column(Enum(LocationType, name="location_type"), nullable=True)
+    location_type = Column(
+        Enum(LocationType.RESIDENTIAL, LocationType.COMMERCIAL, LocationType.RETAIL, 
+             LocationType.INDUSTRIAL, LocationType.APARTMENT_COMPLEX, LocationType.CONDO,
+             LocationType.MULTI_FAMILY, LocationType.OTHER, name="location_type"),
+        nullable=True
+    )
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

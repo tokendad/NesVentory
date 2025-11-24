@@ -99,7 +99,8 @@ class Location(Base):
     description = Column(Text, nullable=True)
     address = Column(Text, nullable=True)
     
-    # Owner information stored as JSON for flexibility
+    # Owner information stored as JSON for SQLite compatibility
+    # Note: backend/models.py uses JSONB for PostgreSQL compatibility
     # {
     #   "owner_name": "...",
     #   "spouse_name": "...",
@@ -108,7 +109,8 @@ class Location(Base):
     # }
     owner_info = Column(JSON, nullable=True)
     
-    # Insurance information stored as JSON
+    # Insurance information stored as JSON for SQLite compatibility
+    # Note: backend/models.py uses JSONB for PostgreSQL compatibility
     # {
     #   "company_name": "...",
     #   "policy_number": "...",
