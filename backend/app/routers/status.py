@@ -36,7 +36,7 @@ def get_database_info(db: Session) -> Dict[str, Any]:
         
         # Detect database type
         is_postgres = "PostgreSQL" in version_full
-        is_sqlite = "SQLite" in version_full or "sqlite" in version_full.lower()
+        is_sqlite = "sqlite" in version_full.lower()
         
         db_version = "Unknown"
         db_size_readable = "Unknown"
@@ -76,9 +76,15 @@ def get_database_info(db: Session) -> Dict[str, Any]:
                 data_directory = "Unknown"
         
         elif is_sqlite:
-            # For SQLite, extract version if available
-            if "SQLite" in version_full:
-                # SQLite version format may vary
+            # For SQLite, try to extract just the version number
+            # Example: "3.37.2" from "3.37.2 2022-01-06 13:25:41..."
+            try:
+                parts = version_full.split()
+                if parts and parts[0][0].isdigit():
+                    db_version = parts[0]
+                else:
+                    db_version = version_full
+            except Exception:
                 db_version = version_full
             # Size and location not available for SQLite in the same way
             db_size_readable = "Not available (SQLite)"
