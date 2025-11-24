@@ -1,5 +1,6 @@
 import React from "react";
 import type { Item } from "../lib/api";
+import { formatCurrency, formatDate } from "../lib/utils";
 
 interface ItemsTableProps {
   items: Item[];
@@ -58,12 +59,8 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 <td>{item.brand || "—"}</td>
                 <td>{item.model_number || "—"}</td>
                 <td>{item.serial_number || "—"}</td>
-                <td>{item.purchase_date || "—"}</td>
-                <td>
-                  {item.purchase_price != null && !isNaN(Number(item.purchase_price))
-                    ? `$${Number(item.purchase_price).toFixed(2)}`
-                    : "—"}
-                </td>
+                <td>{formatDate(item.purchase_date)}</td>
+                <td>{formatCurrency(item.purchase_price != null ? Number(item.purchase_price) : null)}</td>
               </tr>
             ))}
           </tbody>

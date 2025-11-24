@@ -22,6 +22,7 @@ NesVentory is a modern home inventory management application that helps you trac
 - 📍 **Location Hierarchy** - Organize items by rooms and sub-locations
 - 🔐 **Multi-user Support** - Role-based access control (Admin, Editor, Viewer)
 - 🛠️ **Maintenance Tracking** - Schedule and track recurring maintenance tasks
+- 🌐 **International Formats** - Support for 25+ locales and 20+ currencies
 - 📱 **Modern UI** - Responsive React frontend with TypeScript
 - 🚀 **FastAPI Backend** - High-performance Python backend
 - 🐘 **PostgreSQL Database** - Reliable data storage
@@ -55,6 +56,7 @@ The application comes with pre-seeded test users:
 
 - **[INSTALL.txt](INSTALL.txt)** - Comprehensive installation guide with Docker Compose and CLI commands
 - **[SEEDING.md](SEEDING.md)** - Details about pre-seeded test data and how to customize it
+- **[INTERNATIONALIZATION.md](INTERNATIONALIZATION.md)** - Guide to international format support for dates and currencies
 
 ## 📄 License
 

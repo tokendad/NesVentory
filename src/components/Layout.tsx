@@ -7,9 +7,10 @@ interface LayoutProps {
   userEmail?: string;
   userName?: string;
   onUserClick?: () => void;
+  onLocaleClick?: () => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail, userName, onUserClick }) => {
+const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail, userName, onUserClick, onLocaleClick }) => {
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -18,6 +19,15 @@ const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail,
           <span className="app-title">NesVentory</span>
         </div>
         <div className="app-header-right">
+          {onLocaleClick && (
+            <button 
+              className="btn-outline" 
+              onClick={onLocaleClick}
+              title="Locale & Currency Settings"
+            >
+              🌐
+            </button>
+          )}
           {(userName || userEmail) && (
             <span 
               className="user-email" 
