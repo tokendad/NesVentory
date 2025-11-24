@@ -394,4 +394,38 @@ export async function deleteTag(tagId: string): Promise<void> {
   }
 }
 
+// --- Encircle Import APIs ---
+
+export interface EncircleImportResult {
+  message: string;
+  items_created: number;
+  photos_attached: number;
+  items_without_photos: number;
+  locations_created: number;
+  log: string[];
+}
+
+export async function importEncircle(
+  xlsxFile: File,
+  images: File[],
+  matchByName: boolean = true
+): Promise<EncircleImportResult> {
+  const formData = new FormData();
+  formData.append("xlsx_file", xlsxFile);
+  formData.append("match_by_name", matchByName.toString());
+  
+  for (const image of images) {
+    formData.append("images", image);
+  }
+
+  const res = await fetch(`${API_BASE_URL}/api/import/encircle`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+    },
+    body: formData,
+  });
+
+  return handleResponse<EncircleImportResult>(res);
+}
 

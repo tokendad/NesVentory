@@ -1,25 +1,23 @@
 # NesVentory - Home Inventory Management System
 
-**Version: 2.0.0**
+**Version: 2.3.0**
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
-## What's New in Version 2.0
+## What's New in Version 2.3.0
 
-🎉 **Unified Container with SQLite** - Maximum simplicity:
-- ✅ Single Docker container (no separate frontend/backend/database)
-- ✅ Embedded SQLite database (no PostgreSQL setup needed)
-- ✅ Single port configuration (8001)
-- ✅ Built-in frontend serving
-- ✅ Seamless single-command startup
-- ✅ 60% smaller image size (~800MB vs ~2GB)
-- ✅ Only 2 required environment variables
-- ✅ File-based database for easy backup
+🎉 **Encircle Import Feature**:
+- ✅ Import items from Encircle detailed XLSX export files
+- ✅ Automatic image matching by description or number prefix
+- ✅ Bulk image upload support
+- ✅ Automatic location creation from import data
+- ✅ RCV (Replacement Cost Value) import support
 
 ## Features
 
 - 📦 **Inventory Management** - Track all your household items with detailed information
 - 📍 **Location Hierarchy** - Organize items by rooms and sub-locations
+- 📥 **Encircle Import** - Import items and photos from Encircle XLSX exports
 - 🔐 **Multi-user Support** - Role-based access control (Admin, Editor, Viewer)
 - 🛠️ **Maintenance Tracking** - Schedule and track recurring maintenance tasks
 - 🌐 **International Formats** - Support for 25+ locales and 20+ currencies

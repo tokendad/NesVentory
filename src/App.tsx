@@ -11,6 +11,7 @@ import LocationsTree from "./components/LocationsTree";
 import ItemForm from "./components/ItemForm";
 import ItemDetails from "./components/ItemDetails";
 import Status from "./components/Status";
+import EncircleImport from "./components/EncircleImport";
 import {
   fetchItems,
   fetchLocations,
@@ -56,6 +57,7 @@ const App: React.FC = () => {
   const [showUserSettings, setShowUserSettings] = useState(false);
   const [showLocaleSettings, setShowLocaleSettings] = useState(false);
   const [showAdminPage, setShowAdminPage] = useState(false);
+  const [showEncircleImport, setShowEncircleImport] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   async function loadItems() {
@@ -333,6 +335,7 @@ const App: React.FC = () => {
             onRefresh={loadItems}
             onAddItem={() => setShowItemForm(true)}
             onItemClick={handleItemClick}
+            onImport={() => setShowEncircleImport(true)}
           />
         )}
         {view === "status" && <Status />}
@@ -378,6 +381,15 @@ const App: React.FC = () => {
         )}
         {showAdminPage && currentUser?.role === "admin" && (
           <AdminPage onClose={() => setShowAdminPage(false)} />
+        )}
+        {showEncircleImport && (
+          <EncircleImport
+            onClose={() => setShowEncircleImport(false)}
+            onSuccess={() => {
+              loadItems();
+              loadLocations();
+            }}
+          />
         )}
       </Layout>
     </div>

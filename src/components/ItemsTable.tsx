@@ -9,6 +9,7 @@ interface ItemsTableProps {
   onRefresh: () => void;
   onAddItem: () => void;
   onItemClick: (item: Item) => void;
+  onImport?: () => void;
 }
 
 const ItemsTable: React.FC<ItemsTableProps> = ({
@@ -18,6 +19,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   onRefresh,
   onAddItem,
   onItemClick,
+  onImport,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -60,6 +62,11 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
           <button className="btn-outline" onClick={onRefresh} disabled={loading}>
             {loading ? "Refreshing..." : "Refresh"}
           </button>
+          {onImport && (
+            <button className="btn-outline" onClick={onImport}>
+              Import from Encircle
+            </button>
+          )}
           <button className="btn-primary" onClick={onAddItem}>
             Add Item
           </button>
