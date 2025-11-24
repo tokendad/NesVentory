@@ -16,14 +16,10 @@ services:
       PGID: ${PGID:-1000}
       UMASK: ${UMASK:-002}
       TZ: ${TZ:-Etc/UTC}
-      DB_HOST: localhost
-      DB_PORT: 5432
-      DB_USER: ${DB_USER:-nesventory}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME:-nesventory}
+      DB_PATH: ${DB_PATH:-/app/data/nesventory.db}
     volumes:
-      # PostgreSQL data volume (persistent database storage)
-      - nesventory_data:/var/lib/postgresql/data
+      # SQLite database file (persistent data storage)
+      - nesventory_data:/app/data
       
       # Optional: Uploads/media volume for storing images and attachments
       # Uncomment and adjust the path below to enable media storage

@@ -13,11 +13,44 @@ from sqlalchemy import (
     Text,
     Date,
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID as PostgresUUID, JSONB
 from sqlalchemy.orm import relationship
-from sqlalchemy.types import String
+from sqlalchemy.types import String, TypeDecorator
+from sqlalchemy import JSON
+import sys
 
 from .database import Base
+
+# Use String-based UUID for SQLite compatibility
+class UUID(TypeDecorator):
+    """Platform-independent UUID type. Uses PostgreSQL's UUID type, otherwise uses String."""
+    impl = String
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'postgresql':
+            return dialect.type_descriptor(PostgresUUID())
+        else:
+            return dialect.type_descriptor(String(36))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        elif dialect.name == 'postgresql':
+            return str(value)
+        else:
+            if isinstance(value, uuid.UUID):
+                return str(value)
+            return value
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        else:
+            if isinstance(value, uuid.UUID):
+                return value
+            else:
+                return uuid.UUID(value)
 
 
 # Updated Enum for UserRole with proper string-based Enum
@@ -30,7 +63,7 @@ class UserRole(str, Enum):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=True)
@@ -46,9 +79,9 @@ class User(Base):
 class Location(Base):
     __tablename__ = "locations"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
-    parent_id = Column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=True)
+    parent_id = Column(UUID(), ForeignKey("locations.id"), nullable=True)
     full_path = Column(String(1024), nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -61,7 +94,7 @@ class Location(Base):
 class Item(Base):
     __tablename__ = "items"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
 
@@ -77,12 +110,12 @@ class Item(Base):
     # UPC / barcode
     upc = Column(String(64), nullable=True, index=True)
 
-    # Embedded warranties as JSONB array of objects
-    warranties = Column(JSONB, nullable=True)
+    # Use JSON for SQLite compatibility (same as JSONB for PostgreSQL)
+    warranties = Column(JSON, nullable=True)
 
     # Relationships
-    location_id = Column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=True)
-    data_tag_photo_id = Column(UUID(as_uuid=True), ForeignKey("photos.id"), nullable=True)
+    location_id = Column(UUID(), ForeignKey("locations.id"), nullable=True)
+    data_tag_photo_id = Column(UUID(), ForeignKey("photos.id"), nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -98,8 +131,8 @@ class Item(Base):
 class Photo(Base):
     __tablename__ = "photos"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    item_id = Column(UUID(as_uuid=True), ForeignKey("items.id"), nullable=False)
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    item_id = Column(UUID(), ForeignKey("items.id"), nullable=False)
     path = Column(String(1024), nullable=False)
     mime_type = Column(String(128), nullable=True)
 
@@ -115,8 +148,8 @@ class Photo(Base):
 class Document(Base):
     __tablename__ = "documents"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    item_id = Column(UUID(as_uuid=True), ForeignKey("items.id"), nullable=False)
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    item_id = Column(UUID(), ForeignKey("items.id"), nullable=False)
     filename = Column(String(255), nullable=False)
     mime_type = Column(String(128), nullable=True)
     path = Column(String(1024), nullable=False)
@@ -136,8 +169,8 @@ class RecurrenceType(str, Enum):
 class MaintenanceTask(Base):
     __tablename__ = "maintenance_tasks"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    item_id = Column(UUID(as_uuid=True), ForeignKey("items.id"), nullable=False)
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    item_id = Column(UUID(), ForeignKey("items.id"), nullable=False)
 
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)

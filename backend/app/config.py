@@ -22,10 +22,11 @@ class Settings(BaseSettings):
     BACKEND_PORT: int = 8001
     FRONTEND_PORT: int = 5173
 
-    DB_HOST: str = "localhost"  # Changed for v2.0 unified container
+    # v2.0: Database fields are optional (SQLite doesn't need them)
+    DB_HOST: str = "localhost"
     DB_PORT: int = 5432
     DB_USER: str = "nesventory"
-    DB_PASSWORD: str  # No default - must be set in environment
+    DB_PASSWORD: str = ""  # Optional for SQLite
     DB_NAME: str = "nesventory"
 
     JWT_SECRET_KEY: str  # No default - must be set in environment

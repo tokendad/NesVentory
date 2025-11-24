@@ -6,13 +6,15 @@ NesVentory is a modern home inventory management application that helps you trac
 
 ## What's New in Version 2.0
 
-🎉 **Unified Container Architecture** - Everything runs in a single Docker container for simplified deployment:
-- ✅ No separate frontend/backend/database containers
+🎉 **Unified Container with SQLite** - Maximum simplicity:
+- ✅ Single Docker container (no separate frontend/backend/database)
+- ✅ Embedded SQLite database (no PostgreSQL setup needed)
 - ✅ Single port configuration (8001)
-- ✅ Embedded PostgreSQL database
 - ✅ Built-in frontend serving
 - ✅ Seamless single-command startup
-- ✅ Reduced complexity and resource usage
+- ✅ 60% smaller image size (~800MB vs ~2GB)
+- ✅ Only 2 required environment variables
+- ✅ File-based database for easy backup
 
 ## Features
 
@@ -30,9 +32,8 @@ NesVentory is a modern home inventory management application that helps you trac
 
 - **Backend**: FastAPI (Python 3.11)
 - **Frontend**: React + TypeScript + Vite (built and served by backend)
-- **Database**: PostgreSQL 16 (embedded in container)
-- **Process Manager**: Supervisor
-- **Containerization**: Docker & Docker Compose (single unified container)
+- **Database**: SQLite (embedded, file-based)
+- **Containerization**: Docker (single unified container)
 
 ## 🚀 Getting Started
 

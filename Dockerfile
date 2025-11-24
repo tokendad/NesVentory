@@ -1,5 +1,5 @@
 # Dockerfile for NesVentory v2.0
-# Unified container with frontend, backend, and embedded PostgreSQL database
+# Unified container with frontend, backend, and SQLite database
 
 # NOTE: Build the frontend before building this image:
 #   npm install && npm run build
@@ -19,14 +19,9 @@ ENV PUID=${PUID} \
 
 WORKDIR /app
 
-# Install PostgreSQL (default version), supervisor, and build dependencies from Debian repos
+# Install only essential runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    postgresql \
-    postgresql-contrib \
-    supervisor \
     tzdata \
-    gcc \
-    libpq-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -36,7 +31,7 @@ RUN groupadd -o -g ${PGID} nesventory 2>/dev/null || true && \
 
 # Install Python backend dependencies
 COPY backend/requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+RUN pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org -r /tmp/requirements.txt
 
 # Copy backend application
 COPY --chown=nesventory:nesventory backend/app /app/app
@@ -47,15 +42,14 @@ COPY --chown=nesventory:nesventory VERSION /app/VERSION
 COPY --chown=nesventory:nesventory dist /app/static
 
 # Create necessary directories
-RUN mkdir -p /app/uploads/photos && chown -R nesventory:nesventory /app/uploads
+RUN mkdir -p /app/uploads/photos /app/data && \
+    chown -R nesventory:nesventory /app/uploads /app/data
 
-# Copy supervisor and entrypoint
-COPY --chown=root:root supervisor.conf /etc/supervisor/conf.d/nesventory.conf
-COPY --chown=root:root docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
+# Switch to nesventory user
+USER nesventory
 
 # Expose port
 EXPOSE 8001
 
-# Start via custom entrypoint
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+# Start the application directly (no supervisor needed)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
