@@ -982,3 +982,95 @@ tbody tr:hover {
   margin-top: 1rem;
   border-top: 1px solid var(--border-subtle);
 }
+
+/* Tag Selection Styles */
+.tags-selection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.tag-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tag-checkbox:hover {
+  background: var(--bg-elevated-softer);
+  border-color: var(--accent);
+}
+
+.tag-checkbox input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.tag-checkbox input[type="checkbox"]:checked + span {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tag-predefined {
+  color: var(--text);
+}
+
+.tag-custom {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.new-tag-input {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.new-tag-input input {
+  flex: 1;
+  padding: 0.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.new-tag-input input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Tag badges for display */
+.item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.tag-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  background: var(--accent-soft);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.tag-badge.predefined {
+  background: rgba(139, 92, 246, 0.12);
+  border-color: rgba(139, 92, 246, 0.3);
+  color: #a78bfa;
+}
+

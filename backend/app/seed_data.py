@@ -24,6 +24,10 @@ def seed_database(db: Session) -> None:
 
     print("Seeding database with test data...")
 
+    # Create predefined tags first
+    tags = create_tags(db)
+    print(f"Created {len(tags)} tags")
+
     # Create test users
     users = create_users(db)
     print(f"Created {len(users)} users")
@@ -33,7 +37,7 @@ def seed_database(db: Session) -> None:
     print(f"Created {len(locations)} locations")
 
     # Create test items
-    items = create_items(db, locations)
+    items = create_items(db, locations, tags)
     print(f"Created {len(items)} items")
 
     # Create maintenance tasks for some items
@@ -42,6 +46,35 @@ def seed_database(db: Session) -> None:
 
     db.commit()
     print("Database seeding completed successfully!")
+
+
+def create_tags(db: Session) -> dict:
+    """Create predefined tags for categorizing items."""
+    predefined_tags = [
+        "Electronics",
+        "Computers",
+        "Appliances",
+        "Tools",
+        "Vehicles",
+        "Furniture",
+        "Sports Equipment",
+        "Home & Garden",
+        "Kitchen",
+        "Office Supplies",
+    ]
+    
+    tags = {}
+    for tag_name in predefined_tags:
+        tag = models.Tag(
+            id=uuid.uuid4(),
+            name=tag_name,
+            is_predefined=True,
+        )
+        db.add(tag)
+        tags[tag_name] = tag
+    
+    db.flush()
+    return tags
 
 
 def create_users(db: Session) -> list:
@@ -165,7 +198,7 @@ def create_locations(db: Session) -> dict:
     }
 
 
-def create_items(db: Session, locations: dict) -> list:
+def create_items(db: Session, locations: dict, tags: dict) -> list:
     """Create test items with various attributes."""
     items = []
 
@@ -196,6 +229,7 @@ def create_items(db: Session, locations: dict) -> list:
             },
         ],
     )
+    tv.tags = [tags["Electronics"]]
     items.append(tv)
     db.add(tv)
 
@@ -219,6 +253,7 @@ def create_items(db: Session, locations: dict) -> list:
             },
         ],
     )
+    laptop.tags = [tags["Electronics"], tags["Computers"], tags["Office Supplies"]]
     items.append(laptop)
     db.add(laptop)
 
@@ -236,6 +271,7 @@ def create_items(db: Session, locations: dict) -> list:
         retailer="Amazon",
         location_id=locations["kitchen"].id,
     )
+    microwave.tags = [tags["Appliances"], tags["Kitchen"]]
     items.append(microwave)
     db.add(microwave)
 
@@ -253,6 +289,7 @@ def create_items(db: Session, locations: dict) -> list:
         retailer="Home Depot",
         location_id=locations["workbench"].id,
     )
+    drill.tags = [tags["Tools"]]
     items.append(drill)
     db.add(drill)
 
@@ -276,6 +313,7 @@ def create_items(db: Session, locations: dict) -> list:
             },
         ],
     )
+    desk.tags = [tags["Furniture"], tags["Office Supplies"]]
     items.append(desk)
     db.add(desk)
 
@@ -293,6 +331,7 @@ def create_items(db: Session, locations: dict) -> list:
         retailer="Local Bike Shop",
         location_id=locations["garage"].id,
     )
+    bicycle.tags = [tags["Sports Equipment"], tags["Vehicles"]]
     items.append(bicycle)
     db.add(bicycle)
 
@@ -318,6 +357,7 @@ def create_items(db: Session, locations: dict) -> list:
             },
         ],
     )
+    vacuum.tags = [tags["Home & Garden"], tags["Appliances"]]
     items.append(vacuum)
     db.add(vacuum)
 
@@ -335,6 +375,7 @@ def create_items(db: Session, locations: dict) -> list:
         retailer="Walmart",
         location_id=locations["kitchen"].id,
     )
+    coffee_maker.tags = [tags["Kitchen"], tags["Appliances"]]
     items.append(coffee_maker)
     db.add(coffee_maker)
 

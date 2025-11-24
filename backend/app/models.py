@@ -13,6 +13,7 @@ from sqlalchemy import (
     Text,
     Date,
     JSON,
+    Table,
 )
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID, JSONB
 from sqlalchemy.orm import relationship
@@ -73,6 +74,15 @@ class User(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+# Association table for many-to-many relationship between items and tags
+item_tags = Table(
+    'item_tags',
+    Base.metadata,
+    Column('item_id', UUID(), ForeignKey('items.id'), primary_key=True),
+    Column('tag_id', UUID(), ForeignKey('tags.id'), primary_key=True)
+)
 
 
 class LocationType(str, Enum):
@@ -172,6 +182,7 @@ class Item(Base):
     photos = relationship("Photo", back_populates="item", foreign_keys="[Photo.item_id]", cascade="all, delete-orphan")
     documents = relationship("Document", back_populates="item", cascade="all, delete-orphan")
     maintenance_tasks = relationship("MaintenanceTask", back_populates="item", cascade="all, delete-orphan")
+    tags = relationship("Tag", secondary=item_tags, back_populates="items")
 
     data_tag_photo = relationship("Photo", foreign_keys=[data_tag_photo_id], post_update=True)
 
@@ -237,3 +248,17 @@ class MaintenanceTask(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     item = relationship("Item", back_populates="maintenance_tasks")
+
+
+class Tag(Base):
+    __tablename__ = "tags"
+
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    name = Column(String(100), nullable=False, unique=True, index=True)
+    is_predefined = Column(Boolean, default=False, nullable=False)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    items = relationship("Item", secondary=item_tags, back_populates="tags")
+

@@ -131,6 +131,19 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
             </div>
           </div>
 
+          {item.tags && item.tags.length > 0 && (
+            <div className="details-section">
+              <h3>Tags</h3>
+              <div className="item-tags">
+                {item.tags.map(tag => (
+                  <span key={tag.id} className={`tag-badge ${tag.is_predefined ? 'predefined' : ''}`}>
+                    {tag.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {item.warranties && item.warranties.length > 0 && (
             <div className="details-section">
               <h3>Warranty Information</h3>
