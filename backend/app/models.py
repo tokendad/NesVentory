@@ -60,6 +60,16 @@ class UserRole(str, Enum):
     VIEWER = "viewer"
 
 
+# Association table for many-to-many relationship between users and locations (access control)
+# Defined before User class to ensure proper initialization
+user_location_access = Table(
+    'user_location_access',
+    Base.metadata,
+    Column('user_id', UUID(), ForeignKey('users.id'), primary_key=True),
+    Column('location_id', UUID(), ForeignKey('locations.id'), primary_key=True)
+)
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -76,16 +86,8 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     # Relationship for location access (many-to-many)
-    allowed_locations = relationship("Location", secondary="user_location_access", back_populates="allowed_users")
+    allowed_locations = relationship("Location", secondary=user_location_access, back_populates="allowed_users")
 
-
-# Association table for many-to-many relationship between users and locations (access control)
-user_location_access = Table(
-    'user_location_access',
-    Base.metadata,
-    Column('user_id', UUID(), ForeignKey('users.id'), primary_key=True),
-    Column('location_id', UUID(), ForeignKey('locations.id'), primary_key=True)
-)
 
 # Association table for many-to-many relationship between items and tags
 item_tags = Table(
