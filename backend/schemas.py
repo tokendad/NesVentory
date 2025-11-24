@@ -25,9 +25,15 @@ class UserRead(UserBase):
     id: uuid.UUID
     created_at: datetime
     updated_at: datetime
+    allowed_location_ids: Optional[List[uuid.UUID]] = None
 
     class Config:
         orm_mode = True
+
+
+# Schema for updating user location access
+class UserLocationAccess(BaseModel):
+    location_ids: List[uuid.UUID]
 
 
 # ---------- Location ----------
@@ -35,10 +41,13 @@ class UserRead(UserBase):
 class LocationBase(BaseModel):
     name: str
     parent_id: Optional[uuid.UUID] = None
+    is_primary_location: bool = False
     friendly_name: Optional[str] = None
     description: Optional[str] = None
     address: Optional[str] = None
     owner_info: Optional[dict] = None
+    landlord_info: Optional[dict] = None
+    tenant_info: Optional[dict] = None
     insurance_info: Optional[dict] = None
     estimated_property_value: Optional[Decimal] = None
     estimated_value_with_items: Optional[Decimal] = None
@@ -52,10 +61,13 @@ class LocationCreate(LocationBase):
 class LocationUpdate(BaseModel):
     name: Optional[str] = None
     parent_id: Optional[uuid.UUID] = None
+    is_primary_location: Optional[bool] = None
     friendly_name: Optional[str] = None
     description: Optional[str] = None
     address: Optional[str] = None
     owner_info: Optional[dict] = None
+    landlord_info: Optional[dict] = None
+    tenant_info: Optional[dict] = None
     insurance_info: Optional[dict] = None
     estimated_property_value: Optional[Decimal] = None
     estimated_value_with_items: Optional[Decimal] = None

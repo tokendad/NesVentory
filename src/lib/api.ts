@@ -82,10 +82,55 @@ export interface ItemCreate {
   tag_ids?: string[];
 }
 
+export interface LandlordInfo {
+  name?: string;
+  company?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+}
+
+export interface TenantInfo {
+  name?: string;
+  phone?: string;
+  email?: string;
+  lease_start?: string;
+  lease_end?: string;
+  rent_amount?: number;
+  notes?: string;
+}
+
+export interface OwnerInfo {
+  owner_name?: string;
+  spouse_name?: string;
+  contact_info?: string;
+  notes?: string;
+}
+
+export interface InsuranceInfo {
+  company_name?: string;
+  policy_number?: string;
+  contact_info?: string;
+  coverage_amount?: number;
+  notes?: string;
+}
+
 export interface Location {
   id: number | string;
   name: string;
   parent_id?: number | string | null;
+  is_primary_location?: boolean;
+  friendly_name?: string | null;
+  description?: string | null;
+  address?: string | null;
+  owner_info?: OwnerInfo | null;
+  landlord_info?: LandlordInfo | null;
+  tenant_info?: TenantInfo | null;
+  insurance_info?: InsuranceInfo | null;
+  estimated_property_value?: number | null;
+  estimated_value_with_items?: number | null;
+  location_type?: string | null;
   children?: Location[];
 }
 
@@ -297,6 +342,7 @@ export interface User {
   role: string;
   created_at: string;
   updated_at: string;
+  allowed_location_ids?: string[] | null;
 }
 
 export interface UserCreate {
@@ -348,6 +394,29 @@ export async function updateUser(userId: string, updates: Partial<{full_name: st
     body: JSON.stringify(updates),
   });
   return handleResponse<User>(res);
+}
+
+export async function updateUserLocationAccess(userId: string, locationIds: string[]): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/users/${userId}/locations`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ location_ids: locationIds }),
+  });
+  return handleResponse<User>(res);
+}
+
+export async function getUserLocationAccess(userId: string): Promise<Location[]> {
+  const res = await fetch(`${API_BASE_URL}/api/users/${userId}/locations`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<Location[]>(res);
 }
 
 // Tag API functions

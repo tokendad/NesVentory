@@ -23,11 +23,81 @@ function buildTree(locations: Location[]): Location[] {
   return roots;
 }
 
+function getLocationTypeLabel(locationType: string | null | undefined): string | null {
+  if (!locationType) return null;
+  const typeLabels: Record<string, string> = {
+    'residential': 'Residential',
+    'commercial': 'Commercial',
+    'retail': 'Retail',
+    'industrial': 'Industrial',
+    'apartment_complex': 'Apartment Complex',
+    'condo': 'Condo',
+    'multi_family': 'Multi-Family',
+    'other': 'Other'
+  };
+  return typeLabels[locationType] || locationType;
+}
+
 const LocationNode: React.FC<{ loc: Location }> = ({ loc }) => {
   const children = loc.children || [];
+  const hasLandlord = loc.landlord_info && Object.keys(loc.landlord_info).length > 0;
+  const hasTenant = loc.tenant_info && Object.keys(loc.tenant_info).length > 0;
+  const isPrimary = loc.is_primary_location;
+  const locationType = getLocationTypeLabel(loc.location_type);
+  
   return (
     <li>
-      <span>{loc.name}</span>
+      <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+        {loc.friendly_name || loc.name}
+        {isPrimary && (
+          <span title="Primary Location" style={{ 
+            fontSize: "0.625rem", 
+            backgroundColor: "#4ecdc4", 
+            color: "#fff", 
+            padding: "0.125rem 0.25rem", 
+            borderRadius: "3px",
+            marginLeft: "0.25rem"
+          }}>
+            HOME
+          </span>
+        )}
+        {hasLandlord && (
+          <span title={`Landlord: ${loc.landlord_info?.name || 'Info available'}`} style={{ 
+            fontSize: "0.625rem", 
+            backgroundColor: "#ff6b6b", 
+            color: "#fff", 
+            padding: "0.125rem 0.25rem", 
+            borderRadius: "3px",
+            marginLeft: "0.25rem"
+          }}>
+            LANDLORD
+          </span>
+        )}
+        {hasTenant && (
+          <span title={`Tenant: ${loc.tenant_info?.name || 'Info available'}`} style={{ 
+            fontSize: "0.625rem", 
+            backgroundColor: "#95e1d3", 
+            color: "#333", 
+            padding: "0.125rem 0.25rem", 
+            borderRadius: "3px",
+            marginLeft: "0.25rem"
+          }}>
+            TENANT
+          </span>
+        )}
+        {locationType && (
+          <span title={locationType} style={{ 
+            fontSize: "0.625rem", 
+            backgroundColor: "#888", 
+            color: "#fff", 
+            padding: "0.125rem 0.25rem", 
+            borderRadius: "3px",
+            marginLeft: "0.25rem"
+          }}>
+            {locationType}
+          </span>
+        )}
+      </span>
       {children.length > 0 && (
         <ul>
           {children.map((child) => (

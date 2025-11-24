@@ -60,6 +60,16 @@ class UserRole(str, Enum):
     VIEWER = "viewer"
 
 
+# Association table for many-to-many relationship between users and locations (access control)
+# Defined before User class to ensure proper initialization
+user_location_access = Table(
+    'user_location_access',
+    Base.metadata,
+    Column('user_id', UUID(), ForeignKey('users.id'), primary_key=True),
+    Column('location_id', UUID(), ForeignKey('locations.id'), primary_key=True)
+)
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -74,6 +84,9 @@ class User(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationship for location access (many-to-many)
+    allowed_locations = relationship("Location", secondary=user_location_access, back_populates="allowed_users")
 
 
 # Association table for many-to-many relationship between items and tags
@@ -104,6 +117,9 @@ class Location(Base):
     parent_id = Column(UUID(), ForeignKey("locations.id"), nullable=True)
     full_path = Column(String(1024), nullable=True)
     
+    # Flag for primary/main locations (homes)
+    is_primary_location = Column(Boolean, default=False, nullable=False)
+    
     # New detail fields
     friendly_name = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)
@@ -118,6 +134,29 @@ class Location(Base):
     #   "notes": "..."
     # }
     owner_info = Column(JSON, nullable=True)
+    
+    # Landlord information for multi-family/apartment buildings
+    # {
+    #   "name": "...",
+    #   "company": "...",
+    #   "phone": "...",
+    #   "email": "...",
+    #   "address": "...",
+    #   "notes": "..."
+    # }
+    landlord_info = Column(JSON, nullable=True)
+    
+    # Tenant information for units/apartments
+    # {
+    #   "name": "...",
+    #   "phone": "...",
+    #   "email": "...",
+    #   "lease_start": "...",
+    #   "lease_end": "...",
+    #   "rent_amount": ...,
+    #   "notes": "..."
+    # }
+    tenant_info = Column(JSON, nullable=True)
     
     # Insurance information stored as JSON for SQLite compatibility
     # Note: backend/models.py uses JSONB for PostgreSQL compatibility
@@ -146,6 +185,9 @@ class Location(Base):
 
     parent = relationship("Location", remote_side=[id], backref="children")
     items = relationship("Item", back_populates="location")
+    
+    # Relationship for user access control (many-to-many)
+    allowed_users = relationship("User", secondary="user_location_access", back_populates="allowed_locations")
 
 
 class Item(Base):
