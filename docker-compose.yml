@@ -1,27 +1,9 @@
 version: "3.9"
 
 services:
-  nesventory_db:
-    image: postgres:16
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      POSTGRES_DB: ${DB_NAME:-nesventory}
-      POSTGRES_USER: ${DB_USER:-nesventory}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      TZ: ${TZ:-Etc/UTC}
-    volumes:
-      - nesventory_db_data:/var/lib/postgresql/data
-      # Optional: Synchronize container's timezone with host's timezone
-      # Uncomment the line below to use host timezone
-      # - /etc/localtime:/etc/localtime:ro
-    networks:
-      - nesventory_net
-
-  nesventory_backend:
+  nesventory:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
       args:
         PUID: ${PUID:-1000}
@@ -30,36 +12,28 @@ services:
     env_file:
       - .env
     environment:
-      DB_HOST: nesventory_db
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
       UMASK: ${UMASK:-002}
       TZ: ${TZ:-Etc/UTC}
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-nesventory}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME:-nesventory}
     volumes:
-      # Development mode: Mount source code for live reloading
-      # For production, remove this mount and bake code into the image
-      - ./backend:/app
-      # Optional: Data volume to hold configuration and database backups
-      # Uncomment and adjust the path below for persistent config storage
-      # - /data/DockerConfigs/nesventory:/config
+      # PostgreSQL data volume (persistent database storage)
+      - nesventory_data:/var/lib/postgresql/data
       
-      # Optional: Media volume for storing images and attachments
+      # Optional: Uploads/media volume for storing images and attachments
       # Uncomment and adjust the path below to enable media storage
-      # - /media:/media
+      # - /path/to/media:/app/uploads
       
       # Optional: Synchronize container's timezone with host's timezone
       # Uncomment the line below to use host timezone
       # - /etc/localtime:/etc/localtime:ro
-    depends_on:
-      - nesventory_db
     ports:
-      - "${BACKEND_PORT:-8001}:8001"
-    networks:
-      - nesventory_net
+      - "${APP_PORT:-8001}:8001"
 
 volumes:
-  nesventory_db_data:
-
-networks:
-  nesventory_net:
-    driver: bridge
+  nesventory_data:

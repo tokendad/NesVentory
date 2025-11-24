@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pathlib import Path
 from .config import settings
+import os
 
 # 🔥 IMPORTANT: Load all SQLAlchemy models so tables get created
 from . import models
@@ -50,12 +52,17 @@ app.include_router(photos.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 
 # Setup uploads directory and mount static files
-import os
 UPLOAD_BASE = os.getenv("UPLOAD_DIR", "/app/uploads")
 UPLOAD_DIR = Path(UPLOAD_BASE)
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 (UPLOAD_DIR / "photos").mkdir(exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+
+# Mount frontend static files (v2.0 unified container)
+STATIC_DIR = Path("/app/static")
+if STATIC_DIR.exists():
+    # Mount static assets (JS, CSS, images, etc.)
+    app.mount("/assets", StaticFiles(directory=str(STATIC_DIR / "assets")), name="assets")
 
 @app.get("/api/health")
 def health():
@@ -67,3 +74,20 @@ def version():
         "version": settings.VERSION,
         "name": settings.PROJECT_NAME
     }
+
+# Serve frontend for all non-API routes (must be last)
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    """Serve the frontend application for all non-API routes."""
+    # Check if this is a static file request
+    static_file = STATIC_DIR / full_path
+    if static_file.is_file():
+        return FileResponse(static_file)
+    
+    # For all other routes, serve index.html (SPA routing)
+    index_file = STATIC_DIR / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
+    
+    # Fallback if static directory doesn't exist (development mode)
+    return {"message": "Frontend not built. Run 'npm run build' to build the frontend."}
