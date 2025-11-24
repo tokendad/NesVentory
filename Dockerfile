@@ -1,56 +1,12 @@
-# Multi-stage Dockerfile for NesVentory v2.0
-# Merges frontend, backend, and database into a single container
+# Dockerfile for NesVentory v2.0
+# Unified container with frontend, backend, and embedded PostgreSQL database
 
-# ============================================================================
-# Stage 1: Build Frontend
-# ============================================================================
-FROM node:18-alpine AS frontend-builder
+# NOTE: Build the frontend before building this image:
+#   npm install && npm run build
 
-WORKDIR /frontend
-
-# Copy frontend package files
-COPY package.json package-lock.json ./
-
-# Install dependencies
-RUN npm ci
-
-# Copy frontend source
-COPY index.html ./
-COPY tsconfig.json ./
-COPY vite.config.ts ./
-COPY src ./src
-
-# Build frontend for production
-RUN npm run build
-
-# ============================================================================
-# Stage 2: Build Backend Dependencies
-# ============================================================================
-FROM python:3.11-slim AS backend-builder
-
-ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-WORKDIR /app
-
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc build-essential libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy backend requirements
-COPY backend/requirements.txt .
-
-# Install Python packages
-RUN pip install --user -r requirements.txt
-
-# ============================================================================
-# Stage 3: Final Runtime Image
-# ============================================================================
 FROM python:3.11-slim
 
-# Environment variables for user/group configuration
+# Environment variables
 ARG PUID=1000
 ARG PGID=1000
 ENV PUID=${PUID} \
@@ -59,58 +15,47 @@ ENV PUID=${PUID} \
     TZ=Etc/UTC \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    POSTGRES_VERSION=16
+    DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
-# Install runtime dependencies including PostgreSQL
+# Install PostgreSQL (default version), supervisor, and build dependencies from Debian repos
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    tzdata \
-    postgresql-${POSTGRES_VERSION} \
-    postgresql-client-${POSTGRES_VERSION} \
+    postgresql \
+    postgresql-contrib \
     supervisor \
+    tzdata \
+    gcc \
+    libpq-dev \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Create user and group with specified IDs
+# Create nesventory user
 RUN groupadd -o -g ${PGID} nesventory 2>/dev/null || true && \
     useradd -o -u ${PUID} -g ${PGID} -s /bin/bash -m nesventory 2>/dev/null || true
 
-# Copy Python packages to nesventory user's local directory
-COPY --from=backend-builder /root/.local /home/nesventory/.local
-RUN chown -R nesventory:nesventory /home/nesventory/.local
-ENV PATH=/home/nesventory/.local/bin:$PATH
+# Install Python backend dependencies
+COPY backend/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-# Copy backend application files
+# Copy backend application
 COPY --chown=nesventory:nesventory backend/app /app/app
-COPY --chown=nesventory:nesventory backend/models.py /app/
-COPY --chown=nesventory:nesventory backend/schemas.py /app/
-COPY --chown=nesventory:nesventory backend/db.py /app/
-
-# Copy VERSION file for version detection
+COPY --chown=nesventory:nesventory backend/models.py backend/schemas.py backend/db.py /app/
 COPY --chown=nesventory:nesventory VERSION /app/VERSION
 
-# Copy built frontend from frontend-builder stage
-COPY --from=frontend-builder --chown=nesventory:nesventory /frontend/dist /app/static
+# Copy pre-built frontend
+COPY --chown=nesventory:nesventory dist /app/static
 
 # Create necessary directories
-RUN mkdir -p /app/uploads/photos && \
-    mkdir -p /var/lib/postgresql/data && \
-    mkdir -p /var/run/postgresql && \
-    mkdir -p /var/log/supervisor && \
-    chown -R nesventory:nesventory /app/uploads && \
-    chown -R postgres:postgres /var/lib/postgresql && \
-    chown -R postgres:postgres /var/run/postgresql && \
-    chmod 755 /var/run/postgresql
+RUN mkdir -p /app/uploads/photos && chown -R nesventory:nesventory /app/uploads
 
-# Copy supervisor configuration
+# Copy supervisor and entrypoint
 COPY --chown=root:root supervisor.conf /etc/supervisor/conf.d/nesventory.conf
-
-# Copy startup script
-COPY --chown=nesventory:nesventory docker-entrypoint.sh /app/docker-entrypoint.sh
+COPY --chown=root:root docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
-# Expose port for the unified application
+# Expose port
 EXPOSE 8001
 
-# Use supervisor to run both PostgreSQL and the application
-CMD ["/app/docker-entrypoint.sh"]
+# Start via custom entrypoint
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
