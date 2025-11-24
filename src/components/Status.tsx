@@ -104,15 +104,30 @@ const Status: React.FC = () => {
             </div>
             {database.error && (
               <div className="card-footnote" style={{ color: "var(--danger)" }}>
-                {database.error}
+                <strong>Error Details:</strong> {database.error}
+                <br />
+                <small>
+                  This may indicate a connection issue or incompatible database type.
+                  See INSTALL.txt for troubleshooting.
+                </small>
+              </div>
+            )}
+            {!database.error && database.status !== "healthy" && (
+              <div className="card-footnote" style={{ color: "var(--danger)" }}>
+                Database is not in a healthy state. Check logs for details.
               </div>
             )}
           </div>
 
           <div className="card">
-            <div className="card-label">PostgreSQL Version</div>
+            <div className="card-label">Database Version</div>
             <div className="card-value">{database.version || "Unknown"}</div>
             <div className="card-footnote">
+              {database.version === "Unknown" && database.status === "healthy" && (
+                <span className="muted">
+                  Version detection unavailable (may be using SQLite)
+                </span>
+              )}
               {database.is_version_current === true && (
                 <span className="status-ok">✓ Up to date</span>
               )}
@@ -127,7 +142,7 @@ const Status: React.FC = () => {
                     Latest: {database.latest_version}
                   </span>
                 )}
-              {!database.latest_version && (
+              {!database.latest_version && database.version !== "Unknown" && (
                 <span className="muted">Version check unavailable</span>
               )}
             </div>

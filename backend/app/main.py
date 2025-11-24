@@ -19,6 +19,17 @@ Base.metadata.create_all(bind=engine)
 try:
     db = SessionLocal()
     seed_database(db)
+    
+    # Verify seed data was created
+    def warn_missing_data(entity_name: str, count: int):
+        """Log warning if entity count is zero."""
+        if count == 0:
+            print(f"⚠️  WARNING: No {entity_name} found in database after seeding!")
+            print("   This may indicate a seeding issue. See SEEDING.md for troubleshooting.")
+    
+    warn_missing_data("items", db.query(models.Item).count())
+    warn_missing_data("locations", db.query(models.Location).count())
+    
     db.close()
 except Exception as e:
     print(f"Error seeding database: {e}")

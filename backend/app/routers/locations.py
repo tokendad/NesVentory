@@ -10,6 +10,7 @@ router = APIRouter(prefix="/locations", tags=["locations"])
 
 @router.get("/", response_model=List[schemas.Location])
 def list_locations(db: Session = Depends(get_db)):
+    """Get all locations. Always returns a JSON array, even if empty."""
     return db.query(models.Location).all()
 
 
