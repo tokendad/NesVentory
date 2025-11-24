@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.0] - 2025-11-24
+### Added
+- Encircle XLSX import feature for importing items and images from Encircle detailed export files
+  - New `/api/import/encircle` endpoint for processing Encircle XLSX files
+  - Support for image file upload with automatic matching to items
+  - Two image matching modes: by item description (default) or by numeric prefix
+  - Automatic location creation from XLSX data
+  - Estimated value import from RCV column
+  - Import log showing progress and summary
+- "Import from Encircle" button in Items view
+- New EncircleImport component with file upload UI and import options
+- Added openpyxl dependency for XLSX parsing
+
+### Changed
+- Bumped project version to 2.3.0
+
 ## [2.1.0] - 2025-11-24
 ### Added
 - Extended location model with comprehensive detail fields:
