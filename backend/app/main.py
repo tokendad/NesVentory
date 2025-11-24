@@ -19,16 +19,14 @@ try:
     seed_database(db)
     
     # Verify seed data was created
-    item_count = db.query(models.Item).count()
-    location_count = db.query(models.Location).count()
+    def warn_missing_data(entity_name: str, count: int):
+        """Log warning if entity count is zero."""
+        if count == 0:
+            print(f"⚠️  WARNING: No {entity_name} found in database after seeding!")
+            print("   This may indicate a seeding issue. See SEEDING.md for troubleshooting.")
     
-    if item_count == 0:
-        print("⚠️  WARNING: No items found in database after seeding!")
-        print("   This may indicate a seeding issue. See SEEDING.md for troubleshooting.")
-    
-    if location_count == 0:
-        print("⚠️  WARNING: No locations found in database after seeding!")
-        print("   This may indicate a seeding issue. See SEEDING.md for troubleshooting.")
+    warn_missing_data("items", db.query(models.Item).count())
+    warn_missing_data("locations", db.query(models.Location).count())
     
     db.close()
 except Exception as e:

@@ -78,13 +78,11 @@ def get_database_info(db: Session) -> Dict[str, Any]:
         elif is_sqlite:
             # For SQLite, try to extract just the version number
             # Example: "3.37.2" from "3.37.2 2022-01-06 13:25:41..."
-            try:
-                parts = version_full.split()
-                if parts and parts[0][0].isdigit():
-                    db_version = parts[0]
-                else:
-                    db_version = version_full
-            except Exception:
+            import re
+            version_match = re.search(r'(\d+\.\d+(?:\.\d+)?)', version_full)
+            if version_match:
+                db_version = version_match.group(1)
+            else:
                 db_version = version_full
             # Size and location not available for SQLite in the same way
             db_size_readable = "Not available (SQLite)"
