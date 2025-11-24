@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import type { ItemCreate, Location, Tag, ContactInfo } from "../lib/api";
 import { uploadPhoto, fetchTags, createTag } from "../lib/api";
 import { formatPhotoType } from "../lib/utils";
@@ -55,11 +55,17 @@ const ItemForm: React.FC<ItemFormProps> = ({
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [newTagName, setNewTagName] = useState("");
 
-  // Check if Living tag is selected
-  const isLivingItem = (): boolean => {
+  // Memoize the Living tag ID to avoid recalculating on every render
+  const livingTagId = useMemo(() => {
     const livingTag = availableTags.find(t => t.name === LIVING_TAG_NAME);
-    return livingTag ? (formData.tag_ids || []).includes(livingTag.id) : false;
-  };
+    return livingTag?.id || null;
+  }, [availableTags]);
+
+  // Check if Living tag is selected (memoized)
+  const isLivingItemSelected = useMemo(() => {
+    if (!livingTagId) return false;
+    return (formData.tag_ids || []).includes(livingTagId);
+  }, [livingTagId, formData.tag_ids]);
 
   // Load tags on mount
   useEffect(() => {
@@ -77,13 +83,12 @@ const ItemForm: React.FC<ItemFormProps> = ({
 
   // Update is_living flag when tags change
   useEffect(() => {
-    const living = isLivingItem();
-    if (living !== formData.is_living) {
+    if (isLivingItemSelected !== formData.is_living) {
       setFormData(prev => ({
         ...prev,
-        is_living: living,
+        is_living: isLivingItemSelected,
         // Clear non-living fields when switching to living mode
-        ...(living ? {
+        ...(isLivingItemSelected ? {
           purchase_date: "",
           purchase_price: undefined,
           brand: "",
@@ -101,7 +106,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
         })
       }));
     }
-  }, [formData.tag_ids, availableTags]);
+  }, [isLivingItemSelected, formData.is_living]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -118,7 +123,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
           ? value === ""
             ? undefined
             : parseFloat(value)
-          : name === "location_id" || name === "associated_user_id"
+          : name === "location_id"
           ? value === ""
             ? null
             : value
@@ -141,7 +146,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
       ...prev,
       is_current_user: checked,
       relationship_type: checked ? "self" : prev.relationship_type,
-      associated_user_id: checked && currentUserId ? currentUserId : prev.associated_user_id,
+      associated_user_id: checked ? (currentUserId || prev.associated_user_id) : prev.associated_user_id,
     }));
   };
 
@@ -227,7 +232,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
     }
   };
 
-  const livingMode = isLivingItem();
+  const livingMode = isLivingItemSelected;
 
   return (
     <div className="modal-overlay" onClick={onCancel}>

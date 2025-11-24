@@ -87,6 +87,9 @@ class User(Base):
 
     # Relationship for location access (many-to-many)
     allowed_locations = relationship("Location", secondary=user_location_access, back_populates="allowed_users")
+    
+    # Living items associated with this user (for "is_current_user" items)
+    living_items = relationship("Item", foreign_keys="[Item.associated_user_id]", back_populates="associated_user")
 
 
 # Association table for many-to-many relationship between items and tags

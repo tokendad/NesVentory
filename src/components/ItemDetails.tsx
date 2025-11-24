@@ -26,8 +26,10 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
     (loc) => loc.id.toString() === item.location_id?.toString()
   );
 
-  // Check if this is a living item
-  const isLivingItem = item.is_living || item.tags?.some(tag => tag.name === LIVING_TAG_NAME);
+  // Check if this is a living item - prefer the is_living flag as the source of truth,
+  // but also check tags for backward compatibility
+  const isLivingItem = item.is_living === true || 
+    (item.is_living === undefined && item.tags?.some(tag => tag.name === LIVING_TAG_NAME));
 
   const handleDelete = async () => {
     if (!confirm("Are you sure you want to delete this item?")) {
