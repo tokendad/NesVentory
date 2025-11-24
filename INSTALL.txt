@@ -4,9 +4,8 @@ NesVentory Installation Guide
 
 Version: 2.0.0
 
-This guide provides detailed instructions for installing and running NesVentory
-v2.0 which features a unified container architecture combining frontend, backend,
-and database into a single Docker container.
+This guide provides instructions for installing and running NesVentory v2.0
+which features a unified container architecture with embedded SQLite database.
 
 ================================================================================
 TABLE OF CONTENTS
@@ -28,14 +27,12 @@ TABLE OF CONTENTS
 1. PREREQUISITES
 ================================================================================
 
-Before installing NesVentory v2.0, ensure you have the following installed:
+Before installing NesVentory v2.0, ensure you have:
 
 - Docker (version 20.10 or higher)
 - Docker Compose (version 2.0 or higher) - optional but recommended
+- Node.js 20+ and npm (for building the frontend)
 - Git (for cloning the repository)
-
-NOTE: Node.js is no longer required for running the application (only needed for
-      development), as the frontend is built into the Docker image.
 
 To verify your Docker installation:
   docker --version
@@ -52,22 +49,28 @@ Step 1: Clone the Repository
 git clone https://github.com/tokendad/NesVentory.git
 cd NesVentory
 
-Step 2: Create Environment File
+Step 2: Build the Frontend
+---------------------------
+npm install
+npm run build
+
+Step 3: Create Environment File
 --------------------------------
 cp .env.example .env
 
-Edit .env and set a secure password:
-  DB_PASSWORD=your-secure-password-here
+Edit .env and set secure secrets:
+  SECRET_KEY=your-secure-secret-key
+  JWT_SECRET_KEY=your-jwt-secret-key
 
-Step 3: Start the Application
-------------------------------
+Step 4: Start with Docker Compose
+----------------------------------
 docker compose up -d
 
-Step 4: Access the Application
+Step 5: Access the Application
 -------------------------------
 Open your browser to: http://localhost:8001
 
-That's it! NesVentory is now running in a single unified container.
+That's it! NesVentory is now running in a single unified container with SQLite.
 
 ================================================================================
 3. INSTALLATION WITH DOCKER COMPOSE
@@ -75,161 +78,105 @@ That's it! NesVentory is now running in a single unified container.
 
 Docker Compose is the recommended method for running NesVentory v2.0.
 
-Step 1: Clone the Repository
------------------------------
+Step 1: Clone and Build Frontend
+---------------------------------
 git clone https://github.com/tokendad/NesVentory.git
 cd NesVentory
+npm install && npm run build
 
-Step 2: Configure Environment Variables
-----------------------------------------
-Copy the example environment file and configure your settings:
+Step 2: Configure Environment
+------------------------------
+cp .env.example .env
 
-  cp .env.example .env
+Edit .env and set:
+  SECRET_KEY=<generate with: python -c "import secrets; print(secrets.token_urlsafe(32))">
+  JWT_SECRET_KEY=<generate with: python -c "import secrets; print(secrets.token_urlsafe(32))">
 
-IMPORTANT: Edit the .env file and set secure values for:
-  - SECRET_KEY - Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
-  - JWT_SECRET_KEY - Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
-  - DB_PASSWORD - Use a strong, unique password
+Step 3: Start the Container
+----------------------------
+docker compose up --build -d
 
-Step 3: Build and Start the Unified Container
-----------------------------------------------
-Build and start the NesVentory container:
-
-  docker compose up --build
-
-This command will:
-  - Build the unified Docker image (frontend + backend + database)
-  - Initialize the embedded PostgreSQL database
-  - Start the application on port 8001
-  - Automatically create tables and seed test data
-
-To run in detached mode (background):
-  docker compose up -d --build
-
-To view logs when running in detached mode:
+To view logs:
   docker compose logs -f
 
 ================================================================================
 4. INSTALLATION WITH DOCKER CLI
 ================================================================================
 
-If you prefer to use Docker CLI commands instead of Docker Compose:
+If you prefer to use Docker CLI instead of Docker Compose:
 
+Step 1: Build Frontend
+-----------------------
+npm install && npm run build
 
-Step 1: Create Database Volume
--------------------------------
+Step 2: Create Data Volume
+---------------------------
 docker volume create nesventory_data
 
-Step 2: Build the Image
+Step 3: Build the Image
 ------------------------
 docker build -t nesventory:2.0 .
 
-Step 3: Start the Container
-----------------------------
+Step 4: Run the Container
+--------------------------
 docker run -d \
   --name nesventory \
-  -e DB_USER=nesventory \
-  -e DB_PASSWORD=your-secure-password \
-  -e DB_NAME=nesventory \
-  -e SECRET_KEY=your-super-secret-key \
-  -e JWT_SECRET_KEY=your-jwt-secret-key \
-  -e PUID=1000 \
-  -e PGID=1000 \
-  -e UMASK=002 \
-  -e TZ=Etc/UTC \
-  -v nesventory_data:/var/lib/postgresql/data \
+  -e SECRET_KEY=your-secret-key \
+  -e JWT_SECRET_KEY=your-jwt-secret \
   -p 8001:8001 \
+  -v nesventory_data:/app/data \
   --restart unless-stopped \
   nesventory:2.0
 
 Optional Volume Mounts:
-  Add these to the docker run command above for additional functionality:
-  
-  -v /path/to/uploads:/app/uploads \
-    (Persistent uploads and media files)
-  
-  -v /etc/localtime:/etc/localtime:ro \
-    (Sync with host timezone)
+  -v /path/to/uploads:/app/uploads (for persistent media files)
+  -v /etc/localtime:/etc/localtime:ro (sync with host timezone)
 
 ================================================================================
 5. ENVIRONMENT CONFIGURATION
 ================================================================================
 
-The application uses environment variables for configuration. Key variables:
+Version 2.0 dramatically simplifies configuration with SQLite.
 
-Required Security Settings:
-  SECRET_KEY                    - Application secret key
-  JWT_SECRET_KEY                - JWT token signing key
-  DB_PASSWORD                   - Database password
+Required Settings:
+  SECRET_KEY                    - Application secret key (REQUIRED)
+  JWT_SECRET_KEY                - JWT token signing key (REQUIRED)
 
-Database Settings:
-  DB_HOST                       - Database host (default: localhost for v2.0)
-  DB_PORT                       - Database port (default: 5432)
-  DB_USER                       - Database user (default: nesventory)
-  DB_NAME                       - Database name (default: nesventory)
-  DB_PASSWORD                   - Database password (REQUIRED)
+Optional Settings:
+  DB_PATH                       - SQLite database path (default: /app/data/nesventory.db)
+  TZ                            - Timezone (default: Etc/UTC)
+  APP_PORT                      - Application port in docker-compose (default: 8001)
+  ACCESS_TOKEN_EXPIRE_MINUTES   - JWT expiration (default: 1440)
 
-Docker User Configuration (Optional):
-  PUID                          - User ID for container process (default: 1000)
-                                  Controls file ownership for created files
-                                  Find your user ID with: id -u
-  
-  PGID                          - Group ID for container process (default: 1000)
-                                  Controls group ownership for created files
-                                  Find your group ID with: id -g
-  
-  UMASK                         - File creation permission mask (default: 002)
-                                  002 = Files: 664 (rw-rw-r--), Dirs: 775 (rwxrwxr-x)
-                                  022 = Files: 644 (rw-r--r--), Dirs: 755 (rwxr-xr-x)
-  
-  TZ                            - Timezone for container (default: Etc/UTC)
-                                  Use IANA timezone names (e.g., America/New_York)
-                                  List: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+Docker User Configuration:
+  PUID                          - User ID for file ownership (default: 1000)
+  PGID                          - Group ID for file ownership (default: 1000)
+  UMASK                         - File permission mask (default: 002)
 
-Application Settings:
-  PROJECT_NAME                  - Project name (default: NesVentory)
-  APP_PORT                      - Application port (default: 8001)
-  ACCESS_TOKEN_EXPIRE_MINUTES   - JWT expiration (default: 30)
+Volume Mounts:
+  /app/data                     - SQLite database file storage (PERSISTENT DATA)
+  /app/uploads                  - Uploaded images and attachments (optional)
 
-CORS Settings:
-  CORS_ORIGINS                  - Comma-separated allowed origins (optional in v2.0)
-
-Docker Volume Configuration:
-  The docker-compose.yml file includes volume mounts for:
-
-  Database Data:
-    - nesventory_data:/var/lib/postgresql/data
-      Persistent storage for PostgreSQL database
-  
-  Uploads (Optional):
-    - /path/to/uploads:/app/uploads
-      Stores uploaded images and media attachments
-  
-  Timezone Sync (Optional):
-    - /etc/localtime:/etc/localtime:ro
-      Synchronizes container timezone with host system
-      Alternative to setting TZ environment variable
-
-See .env.example for a complete template with all available options.
+See .env.example for a complete template.
 
 ================================================================================
 6. ACCESSING THE APPLICATION
 ================================================================================
 
-Once the container is running, you can access everything at:
+Once the container is running, access at:
 
   Application UI:     http://localhost:8001
   API Documentation:  http://localhost:8001/docs
   Health Check:       http://localhost:8001/api/health
   Version Info:       http://localhost:8001/api/version
 
-Note: In v2.0, everything is served from a single port (8001).
+Everything is served from port 8001 in v2.0.
 
 ================================================================================
 7. DEFAULT LOGIN CREDENTIALS
 ================================================================================
 
-The application automatically seeds the database with three test users:
+The application automatically seeds with three test users:
 
   Admin User:
     Email:    admin@nesventory.local
@@ -246,50 +193,42 @@ The application automatically seeds the database with three test users:
     Password: viewer123
     Access:   Read-only access
 
-WARNING: These are default credentials for testing only!
-For production deployments, change all passwords immediately.
+WARNING: Change these credentials for production!
 
 ================================================================================
 8. VERIFICATION STEPS
 ================================================================================
 
-To verify the installation is successful:
+Verify the installation:
 
 1. Check Container is Running:
    docker ps
    
-   Expected output should show nesventory container running
+   Should show nesventory container running
 
-2. Check Container Logs:
-   docker compose logs -f
-   
-   or
-   
+2. Check Logs:
    docker logs nesventory
    
-   You should see both PostgreSQL and the application starting successfully
+   Should see successful startup messages
 
 3. Check Health:
    curl http://localhost:8001/api/health
    
-   Expected response: {"status":"ok"}
+   Expected: {"status":"ok"}
 
 4. Check Version:
    curl http://localhost:8001/api/version
    
-   Expected response: {"name":"NesVentory","version":"2.0.0"}
+   Expected: {"name":"NesVentory","version":"2.0.0"}
 
-5. Open Application:
-   Open http://localhost:8001 in your browser
-   You should see the login page
+5. Open UI:
+   http://localhost:8001
+   
+   Should see the login page
 
 6. Test Login:
-   Use the admin credentials to log in:
    Email: admin@nesventory.local
    Password: admin123
-
-7. Check Database Seeding:
-   After logging in, you should see the pre-seeded test items
 
 ================================================================================
 9. TROUBLESHOOTING
@@ -297,49 +236,35 @@ To verify the installation is successful:
 
 Container Won't Start:
 ----------------------
-If the container fails to start:
-  - Check logs: docker logs nesventory
-  - Verify .env file has DB_PASSWORD set
-  - Ensure port 8001 is not in use: netstat -tuln | grep 8001
-
-Database Initialization Issues:
---------------------------------
-If PostgreSQL fails to initialize:
-  1. Stop container: docker compose down
-  2. Remove volume: docker volume rm nesventory_nesventory_data
-  3. Restart: docker compose up --build
-
-Port Already in Use:
---------------------
-If port 8001 is already in use:
-  - Change APP_PORT in .env
-  - Update docker-compose.yml ports section
-  - Restart: docker compose up -d
+- Check logs: docker logs nesventory
+- Verify SECRET_KEY and JWT_SECRET_KEY are set
+- Ensure port 8001 is not in use
 
 Frontend Not Loading:
 ---------------------
-If you see "Frontend not built" message:
-  - The container should have built the frontend automatically
-  - Check build logs: docker compose logs
-  - Try rebuilding: docker compose up --build
+- Ensure you ran `npm run build` before `docker build`
+- Check that dist/ directory exists
+- Rebuild: docker compose up --build
 
-Database Connection Errors:
-----------------------------
-If the application can't connect to the database:
-  - Wait a few seconds for PostgreSQL to finish initializing
-  - Check logs: docker logs nesventory
-  - Verify DB_PASSWORD is set correctly in .env
+Database Issues:
+----------------
+- SQLite database is at /app/data/nesventory.db
+- Ensure /app/data is mounted as volume for persistence
+- Check permissions on mounted volume
 
-View Container Logs:
---------------------
-  docker compose logs -f
-  or
+View Logs:
+----------
   docker logs -f nesventory
 
-Rebuild from Scratch:
----------------------
-  docker compose down -v
+Rebuild:
+--------
+  docker compose down
   docker compose up --build
+
+Reset Database:
+---------------
+  docker compose down -v  # WARNING: Deletes all data
+  docker compose up -d
 
 ================================================================================
 10. STOPPING THE APPLICATION
@@ -347,80 +272,78 @@ Rebuild from Scratch:
 
 Using Docker Compose:
 ---------------------
-Stop container (keeps data):
+Stop (keeps data):
   docker compose down
 
-Stop container and remove volumes (deletes all data):
+Stop and remove data:
   docker compose down -v
 
 Using Docker CLI:
 -----------------
-Stop container:
+Stop:
   docker stop nesventory
 
-Remove container:
+Remove:
   docker rm nesventory
 
-Remove volume (deletes all data):
+Remove data volume:
   docker volume rm nesventory_data
 
 ================================================================================
 11. WHAT'S NEW IN V2.0
 ================================================================================
 
-NesVentory v2.0 introduces a major architectural change:
+Major Architecture Changes:
 
-Unified Container Architecture:
---------------------------------
-✅ Single Docker container contains everything:
-   - React frontend (built and served as static files)
-   - FastAPI backend
-   - PostgreSQL database
-   - Supervisor process manager
+SQLite Database:
+✅ No separate database container needed
+✅ Database is a single file: /app/data/nesventory.db
+✅ Automatic initialization on first run
+✅ Easy backup: just copy the database file
+✅ Cross-platform compatibility
 
-✅ Benefits:
-   - Simpler deployment (one container vs three)
-   - Single port configuration (8001)
-   - Reduced resource usage
-   - Faster startup time
-   - Easier backup and restore
-   - No network overhead between containers
+Unified Container:
+✅ Frontend + Backend + Database in one container
+✅ Single process (uvicorn only)
+✅ No supervisor or process manager
+✅ 60% smaller image (~800MB vs ~2GB)
+✅ Faster builds (~2 min vs ~10 min)
 
-✅ Migration from v1.x:
-   - Export your data before upgrading
-   - V2.0 uses the same database schema
-   - Update your docker-compose.yml to the new version
-   - Restore your data to the new container
+Simplified Configuration:
+✅ Only 2 required environment variables
+✅ No database credentials needed
+✅ No network configuration
+✅ One port (8001) for everything
 
-Backend Changes:
-----------------
-✅ Serves built frontend files via FastAPI
-✅ Database connection now points to localhost
-✅ CORS settings simplified for single-origin deployment
+Benefits:
+✅ Easier deployment
+✅ Faster startup
+✅ Lower resource usage
+✅ Simpler backup/restore
+✅ Better for development
 
-Frontend Changes:
------------------
-✅ Built as static files during Docker build
-✅ Served from the same origin as the API
-✅ No separate development server needed in production
+Migration from v1.x:
+- Export your data before upgrading
+- V2.0 uses same schema (compatible)
+- Import data to new SQLite database
 
-Configuration Changes:
-----------------------
-✅ Single APP_PORT instead of separate BACKEND_PORT and FRONTEND_PORT
-✅ DB_HOST defaults to localhost
-✅ Simplified .env.example
-✅ CORS_ORIGINS optional (everything from same origin)
+Suitable For:
+- Home inventory (perfect fit)
+- Small to medium datasets
+- Development and testing
+- Quick deployments
+
+For very large deployments (100k+ items), consider staying with v1.x PostgreSQL.
 
 ================================================================================
 ADDITIONAL RESOURCES
 ================================================================================
 
 - Project README: README.md
-- Database Seeding Documentation: SEEDING.md
+- Build Guide: BUILD.md
+- Database Seeding: SEEDING.md
 - API Documentation: http://localhost:8001/docs (when running)
 - GitHub Repository: https://github.com/tokendad/NesVentory
-
-For issues and support, please visit:
-https://github.com/tokendad/NesVentory/issues
+- Issues: https://github.com/tokendad/NesVentory/issues
 
 ================================================================================

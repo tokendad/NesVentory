@@ -12,12 +12,11 @@ from sqlalchemy import (
     Numeric,
     Text,
     Date,
+    JSON,
 )
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID, JSONB
 from sqlalchemy.orm import relationship
-from sqlalchemy.types import String, TypeDecorator
-from sqlalchemy import JSON
-import sys
+from sqlalchemy.types import TypeDecorator
 
 from .database import Base
 
