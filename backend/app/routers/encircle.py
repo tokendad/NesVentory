@@ -36,6 +36,24 @@ ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 COL_NO = "No."
 COL_NAME = "Description"
 
+# Precompiled regex for numeric prefix matching
+NO_PREFIX_RE = re.compile(r"^0*(\d+)_", re.IGNORECASE)
+
+# MIME type mapping for image extensions
+MIME_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+}
+
+
+def get_mime_type(path: Path) -> str:
+    """Get MIME type for an image file based on its extension."""
+    ext = path.suffix.lower()
+    return MIME_TYPES.get(ext, "image/jpeg")
+
 
 def normalize_text(s: str) -> str:
     """
@@ -115,10 +133,9 @@ def match_images_by_number(images: List[Path], item_no: int) -> List[Path]:
     """
     Match images by numeric prefix pattern (e.g., 0003_description.jpg).
     """
-    no_prefix_re = re.compile(r"^0*(\d+)_", re.IGNORECASE)
     matches: List[Path] = []
     for path in images:
-        m = no_prefix_re.match(path.name)
+        m = NO_PREFIX_RE.match(path.name)
         if m:
             try:
                 no = int(m.group(1))
@@ -255,9 +272,13 @@ def process_encircle_import(
             if "rcv" in col_indices and row[col_indices["rcv"]]:
                 try:
                     val_str = str(row[col_indices["rcv"]]).strip()
-                    # Remove currency symbols and commas
+                    # Remove currency symbols and commas, keep only digits and first decimal
                     val_str = re.sub(r'[^\d.]', '', val_str)
-                    if val_str:
+                    # Handle multiple decimal points by keeping only the first
+                    if val_str.count('.') > 1:
+                        parts = val_str.split('.')
+                        val_str = parts[0] + '.' + ''.join(parts[1:])
+                    if val_str and val_str != '.':
                         estimated_value = float(val_str)
                 except (ValueError, TypeError):
                     pass
@@ -294,8 +315,9 @@ def process_encircle_import(
                         # Copy image to uploads
                         shutil.copy2(img_path, dest_path)
                         
-                        # Determine photo type
+                        # Determine photo type and MIME type
                         photo_type = classify_image_type(img_path)
+                        mime_type = get_mime_type(img_path)
                         is_primary = is_first and photo_type == "default"
                         is_data_tag = photo_type == "data_tag"
                         
@@ -303,7 +325,7 @@ def process_encircle_import(
                         photo = models.Photo(
                             item_id=item.id,
                             path=f"/uploads/photos/{new_filename}",
-                            mime_type="image/jpeg",
+                            mime_type=mime_type,
                             is_primary=is_primary,
                             is_data_tag=is_data_tag,
                             photo_type=photo_type
@@ -323,7 +345,10 @@ def process_encircle_import(
         
         # Cleanup temp directory
         if temp_dir and temp_dir.exists():
-            shutil.rmtree(temp_dir, ignore_errors=True)
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception as cleanup_err:
+                logger.warning(f"Failed to cleanup temp directory {temp_dir}: {cleanup_err}")
         
         result.log.append("--- Import Summary ---")
         result.log.append(f"Items created: {result.items_created}")

@@ -67,16 +67,19 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
     } catch (err: any) {
       // Handle structured error response
       let errorMessage = err.message || "Import failed";
-      try {
-        const parsed = JSON.parse(err.message);
-        if (parsed.message) {
-          errorMessage = parsed.message;
-          if (parsed.errors) {
-            errorMessage += ": " + parsed.errors.join(", ");
+      // Only attempt to parse as JSON if it looks like JSON
+      if (errorMessage.startsWith('{') || errorMessage.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(errorMessage);
+          if (parsed.message) {
+            errorMessage = parsed.message;
+            if (parsed.errors && Array.isArray(parsed.errors)) {
+              errorMessage += ": " + parsed.errors.join(", ");
+            }
           }
+        } catch {
+          // Not valid JSON, use original message
         }
-      } catch {
-        // Not JSON, use original message
       }
       setError(errorMessage);
     } finally {
