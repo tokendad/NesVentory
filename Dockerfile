@@ -1,9 +1,28 @@
 # Dockerfile for NesVentory v2.0
 # Unified container with frontend, backend, and SQLite database
 
-# NOTE: Build the frontend before building this image:
-#   npm install && npm run build
+# Stage 1: Build the frontend
+FROM node:20-slim AS frontend-builder
 
+WORKDIR /frontend
+
+# Copy frontend package files
+COPY package.json package-lock.json ./
+
+# Install dependencies (including dev dependencies needed for build)
+# Note: strict-ssl is disabled for compatibility with CI/CD environments
+# that may have self-signed certificates. In production environments,
+# consider removing this line and ensuring proper SSL certificates.
+RUN npm config set strict-ssl false && npm install
+
+# Copy frontend source code
+COPY src ./src
+COPY index.html tsconfig.json vite.config.ts ./
+
+# Build the frontend
+RUN npm run build
+
+# Stage 2: Build the backend runtime
 FROM python:3.11-slim
 
 # Environment variables
@@ -38,8 +57,8 @@ COPY --chown=nesventory:nesventory backend/app /app/app
 COPY --chown=nesventory:nesventory backend/models.py backend/schemas.py backend/db.py /app/
 COPY --chown=nesventory:nesventory VERSION /app/VERSION
 
-# Copy pre-built frontend
-COPY --chown=nesventory:nesventory dist /app/static
+# Copy pre-built frontend from the builder stage
+COPY --from=frontend-builder --chown=nesventory:nesventory /frontend/dist /app/static
 
 # Create necessary directories
 RUN mkdir -p /app/uploads/photos /app/data && \
