@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import type { Item, Location } from "../lib/api";
 import { getApiBaseUrl } from "../lib/api";
-import { formatPhotoType } from "../lib/utils";
+import { formatPhotoType, formatCurrency, formatDate, formatDateTime } from "../lib/utils";
 
 interface ItemDetailsProps {
   item: Item;
@@ -97,7 +97,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
               {item.purchase_date && (
                 <div className="detail-item">
                   <span className="detail-label">Purchase Date:</span>
-                  <span className="detail-value">{item.purchase_date}</span>
+                  <span className="detail-value">{formatDate(item.purchase_date)}</span>
                 </div>
               )}
               {item.retailer && (
@@ -109,13 +109,13 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
               {item.purchase_price != null && !isNaN(Number(item.purchase_price)) && (
                 <div className="detail-item">
                   <span className="detail-label">Purchase Price:</span>
-                  <span className="detail-value">${Number(item.purchase_price).toFixed(2)}</span>
+                  <span className="detail-value">{formatCurrency(Number(item.purchase_price))}</span>
                 </div>
               )}
               {item.estimated_value != null && !isNaN(Number(item.estimated_value)) && (
                 <div className="detail-item">
                   <span className="detail-label">Estimated Value:</span>
-                  <span className="detail-value">${Number(item.estimated_value).toFixed(2)}</span>
+                  <span className="detail-value">{formatCurrency(Number(item.estimated_value))}</span>
                 </div>
               )}
             </div>
@@ -162,7 +162,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
                     {warranty.expiration_date && (
                       <div className="detail-item">
                         <span className="detail-label">Expiration Date:</span>
-                        <span className="detail-value">{warranty.expiration_date}</span>
+                        <span className="detail-value">{formatDate(warranty.expiration_date)}</span>
                       </div>
                     )}
                     {warranty.notes && (
@@ -217,7 +217,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
                       📎 {doc.filename}
                     </a>
                     <span className="document-date">
-                      Uploaded: {new Date(doc.uploaded_at).toLocaleDateString()}
+                      Uploaded: {formatDate(doc.uploaded_at)}
                     </span>
                   </div>
                 ))}
