@@ -178,6 +178,13 @@ class ItemBase(BaseModel):
     upc: Optional[str] = None
     warranties: Optional[List[dict]] = None
     location_id: Optional[UUID] = None
+    # Living item fields
+    is_living: bool = False
+    birthdate: Optional[date] = None
+    contact_info: Optional[dict] = None
+    relationship_type: Optional[str] = None
+    is_current_user: bool = False
+    associated_user_id: Optional[UUID] = None
 
 
 class ItemCreate(ItemBase):
@@ -198,6 +205,13 @@ class ItemUpdate(BaseModel):
     warranties: Optional[List[dict]] = None
     location_id: Optional[UUID] = None
     tag_ids: Optional[List[UUID]] = None
+    # Living item fields
+    is_living: Optional[bool] = None
+    birthdate: Optional[date] = None
+    contact_info: Optional[dict] = None
+    relationship_type: Optional[str] = None
+    is_current_user: Optional[bool] = None
+    associated_user_id: Optional[UUID] = None
 
 
 class Item(ItemBase):

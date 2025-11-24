@@ -61,6 +61,7 @@ def create_tags(db: Session) -> dict:
         "Home & Garden",
         "Kitchen",
         "Office Supplies",
+        "Living",  # For people, pets, plants, and other living things
     ]
     
     tags = {}

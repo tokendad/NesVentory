@@ -45,6 +45,13 @@ export interface Tag {
   updated_at: string;
 }
 
+export interface ContactInfo {
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  notes?: string | null;
+}
+
 export interface Item {
   id: number | string;
   name: string;
@@ -62,6 +69,13 @@ export interface Item {
   photos?: Photo[];
   documents?: Document[];
   tags?: Tag[];
+  // Living item fields
+  is_living?: boolean;
+  birthdate?: string | null;
+  contact_info?: ContactInfo | null;
+  relationship_type?: string | null;
+  is_current_user?: boolean;
+  associated_user_id?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -80,6 +94,13 @@ export interface ItemCreate {
   location_id?: number | string | null;
   warranties?: Warranty[];
   tag_ids?: string[];
+  // Living item fields
+  is_living?: boolean;
+  birthdate?: string | null;
+  contact_info?: ContactInfo | null;
+  relationship_type?: string | null;
+  is_current_user?: boolean;
+  associated_user_id?: string | null;
 }
 
 export interface LandlordInfo {

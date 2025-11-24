@@ -344,6 +344,7 @@ const App: React.FC = () => {
             onSubmit={handleCreateItem}
             onCancel={() => setShowItemForm(false)}
             locations={locations}
+            currentUserId={currentUser?.id}
           />
         )}
         {selectedItem && !editingItem && (
@@ -365,6 +366,7 @@ const App: React.FC = () => {
             locations={locations}
             initialData={selectedItem}
             isEditing={true}
+            currentUserId={currentUser?.id}
           />
         )}
         {showUserSettings && currentUser && (

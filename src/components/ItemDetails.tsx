@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import type { Item, Location } from "../lib/api";
 import { getApiBaseUrl } from "../lib/api";
 import { formatPhotoType, formatCurrency, formatDate, formatDateTime } from "../lib/utils";
+import { RELATIONSHIP_LABELS, LIVING_TAG_NAME } from "../lib/constants";
 
 interface ItemDetailsProps {
   item: Item;
@@ -25,6 +26,9 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
     (loc) => loc.id.toString() === item.location_id?.toString()
   );
 
+  // Check if this is a living item
+  const isLivingItem = item.is_living || item.tags?.some(tag => tag.name === LIVING_TAG_NAME);
+
   const handleDelete = async () => {
     if (!confirm("Are you sure you want to delete this item?")) {
       return;
@@ -37,6 +41,11 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
       setDeleteError(err.message || "Failed to delete item");
       setDeleting(false);
     }
+  };
+
+  const getRelationshipLabel = (type: string | null | undefined): string => {
+    if (!type) return "—";
+    return RELATIONSHIP_LABELS[type] || type;
   };
 
   return (
@@ -64,62 +73,129 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
                   <span className="detail-value">{item.description}</span>
                 </div>
               )}
-              {item.brand && (
-                <div className="detail-item">
-                  <span className="detail-label">Brand:</span>
-                  <span className="detail-value">{item.brand}</span>
-                </div>
-              )}
-              {item.model_number && (
-                <div className="detail-item">
-                  <span className="detail-label">Model Number:</span>
-                  <span className="detail-value">{item.model_number}</span>
-                </div>
-              )}
-              {item.serial_number && (
-                <div className="detail-item">
-                  <span className="detail-label">Serial Number:</span>
-                  <span className="detail-value">{item.serial_number}</span>
-                </div>
-              )}
-              {item.upc && (
-                <div className="detail-item">
-                  <span className="detail-label">UPC:</span>
-                  <span className="detail-value">{item.upc}</span>
-                </div>
+              {/* Non-living item fields */}
+              {!isLivingItem && (
+                <>
+                  {item.brand && (
+                    <div className="detail-item">
+                      <span className="detail-label">Brand:</span>
+                      <span className="detail-value">{item.brand}</span>
+                    </div>
+                  )}
+                  {item.model_number && (
+                    <div className="detail-item">
+                      <span className="detail-label">Model Number:</span>
+                      <span className="detail-value">{item.model_number}</span>
+                    </div>
+                  )}
+                  {item.serial_number && (
+                    <div className="detail-item">
+                      <span className="detail-label">Serial Number:</span>
+                      <span className="detail-value">{item.serial_number}</span>
+                    </div>
+                  )}
+                  {item.upc && (
+                    <div className="detail-item">
+                      <span className="detail-label">UPC:</span>
+                      <span className="detail-value">{item.upc}</span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
 
-          <div className="details-section">
-            <h3>Purchase Information</h3>
-            <div className="details-grid">
-              {item.purchase_date && (
-                <div className="detail-item">
-                  <span className="detail-label">Purchase Date:</span>
-                  <span className="detail-value">{formatDate(item.purchase_date)}</span>
-                </div>
-              )}
-              {item.retailer && (
-                <div className="detail-item">
-                  <span className="detail-label">Retailer:</span>
-                  <span className="detail-value">{item.retailer}</span>
-                </div>
-              )}
-              {item.purchase_price != null && !isNaN(Number(item.purchase_price)) && (
-                <div className="detail-item">
-                  <span className="detail-label">Purchase Price:</span>
-                  <span className="detail-value">{formatCurrency(Number(item.purchase_price))}</span>
-                </div>
-              )}
-              {item.estimated_value != null && !isNaN(Number(item.estimated_value)) && (
-                <div className="detail-item">
-                  <span className="detail-label">Estimated Value:</span>
-                  <span className="detail-value">{formatCurrency(Number(item.estimated_value))}</span>
+          {/* Living Item Details Section */}
+          {isLivingItem && (
+            <div className="details-section living-details">
+              <h3>Living Item Details</h3>
+              <div className="details-grid">
+                {item.relationship_type && (
+                  <div className="detail-item">
+                    <span className="detail-label">Relationship:</span>
+                    <span className="detail-value">{getRelationshipLabel(item.relationship_type)}</span>
+                  </div>
+                )}
+                {item.birthdate && (
+                  <div className="detail-item">
+                    <span className="detail-label">Birthdate:</span>
+                    <span className="detail-value">{formatDate(item.birthdate)}</span>
+                  </div>
+                )}
+                {item.is_current_user && (
+                  <div className="detail-item">
+                    <span className="detail-label">Account Link:</span>
+                    <span className="detail-value">✓ Associated with my account</span>
+                  </div>
+                )}
+              </div>
+              
+              {item.contact_info && (
+                <div className="contact-info-section">
+                  <h4>Contact Information</h4>
+                  <div className="details-grid">
+                    {item.contact_info.phone && (
+                      <div className="detail-item">
+                        <span className="detail-label">Phone:</span>
+                        <span className="detail-value">{item.contact_info.phone}</span>
+                      </div>
+                    )}
+                    {item.contact_info.email && (
+                      <div className="detail-item">
+                        <span className="detail-label">Email:</span>
+                        <span className="detail-value">{item.contact_info.email}</span>
+                      </div>
+                    )}
+                    {item.contact_info.address && (
+                      <div className="detail-item full-width">
+                        <span className="detail-label">Address:</span>
+                        <span className="detail-value">{item.contact_info.address}</span>
+                      </div>
+                    )}
+                    {item.contact_info.notes && (
+                      <div className="detail-item full-width">
+                        <span className="detail-label">Notes:</span>
+                        <span className="detail-value">{item.contact_info.notes}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
-          </div>
+          )}
+
+          {/* Purchase Information - only show for non-living items */}
+          {!isLivingItem && (
+            <div className="details-section">
+              <h3>Purchase Information</h3>
+              <div className="details-grid">
+                {item.purchase_date && (
+                  <div className="detail-item">
+                    <span className="detail-label">Purchase Date:</span>
+                    <span className="detail-value">{formatDate(item.purchase_date)}</span>
+                  </div>
+                )}
+                {item.retailer && (
+                  <div className="detail-item">
+                    <span className="detail-label">Retailer:</span>
+                    <span className="detail-value">{item.retailer}</span>
+                  </div>
+                )}
+                {item.purchase_price != null && !isNaN(Number(item.purchase_price)) && (
+                  <div className="detail-item">
+                    <span className="detail-label">Purchase Price:</span>
+                    <span className="detail-value">{formatCurrency(Number(item.purchase_price))}</span>
+                  </div>
+                )}
+                {item.estimated_value != null && !isNaN(Number(item.estimated_value)) && (
+                  <div className="detail-item">
+                    <span className="detail-label">Estimated Value:</span>
+                    <span className="detail-value">{formatCurrency(Number(item.estimated_value))}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="details-section">
             <h3>Location</h3>
@@ -144,7 +220,8 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
             </div>
           )}
 
-          {item.warranties && item.warranties.length > 0 && (
+          {/* Warranty Information - only show for non-living items */}
+          {!isLivingItem && item.warranties && item.warranties.length > 0 && (
             <div className="details-section">
               <h3>Warranty Information</h3>
               {item.warranties.map((warranty, index) => (
@@ -193,12 +270,13 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
 
           {item.photos && item.photos.length > 0 && (
             <div className="details-section">
-              <h3>Images</h3>
+              <h3>{isLivingItem ? "Photos" : "Images"}</h3>
               <div className="photos-grid">
                 {item.photos.map((photo) => {
                   let badgeText = formatPhotoType(photo.photo_type);
                   if (photo.is_primary) badgeText = 'Primary';
                   else if (photo.is_data_tag) badgeText = 'Data Tag';
+                  else if (photo.photo_type === 'profile') badgeText = 'Profile';
                   
                   return (
                     <div key={photo.id} className="photo-item">
