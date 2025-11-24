@@ -39,6 +39,17 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
 
+class LocationType(str, Enum):
+    RESIDENTIAL = "residential"
+    COMMERCIAL = "commercial"
+    RETAIL = "retail"
+    INDUSTRIAL = "industrial"
+    APARTMENT_COMPLEX = "apartment_complex"
+    CONDO = "condo"
+    MULTI_FAMILY = "multi_family"
+    OTHER = "other"
+
+
 class Location(Base):
     __tablename__ = "locations"
 
@@ -46,6 +57,35 @@ class Location(Base):
     name = Column(String(255), nullable=False)
     parent_id = Column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=True)
     full_path = Column(String(1024), nullable=True)
+    
+    # New detail fields
+    friendly_name = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    address = Column(Text, nullable=True)
+    
+    # Owner information stored as JSONB for flexibility
+    # {
+    #   "owner_name": "...",
+    #   "spouse_name": "...",
+    #   "contact_info": "...",
+    #   "notes": "..."
+    # }
+    owner_info = Column(JSONB, nullable=True)
+    
+    # Insurance information stored as JSONB
+    # {
+    #   "company_name": "...",
+    #   "policy_number": "...",
+    #   "contact_info": "...",
+    #   "coverage_amount": ...,
+    #   "notes": "..."
+    # }
+    insurance_info = Column(JSONB, nullable=True)
+    
+    estimated_property_value = Column(Numeric(12, 2), nullable=True)
+    estimated_value_with_items = Column(Numeric(12, 2), nullable=True)
+    
+    location_type = Column(Enum(LocationType, name="location_type"), nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

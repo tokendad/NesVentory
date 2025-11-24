@@ -50,6 +50,14 @@ class UserRead(UserBase):
 class LocationBase(BaseModel):
     name: str
     parent_id: Optional[UUID] = None
+    friendly_name: Optional[str] = None
+    description: Optional[str] = None
+    address: Optional[str] = None
+    owner_info: Optional[dict] = None
+    insurance_info: Optional[dict] = None
+    estimated_property_value: Optional[Decimal] = None
+    estimated_value_with_items: Optional[Decimal] = None
+    location_type: Optional[str] = None
 
 
 class LocationCreate(LocationBase):
@@ -59,6 +67,14 @@ class LocationCreate(LocationBase):
 class LocationUpdate(BaseModel):
     name: Optional[str] = None
     parent_id: Optional[UUID] = None
+    friendly_name: Optional[str] = None
+    description: Optional[str] = None
+    address: Optional[str] = None
+    owner_info: Optional[dict] = None
+    insurance_info: Optional[dict] = None
+    estimated_property_value: Optional[Decimal] = None
+    estimated_value_with_items: Optional[Decimal] = None
+    location_type: Optional[str] = None
 
 
 class Location(LocationBase):
