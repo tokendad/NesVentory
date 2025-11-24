@@ -81,7 +81,10 @@ const ItemForm: React.FC<ItemFormProps> = ({
     };
   }, [photos]);
 
-  // Update is_living flag when tags change
+  // Update is_living flag and clear irrelevant fields when switching between living/non-living modes.
+  // This is intentional behavior: Living items (people, pets, plants) don't have purchase dates, 
+  // brands, etc., while non-living items don't have birthdates, relationships, or contact info.
+  // The field clearing ensures clean data and prevents confusion.
   useEffect(() => {
     if (isLivingItemSelected !== formData.is_living) {
       setFormData(prev => ({
@@ -134,10 +137,9 @@ const ItemForm: React.FC<ItemFormProps> = ({
   const handleContactInfoChange = (field: keyof ContactInfo, value: string) => {
     setFormData(prev => ({
       ...prev,
-      contact_info: {
-        ...prev.contact_info,
-        [field]: value || null,
-      }
+      contact_info: value 
+        ? { ...prev.contact_info, [field]: value } 
+        : { ...prev.contact_info, [field]: null }
     }));
   };
 
@@ -146,7 +148,8 @@ const ItemForm: React.FC<ItemFormProps> = ({
       ...prev,
       is_current_user: checked,
       relationship_type: checked ? "self" : prev.relationship_type,
-      associated_user_id: checked ? (currentUserId || prev.associated_user_id) : prev.associated_user_id,
+      // When unchecking, clear the associated_user_id since the item is no longer associated with the current user
+      associated_user_id: checked ? (currentUserId || null) : null,
     }));
   };
 

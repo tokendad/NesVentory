@@ -246,7 +246,7 @@ class Item(Base):
     documents = relationship("Document", back_populates="item", cascade="all, delete-orphan")
     maintenance_tasks = relationship("MaintenanceTask", back_populates="item", cascade="all, delete-orphan")
     tags = relationship("Tag", secondary=item_tags, back_populates="items")
-    associated_user = relationship("User", foreign_keys=[associated_user_id])
+    associated_user = relationship("User", foreign_keys=[associated_user_id], back_populates="living_items")
 
     data_tag_photo = relationship("Photo", foreign_keys=[data_tag_photo_id], post_update=True)
 
