@@ -87,6 +87,7 @@ class Location(Base):
     estimated_property_value = Column(Numeric(12, 2), nullable=True)
     estimated_value_with_items = Column(Numeric(12, 2), nullable=True)
     
+    # Use explicit enum values for SQLAlchemy compatibility
     location_type = Column(
         Enum(LocationType.RESIDENTIAL, LocationType.COMMERCIAL, LocationType.RETAIL, 
              LocationType.INDUSTRIAL, LocationType.APARTMENT_COMPLEX, LocationType.CONDO,
