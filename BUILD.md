@@ -17,27 +17,50 @@ Version 2.0 introduces a **unified container architecture** with **embedded SQLi
 ## Prerequisites
 
 - Docker (version 20.10 or higher)
-- Node.js 20+ and npm (for building the frontend)
+- Docker Compose (version 2.0 or higher, if using docker-compose)
 - Git
 
 ## Quick Start
 
-### 1. Build the Frontend
+### 1. Clone the Repository
 
 ```bash
-npm install
-npm run build
+git clone https://github.com/tokendad/NesVentory.git
+cd NesVentory
 ```
 
-This creates a `dist/` directory with the compiled frontend.
+### 2. Configure Environment
 
-### 2. Build the Docker Image
+```bash
+cp .env.example .env
+# Edit .env and set secure secret keys
+```
+
+### 3. Build and Run with Docker Compose
+
+```bash
+docker compose up -d
+```
+
+The frontend will be built automatically as part of the Docker build process.
+
+### 4. Access the Application
+
+Open your browser to: http://localhost:8001
+
+## Manual Docker Build (Alternative)
+
+If you prefer to use Docker CLI instead of Docker Compose:
+
+### 1. Build the Docker Image
 
 ```bash
 docker build -t nesventory:2.0 .
 ```
 
-### 3. Run the Container
+The frontend will be built automatically during the Docker build process using a multi-stage build.
+
+### 2. Run the Container
 
 ```bash
 docker run -d \
@@ -51,11 +74,11 @@ docker run -d \
 
 **Note**: Only 2 environment variables required! No database password needed.
 
-### 4. Access the Application
+### 3. Access the Application
 
 Open your browser to: http://localhost:8001
 
-## Using Docker Compose
+## Using Docker Compose (Recommended)
 
 Create or use the provided `.env` file:
 
@@ -64,15 +87,13 @@ cp .env.example .env
 # Edit .env and set secure passwords
 ```
 
-Then:
+Then simply run:
 
 ```bash
-# Build frontend first
-npm install && npm run build
-
-# Start with docker-compose
 docker compose up -d
 ```
+
+**Note**: The frontend is now built automatically as part of the Docker build process. You no longer need to manually run `npm install` and `npm run build`!
 
 ## Architecture Details
 
@@ -105,13 +126,17 @@ The v2.0 unified container contains:
 | Build time | ~5-10 minutes | ~2 minutes |
 | Image size | ~2 GB combined | ~800 MB |
 | Required env vars | 5+ (DB creds, secrets) | 2 (just secrets) |
-| Build process | Backend-only in Docker | Frontend must be pre-built |
+| Build process | Backend-only in Docker | Frontend built automatically in Docker (multi-stage build) |
 
 ## Troubleshooting
 
+### Frontend build errors during Docker build
+
+If you encounter errors during the frontend build stage, this may be due to network or certificate issues. The Dockerfile includes `npm config set strict-ssl false` to handle common certificate issues in CI/CD environments.
+
 ### Frontend not showing
 
-Make sure you ran `npm run build` before `docker build`.
+The frontend is now built automatically as part of the Docker build process. If you don't see the frontend, check the Docker build logs for any errors during the Node.js build stage.
 
 ### Database initialization fails
 
