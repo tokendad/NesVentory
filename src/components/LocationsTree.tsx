@@ -44,7 +44,14 @@ const LocationsTree: React.FC<LocationsTreeProps> = ({
   loading,
   error,
 }) => {
-  const tree = buildTree(locations);
+  let tree: Location[] = [];
+  let parseError: string | null = null;
+
+  try {
+    tree = buildTree(locations);
+  } catch (e) {
+    parseError = `Failed to build location tree: ${e instanceof Error ? e.message : 'Unknown error'}`;
+  }
 
   return (
     <div className="locations-panel">
@@ -52,14 +59,27 @@ const LocationsTree: React.FC<LocationsTreeProps> = ({
         <h3>Locations</h3>
       </div>
       {loading && <p className="muted small">Loading locations…</p>}
-      {error && <div className="error-banner">{error}</div>}
-      {!loading && tree.length === 0 && !error && (
+      {error && (
+        <div className="error-banner">
+          <strong>API Error:</strong> {error}
+          <br />
+          <small>Unable to fetch locations from server. Check network connection and API status.</small>
+        </div>
+      )}
+      {parseError && (
+        <div className="error-banner">
+          <strong>Data Error:</strong> {parseError}
+          <br />
+          <small>Received invalid location data. Contact support if this persists.</small>
+        </div>
+      )}
+      {!loading && !error && !parseError && tree.length === 0 && (
         <p className="muted small">
           No locations yet. These will be created automatically when you import
           from Encircle or add items via the API.
         </p>
       )}
-      {tree.length > 0 && (
+      {!error && !parseError && tree.length > 0 && (
         <ul className="locations-tree">
           {tree.map((loc) => (
             <LocationNode key={loc.id} loc={loc} />

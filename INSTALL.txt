@@ -299,12 +299,18 @@ To verify the installation is successful:
    Use the admin credentials to log in:
    Email: admin@nesventory.local
    Password: admin123
+   
+   Additional test accounts:
+   - Editor: editor@nesventory.local / editor123
+   - Viewer: viewer@nesventory.local / viewer123
 
 6. Check Database Seeding:
-   curl http://localhost:8001/api/items
-   (Requires authentication token)
+   After logging in, verify that seed data is present:
+   - Dashboard should show item and location counts
+   - Navigate to Items view to see 8 pre-seeded test items
+   - Sidebar should show location tree with 9 locations
    
-   Should return the 8 pre-seeded test items
+   If items or locations are missing, see "Troubleshooting" section below.
 
 ================================================================================
 8. TROUBLESHOOTING
@@ -316,6 +322,67 @@ If the backend cannot connect to the database:
   - Verify the database container is running: docker compose ps
   - Check database logs: docker compose logs nesventory_db
   - Verify DB_PASSWORD matches in both services
+  - Ensure database has finished initialization (first startup may take 30-60 seconds)
+
+No Seed Data (Missing Items or Locations):
+------------------------------------------
+If you log in successfully but see no items or locations:
+
+1. Check Backend Logs for Warnings:
+   docker compose logs nesventory_backend | grep WARNING
+   
+   Look for messages like:
+   - "WARNING: No items found in database after seeding!"
+   - "WARNING: No locations found in database after seeding!"
+
+2. Common Causes:
+   - Database already had users, so seeding was skipped
+   - Database connection issues during startup
+   - Schema or migration problems
+
+3. Solution - Reset and Reseed:
+   docker compose down -v          # Remove all data
+   docker compose up --build       # Rebuild and restart
+   
+   This will create a fresh database and trigger seeding.
+
+4. Alternative - Manual Verification:
+   Check if data exists in database:
+   docker exec -it nesventory_db psql -U nesventory -d nesventory -c "SELECT COUNT(*) FROM items;"
+   docker exec -it nesventory_db psql -U nesventory -d nesventory -c "SELECT COUNT(*) FROM locations;"
+   
+   Expected results: 8 items, 9 locations
+
+For detailed seeding troubleshooting, see SEEDING.md
+
+Database Shows "Unhealthy" in Status Panel:
+--------------------------------------------
+If the Status page shows database as "unhealthy":
+
+For SQLite Users:
+  - This is expected behavior. The app is optimized for PostgreSQL.
+  - SQLite will work but show limited status information.
+  - If you need full features, switch to PostgreSQL (see docker-compose.yml).
+
+For PostgreSQL Users:
+  - Verify database container is running: docker compose ps
+  - Check database logs: docker compose logs nesventory_db
+  - Verify connection settings in .env file
+  - Try restarting services: docker compose restart
+
+JSON/Parsing Errors in Location Tree:
+--------------------------------------
+If the Locations panel shows "Data Error" or "API Error":
+
+API Error:
+  - Check network connectivity to backend
+  - Verify backend is running: curl http://localhost:8001/api/health
+  - Check browser console for CORS or network errors
+
+Data Error:
+  - Database may contain invalid location data
+  - Check backend logs for errors
+  - Try resetting database (see "No Seed Data" solution above)
 
 Database Schema Errors:
 -----------------------

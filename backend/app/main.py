@@ -17,6 +17,19 @@ Base.metadata.create_all(bind=engine)
 try:
     db = SessionLocal()
     seed_database(db)
+    
+    # Verify seed data was created
+    item_count = db.query(models.Item).count()
+    location_count = db.query(models.Location).count()
+    
+    if item_count == 0:
+        print("⚠️  WARNING: No items found in database after seeding!")
+        print("   This may indicate a seeding issue. See SEEDING.md for troubleshooting.")
+    
+    if location_count == 0:
+        print("⚠️  WARNING: No locations found in database after seeding!")
+        print("   This may indicate a seeding issue. See SEEDING.md for troubleshooting.")
+    
     db.close()
 except Exception as e:
     print(f"Error seeding database: {e}")

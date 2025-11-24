@@ -10,7 +10,9 @@ router = APIRouter(prefix="/locations", tags=["locations"])
 
 @router.get("/", response_model=List[schemas.Location])
 def list_locations(db: Session = Depends(get_db)):
-    return db.query(models.Location).all()
+    """Get all locations. Always returns a JSON array, even if empty."""
+    locations = db.query(models.Location).all()
+    return locations if locations is not None else []
 
 
 @router.post("/", response_model=schemas.Location, status_code=status.HTTP_201_CREATED)
