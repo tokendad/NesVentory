@@ -104,7 +104,10 @@ def get_database_info(db: Session) -> Dict[str, Any]:
             "status": "unhealthy",
             "error": str(e),
             "version": "Unknown",
+            "version_full": str(e),
             "size": "Unknown",
+            "size_bytes": 0,
+            "location": "Unknown",
         }
 
 
