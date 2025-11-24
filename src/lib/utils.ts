@@ -2,6 +2,8 @@
  * Utility functions for the application
  */
 
+import { getLocaleConfig } from './locale';
+
 /**
  * Format photo type name for display
  * @param photoType - The photo type string (e.g., "data_tag", "receipt")
@@ -13,23 +15,33 @@ export function formatPhotoType(photoType: string | null | undefined): string {
 }
 
 /**
- * Get the user's locale from browser settings or default to 'en-US'
+ * Get the user's locale from configuration or browser settings
  * @returns The user's preferred locale
  */
 export function getUserLocale(): string {
-  return navigator.language || 'en-US';
+  const config = getLocaleConfig();
+  return config.locale;
 }
 
 /**
- * Format a currency value according to the user's locale
+ * Get the user's preferred currency from configuration
+ * @returns The user's preferred currency code
+ */
+export function getUserCurrency(): string {
+  const config = getLocaleConfig();
+  return config.currency;
+}
+
+/**
+ * Format a currency value according to the user's locale and currency preference
  * @param value - The numeric value to format
- * @param currency - The currency code (default: 'USD')
- * @param locale - The locale to use (default: user's browser locale)
+ * @param currency - The currency code (default: user's preferred currency)
+ * @param locale - The locale to use (default: user's configured locale)
  * @returns Formatted currency string
  */
 export function formatCurrency(
   value: number | null | undefined,
-  currency: string = 'USD',
+  currency?: string,
   locale?: string
 ): string {
   if (value == null || isNaN(value)) {
@@ -37,11 +49,12 @@ export function formatCurrency(
   }
   
   const userLocale = locale || getUserLocale();
+  const userCurrency = currency || getUserCurrency();
   
   try {
     return new Intl.NumberFormat(userLocale, {
       style: 'currency',
-      currency: currency,
+      currency: userCurrency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value);
@@ -60,7 +73,7 @@ export function formatCurrency(
  * Format a date string or Date object according to the user's locale
  * @param date - The date string (YYYY-MM-DD) or Date object to format
  * @param options - Intl.DateTimeFormatOptions for customization
- * @param locale - The locale to use (default: user's browser locale)
+ * @param locale - The locale to use (default: user's configured locale)
  * @returns Formatted date string
  */
 export function formatDate(
@@ -91,7 +104,7 @@ export function formatDate(
 /**
  * Format a date and time according to the user's locale
  * @param dateTime - The datetime string or Date object to format
- * @param locale - The locale to use (default: user's browser locale)
+ * @param locale - The locale to use (default: user's configured locale)
  * @returns Formatted datetime string
  */
 export function formatDateTime(

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import LoginForm from "./components/LoginForm";
 import RegisterForm from "./components/RegisterForm";
 import UserSettings from "./components/UserSettings";
+import LocaleSettings from "./components/LocaleSettings";
 import AdminPage from "./components/AdminPage";
 import Layout from "./components/Layout";
 import DashboardCards from "./components/DashboardCards";
@@ -53,6 +54,7 @@ const App: React.FC = () => {
   const [editingItem, setEditingItem] = useState(false);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
   const [showUserSettings, setShowUserSettings] = useState(false);
+  const [showLocaleSettings, setShowLocaleSettings] = useState(false);
   const [showAdminPage, setShowAdminPage] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
@@ -261,6 +263,7 @@ const App: React.FC = () => {
         userEmail={userEmail}
         userName={currentUser?.full_name || undefined}
         onUserClick={() => setShowUserSettings(true)}
+        onLocaleClick={() => setShowLocaleSettings(true)}
       >
         {view === "dashboard" && (
           <>
@@ -366,6 +369,11 @@ const App: React.FC = () => {
             user={currentUser}
             onClose={() => setShowUserSettings(false)}
             onUpdate={handleUserSettingsUpdate}
+          />
+        )}
+        {showLocaleSettings && (
+          <LocaleSettings
+            onClose={() => setShowLocaleSettings(false)}
           />
         )}
         {showAdminPage && currentUser?.role === "admin" && (
