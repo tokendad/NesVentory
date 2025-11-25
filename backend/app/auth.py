@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, HTTPException, status, Request
+from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -14,7 +14,8 @@ from .deps import get_db
 settings = get_settings()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token", auto_error=False)
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 
 
@@ -38,6 +39,11 @@ def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
     return db.query(models.User).filter(models.User.email == email).first()
 
 
+def get_user_by_api_key(db: Session, api_key: str) -> Optional[models.User]:
+    """Look up a user by their API key."""
+    return db.query(models.User).filter(models.User.api_key == api_key).first()
+
+
 def authenticate_user(db: Session, email: str, password: str) -> Optional[models.User]:
     user = get_user_by_email(db, email=email)
     if not user:
@@ -48,7 +54,8 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[models
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    token: Optional[str] = Depends(oauth2_scheme),
+    api_key: Optional[str] = Depends(api_key_header),
     db: Session = Depends(get_db),
 ) -> models.User:
     credentials_exception = HTTPException(
@@ -56,6 +63,19 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
+    # First, try API key authentication
+    if api_key:
+        user = get_user_by_api_key(db, api_key)
+        if user:
+            return user
+        # If API key was provided but invalid, raise error
+        raise credentials_exception
+    
+    # Fall back to JWT token authentication
+    if not token:
+        raise credentials_exception
+    
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id: str = payload.get("sub")

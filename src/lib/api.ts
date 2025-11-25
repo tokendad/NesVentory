@@ -364,6 +364,7 @@ export interface User {
   created_at: string;
   updated_at: string;
   allowed_location_ids?: string[] | null;
+  api_key?: string | null;
 }
 
 export interface UserCreate {
@@ -517,5 +518,29 @@ export async function importEncircle(
   });
 
   return handleResponse<EncircleImportResult>(res);
+}
+
+// --- API Key Management ---
+
+export async function generateApiKey(): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/users/me/api-key`, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<User>(res);
+}
+
+export async function revokeApiKey(): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/users/me/api-key`, {
+    method: "DELETE",
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<User>(res);
 }
 

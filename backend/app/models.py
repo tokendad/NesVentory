@@ -81,6 +81,9 @@ class User(Base):
     # Pass the values of the Enum directly to avoid type confusion
     role = Column(Enum(UserRole.ADMIN, UserRole.EDITOR, UserRole.VIEWER, name="user_role", type_=String),
                   nullable=False, default=UserRole.ADMIN)
+    
+    # API key for mobile/external app authentication
+    api_key = Column(String(64), unique=True, nullable=True, index=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
