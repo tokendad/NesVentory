@@ -83,7 +83,8 @@ const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail,
           className={`app-sidebar ${isMobile ? 'mobile' : ''} ${mobileMenuOpen ? 'open' : ''}`}
           onClick={(e) => {
             // Close menu when clicking a nav link on mobile
-            if (isMobile && (e.target as HTMLElement).closest('.nav-link')) {
+            const target = e.target;
+            if (isMobile && target instanceof HTMLElement && target.closest('.nav-link')) {
               closeMobileMenu();
             }
           }}

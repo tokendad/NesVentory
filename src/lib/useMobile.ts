@@ -18,18 +18,25 @@ export function useIsMobile(): boolean {
   });
 
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    
     const checkMobile = () => {
-      setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
+      // Debounce resize events to avoid excessive state updates
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
+      }, 100);
     };
 
     // Check on resize
     window.addEventListener('resize', checkMobile);
     
-    // Initial check
-    checkMobile();
+    // Initial check (no debounce needed)
+    setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
 
     return () => {
       window.removeEventListener('resize', checkMobile);
+      clearTimeout(timeoutId);
     };
   }, []);
 
