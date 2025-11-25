@@ -91,7 +91,17 @@ const App: React.FC = () => {
     try {
       const user = await getCurrentUser();
       setCurrentUser(user);
-      localStorage.setItem("NesVentory_currentUser", JSON.stringify(user));
+      // Persist only NON-SENSITIVE user fields to localStorage.
+      // NEVER store api_key, password, or any credentials!
+      const safeUser = {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name || "",
+        role: user.role,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+      };
+      localStorage.setItem("NesVentory_currentUser", JSON.stringify(safeUser));
     } catch (err: any) {
       console.error("Failed to load current user:", err);
     }
@@ -173,12 +183,14 @@ const App: React.FC = () => {
   function handleUserSettingsUpdate(updatedUser: User) {
     setCurrentUser(updatedUser);
     // Persist only NON-SENSITIVE user fields to localStorage.
-    // NEVER add fields like api_key, password, or any credentials here!
+    // NEVER store api_key, password, or any credentials!
     const safeUser = {
       id: updatedUser.id,
       email: updatedUser.email,
       full_name: updatedUser.full_name || "",
-      // Do not add api_key, password, etc.
+      role: updatedUser.role,
+      created_at: updatedUser.created_at,
+      updated_at: updatedUser.updated_at,
     };
     localStorage.setItem("NesVentory_currentUser", JSON.stringify(safeUser));
   }
