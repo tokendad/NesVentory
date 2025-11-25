@@ -68,8 +68,9 @@ RUN mkdir -p /app/uploads/photos /app/data && \
 # Switch to nesventory user
 USER nesventory
 
-# Expose port (default, can be overridden by APP_PORT environment variable)
+# Expose default port (actual port is determined by APP_PORT environment variable at runtime)
 EXPOSE 8001
 
 # Start the application using shell form to expand environment variable
+# APP_PORT is validated by docker-compose to be a valid port number
 CMD uvicorn app.main:app --host 0.0.0.0 --port ${APP_PORT:-8001}
