@@ -55,6 +55,7 @@ jobs:
 
     steps:
        - name: APIsec scan
+         if: ${{ secrets.apisec_username != '' && secrets.apisec_password != '' }}
          uses: apisec-inc/apisec-run-scan@025432089674a28ba8fb55f8ab06c10215e772ea
          with:
           # The APIsec username with which the scans will be executed
@@ -66,6 +67,7 @@ jobs:
           # The name of the sarif format result file The file is written only if this property is provided.
           sarif-result-file: "apisec-results.sarif"
        - name: Import results
+         if: ${{ success() && secrets.apisec_username != '' && secrets.apisec_password != '' }}
          uses: github/codeql-action/upload-sarif@v3
          with:
           sarif_file: ./apisec-results.sarif
