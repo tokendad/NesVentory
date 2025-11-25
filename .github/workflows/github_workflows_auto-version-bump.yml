@@ -5,6 +5,8 @@ on:
 jobs:
   auto-bump-version:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     if: |
       github.event.label.name == 'bug' || github.event.label.name == 'enhancement'
     steps:
