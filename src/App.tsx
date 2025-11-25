@@ -8,6 +8,7 @@ import Layout from "./components/Layout";
 import DashboardCards from "./components/DashboardCards";
 import ItemsTable from "./components/ItemsTable";
 import LocationsTree from "./components/LocationsTree";
+import LocationsPage from "./components/LocationsPage";
 import ItemForm from "./components/ItemForm";
 import ItemDetails from "./components/ItemDetails";
 import Status from "./components/Status";
@@ -28,7 +29,7 @@ import {
 import { PHOTO_TYPES } from "./lib/constants";
 import type { PhotoUpload } from "./lib/types";
 
-type View = "dashboard" | "items" | "status" | "admin";
+type View = "dashboard" | "items" | "locations" | "status" | "admin";
 
 const App: React.FC = () => {
   const [token, setToken] = useState<string | null>(
@@ -235,6 +236,12 @@ const App: React.FC = () => {
         Items
       </button>
       <button
+        className={view === "locations" ? "nav-link active" : "nav-link"}
+        onClick={() => setView("locations")}
+      >
+        Locations
+      </button>
+      <button
         className={view === "status" ? "nav-link active" : "nav-link"}
         onClick={() => setView("status")}
       >
@@ -336,6 +343,14 @@ const App: React.FC = () => {
             onAddItem={() => setShowItemForm(true)}
             onItemClick={handleItemClick}
             onImport={() => setShowEncircleImport(true)}
+          />
+        )}
+        {view === "locations" && (
+          <LocationsPage
+            locations={locations}
+            loading={locationsLoading}
+            error={locationsError}
+            onRefresh={loadLocations}
           />
         )}
         {view === "status" && <Status />}

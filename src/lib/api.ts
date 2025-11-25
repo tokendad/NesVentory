@@ -221,6 +221,68 @@ export async function fetchLocations(): Promise<Location[]> {
   return handleResponse<Location[]>(res);
 }
 
+export interface LocationCreate {
+  name: string;
+  parent_id?: string | null;
+  is_primary_location?: boolean;
+  friendly_name?: string | null;
+  description?: string | null;
+  address?: string | null;
+  owner_info?: OwnerInfo | null;
+  landlord_info?: LandlordInfo | null;
+  tenant_info?: TenantInfo | null;
+  insurance_info?: InsuranceInfo | null;
+  estimated_property_value?: number | null;
+  estimated_value_with_items?: number | null;
+  location_type?: string | null;
+}
+
+export async function createLocation(location: LocationCreate): Promise<Location> {
+  const res = await fetch(`${API_BASE_URL}/api/locations`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(location),
+  });
+  return handleResponse<Location>(res);
+}
+
+export async function updateLocation(locationId: string, location: Partial<LocationCreate>): Promise<Location> {
+  const res = await fetch(`${API_BASE_URL}/api/locations/${locationId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(location),
+  });
+  return handleResponse<Location>(res);
+}
+
+export async function deleteLocation(locationId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/locations/${locationId}`, {
+    method: "DELETE",
+    headers: {
+      ...authHeaders(),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text;
+    try {
+      const data = JSON.parse(text);
+      message = (data.detail as string) || JSON.stringify(data);
+    } catch {
+      // ignore
+    }
+    throw new Error(message || `HTTP ${res.status}`);
+  }
+}
+
 export async function createItem(item: ItemCreate): Promise<Item> {
   const res = await fetch(`${API_BASE_URL}/api/items`, {
     method: "POST",

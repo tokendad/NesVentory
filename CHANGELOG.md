@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.5.0] - 2025-11-25
+### Added
+- **Location management in dashboard**:
+  - New "Locations" view in the sidebar navigation for managing locations
+  - LocationsPage component with full CRUD operations for locations
+  - Ability to create new home locations with support for different types (residential, commercial, retail, etc.)
+  - Ability to edit existing locations
+  - Ability to delete locations
+  - Search functionality for filtering locations by name, description, or address
+  - Support for setting primary locations (homes), location types, parent locations, and addresses
+  - Frontend API functions: `createLocation`, `updateLocation`, `deleteLocation`
+
+### Changed
+- Bumped project version to 2.5.0
+
 ## [2.4.0] - 2025-11-24
 ### Added
 - **Multiple homes and multi-family homes support**:
