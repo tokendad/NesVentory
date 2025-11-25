@@ -16,6 +16,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
   const [apiKeyLoading, setApiKeyLoading] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [currentApiKey, setCurrentApiKey] = useState(user.api_key || null);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -87,9 +88,15 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
     }
   }
 
-  function copyApiKey() {
+  async function copyApiKey() {
     if (currentApiKey) {
-      navigator.clipboard.writeText(currentApiKey);
+      try {
+        await navigator.clipboard.writeText(currentApiKey);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+      } catch (err) {
+        setError("Failed to copy API key to clipboard");
+      }
     }
   }
 
@@ -168,9 +175,9 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
                     type="button"
                     className="btn-outline"
                     onClick={copyApiKey}
-                    style={{ padding: "0.5rem" }}
+                    style={{ padding: "0.5rem", backgroundColor: copySuccess ? "#e8f5e9" : undefined }}
                   >
-                    Copy
+                    {copySuccess ? "Copied!" : "Copy"}
                   </button>
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem" }}>

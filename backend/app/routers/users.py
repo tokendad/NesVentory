@@ -9,10 +9,13 @@ from .. import models, schemas, auth
 
 router = APIRouter()
 
+# API key length constant: 32 bytes = 64 hex characters
+API_KEY_BYTES = 32
+
 
 def generate_api_key() -> str:
-    """Generate a secure API key."""
-    return secrets.token_hex(32)  # 64 character hex string
+    """Generate a secure API key (32 bytes, represented as 64 hex characters)."""
+    return secrets.token_hex(API_KEY_BYTES)
 
 
 def get_user_with_locations(user: models.User) -> dict:
