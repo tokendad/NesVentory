@@ -2,7 +2,7 @@
 # Unified container with frontend, backend, and SQLite database
 
 # Stage 1: Build the frontend
-FROM node:20-slim AS frontend-builder
+FROM node:25-slim AS frontend-builder
 
 WORKDIR /frontend
 
