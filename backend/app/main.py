@@ -6,6 +6,7 @@ from pathlib import Path
 from werkzeug.utils import secure_filename
 from .config import settings
 import os
+import re
 
 # 🔥 IMPORTANT: Load all SQLAlchemy models so tables get created
 from . import models
@@ -95,27 +96,21 @@ async def serve_frontend(full_path: str):
     """Serve the frontend application for all non-API routes."""
     # Redirect API paths without trailing slash to include trailing slash
     # This allows FastAPI's routers to properly handle the request
+    import re
     def is_safe_api_path(path: str) -> bool:
-        # Only allow 'api' or subpaths (no path traversal, no backslashes, no schemes)
+        # Allow only api or api/<subpath> where subpath consists of allowed chars.
         if not path:
             return False
-        # Only allow api/ or api
-        if path != "api" and not path.startswith("api/"):
-            return False
-        if ".." in path or "\\" in path or path.startswith("/") or path.startswith("\\"):
-            return False
-        # Optionally, reject double slashes in the middle: prevent /api// or api//foo
-        if '//' in path:
-            return False
-        # Reject if it looks like a url (just in case)
-        from urllib.parse import urlparse
-        parsed = urlparse(path)
-        if parsed.scheme or parsed.netloc:
-            return False
-        return True
+        # Only allow api or api/...
+        if path == "api":
+            return True
+        m = re.fullmatch(r"api/[\w\-/]*", path)
+        return bool(m)
     
     if is_safe_api_path(full_path):
-        return RedirectResponse(url=f"/{full_path}/", status_code=307)
+        # Only return redirect to safe API paths, always as relative URL
+        safe_redirect = "/" + full_path.strip("/") + "/"
+        return RedirectResponse(url=safe_redirect, status_code=307)
     
     # Prevent path traversal attacks
     if ".." in full_path or full_path.startswith("/"):
