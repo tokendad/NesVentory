@@ -168,6 +168,8 @@ class Tag(TagBase):
 
 
 class ItemBase(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     name: str
     description: Optional[str] = None
     brand: Optional[str] = None
@@ -194,6 +196,8 @@ class ItemCreate(ItemBase):
 
 
 class ItemUpdate(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     name: Optional[str] = None
     description: Optional[str] = None
     brand: Optional[str] = None
