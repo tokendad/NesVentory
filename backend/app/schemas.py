@@ -29,6 +29,7 @@ class User(UserBase):
     created_at: datetime
     updated_at: datetime
     allowed_location_ids: Optional[List[UUID]] = None
+    api_key: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -42,6 +43,7 @@ class UserRead(UserBase):
     created_at: datetime
     updated_at: datetime
     allowed_location_ids: Optional[List[UUID]] = None
+    api_key: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -2,15 +2,24 @@ from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 from typing import List
 import uuid
+import secrets
 
 from ..deps import get_db
 from .. import models, schemas, auth
 
 router = APIRouter()
 
+# API key length constant: 32 bytes = 64 hex characters
+API_KEY_BYTES = 32
+
+
+def generate_api_key() -> str:
+    """Generate a secure API key (32 bytes, represented as 64 hex characters)."""
+    return secrets.token_hex(API_KEY_BYTES)
+
 
 def get_user_with_locations(user: models.User) -> dict:
-    """Helper to serialize user with allowed_location_ids."""
+    """Helper to serialize user with allowed_location_ids and api_key."""
     return {
         "id": user.id,
         "email": user.email,
@@ -18,7 +27,8 @@ def get_user_with_locations(user: models.User) -> dict:
         "role": user.role,
         "created_at": user.created_at,
         "updated_at": user.updated_at,
-        "allowed_location_ids": [loc.id for loc in user.allowed_locations] if user.allowed_locations else []
+        "allowed_location_ids": [loc.id for loc in user.allowed_locations] if user.allowed_locations else [],
+        "api_key": user.api_key
     }
 
 
@@ -155,3 +165,35 @@ def get_user_location_access(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     return user.allowed_locations or []
+
+
+@router.post("/users/me/api-key", response_model=schemas.UserRead)
+def generate_user_api_key(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Generate or regenerate the API key for the currently authenticated user.
+    Returns the updated user with the new API key.
+    """
+    current_user.api_key = generate_api_key()
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    return get_user_with_locations(current_user)
+
+
+@router.delete("/users/me/api-key", response_model=schemas.UserRead)
+def revoke_user_api_key(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Revoke the API key for the currently authenticated user.
+    Returns the updated user with the API key removed.
+    """
+    current_user.api_key = None
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    return get_user_with_locations(current_user)
