@@ -172,8 +172,12 @@ const App: React.FC = () => {
 
   function handleUserSettingsUpdate(updatedUser: User) {
     setCurrentUser(updatedUser);
-    // Redact sensitive fields like api_key before persisting to localStorage
-    const { api_key, ...safeUser } = updatedUser;
+    // Persist only safe user fields to localStorage (strict whitelist)
+    const safeUser = {
+      id: updatedUser.id,
+      email: updatedUser.email,
+      full_name: updatedUser.full_name || "",
+    };
     localStorage.setItem("NesVentory_currentUser", JSON.stringify(safeUser));
   }
 
