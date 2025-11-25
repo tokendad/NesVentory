@@ -51,9 +51,15 @@ async def upload_photo(
     filename = f"{item_id}_{timestamp}{file_extension}"
     file_path = UPLOAD_DIR / filename
     
+    # Validate that file_path is inside UPLOAD_DIR after normalization
+    abs_upload_dir = UPLOAD_DIR.resolve()
+    abs_file_path = file_path.resolve()
+    if not str(abs_file_path).startswith(str(abs_upload_dir)):
+        raise HTTPException(status_code=400, detail="Unsafe file path.")
+    
     # Save file
     try:
-        with file_path.open("wb") as buffer:
+        with abs_file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
