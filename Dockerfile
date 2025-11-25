@@ -32,6 +32,7 @@ ENV PUID=${PUID} \
     PGID=${PGID} \
     UMASK=002 \
     TZ=Etc/UTC \
+    APP_PORT=8001 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive
@@ -67,8 +68,8 @@ RUN mkdir -p /app/uploads/photos /app/data && \
 # Switch to nesventory user
 USER nesventory
 
-# Expose port
+# Expose port (default, can be overridden by APP_PORT environment variable)
 EXPOSE 8001
 
-# Start the application directly (no supervisor needed)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+# Start the application using shell form to expand environment variable
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${APP_PORT:-8001}
