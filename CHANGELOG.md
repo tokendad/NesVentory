@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.5.1] - 2025-11-25
+### Fixed
+- Fixed docker logs displaying hardcoded port 8001 instead of the user-configured APP_PORT value
+  - Updated Dockerfile to use APP_PORT environment variable for uvicorn port
+  - Updated docker-compose.yml to pass APP_PORT to container and use dynamic port mapping
+
+### Changed
+- Bumped project version to 2.5.1
+
 ## [2.5.0] - 2025-11-25
 ### Added
 - **Location management in dashboard**:
