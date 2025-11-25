@@ -453,15 +453,94 @@ tbody tr:hover {
 @media (max-width: 900px) {
   .app-body {
     grid-template-columns: 1fr;
+    position: relative;
   }
 
   .app-sidebar {
     display: none;
   }
 
+  /* Mobile sidebar as slide-out menu */
+  .app-sidebar.mobile {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+    padding-top: 4rem; /* Account for header */
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+  }
+
+  .app-sidebar.mobile.open {
+    transform: translateX(0);
+  }
+
+  .mobile-menu-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99;
+    backdrop-filter: blur(2px);
+  }
+
   .app-main {
     padding-inline: 1rem;
   }
+}
+
+/* Mobile menu toggle button */
+.mobile-menu-toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  margin-right: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  transition: background 0.12s ease;
+}
+
+.mobile-menu-toggle:hover {
+  background: rgba(148, 163, 184, 0.2);
+}
+
+.hamburger-icon {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 20px;
+  height: 16px;
+  position: relative;
+}
+
+.hamburger-icon span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: var(--text);
+  border-radius: 2px;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.hamburger-icon.open span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.hamburger-icon.open span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-icon.open span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
 }
 
 @media (max-width: 600px) {
@@ -475,6 +554,51 @@ tbody tr:hover {
 
   .login-card {
     padding-inline: 1.3rem;
+  }
+
+  /* Ensure touch targets are large enough on mobile */
+  .nav-link {
+    padding: 0.65rem 0.8rem;
+    min-height: 44px;
+  }
+
+  .btn-primary,
+  .btn-outline,
+  .btn-danger {
+    padding: 0.5rem 1rem;
+    min-height: 44px;
+  }
+
+  /* Improve table readability on small screens */
+  .table-wrapper {
+    font-size: 0.8rem;
+  }
+
+  th, td {
+    padding: 0.4rem 0.5rem;
+  }
+
+  /* Stack user info on very small screens */
+  .app-header-right {
+    gap: 0.5rem;
+  }
+
+  .user-email {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8rem;
+  }
+
+  /* Adjust panel padding */
+  .panel {
+    padding: 0.75rem;
+  }
+
+  .modal-content {
+    margin: 0.5rem;
+    max-height: calc(100vh - 1rem);
   }
 }
 
