@@ -177,7 +177,7 @@ const App: React.FC = () => {
     const safeUser = {
       id: updatedUser.id,
       email: updatedUser.email,
-      full_name: updatedUser.full_name || ""
+      full_name: updatedUser.full_name || "",
       // Do not add api_key, password, etc.
     };
     localStorage.setItem("NesVentory_currentUser", JSON.stringify(safeUser));
