@@ -606,3 +606,47 @@ export async function revokeApiKey(): Promise<User> {
   return handleResponse<User>(res);
 }
 
+// --- AI Detection APIs ---
+
+export interface DetectedItem {
+  name: string;
+  description?: string | null;
+  brand?: string | null;
+  estimated_value?: number | null;
+  confidence?: number | null;
+}
+
+export interface DetectionResult {
+  items: DetectedItem[];
+  raw_response?: string | null;
+}
+
+export interface AIStatusResponse {
+  enabled: boolean;
+  model?: string | null;
+}
+
+export async function getAIStatus(): Promise<AIStatusResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/ai/status`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<AIStatusResponse>(res);
+}
+
+export async function detectItemsFromImage(file: File): Promise<DetectionResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_BASE_URL}/api/ai/detect-items`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+    },
+    body: formData,
+  });
+  return handleResponse<DetectionResult>(res);
+}
+
