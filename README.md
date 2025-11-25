@@ -1,22 +1,23 @@
 # NesVentory - Home Inventory Management System
 
-**Version: 2.4.0**
+**Version: 3.0.0**
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
-## What's New in Version 2.4.0
+## What's New in Version 3.0.0
 
-🏠 **Multiple Homes & Multi-Family Support**:
-- ✅ Support for multiple primary locations (homes, properties)
-- ✅ Multi-family home support (apartments, condos, units)
-- ✅ Landlord information tracking for property buildings
-- ✅ Tenant information tracking for individual units
-- ✅ User-level location access control
-- ✅ Admin panel for managing user location permissions
+📷 **AI Photo Detection** - Major new feature!
+- ✅ Take a photo of any room and AI will detect items automatically
+- ✅ Uses Google Gemini for advanced object recognition
+- ✅ Detects furniture, electronics, appliances, and more
+- ✅ Get estimated values and descriptions for detected items
+- ✅ Bulk add detected items to your inventory
+- ✅ Works with mobile device cameras
 
 ## Features
 
 - 📦 **Inventory Management** - Track all your household items with detailed information
+- 📷 **AI Photo Detection** - Scan rooms with AI to detect and add items automatically
 - 📍 **Location Hierarchy** - Organize items by rooms and sub-locations
 - 🏘️ **Multi-Property Support** - Manage multiple homes and multi-family properties
 - 👥 **Landlord/Tenant Management** - Track landlord and tenant info for rental properties

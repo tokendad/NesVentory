@@ -10,6 +10,7 @@ interface ItemsTableProps {
   onAddItem: () => void;
   onItemClick: (item: Item) => void;
   onImport?: () => void;
+  onAIScan?: () => void;
 }
 
 const ItemsTable: React.FC<ItemsTableProps> = ({
@@ -20,6 +21,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   onAddItem,
   onItemClick,
   onImport,
+  onAIScan,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -62,6 +64,11 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
           <button className="btn-outline" onClick={onRefresh} disabled={loading}>
             {loading ? "Refreshing..." : "Refresh"}
           </button>
+          {onAIScan && (
+            <button className="btn-outline" onClick={onAIScan}>
+              📷 AI Scan
+            </button>
+          )}
           {onImport && (
             <button className="btn-outline" onClick={onImport}>
               Import from Encircle

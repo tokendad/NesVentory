@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from pydantic_settings import BaseSettings
 from pydantic import AnyHttpUrl, field_validator
 import pathlib
@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
 
     CORS_ORIGINS: List[AnyHttpUrl] | List[str] = []
+
+    # AI Photo Detection settings (Gemini)
+    GEMINI_API_KEY: Optional[str] = None
+    GEMINI_MODEL: str = "gemini-2.0-flash"
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

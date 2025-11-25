@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.0] - 2025-11-25
+### Added
+- **AI Photo Detection** - Major new feature for automatic item detection from photos
+  - New `/api/ai/detect-items` endpoint for AI-powered image analysis
+  - Uses Google Gemini API for advanced object recognition
+  - Detects household items, furniture, electronics, and other inventory-worthy objects
+  - Returns item names, descriptions, brands, and estimated values
+  - New `/api/ai/status` endpoint to check if AI feature is configured
+  - New `AIDetection` component in frontend with photo upload/capture
+  - "📷 AI Scan" button in Items view for quick room scanning
+  - Ability to select detected items and add them to inventory in bulk
+  - Optional location assignment for detected items
+  - Support for camera capture on mobile devices (`capture="environment"`)
+- **Configuration for AI detection**:
+  - `GEMINI_API_KEY` environment variable for Google Gemini API authentication
+  - `GEMINI_MODEL` environment variable to select Gemini model (default: gemini-2.0-flash)
+- Added `google-generativeai` Python package for Gemini integration
+
+### Changed
+- Bumped project version to 3.0.0 (major version bump for significant new feature)
+
 ## [2.5.1] - 2025-11-25
 ### Fixed
 - Fixed docker logs displaying hardcoded port 8001 instead of the user-configured APP_PORT value

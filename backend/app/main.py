@@ -12,7 +12,7 @@ import re
 from . import models
 from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
-from .routers import items, locations, auth, status, photos, users, tags, encircle
+from .routers import items, locations, auth, status, photos, users, tags, encircle, ai
 
 # Auto-create tables on startup and seed with test data
 Base.metadata.create_all(bind=engine)
@@ -65,6 +65,7 @@ app.include_router(photos.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(tags.router, prefix="/api")
 app.include_router(encircle.router, prefix="/api")
+app.include_router(ai.router, prefix="/api")
 
 # Setup uploads directory and mount static files
 UPLOAD_BASE = os.getenv("UPLOAD_DIR", "/app/uploads")

@@ -13,6 +13,7 @@ import ItemForm from "./components/ItemForm";
 import ItemDetails from "./components/ItemDetails";
 import Status from "./components/Status";
 import EncircleImport from "./components/EncircleImport";
+import AIDetection from "./components/AIDetection";
 import {
   fetchItems,
   fetchLocations,
@@ -59,6 +60,7 @@ const App: React.FC = () => {
   const [showLocaleSettings, setShowLocaleSettings] = useState(false);
   const [showAdminPage, setShowAdminPage] = useState(false);
   const [showEncircleImport, setShowEncircleImport] = useState(false);
+  const [showAIDetection, setShowAIDetection] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   async function loadItems() {
@@ -161,6 +163,14 @@ const App: React.FC = () => {
     if (!selectedItem) return;
     await deleteItem(selectedItem.id.toString());
     setSelectedItem(null);
+    await loadItems();
+  }
+
+  async function handleAIAddItems(items: ItemCreate[]) {
+    // Create each item detected by AI
+    for (const item of items) {
+      await createItem(item);
+    }
     await loadItems();
   }
 
@@ -363,6 +373,7 @@ const App: React.FC = () => {
             onAddItem={() => setShowItemForm(true)}
             onItemClick={handleItemClick}
             onImport={() => setShowEncircleImport(true)}
+            onAIScan={() => setShowAIDetection(true)}
           />
         )}
         {view === "locations" && (
@@ -426,6 +437,13 @@ const App: React.FC = () => {
               loadItems();
               loadLocations();
             }}
+          />
+        )}
+        {showAIDetection && (
+          <AIDetection
+            onClose={() => setShowAIDetection(false)}
+            onAddItems={handleAIAddItems}
+            locations={locations}
           />
         )}
       </Layout>
