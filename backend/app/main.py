@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pathlib import Path
 from .config import settings
 import os
@@ -94,8 +94,7 @@ async def serve_frontend(full_path: str):
     """Serve the frontend application for all non-API routes."""
     # Redirect API paths without trailing slash to include trailing slash
     # This allows FastAPI's routers to properly handle the request
-    if full_path.startswith("api/") or full_path == "api":
-        from fastapi.responses import RedirectResponse
+    if full_path and (full_path.startswith("api/") or full_path == "api"):
         return RedirectResponse(url=f"/{full_path}/", status_code=307)
     
     # Prevent path traversal attacks
