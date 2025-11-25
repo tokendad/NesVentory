@@ -87,6 +87,9 @@ class User(Base):
 
     # Relationship for location access (many-to-many)
     allowed_locations = relationship("Location", secondary=user_location_access, back_populates="allowed_users")
+    
+    # Living items associated with this user (for "is_current_user" items)
+    living_items = relationship("Item", foreign_keys="[Item.associated_user_id]", back_populates="associated_user")
 
 
 # Association table for many-to-many relationship between items and tags
@@ -212,6 +215,24 @@ class Item(Base):
     # JSON column for cross-database compatibility (SQLite/PostgreSQL)
     # Note: PostgreSQL JSONB offers better performance, but JSON works across both
     warranties = Column(JSON, nullable=True)
+    
+    # Living item fields (for people, pets, plants, etc.)
+    is_living = Column(Boolean, default=False, nullable=False)
+    birthdate = Column(Date, nullable=True)
+    # Contact information stored as JSON for flexibility
+    # {
+    #   "phone": "...",
+    #   "email": "...",
+    #   "address": "...",
+    #   "notes": "..."
+    # }
+    contact_info = Column(JSON, nullable=True)
+    # Relationship to logged-in user (e.g., "mother", "father", "sister", "pet", "plant")
+    relationship_type = Column(String(100), nullable=True)
+    # Flag if this living item is the currently logged-in user themselves
+    is_current_user = Column(Boolean, default=False, nullable=False)
+    # Reference to the user account if this living item is associated with a user
+    associated_user_id = Column(UUID(), ForeignKey("users.id"), nullable=True)
 
     # Relationships
     location_id = Column(UUID(), ForeignKey("locations.id"), nullable=True)
@@ -225,6 +246,7 @@ class Item(Base):
     documents = relationship("Document", back_populates="item", cascade="all, delete-orphan")
     maintenance_tasks = relationship("MaintenanceTask", back_populates="item", cascade="all, delete-orphan")
     tags = relationship("Tag", secondary=item_tags, back_populates="items")
+    associated_user = relationship("User", foreign_keys=[associated_user_id], back_populates="living_items")
 
     data_tag_photo = relationship("Photo", foreign_keys=[data_tag_photo_id], post_update=True)
 
