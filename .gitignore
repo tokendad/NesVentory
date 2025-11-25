@@ -6,6 +6,10 @@ __pycache__/
 *.log
 *.sqlite3
 
+# Local development data directory
+data/
+*.db
+
 # Environments
 .env
 .venv/
