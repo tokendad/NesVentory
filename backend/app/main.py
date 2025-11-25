@@ -94,7 +94,26 @@ async def serve_frontend(full_path: str):
     """Serve the frontend application for all non-API routes."""
     # Redirect API paths without trailing slash to include trailing slash
     # This allows FastAPI's routers to properly handle the request
-    if full_path and (full_path.startswith("api/") or full_path == "api"):
+    def is_safe_api_path(path: str) -> bool:
+        # Only allow 'api' or subpaths (no path traversal, no backslashes, no schemes)
+        if not path:
+            return False
+        # Only allow api/ or api
+        if path != "api" and not path.startswith("api/"):
+            return False
+        if ".." in path or "\\" in path or path.startswith("/") or path.startswith("\\"):
+            return False
+        # Optionally, reject double slashes in the middle: prevent /api// or api//foo
+        if '//' in path:
+            return False
+        # Reject if it looks like a url (just in case)
+        from urllib.parse import urlparse
+        parsed = urlparse(path)
+        if parsed.scheme or parsed.netloc:
+            return False
+        return True
+    
+    if is_safe_api_path(full_path):
         return RedirectResponse(url=f"/{full_path}/", status_code=307)
     
     # Prevent path traversal attacks
