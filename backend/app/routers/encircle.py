@@ -358,8 +358,8 @@ def process_encircle_import(
         
     except Exception as e:
         db.rollback()
-        result.errors.append(str(e))
-        result.log.append(f"Error: {e}")
+        result.errors.append("An internal error occurred during import.")
+        result.log.append("Import failed due to an internal error.")
         logger.exception("Encircle import failed")
     
     return result
