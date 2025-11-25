@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 from pathlib import Path
+from werkzeug.utils import secure_filename
 from .config import settings
 import os
 
@@ -120,8 +121,13 @@ async def serve_frontend(full_path: str):
     if ".." in full_path or full_path.startswith("/"):
         return FileResponse(STATIC_DIR / "index.html")
     
-    # Check if this is a static file request
-    static_file = (STATIC_DIR / full_path).resolve()
+    # Check if this is a static file request, sanitize each path segment
+    segments = full_path.split('/')
+    safe_segments = [secure_filename(seg) for seg in segments if seg and seg not in ('.', '..')]
+    static_file = STATIC_DIR
+    for seg in safe_segments:
+        static_file = static_file / seg
+    static_file = static_file.resolve()
     
     # Ensure the resolved path is within STATIC_DIR
     try:
