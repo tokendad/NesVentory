@@ -12,11 +12,6 @@ class Token(BaseModel):
     token_type: str
 
 
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
 # --- User Schemas ---
 
 class UserBase(BaseModel):
