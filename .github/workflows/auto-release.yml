@@ -1,0 +1,58 @@
+name: Automated Release Creation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - VERSION
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get current version
+        id: get_version
+        run: |
+          version=$(cat VERSION | tr -d '\n')
+          echo "version=$version" >> $GITHUB_OUTPUT
+
+      - name: Fetch tags
+        run: |
+          git fetch --tags
+
+      - name: Get last tag
+        id: last_tag
+        run: |
+          tag=$(git tag --sort=-creatordate | head -n1)
+          echo "last_tag=$tag" >> $GITHUB_OUTPUT
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          last_tag="${{ steps.last_tag.outputs.last_tag }}"
+          if [ -z "$last_tag" ]; then
+            # If no tag exists, use all history
+            log_range=""
+          else
+            log_range="$last_tag..HEAD"
+          fi
+          # Collect major changes
+          majors=$(git log $log_range --pretty=format:"%s" | grep -E '^(feat:|breaking change:)' || true)
+          # Collect patches
+          patches=$(git log $log_range --pretty=format:"%s" | grep '^fix:' || true)
+          printf "## Major changes\n%s\n\n## Patch issues\n%s\n" "$majors" "$patches" > release_notes.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: Version ${{ steps.get_version.outputs.version }}
+          body_path: release_notes.txt
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
