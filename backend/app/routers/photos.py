@@ -22,6 +22,13 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 # Allowed file types for photo uploads
 ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
 
+# Map MIME types to safe extensions
+MIME_TYPE_EXTENSION = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+}
 
 @router.post("/{item_id}/photos", response_model=schemas.Photo, status_code=status.HTTP_201_CREATED)
 async def upload_photo(
@@ -47,7 +54,7 @@ async def upload_photo(
     
     # Generate unique filename
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    file_extension = Path(file.filename or "").suffix or ".jpg"
+    file_extension = MIME_TYPE_EXTENSION.get(file.content_type, ".jpg")
     filename = f"{item_id}_{timestamp}{file_extension}"
     file_path = UPLOAD_DIR / filename
     
