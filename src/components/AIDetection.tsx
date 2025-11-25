@@ -9,6 +9,10 @@ import {
   type ItemCreate,
 } from "../lib/api";
 
+// Confidence threshold constants for visual display
+const HIGH_CONFIDENCE_THRESHOLD = 0.8;
+const MEDIUM_CONFIDENCE_THRESHOLD = 0.5;
+
 interface AIDetectionProps {
   onClose: () => void;
   onAddItems: (items: ItemCreate[]) => void;
@@ -150,8 +154,8 @@ const AIDetection: React.FC<AIDetectionProps> = ({ onClose, onAddItems, location
 
   const getConfidenceColor = (confidence: number | null | undefined): string => {
     if (confidence === null || confidence === undefined) return "var(--text-muted)";
-    if (confidence >= 0.8) return "#4caf50";
-    if (confidence >= 0.5) return "#ff9800";
+    if (confidence >= HIGH_CONFIDENCE_THRESHOLD) return "#4caf50";
+    if (confidence >= MEDIUM_CONFIDENCE_THRESHOLD) return "#ff9800";
     return "#f44336";
   };
 

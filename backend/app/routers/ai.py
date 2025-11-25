@@ -23,6 +23,10 @@ router = APIRouter(prefix="/ai", tags=["ai"])
 # Allowed image types for AI analysis
 ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
 
+# Item name length constraints for parsing plain text fallback
+MIN_ITEM_NAME_LENGTH = 2
+MAX_ITEM_NAME_LENGTH = 100
+
 
 class DetectedItem(BaseModel):
     """Schema for a detected item from AI analysis."""
@@ -145,14 +149,14 @@ def parse_gemini_response(response_text: str) -> List[DetectedItem]:
         lines = response_text.split('\n')
         for line in lines:
             line = line.strip()
-            if line and len(line) > 2 and len(line) < 100:
+            if line and len(line) > MIN_ITEM_NAME_LENGTH and len(line) < MAX_ITEM_NAME_LENGTH:
                 # Skip lines that look like headers or instructions
                 if any(skip in line.lower() for skip in ['here are', 'detected', 'found', 'items:', 'list']):
                     continue
                 # Remove common prefixes like "- ", "* ", "1. "
                 cleaned = re.sub(r'^[-*•]\s*', '', line)
                 cleaned = re.sub(r'^\d+[.)\s]+', '', cleaned)
-                if cleaned and len(cleaned) > 2:
+                if cleaned and len(cleaned) > MIN_ITEM_NAME_LENGTH:
                     items.append(DetectedItem(name=cleaned))
     
     return items
