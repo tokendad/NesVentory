@@ -17,6 +17,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onCancel }) => {
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
   const [googleScriptLoaded, setGoogleScriptLoaded] = useState(false);
+  const [registrationComplete, setRegistrationComplete] = useState(false);
 
   // Callback for Google Sign-In response
   const handleGoogleCallback = useCallback(async (response: any) => {
@@ -24,8 +25,14 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onCancel }) => {
       await googleAuth(response.credential);
       onSuccess();
     } catch (err: any) {
-      setError(err.message || "Google registration failed");
-      setGoogleLoading(false);
+      // Check if it's an approval pending message
+      if (err.message && err.message.includes("pending approval")) {
+        setRegistrationComplete(true);
+        setGoogleLoading(false);
+      } else {
+        setError(err.message || "Google registration failed");
+        setGoogleLoading(false);
+      }
     }
   }, [onSuccess]);
 
@@ -92,7 +99,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onCancel }) => {
         full_name: fullName || null,
       };
       await registerUser(userCreate);
-      onSuccess();
+      // Registration successful - show pending approval message
+      setRegistrationComplete(true);
     } catch (err: any) {
       setError(err.message || "Registration failed");
     } finally {
@@ -117,6 +125,33 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onCancel }) => {
         setGoogleLoading(false);
       }
     });
+  }
+
+  // Show success message after registration
+  if (registrationComplete) {
+    return (
+      <div className="modal-overlay">
+        <div className="modal-content" style={{ maxWidth: "500px", textAlign: "center" }}>
+          <h2 style={{ color: "#4ecdc4" }}>Registration Successful!</h2>
+          <div style={{ margin: "1.5rem 0" }}>
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#4ecdc4" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M8 12l2 2 4-4" />
+            </svg>
+          </div>
+          <p style={{ fontSize: "1.1rem", marginBottom: "1rem" }}>
+            Your account has been created successfully.
+          </p>
+          <p style={{ color: "#666", marginBottom: "1.5rem" }}>
+            Your account is pending approval by an administrator. 
+            You will be able to log in once your account has been approved.
+          </p>
+          <button className="btn-primary" onClick={onCancel}>
+            Back to Login
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

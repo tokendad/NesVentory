@@ -19,12 +19,13 @@ def generate_api_key() -> str:
 
 
 def get_user_with_locations(user: models.User) -> dict:
-    """Helper to serialize user with allowed_location_ids and api_key."""
+    """Helper to serialize user with allowed_location_ids, api_key, and is_approved."""
     return {
         "id": user.id,
         "email": user.email,
         "full_name": user.full_name,
         "role": user.role,
+        "is_approved": user.is_approved,
         "created_at": user.created_at,
         "updated_at": user.updated_at,
         "allowed_location_ids": [loc.id for loc in user.allowed_locations] if user.allowed_locations else [],
@@ -36,6 +37,7 @@ def get_user_with_locations(user: models.User) -> dict:
 def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     """
     Register a new user. Default role is 'viewer' for security.
+    New users are NOT approved by default and must be approved by an admin.
     Note: The User model default is ADMIN for backwards compatibility with seeding,
     but registration explicitly sets VIEWER for new user registrations.
     """
@@ -48,6 +50,42 @@ def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
         full_name=user_in.full_name,
         password_hash=auth.get_password_hash(user_in.password),
         role=models.UserRole.VIEWER,
+        is_approved=False,  # New users need admin approval
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return get_user_with_locations(user)
+
+
+@router.post("/users/admin", response_model=schemas.UserRead, status_code=status.HTTP_201_CREATED)
+def admin_create_user(
+    user_in: schemas.AdminUserCreate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new user as admin. Allows setting custom role and approval status.
+    Admin-only endpoint.
+    """
+    if current_user.role != models.UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    
+    existing = db.query(models.User).filter(models.User.email == user_in.email).first()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+
+    try:
+        role = models.UserRole(user_in.role)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
+
+    user = models.User(
+        email=user_in.email,
+        full_name=user_in.full_name,
+        password_hash=auth.get_password_hash(user_in.password),
+        role=role,
+        is_approved=user_in.is_approved,
     )
     db.add(user)
     db.commit()
@@ -104,6 +142,10 @@ def update_user(
             user.role = models.UserRole(user_in["role"])
         except ValueError:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
+
+    # Only admins can change approval status
+    if "is_approved" in user_in and user_in["is_approved"] is not None and current_user.role == models.UserRole.ADMIN:
+        user.is_approved = bool(user_in["is_approved"])
 
     db.add(user)
     db.commit()

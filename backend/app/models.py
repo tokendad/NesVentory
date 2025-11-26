@@ -87,6 +87,9 @@ class User(Base):
     
     # API key for mobile/external app authentication
     api_key = Column(String(64), unique=True, nullable=True, index=True)
+    
+    # Approval status for new users (admins must approve before they can access the system)
+    is_approved = Column(Boolean, default=False, nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

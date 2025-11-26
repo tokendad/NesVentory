@@ -486,6 +486,7 @@ export interface User {
   email: string;
   full_name?: string | null;
   role: string;
+  is_approved: boolean;
   created_at: string;
   updated_at: string;
   allowed_location_ids?: string[] | null;
@@ -498,12 +499,33 @@ export interface UserCreate {
   full_name?: string | null;
 }
 
+export interface AdminUserCreate {
+  email: string;
+  password: string;
+  full_name?: string | null;
+  role?: string;
+  is_approved?: boolean;
+}
+
 export async function registerUser(userCreate: UserCreate): Promise<User> {
   const res = await fetch(`${API_BASE_URL}/api/users`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
+    },
+    body: JSON.stringify(userCreate),
+  });
+  return handleResponse<User>(res);
+}
+
+export async function adminCreateUser(userCreate: AdminUserCreate): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/users/admin`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
     },
     body: JSON.stringify(userCreate),
   });
@@ -530,7 +552,7 @@ export async function fetchUsers(): Promise<User[]> {
   return handleResponse<User[]>(res);
 }
 
-export async function updateUser(userId: string, updates: Partial<{full_name: string, password: string, role: string}>): Promise<User> {
+export async function updateUser(userId: string, updates: Partial<{full_name: string, password: string, role: string, is_approved: boolean}>): Promise<User> {
   const res = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
     method: "PATCH",
     headers: {
