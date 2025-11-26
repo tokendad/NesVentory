@@ -3,6 +3,7 @@ import LoginForm from "./components/LoginForm";
 import RegisterForm from "./components/RegisterForm";
 import UserSettings from "./components/UserSettings";
 import LocaleSettings from "./components/LocaleSettings";
+import ThemeSettings from "./components/ThemeSettings";
 import AdminPage from "./components/AdminPage";
 import Layout, { useIsMobile } from "./components/Layout";
 import DashboardCards from "./components/DashboardCards";
@@ -65,6 +66,7 @@ const App: React.FC = () => {
   const [showRegisterForm, setShowRegisterForm] = useState(false);
   const [showUserSettings, setShowUserSettings] = useState(false);
   const [showLocaleSettings, setShowLocaleSettings] = useState(false);
+  const [showThemeSettings, setShowThemeSettings] = useState(false);
   const [showAdminPage, setShowAdminPage] = useState(false);
   const [showEncircleImport, setShowEncircleImport] = useState(false);
   const [showAIDetection, setShowAIDetection] = useState(false);
@@ -335,6 +337,7 @@ const App: React.FC = () => {
         userName={currentUser?.full_name || undefined}
         onUserClick={() => setShowUserSettings(true)}
         onLocaleClick={() => setShowLocaleSettings(true)}
+        onThemeClick={() => setShowThemeSettings(true)}
       >
         {view === "dashboard" && (
           <>
@@ -469,6 +472,11 @@ const App: React.FC = () => {
         {showLocaleSettings && (
           <LocaleSettings
             onClose={() => setShowLocaleSettings(false)}
+          />
+        )}
+        {showThemeSettings && (
+          <ThemeSettings
+            onClose={() => setShowThemeSettings(false)}
           />
         )}
         {showAdminPage && currentUser?.role === "admin" && (
