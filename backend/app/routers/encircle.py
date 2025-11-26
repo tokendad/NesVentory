@@ -43,6 +43,13 @@ ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 COL_NO = "No."
 COL_NAME = "Description"
 
+# Encircle parent location header position (columns D-G, rows 1-3)
+# These are 1-indexed column numbers for Excel compatibility
+PARENT_LOCATION_COL_START = 4  # Column D
+PARENT_LOCATION_COL_END = 7    # Column G
+PARENT_LOCATION_ROW_START = 1
+PARENT_LOCATION_ROW_END = 3
+
 # Precompiled regex for numeric prefix matching
 NO_PREFIX_RE = re.compile(r"^0*(\d+)_", re.IGNORECASE)
 
@@ -147,11 +154,13 @@ def extract_parent_location_name(ws) -> Optional[str]:
     The Encircle format typically has the location name in the header area
     around cells E1-G3 (merged).
     """
-    # Check for merged cells in the E1:G3 range first
+    # Check for merged cells in the parent location header range first
     for merged_range in ws.merged_cells.ranges:
-        # Check if the merged range includes cells around E1-G3
-        if (merged_range.min_row <= 3 and merged_range.max_row >= 1 and
-            merged_range.min_col >= 4 and merged_range.min_col <= 7):  # Columns D-G (1-indexed)
+        # Check if the merged range includes cells around the expected header area
+        if (merged_range.min_row <= PARENT_LOCATION_ROW_END and 
+            merged_range.max_row >= PARENT_LOCATION_ROW_START and
+            merged_range.min_col >= PARENT_LOCATION_COL_START and 
+            merged_range.min_col <= PARENT_LOCATION_COL_END):
             # Get the value from the top-left cell of the merged range
             cell_value = ws.cell(row=merged_range.min_row, column=merged_range.min_col).value
             if cell_value and str(cell_value).strip():
@@ -160,9 +169,9 @@ def extract_parent_location_name(ws) -> Optional[str]:
                 if "report date" not in value.lower() and "date:" not in value.lower():
                     return value
     
-    # Fallback: scan cells D1-G3 for a location name
-    for row_idx in range(1, 4):
-        for col_idx in range(4, 8):  # Columns D-G (1-indexed as 4-7)
+    # Fallback: scan cells in the parent location header range for a location name
+    for row_idx in range(PARENT_LOCATION_ROW_START, PARENT_LOCATION_ROW_END + 1):
+        for col_idx in range(PARENT_LOCATION_COL_START, PARENT_LOCATION_COL_END + 1):
             cell_value = ws.cell(row=row_idx, column=col_idx).value
             if cell_value and str(cell_value).strip():
                 value = str(cell_value).strip()
@@ -256,17 +265,27 @@ def parse_currency(value) -> Optional[float]:
     if not val_str:
         return None
     
-    # Remove currency symbols and commas
-    val_str = re.sub(r'[^\d.]', '', val_str)
+    # Check if negative (handle parentheses or minus sign)
+    is_negative = val_str.startswith('-') or val_str.startswith('(')
+    
+    # Remove currency symbols and commas, preserve digits, dots, and minus signs
+    val_str = re.sub(r'[^\d.-]', '', val_str)
     
     # Handle multiple decimal points
     if val_str.count('.') > 1:
         parts = val_str.split('.')
         val_str = parts[0] + '.' + ''.join(parts[1:])
     
-    if val_str and val_str != '.':
+    # Remove any extra minus signs (keep only leading)
+    if val_str.count('-') > 1:
+        val_str = '-' + val_str.replace('-', '')
+    
+    if val_str and val_str != '.' and val_str != '-':
         try:
-            return float(val_str)
+            result = float(val_str)
+            # For inventory values, we typically don't want negative values
+            # but we'll preserve them in case they're meaningful
+            return result
         except ValueError:
             pass
     
