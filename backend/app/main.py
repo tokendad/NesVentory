@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 from pathlib import Path
 from werkzeug.utils import secure_filename
+from sqlalchemy import text, inspect
 from .config import settings
 import os
 import re
@@ -14,8 +15,49 @@ from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
 from .routers import items, locations, auth, status, photos, users, tags, encircle, ai
 
+
+def run_migrations():
+    """
+    Run database migrations to add missing columns to existing tables.
+    
+    This is needed because SQLAlchemy's create_all() only creates new tables,
+    it doesn't add new columns to existing tables. This function checks for
+    missing columns and adds them using ALTER TABLE statements.
+    """
+    inspector = inspect(engine)
+    
+    # Define migrations: (table_name, column_name, column_definition)
+    migrations = [
+        # User model: google_id column added for Google OAuth SSO
+        ("users", "google_id", "VARCHAR(255)"),
+    ]
+    
+    with engine.connect() as conn:
+        for table_name, column_name, column_type in migrations:
+            # Check if table exists
+            if table_name not in inspector.get_table_names():
+                continue
+                
+            # Check if column already exists
+            existing_columns = [col['name'] for col in inspector.get_columns(table_name)]
+            if column_name in existing_columns:
+                continue
+            
+            # Add the missing column
+            try:
+                alter_stmt = text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+                conn.execute(alter_stmt)
+                conn.commit()
+                print(f"Migration: Added column '{column_name}' to table '{table_name}'")
+            except Exception as e:
+                print(f"Migration warning: Could not add column '{column_name}' to '{table_name}': {e}")
+
+
 # Auto-create tables on startup and seed with test data
 Base.metadata.create_all(bind=engine)
+
+# Run migrations to add any missing columns to existing tables
+run_migrations()
 
 # Seed the database with test data if it's empty
 try:
