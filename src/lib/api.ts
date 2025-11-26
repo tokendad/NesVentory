@@ -765,3 +765,36 @@ export async function parseDataTagImage(file: File): Promise<DataTagInfo> {
   return handleResponse<DataTagInfo>(res);
 }
 
+// --- Google OAuth ---
+
+export interface GoogleOAuthStatus {
+  enabled: boolean;
+}
+
+export interface GoogleAuthResponse {
+  access_token: string;
+  token_type: string;
+  is_new_user: boolean;
+}
+
+export async function getGoogleOAuthStatus(): Promise<GoogleOAuthStatus> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/google/status`, {
+    headers: {
+      "Accept": "application/json",
+    },
+  });
+  return handleResponse<GoogleOAuthStatus>(res);
+}
+
+export async function googleAuth(credential: string): Promise<GoogleAuthResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/google`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+    },
+    body: JSON.stringify({ credential }),
+  });
+  return handleResponse<GoogleAuthResponse>(res);
+}
+

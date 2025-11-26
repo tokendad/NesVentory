@@ -6,6 +6,8 @@ from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, APIKeyHeader
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 from .config import get_settings
 from . import models
@@ -55,9 +57,49 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[models
     user = get_user_by_email(db, email=email)
     if not user:
         return None
+    # Google OAuth users without password cannot login with password
+    if not user.password_hash:
+        return None
     if not verify_password(password, user.password_hash):
         return None
     return user
+
+
+def get_user_by_google_id(db: Session, google_id: str) -> Optional[models.User]:
+    """Look up a user by their Google ID."""
+    return db.query(models.User).filter(models.User.google_id == google_id).first()
+
+
+def verify_google_token(token: str) -> Optional[dict]:
+    """
+    Verify Google OAuth ID token and return user info.
+    Returns None if verification fails.
+    """
+    if not settings.GOOGLE_CLIENT_ID:
+        return None
+    
+    try:
+        # Verify the token using Google's public keys
+        idinfo = id_token.verify_oauth2_token(
+            token,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID
+        )
+        
+        # Verify the issuer
+        if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+            return None
+        
+        return {
+            'google_id': idinfo['sub'],
+            'email': idinfo.get('email'),
+            'email_verified': idinfo.get('email_verified', False),
+            'name': idinfo.get('name'),
+            'picture': idinfo.get('picture')
+        }
+    except ValueError:
+        # Invalid token
+        return None
 
 
 async def get_current_user(
