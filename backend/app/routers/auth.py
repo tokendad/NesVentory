@@ -25,7 +25,7 @@ class GoogleAuthResponse(BaseModel):
     """Response model for Google OAuth authentication."""
     access_token: str
     token_type: str
-    is_new_user: bool
+    is_new_user: bool  # True if this is the user's first login/registration via Google OAuth
 
 
 class GoogleOAuthStatus(BaseModel):
@@ -75,8 +75,14 @@ async def google_auth(
             detail="Google email not verified"
         )
     
+    email = google_info.get('email')
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google account does not have an email address"
+        )
+    
     google_id = google_info['google_id']
-    email = google_info['email']
     name = google_info.get('name')
     
     is_new_user = False

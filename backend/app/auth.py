@@ -73,7 +73,19 @@ def get_user_by_google_id(db: Session, google_id: str) -> Optional[models.User]:
 def verify_google_token(token: str) -> Optional[dict]:
     """
     Verify Google OAuth ID token and return user info.
-    Returns None if verification fails.
+    
+    Args:
+        token: The Google OAuth ID token (JWT) from the client
+        
+    Returns:
+        A dictionary containing user info if verification succeeds:
+        - google_id: Google's unique user ID (the 'sub' claim)
+        - email: User's email address
+        - email_verified: Whether the email has been verified by Google
+        - name: User's display name (may be None)
+        - picture: URL to user's profile picture (may be None)
+        
+        Returns None if verification fails.
     """
     if not settings.GOOGLE_CLIENT_ID:
         return None
@@ -98,7 +110,7 @@ def verify_google_token(token: str) -> Optional[dict]:
             'picture': idinfo.get('picture')
         }
     except ValueError:
-        # Invalid token
+        # Invalid token (expired, wrong audience, malformed, etc.)
         return None
 
 

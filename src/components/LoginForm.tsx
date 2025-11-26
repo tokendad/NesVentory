@@ -21,9 +21,18 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick }) => 
     try {
       const authResp = await googleAuth(response.credential);
       localStorage.setItem("NesVentory_token", authResp.access_token);
-      // Decode the JWT to get email (basic decode without verification - server already verified)
-      const payload = JSON.parse(atob(response.credential.split('.')[1]));
-      const userEmail = payload.email || "";
+      // Try to decode the JWT to get email, with fallback
+      let userEmail = "";
+      try {
+        const parts = response.credential.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          userEmail = payload.email || "";
+        }
+      } catch {
+        // If JWT parsing fails, we'll fetch user info from /users/me later
+        console.warn("Could not parse email from Google credential");
+      }
       localStorage.setItem("NesVentory_user_email", userEmail);
       onSuccess(authResp.access_token, userEmail);
     } catch (err: any) {
