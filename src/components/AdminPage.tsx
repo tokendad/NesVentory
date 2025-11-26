@@ -27,6 +27,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
   const [createApproved, setCreateApproved] = useState(true);
   const [createLoading, setCreateLoading] = useState(false);
   const [createSuccess, setCreateSuccess] = useState<string | null>(null);
+  
+  // Pending user approval role selections (userId -> role)
+  const [pendingRoles, setPendingRoles] = useState<Record<string, string>>({});
 
   async function loadUsers() {
     setLoading(true);
@@ -312,8 +315,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
                       <td>
                         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
                           <select
-                            defaultValue="viewer"
-                            id={`role-${user.id}`}
+                            value={pendingRoles[user.id] || "viewer"}
+                            onChange={(e) => setPendingRoles({ ...pendingRoles, [user.id]: e.target.value })}
                             style={{ padding: "0.25rem" }}
                           >
                             <option value="viewer">Viewer</option>
@@ -322,10 +325,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
                           </select>
                           <button
                             className="btn-primary"
-                            onClick={() => {
-                              const select = document.getElementById(`role-${user.id}`) as HTMLSelectElement;
-                              handleApproveUser(user.id, select?.value || "viewer");
-                            }}
+                            onClick={() => handleApproveUser(user.id, pendingRoles[user.id] || "viewer")}
                             style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem" }}
                           >
                             Approve
