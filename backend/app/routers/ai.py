@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 import base64
 import json
 import logging
@@ -131,7 +131,7 @@ def parse_gemini_response(response_text: str) -> List[DetectedItem]:
                         # Add estimation date if there's an estimated value
                         estimation_date = None
                         if estimated_value is not None:
-                            estimation_date = datetime.utcnow().strftime("%m/%d/%y")
+                            estimation_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
                         
                         items.append(DetectedItem(
                             name=name,
