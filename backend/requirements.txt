@@ -5,7 +5,6 @@ SQLAlchemy==2.0.44
 psycopg2-binary==2.9.11
 asyncpg==0.31.0
 python-jose[cryptography]==3.5.0
-passlib==1.7.4
 bcrypt==5.0.0
 pydantic==2.12.4
 pydantic-settings==2.12.0
