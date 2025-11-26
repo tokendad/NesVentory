@@ -131,6 +131,7 @@ const AIDetection: React.FC<AIDetectionProps> = ({ onClose, onAddItems, location
           description: item.description || undefined,
           brand: item.brand || undefined,
           estimated_value: item.estimated_value || undefined,
+          estimated_value_ai_date: item.estimation_date || undefined,
           location_id: selectedLocationId || undefined,
         });
       }

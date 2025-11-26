@@ -89,6 +89,7 @@ export interface ItemCreate {
   purchase_date?: string | null;
   purchase_price?: number | null;
   estimated_value?: number | null;
+  estimated_value_ai_date?: string | null;  // Date when AI estimated the value (MM/DD/YY format)
   retailer?: string | null;
   upc?: string | null;
   location_id?: number | string | null;
@@ -727,6 +728,7 @@ export interface DetectedItem {
   brand?: string | null;
   estimated_value?: number | null;
   confidence?: number | null;
+  estimation_date?: string | null;  // Date when AI estimated the value (MM/DD/YY format)
 }
 
 export interface DetectionResult {

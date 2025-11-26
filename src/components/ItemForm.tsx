@@ -37,6 +37,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
     purchase_date: initialData?.purchase_date || (!isEditing ? getCurrentDate() : ""),
     purchase_price: initialData?.purchase_price || undefined,
     estimated_value: initialData?.estimated_value || undefined,
+    estimated_value_ai_date: initialData?.estimated_value_ai_date || undefined,
     retailer: initialData?.retailer || "",
     upc: initialData?.upc || "",
     location_id: initialData?.location_id || null,
@@ -128,21 +129,29 @@ const ItemForm: React.FC<ItemFormProps> = ({
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
     
-    setFormData((prev) => ({
-      ...prev,
-      [name]:
-        type === "checkbox"
-          ? checked
-          : name === "purchase_price" || name === "estimated_value"
-          ? value === ""
-            ? undefined
-            : parseFloat(value)
-          : name === "location_id"
-          ? value === ""
-            ? null
-            : value
-          : value,
-    }));
+    setFormData((prev) => {
+      const updates: Partial<ItemCreate> = {
+        [name]:
+          type === "checkbox"
+            ? checked
+            : name === "purchase_price" || name === "estimated_value"
+            ? value === ""
+              ? undefined
+              : parseFloat(value)
+            : name === "location_id"
+            ? value === ""
+              ? null
+              : value
+            : value,
+      };
+      
+      // Clear the AI date if user manually changes the estimated value
+      if (name === "estimated_value") {
+        updates.estimated_value_ai_date = undefined;
+      }
+      
+      return { ...prev, ...updates };
+    });
   };
 
   const handleContactInfoChange = (field: keyof ContactInfo, value: string) => {
@@ -612,6 +621,11 @@ const ItemForm: React.FC<ItemFormProps> = ({
                     min="0"
                     disabled={loading}
                   />
+                  {formData.estimated_value_ai_date && (
+                    <span className="help-text ai-estimate-note">
+                      ℹ️ AI best guess on date: {formData.estimated_value_ai_date}
+                    </span>
+                  )}
                 </div>
               </div>
             </>

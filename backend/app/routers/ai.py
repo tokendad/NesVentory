@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
+from datetime import datetime
 import base64
 import json
 import logging
@@ -35,6 +36,7 @@ class DetectedItem(BaseModel):
     brand: Optional[str] = None
     estimated_value: Optional[float] = None
     confidence: Optional[float] = None
+    estimation_date: Optional[str] = None  # Date when AI estimated the value (MM/DD/YY format)
 
 
 class DetectionResult(BaseModel):
@@ -126,12 +128,18 @@ def parse_gemini_response(response_text: str) -> List[DetectedItem]:
                             except (ValueError, TypeError):
                                 pass
                         
+                        # Add estimation date if there's an estimated value
+                        estimation_date = None
+                        if estimated_value is not None:
+                            estimation_date = datetime.utcnow().strftime("%m/%d/%y")
+                        
                         items.append(DetectedItem(
                             name=name,
                             description=description,
                             brand=brand,
                             estimated_value=estimated_value,
-                            confidence=confidence
+                            confidence=confidence,
+                            estimation_date=estimation_date
                         ))
         
         if not items:
