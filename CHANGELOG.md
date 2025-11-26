@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.0] - 2025-11-26
+### Added
+- **Enhanced Encircle XLSX Import** with Locations and SubLocations support
+  - Parent location extraction from merged cell E1-G3 in the file header (e.g., "Maine Cottage")
+  - Sub-location (room) parsing from rows in the XLSX file (e.g., "Bedroom - Master", "Bedroom")
+  - Hierarchical location structure: Parent location → Sub-locations/Rooms → Items
+  - New `/api/import/encircle/preview` endpoint to preview parent location from file before import
+  - Option to select an existing parent location instead of creating new
+  - Additional item fields imported:
+    - Brand, Model, Serial number
+    - Quantity, Retailer
+    - Purchase date, Purchase price
+    - Estimated value (from RCV column)
+    - Warranty duration, Extended warranty policy, Warranty phone
+  - Warranty information stored in item warranties JSON field
+- **Improved Encircle Import UI**
+  - File preview shows detected parent location name before import
+  - Dropdown to select existing parent location or create new from file
+  - Enhanced import statistics showing parent locations and rooms created
+  - Updated step-by-step import wizard
+
+### Changed
+- Bumped project version to 3.1.0
+
 ## [3.0.0] - 2025-11-25
 ### Added
 - **AI Photo Detection** - Major new feature for automatic item detection from photos

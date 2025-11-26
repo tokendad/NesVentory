@@ -618,17 +618,45 @@ export interface EncircleImportResult {
   photos_attached: number;
   items_without_photos: number;
   locations_created: number;
+  sublocations_created: number;
+  parent_location_name: string | null;
   log: string[];
+}
+
+export interface EncirclePreviewResult {
+  parent_location_name: string | null;
+}
+
+export async function previewEncircle(xlsxFile: File): Promise<EncirclePreviewResult> {
+  const formData = new FormData();
+  formData.append("xlsx_file", xlsxFile);
+
+  const res = await fetch(`${API_BASE_URL}/api/import/encircle/preview`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+    },
+    body: formData,
+  });
+
+  return handleResponse<EncirclePreviewResult>(res);
 }
 
 export async function importEncircle(
   xlsxFile: File,
   images: File[],
-  matchByName: boolean = true
+  matchByName: boolean = true,
+  parentLocationId: string | null = null,
+  createParentFromFile: boolean = true
 ): Promise<EncircleImportResult> {
   const formData = new FormData();
   formData.append("xlsx_file", xlsxFile);
   formData.append("match_by_name", matchByName.toString());
+  formData.append("create_parent_from_file", createParentFromFile.toString());
+  
+  if (parentLocationId) {
+    formData.append("parent_location_id", parentLocationId);
+  }
   
   for (const image of images) {
     formData.append("images", image);

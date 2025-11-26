@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react";
-import { importEncircle, type EncircleImportResult } from "../lib/api";
+import React, { useState, useRef, useEffect } from "react";
+import { importEncircle, previewEncircle, fetchLocations, type EncircleImportResult, type Location } from "../lib/api";
 
 interface EncircleImportProps {
   onClose: () => void;
@@ -11,13 +11,33 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
   const [images, setImages] = useState<File[]>([]);
   const [matchByName, setMatchByName] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<EncircleImportResult | null>(null);
+  
+  // Parent location options
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [selectedParentLocationId, setSelectedParentLocationId] = useState<string>("");
+  const [detectedParentName, setDetectedParentName] = useState<string | null>(null);
+  const [useExistingLocation, setUseExistingLocation] = useState(false);
   
   const xlsxInputRef = useRef<HTMLInputElement>(null);
   const imagesInputRef = useRef<HTMLInputElement>(null);
 
-  const handleXlsxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Fetch available locations on mount
+  useEffect(() => {
+    fetchLocations()
+      .then((locs) => {
+        // Filter to only show primary/root locations (those without parents)
+        const rootLocations = locs.filter(loc => !loc.parent_id);
+        setLocations(rootLocations);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch locations:", err);
+      });
+  }, []);
+
+  const handleXlsxChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files[0]) {
       const file = files[0];
@@ -25,9 +45,23 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
       if (ext.endsWith('.xlsx') || ext.endsWith('.xls')) {
         setXlsxFile(file);
         setError(null);
+        setDetectedParentName(null);
+        
+        // Preview the file to extract parent location name
+        setPreviewing(true);
+        try {
+          const preview = await previewEncircle(file);
+          setDetectedParentName(preview.parent_location_name);
+        } catch (err: any) {
+          console.error("Preview failed:", err);
+          // Don't show error to user, just continue without preview
+        } finally {
+          setPreviewing(false);
+        }
       } else {
         setError("Please select a valid XLSX file");
         setXlsxFile(null);
+        setDetectedParentName(null);
       }
     }
   };
@@ -61,7 +95,18 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
     setResult(null);
     
     try {
-      const importResult = await importEncircle(xlsxFile, images, matchByName);
+      const parentLocationId = useExistingLocation && selectedParentLocationId 
+        ? selectedParentLocationId 
+        : null;
+      const createParentFromFile = !useExistingLocation || !selectedParentLocationId;
+      
+      const importResult = await importEncircle(
+        xlsxFile, 
+        images, 
+        matchByName,
+        parentLocationId,
+        createParentFromFile
+      );
       setResult(importResult);
       onSuccess();
     } catch (err: any) {
@@ -89,6 +134,7 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
 
   const clearXlsx = () => {
     setXlsxFile(null);
+    setDetectedParentName(null);
     if (xlsxInputRef.current) {
       xlsxInputRef.current.value = "";
     }
@@ -128,13 +174,23 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
               </div>
               <div className="import-stat">
                 <span className="stat-value">{result.locations_created}</span>
-                <span className="stat-label">Locations Created</span>
+                <span className="stat-label">Parent Locations</span>
+              </div>
+              <div className="import-stat">
+                <span className="stat-value">{result.sublocations_created}</span>
+                <span className="stat-label">Rooms Created</span>
               </div>
               <div className="import-stat">
                 <span className="stat-value">{result.items_without_photos}</span>
                 <span className="stat-label">Items Without Photos</span>
               </div>
             </div>
+            
+            {result.parent_location_name && (
+              <div className="import-info">
+                <strong>Parent Location:</strong> {result.parent_location_name}
+              </div>
+            )}
             
             <div className="import-log">
               <h4>Import Log</h4>
@@ -158,7 +214,8 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
             <div className="import-section">
               <h3>Step 1: Select Encircle XLSX File</h3>
               <p className="help-text">
-                Upload the detailed XLSX export file from Encircle. The file should contain columns like "No." and "Description".
+                Upload the detailed XLSX export file from Encircle. The file should contain columns like "No." and "Description". 
+                The parent location will be extracted from the file header (e.g., "Maine Cottage") and rooms/sub-locations will be created automatically.
               </p>
               
               <div className="file-input-wrapper">
@@ -167,7 +224,7 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
                   ref={xlsxInputRef}
                   accept=".xlsx,.xls"
                   onChange={handleXlsxChange}
-                  disabled={loading}
+                  disabled={loading || previewing}
                   id="xlsx-input"
                 />
                 {xlsxFile && (
@@ -184,10 +241,93 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
                   </div>
                 )}
               </div>
+              
+              {previewing && (
+                <div className="help-text" style={{ marginTop: '8px', fontStyle: 'italic' }}>
+                  Analyzing file...
+                </div>
+              )}
+              
+              {detectedParentName && (
+                <div className="detected-location" style={{ 
+                  marginTop: '12px', 
+                  padding: '12px', 
+                  backgroundColor: 'var(--bg-secondary, #f5f5f5)', 
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color, #ddd)'
+                }}>
+                  <strong>📍 Detected Location:</strong> {detectedParentName}
+                  <p className="help-text" style={{ margin: '8px 0 0 0' }}>
+                    This location will be created as the parent location for all imported items and rooms.
+                  </p>
+                </div>
+              )}
             </div>
             
             <div className="import-section">
-              <h3>Step 2: Select Images (Optional)</h3>
+              <h3>Step 2: Parent Location</h3>
+              <p className="help-text">
+                Choose how to handle the parent location for imported items and rooms.
+              </p>
+              
+              <div className="checkbox-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={useExistingLocation}
+                    onChange={(e) => {
+                      setUseExistingLocation(e.target.checked);
+                      if (!e.target.checked) {
+                        setSelectedParentLocationId("");
+                      }
+                    }}
+                    disabled={loading}
+                  />
+                  <span>Use an existing location as parent</span>
+                </label>
+              </div>
+              
+              {useExistingLocation && (
+                <div style={{ marginTop: '12px' }}>
+                  <select
+                    value={selectedParentLocationId}
+                    onChange={(e) => setSelectedParentLocationId(e.target.value)}
+                    disabled={loading}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color, #ddd)',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <option value="">Select a location...</option>
+                    {locations.map((loc) => (
+                      <option key={String(loc.id)} value={String(loc.id)}>
+                        {loc.name}
+                        {loc.friendly_name ? ` (${loc.friendly_name})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="help-text" style={{ marginTop: '8px' }}>
+                    {selectedParentLocationId 
+                      ? "Imported rooms will be created as sub-locations under this parent."
+                      : "Select an existing location to use as the parent for imported rooms."}
+                  </p>
+                </div>
+              )}
+              
+              {!useExistingLocation && (
+                <p className="help-text" style={{ marginTop: '8px' }}>
+                  {detectedParentName 
+                    ? `A new parent location "${detectedParentName}" will be created from the file.`
+                    : "A new parent location will be created based on the file content."}
+                </p>
+              )}
+            </div>
+            
+            <div className="import-section">
+              <h3>Step 3: Select Images (Optional)</h3>
               <p className="help-text">
                 Select image files to attach to items. Images will be matched to items based on their filenames.
               </p>
@@ -250,7 +390,7 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
               <button
                 type="submit"
                 className="btn-primary"
-                disabled={loading || !xlsxFile}
+                disabled={loading || !xlsxFile || previewing}
               >
                 {loading ? "Importing..." : "Import"}
               </button>
