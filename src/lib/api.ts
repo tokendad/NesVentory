@@ -769,6 +769,7 @@ export async function parseDataTagImage(file: File): Promise<DataTagInfo> {
 
 export interface GoogleOAuthStatus {
   enabled: boolean;
+  client_id?: string | null;
 }
 
 export interface GoogleAuthResponse {

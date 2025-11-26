@@ -31,12 +31,16 @@ class GoogleAuthResponse(BaseModel):
 class GoogleOAuthStatus(BaseModel):
     """Response model for Google OAuth status."""
     enabled: bool
+    client_id: Optional[str] = None
 
 
 @router.get("/auth/google/status", response_model=GoogleOAuthStatus)
 async def google_oauth_status():
     """Check if Google OAuth is enabled (GOOGLE_CLIENT_ID is configured)."""
-    return {"enabled": settings.GOOGLE_CLIENT_ID is not None}
+    return {
+        "enabled": settings.GOOGLE_CLIENT_ID is not None,
+        "client_id": settings.GOOGLE_CLIENT_ID
+    }
 
 
 @router.post("/auth/google", response_model=GoogleAuthResponse)

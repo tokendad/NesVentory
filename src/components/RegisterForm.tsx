@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { registerUser, getGoogleOAuthStatus, googleAuth, type UserCreate } from "../lib/api";
 
 interface RegisterFormProps {
@@ -15,25 +15,60 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+  const [googleScriptLoaded, setGoogleScriptLoaded] = useState(false);
+
+  // Callback for Google Sign-In response
+  const handleGoogleCallback = useCallback(async (response: any) => {
+    try {
+      await googleAuth(response.credential);
+      onSuccess();
+    } catch (err: any) {
+      setError(err.message || "Google registration failed");
+      setGoogleLoading(false);
+    }
+  }, [onSuccess]);
 
   useEffect(() => {
     // Check if Google OAuth is enabled
     getGoogleOAuthStatus()
       .then((status) => {
         setGoogleEnabled(status.enabled);
-        if (status.enabled) {
+        if (status.enabled && status.client_id) {
+          setGoogleClientId(status.client_id);
           // Load Google Identity Services script if not already loaded
           if (!(window as any).google?.accounts?.id) {
             const script = document.createElement("script");
             script.src = "https://accounts.google.com/gsi/client";
             script.async = true;
             script.defer = true;
+            script.onload = () => setGoogleScriptLoaded(true);
+            script.onerror = () => {
+              setGoogleEnabled(false);
+            };
             document.body.appendChild(script);
+          } else {
+            setGoogleScriptLoaded(true);
           }
         }
       })
       .catch(() => setGoogleEnabled(false));
   }, []);
+
+  // Initialize Google Sign-In when script is loaded and client_id is available
+  useEffect(() => {
+    if (googleScriptLoaded && googleClientId) {
+      const google = (window as any).google;
+      if (google?.accounts?.id) {
+        google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: handleGoogleCallback,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+      }
+    }
+  }, [googleScriptLoaded, googleClientId, handleGoogleCallback]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -65,48 +100,30 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onCancel }) => {
     }
   }
 
-  async function handleGoogleRegister() {
+  function handleGoogleRegister() {
     setError(null);
     setGoogleLoading(true);
     
-    try {
-      const google = (window as any).google;
-      if (!google?.accounts?.id) {
-        throw new Error("Google Sign-In not loaded. Please try again.");
-      }
-
-      google.accounts.id.initialize({
-        client_id: "",
-        callback: async (response: any) => {
-          try {
-            await googleAuth(response.credential);
-            onSuccess();
-          } catch (err: any) {
-            setError(err.message || "Google registration failed");
-            setGoogleLoading(false);
-          }
-        },
-        auto_select: false,
-        cancel_on_tap_outside: true,
-      });
-      
-      google.accounts.id.prompt((notification: any) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          setError("Please enable popups for Google Sign-In or try again later.");
-          setGoogleLoading(false);
-        }
-      });
-    } catch (err: any) {
-      setError(err.message || "Google registration failed");
+    const google = (window as any).google;
+    if (!google?.accounts?.id) {
+      setError("Google Sign-In not ready. Please try again.");
       setGoogleLoading(false);
+      return;
     }
+
+    google.accounts.id.prompt((notification: any) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        setError("Google Sign-In popup was blocked. Please enable popups and try again.");
+        setGoogleLoading(false);
+      }
+    });
   }
 
   return (
     <div className="modal-overlay">
       <div className="modal-content" style={{ maxWidth: "500px" }}>
         <h2>Register New Account</h2>
-        {googleEnabled && (
+        {googleEnabled && googleScriptLoaded && (
           <>
             <button
               type="button"

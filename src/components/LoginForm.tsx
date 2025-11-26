@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { login, getGoogleOAuthStatus, googleAuth } from "../lib/api";
 
 interface LoginFormProps {
@@ -14,23 +14,65 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick }) => 
   const [error, setError] = useState<string | null>(null);
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
+  const [googleScriptLoaded, setGoogleScriptLoaded] = useState(false);
+
+  // Callback for Google Sign-In response
+  const handleGoogleCallback = useCallback(async (response: any) => {
+    try {
+      const authResp = await googleAuth(response.credential);
+      localStorage.setItem("NesVentory_token", authResp.access_token);
+      // Decode the JWT to get email (basic decode without verification - server already verified)
+      const payload = JSON.parse(atob(response.credential.split('.')[1]));
+      const userEmail = payload.email || "";
+      localStorage.setItem("NesVentory_user_email", userEmail);
+      onSuccess(authResp.access_token, userEmail);
+    } catch (err: any) {
+      setError(err.message || "Google sign-in failed");
+      setGoogleLoading(false);
+    }
+  }, [onSuccess]);
 
   useEffect(() => {
     // Check if Google OAuth is enabled
     getGoogleOAuthStatus()
       .then((status) => {
         setGoogleEnabled(status.enabled);
-        if (status.enabled) {
-          // Load Google Identity Services script
-          const script = document.createElement("script");
-          script.src = "https://accounts.google.com/gsi/client";
-          script.async = true;
-          script.defer = true;
-          document.body.appendChild(script);
+        if (status.enabled && status.client_id) {
+          setGoogleClientId(status.client_id);
+          // Load Google Identity Services script if not already loaded
+          if (!(window as any).google?.accounts?.id) {
+            const script = document.createElement("script");
+            script.src = "https://accounts.google.com/gsi/client";
+            script.async = true;
+            script.defer = true;
+            script.onload = () => setGoogleScriptLoaded(true);
+            script.onerror = () => {
+              setGoogleEnabled(false);
+              setError("Failed to load Google Sign-In");
+            };
+            document.body.appendChild(script);
+          } else {
+            setGoogleScriptLoaded(true);
+          }
         }
       })
       .catch(() => setGoogleEnabled(false));
   }, []);
+
+  // Initialize Google Sign-In when script is loaded and client_id is available
+  useEffect(() => {
+    if (googleScriptLoaded && googleClientId) {
+      const google = (window as any).google;
+      if (google?.accounts?.id) {
+        google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: handleGoogleCallback,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+      }
+    }
+  }, [googleScriptLoaded, googleClientId, handleGoogleCallback]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,50 +90,25 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick }) => 
     }
   }
 
-  async function handleGoogleLogin() {
+  function handleGoogleLogin() {
     setError(null);
     setGoogleLoading(true);
     
-    try {
-      // Use Google Identity Services to get the credential
-      const google = (window as any).google;
-      if (!google?.accounts?.id) {
-        throw new Error("Google Sign-In not loaded. Please try again.");
-      }
-
-      // Initialize and prompt for sign-in
-      google.accounts.id.initialize({
-        client_id: "", // Will be set by server response
-        callback: async (response: any) => {
-          try {
-            const authResp = await googleAuth(response.credential);
-            localStorage.setItem("NesVentory_token", authResp.access_token);
-            // Decode the JWT to get email (basic decode without verification - server already verified)
-            const payload = JSON.parse(atob(response.credential.split('.')[1]));
-            const userEmail = payload.email || "";
-            localStorage.setItem("NesVentory_user_email", userEmail);
-            onSuccess(authResp.access_token, userEmail);
-          } catch (err: any) {
-            setError(err.message || "Google sign-in failed");
-            setGoogleLoading(false);
-          }
-        },
-        auto_select: false,
-        cancel_on_tap_outside: true,
-      });
-      
-      // Prompt One Tap or redirect to Google Sign-In
-      google.accounts.id.prompt((notification: any) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          // Fall back to redirect flow if One Tap is not available
-          setError("Please enable popups for Google Sign-In or try again later.");
-          setGoogleLoading(false);
-        }
-      });
-    } catch (err: any) {
-      setError(err.message || "Google sign-in failed");
+    const google = (window as any).google;
+    if (!google?.accounts?.id) {
+      setError("Google Sign-In not ready. Please try again.");
       setGoogleLoading(false);
+      return;
     }
+
+    // Prompt One Tap or redirect to Google Sign-In
+    google.accounts.id.prompt((notification: any) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        // Fall back to redirect flow if One Tap is not available
+        setError("Google Sign-In popup was blocked. Please enable popups and try again.");
+        setGoogleLoading(false);
+      }
+    });
   }
 
   return (
@@ -127,7 +144,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick }) => 
           <button className="btn-primary" type="submit" disabled={loading}>
             {loading ? "Signing in..." : "Sign in"}
           </button>
-          {googleEnabled && (
+          {googleEnabled && googleScriptLoaded && (
             <>
               <div className="login-divider">
                 <span>or</span>
