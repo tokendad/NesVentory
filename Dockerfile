@@ -40,8 +40,10 @@ ENV PUID=${PUID} \
 WORKDIR /app
 
 # Install only essential runtime dependencies
+# gosu is needed for the entrypoint to switch from root to nesventory user
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata \
+    gosu \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -65,12 +67,15 @@ COPY --from=frontend-builder --chown=nesventory:nesventory /frontend/dist /app/s
 RUN mkdir -p /app/uploads/photos /app/data && \
     chown -R nesventory:nesventory /app/uploads /app/data
 
-# Switch to nesventory user
-USER nesventory
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Container starts as root, entrypoint handles user switching after fixing permissions
+# This is required for bind mounts where directories may be created with root ownership
 
 # Expose default port (actual port is determined by APP_PORT environment variable at runtime)
 EXPOSE 8001
 
-# Start the application using shell form to expand environment variable
-# APP_PORT is validated by docker-compose to be a valid port number
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${APP_PORT:-8001}
+# Use entrypoint script to handle permissions and user switching
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
