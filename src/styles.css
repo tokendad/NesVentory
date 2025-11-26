@@ -1678,13 +1678,13 @@ tbody tr:hover {
 }
 
 .btn-logout-mobile {
-  color: var(--danger) !important;
-  border-color: rgba(239, 68, 68, 0.5) !important;
+  color: var(--danger);
+  border-color: rgba(249, 115, 115, 0.5);
 }
 
 .btn-logout-mobile:hover {
-  border-color: rgba(239, 68, 68, 0.8) !important;
-  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: rgba(249, 115, 115, 0.8);
+  background: rgba(249, 115, 115, 0.1);
 }
 
 /* Mobile-specific user card adjustments */
