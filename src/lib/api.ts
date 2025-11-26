@@ -339,6 +339,69 @@ export async function deleteItem(itemId: string): Promise<void> {
   }
 }
 
+// --- Bulk Operations ---
+
+export interface BulkDeleteResponse {
+  deleted_count: number;
+  message: string;
+}
+
+export interface BulkUpdateTagsResponse {
+  updated_count: number;
+  message: string;
+}
+
+export interface BulkUpdateLocationResponse {
+  updated_count: number;
+  message: string;
+}
+
+export async function bulkDeleteItems(itemIds: string[]): Promise<BulkDeleteResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/items/bulk-delete`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ item_ids: itemIds }),
+  });
+  return handleResponse<BulkDeleteResponse>(res);
+}
+
+export async function bulkUpdateTags(
+  itemIds: string[],
+  tagIds: string[],
+  mode: "replace" | "add" | "remove" = "replace"
+): Promise<BulkUpdateTagsResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/items/bulk-update-tags`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ item_ids: itemIds, tag_ids: tagIds, mode }),
+  });
+  return handleResponse<BulkUpdateTagsResponse>(res);
+}
+
+export async function bulkUpdateLocation(
+  itemIds: string[],
+  locationId: string | null
+): Promise<BulkUpdateLocationResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/items/bulk-update-location`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ item_ids: itemIds, location_id: locationId }),
+  });
+  return handleResponse<BulkUpdateLocationResponse>(res);
+}
+
 export interface ApplicationStatus {
   name: string;
   version: string;

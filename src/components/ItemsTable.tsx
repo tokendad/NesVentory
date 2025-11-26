@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import type { Item } from "../lib/api";
+import type { Item, Tag, Location } from "../lib/api";
 import { formatCurrency, formatDate } from "../lib/utils";
 
 interface ItemsTableProps {
@@ -11,7 +11,15 @@ interface ItemsTableProps {
   onItemClick: (item: Item) => void;
   onImport?: () => void;
   onAIScan?: () => void;
+  onBulkDelete?: (itemIds: string[]) => Promise<void>;
+  onBulkUpdateTags?: (itemIds: string[], tagIds: string[], mode: "replace" | "add" | "remove") => Promise<void>;
+  onBulkUpdateLocation?: (itemIds: string[], locationId: string | null) => Promise<void>;
+  tags?: Tag[];
+  locations?: Location[];
 }
+
+type BulkAction = "delete" | "updateTags" | "updateLocation" | null;
+type TagUpdateMode = "replace" | "add" | "remove";
 
 const ItemsTable: React.FC<ItemsTableProps> = ({
   items,
@@ -22,8 +30,19 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   onItemClick,
   onImport,
   onAIScan,
+  onBulkDelete,
+  onBulkUpdateTags,
+  onBulkUpdateLocation,
+  tags = [],
+  locations = [],
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<BulkAction>(null);
+  const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
+  const [tagUpdateMode, setTagUpdateMode] = useState<TagUpdateMode>("add");
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   const filteredItems = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -56,11 +75,98 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
     });
   }, [items, searchQuery]);
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedItemIds(new Set(filteredItems.map(item => item.id.toString())));
+    } else {
+      setSelectedItemIds(new Set());
+    }
+  };
+
+  const handleSelectItem = (itemId: string, checked: boolean) => {
+    const newSelected = new Set(selectedItemIds);
+    if (checked) {
+      newSelected.add(itemId);
+    } else {
+      newSelected.delete(itemId);
+    }
+    setSelectedItemIds(newSelected);
+  };
+
+  const isAllSelected = filteredItems.length > 0 && filteredItems.every(item => selectedItemIds.has(item.id.toString()));
+  const isSomeSelected = selectedItemIds.size > 0;
+
+  const handleBulkActionConfirm = async () => {
+    if (!bulkAction || selectedItemIds.size === 0) return;
+    
+    setBulkActionLoading(true);
+    try {
+      const itemIds = Array.from(selectedItemIds);
+      
+      if (bulkAction === "delete" && onBulkDelete) {
+        await onBulkDelete(itemIds);
+      } else if (bulkAction === "updateTags" && onBulkUpdateTags) {
+        await onBulkUpdateTags(itemIds, Array.from(selectedTagIds), tagUpdateMode);
+      } else if (bulkAction === "updateLocation" && onBulkUpdateLocation) {
+        await onBulkUpdateLocation(itemIds, selectedLocationId);
+      }
+      
+      // Reset state after successful action
+      setSelectedItemIds(new Set());
+      setBulkAction(null);
+      setSelectedTagIds(new Set());
+      setSelectedLocationId(null);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleCancelBulkAction = () => {
+    setBulkAction(null);
+    setSelectedTagIds(new Set());
+    setSelectedLocationId(null);
+  };
+
+  const handleTagToggle = (tagId: string) => {
+    const newSelected = new Set(selectedTagIds);
+    if (newSelected.has(tagId)) {
+      newSelected.delete(tagId);
+    } else {
+      newSelected.add(tagId);
+    }
+    setSelectedTagIds(newSelected);
+  };
+
   return (
     <section className="panel">
-      <div className="panel-header">
-        <h2>Items</h2>
-        <div style={{ display: "flex", gap: "0.75rem" }}>
+      <div className="panel-header panel-header-left">
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          {isSomeSelected && (
+            <>
+              <button 
+                className="btn-danger" 
+                onClick={() => setBulkAction("delete")}
+                disabled={loading}
+              >
+                Delete ({selectedItemIds.size})
+              </button>
+              <button 
+                className="btn-outline" 
+                onClick={() => setBulkAction("updateTags")}
+                disabled={loading}
+              >
+                Update Tags ({selectedItemIds.size})
+              </button>
+              <button 
+                className="btn-outline" 
+                onClick={() => setBulkAction("updateLocation")}
+                disabled={loading}
+              >
+                Update Location ({selectedItemIds.size})
+              </button>
+              <div style={{ width: "1px", height: "1.5rem", background: "var(--border-subtle)", margin: "0 0.25rem" }} />
+            </>
+          )}
           <button className="btn-outline" onClick={onRefresh} disabled={loading}>
             {loading ? "Refreshing..." : "Refresh"}
           </button>
@@ -78,6 +184,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
             Add Item
           </button>
         </div>
+        <h2>Items</h2>
       </div>
       <div className="search-bar">
         <input
@@ -102,6 +209,14 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
         <table className="items-table">
           <thead>
             <tr>
+              <th style={{ width: "40px" }}>
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
+                  title="Select all items"
+                />
+              </th>
               <th>Name</th>
               <th>Brand</th>
               <th>Model</th>
@@ -114,25 +229,32 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
           <tbody>
             {items.length === 0 && !loading && (
               <tr>
-                <td colSpan={7} className="empty-row">
+                <td colSpan={8} className="empty-row">
                   No items found. Try importing from Encircle or adding via API.
                 </td>
               </tr>
             )}
             {items.length > 0 && filteredItems.length === 0 && searchQuery.trim() && !loading && (
               <tr>
-                <td colSpan={7} className="empty-row">
+                <td colSpan={8} className="empty-row">
                   No items match your search.
                 </td>
               </tr>
             )}
             {filteredItems.map((item) => (
-              <tr key={item.id} onClick={() => onItemClick(item)} style={{ cursor: "pointer" }}>
-                <td>{item.name}</td>
-                <td>{item.brand || "—"}</td>
-                <td>{item.model_number || "—"}</td>
-                <td>{item.serial_number || "—"}</td>
-                <td>
+              <tr key={item.id}>
+                <td onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedItemIds.has(item.id.toString())}
+                    onChange={(e) => handleSelectItem(item.id.toString(), e.target.checked)}
+                  />
+                </td>
+                <td onClick={() => onItemClick(item)} style={{ cursor: "pointer" }}>{item.name}</td>
+                <td onClick={() => onItemClick(item)} style={{ cursor: "pointer" }}>{item.brand || "—"}</td>
+                <td onClick={() => onItemClick(item)} style={{ cursor: "pointer" }}>{item.model_number || "—"}</td>
+                <td onClick={() => onItemClick(item)} style={{ cursor: "pointer" }}>{item.serial_number || "—"}</td>
+                <td onClick={() => onItemClick(item)} style={{ cursor: "pointer" }}>
                   {item.tags && item.tags.length > 0 ? (
                     <div className="item-tags">
                       {item.tags.map(tag => (
@@ -143,13 +265,149 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                     </div>
                   ) : "—"}
                 </td>
-                <td>{formatDate(item.purchase_date)}</td>
-                <td>{formatCurrency(item.purchase_price != null ? Number(item.purchase_price) : null)}</td>
+                <td onClick={() => onItemClick(item)} style={{ cursor: "pointer" }}>{formatDate(item.purchase_date)}</td>
+                <td onClick={() => onItemClick(item)} style={{ cursor: "pointer" }}>{formatCurrency(item.purchase_price != null ? Number(item.purchase_price) : null)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Bulk Delete Confirmation Modal */}
+      {bulkAction === "delete" && (
+        <div className="modal-overlay" onClick={handleCancelBulkAction}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>⚠️ Confirm Delete</h2>
+              <button className="modal-close" onClick={handleCancelBulkAction}>×</button>
+            </div>
+            <div style={{ padding: "1rem 0" }}>
+              <p style={{ color: "var(--danger)", fontWeight: 500, marginBottom: "1rem" }}>
+                You are about to delete {selectedItemIds.size} item{selectedItemIds.size !== 1 ? "s" : ""}.
+              </p>
+              <p style={{ color: "var(--muted)" }}>
+                This action cannot be undone. Please confirm your choice.
+              </p>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-outline" onClick={handleCancelBulkAction} disabled={bulkActionLoading}>
+                Cancel
+              </button>
+              <button className="btn-danger" onClick={handleBulkActionConfirm} disabled={bulkActionLoading}>
+                {bulkActionLoading ? "Deleting..." : `Delete ${selectedItemIds.size} Item${selectedItemIds.size !== 1 ? "s" : ""}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Update Tags Modal */}
+      {bulkAction === "updateTags" && (
+        <div className="modal-overlay" onClick={handleCancelBulkAction}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Update Tags</h2>
+              <button className="modal-close" onClick={handleCancelBulkAction}>×</button>
+            </div>
+            <div style={{ padding: "1rem 0" }}>
+              <p style={{ color: "var(--accent)", marginBottom: "1rem" }}>
+                This will affect {selectedItemIds.size} item{selectedItemIds.size !== 1 ? "s" : ""}.
+              </p>
+              
+              <div className="form-group" style={{ marginBottom: "1rem" }}>
+                <label>Update Mode</label>
+                <select
+                  value={tagUpdateMode}
+                  onChange={(e) => setTagUpdateMode(e.target.value as TagUpdateMode)}
+                  style={{ width: "100%" }}
+                >
+                  <option value="add">Add tags to existing</option>
+                  <option value="remove">Remove tags from items</option>
+                  <option value="replace">Replace all tags</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Select Tags</label>
+                <div className="tags-selection">
+                  {tags.map((tag) => (
+                    <label key={tag.id} className="tag-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={selectedTagIds.has(tag.id)}
+                        onChange={() => handleTagToggle(tag.id)}
+                      />
+                      <span className={tag.is_predefined ? "tag-predefined" : "tag-custom"}>
+                        {tag.name}
+                      </span>
+                    </label>
+                  ))}
+                  {tags.length === 0 && (
+                    <p style={{ color: "var(--muted)", fontStyle: "italic" }}>No tags available</p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-outline" onClick={handleCancelBulkAction} disabled={bulkActionLoading}>
+                Cancel
+              </button>
+              <button 
+                className="btn-primary" 
+                onClick={handleBulkActionConfirm} 
+                disabled={bulkActionLoading || selectedTagIds.size === 0}
+              >
+                {bulkActionLoading ? "Updating..." : `Update ${selectedItemIds.size} Item${selectedItemIds.size !== 1 ? "s" : ""}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Update Location Modal */}
+      {bulkAction === "updateLocation" && (
+        <div className="modal-overlay" onClick={handleCancelBulkAction}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Update Location</h2>
+              <button className="modal-close" onClick={handleCancelBulkAction}>×</button>
+            </div>
+            <div style={{ padding: "1rem 0" }}>
+              <p style={{ color: "var(--accent)", marginBottom: "1rem" }}>
+                This will affect {selectedItemIds.size} item{selectedItemIds.size !== 1 ? "s" : ""}.
+              </p>
+              
+              <div className="form-group">
+                <label>Select New Location</label>
+                <select
+                  value={selectedLocationId || ""}
+                  onChange={(e) => setSelectedLocationId(e.target.value || null)}
+                  style={{ width: "100%" }}
+                >
+                  <option value="">No Location</option>
+                  {locations.map((location) => (
+                    <option key={location.id} value={location.id.toString()}>
+                      {location.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-outline" onClick={handleCancelBulkAction} disabled={bulkActionLoading}>
+                Cancel
+              </button>
+              <button 
+                className="btn-primary" 
+                onClick={handleBulkActionConfirm} 
+                disabled={bulkActionLoading}
+              >
+                {bulkActionLoading ? "Updating..." : `Update ${selectedItemIds.size} Item${selectedItemIds.size !== 1 ? "s" : ""}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };

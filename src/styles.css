@@ -174,6 +174,12 @@ hr {
   margin-bottom: 0.75rem;
 }
 
+.panel-header.panel-header-left {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
 .panel-header h2 {
   margin: 0;
   font-size: 1rem;
@@ -185,6 +191,14 @@ hr {
   font-size: 0.85rem;
   font-weight: 500;
   color: var(--muted);
+}
+
+/* Bulk action checkbox styling */
+.items-table input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
 .cards-grid {
