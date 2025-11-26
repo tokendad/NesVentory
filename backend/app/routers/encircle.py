@@ -196,8 +196,8 @@ def extract_location_from_filename(filename: Optional[str]) -> Optional[str]:
     if match:
         location = match.group(1).strip()
         if location:
-            # Replace underscores with spaces for better readability
-            # but only single underscores, not double
+            # Replace single underscores with spaces for better readability
+            # (double underscores are unlikely in location names before __Encircle)
             location = location.replace('_', ' ').strip()
             return location
     
