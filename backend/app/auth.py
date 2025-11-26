@@ -124,11 +124,17 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    not_approved_exception = HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Your account is pending approval by an administrator",
+    )
     
     # First, try API key authentication
     if api_key:
         user = get_user_by_api_key(db, api_key)
         if user:
+            if not user.is_approved:
+                raise not_approved_exception
             return user
         # If API key was provided but invalid, raise error
         raise credentials_exception
@@ -148,4 +154,6 @@ async def get_current_user(
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if user is None:
         raise credentials_exception
+    if not user.is_approved:
+        raise not_approved_exception
     return user

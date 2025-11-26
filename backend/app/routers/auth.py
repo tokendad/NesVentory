@@ -110,10 +110,18 @@ async def google_auth(
                 google_id=google_id,
                 password_hash=None,  # No password for Google OAuth users
                 role=models.UserRole.VIEWER,
+                is_approved=False,  # New users need admin approval
             )
             db.add(user)
             db.commit()
             db.refresh(user)
+    
+    # Check if user is approved (for existing users or linked accounts)
+    if not user.is_approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is pending approval by an administrator",
+        )
     
     # Generate access token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -136,6 +144,7 @@ async def login(
     """
     OAuth2 compatible token login endpoint.
     Accepts username (email) and password, returns access_token and token_type.
+    Unapproved users are blocked from logging in.
     """
     user = authenticate_user(db, email=form_data.username, password=form_data.password)
     if not user:
@@ -143,6 +152,13 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Check if user is approved
+    if not user.is_approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is pending approval by an administrator",
         )
     
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)

@@ -87,6 +87,7 @@ def create_users(db: Session) -> list:
             password_hash=get_password_hash("admin123"),
             full_name="Admin User",
             role=models.UserRole.ADMIN,
+            is_approved=True,  # Seeded users are approved by default
         ),
         models.User(
             id=uuid.uuid4(),
@@ -94,6 +95,7 @@ def create_users(db: Session) -> list:
             password_hash=get_password_hash("editor123"),
             full_name="Editor User",
             role=models.UserRole.EDITOR,
+            is_approved=True,  # Seeded users are approved by default
         ),
         models.User(
             id=uuid.uuid4(),
@@ -101,6 +103,7 @@ def create_users(db: Session) -> list:
             password_hash=get_password_hash("viewer123"),
             full_name="Viewer User",
             role=models.UserRole.VIEWER,
+            is_approved=True,  # Seeded users are approved by default
         ),
     ]
 

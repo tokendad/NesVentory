@@ -44,6 +44,9 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=True)
     role = Column(Enum(UserRole, name="user_role"), nullable=False, default=UserRole.ADMIN)
+    
+    # Approval status for new users (admins must approve before they can access the system)
+    is_approved = Column(Boolean, default=False, nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

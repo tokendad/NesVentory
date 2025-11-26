@@ -23,6 +23,7 @@ class UserCreate(UserBase):
 
 class UserRead(UserBase):
     id: uuid.UUID
+    is_approved: bool = False
     created_at: datetime
     updated_at: datetime
     allowed_location_ids: Optional[List[uuid.UUID]] = None

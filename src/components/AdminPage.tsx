@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { fetchUsers, updateUser, fetchLocations, updateUserLocationAccess, type User, type Location } from "../lib/api";
+import { fetchUsers, updateUser, fetchLocations, updateUserLocationAccess, adminCreateUser, type User, type Location, type AdminUserCreate } from "../lib/api";
 
 interface AdminPageProps {
   onClose: () => void;
@@ -15,6 +15,18 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
   const [newRole, setNewRole] = useState<string>("");
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState<"users" | "pending" | "create">("users");
+  
+  // Create user form state
+  const [createEmail, setCreateEmail] = useState("");
+  const [createPassword, setCreatePassword] = useState("");
+  const [createFullName, setCreateFullName] = useState("");
+  const [createRole, setCreateRole] = useState("viewer");
+  const [createApproved, setCreateApproved] = useState(true);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createSuccess, setCreateSuccess] = useState<string | null>(null);
 
   async function loadUsers() {
     setLoading(true);
@@ -61,6 +73,61 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
     }
   }
 
+  async function handleApproveUser(userId: string, role: string) {
+    setUpdateError(null);
+    try {
+      const updatedUser = await updateUser(userId, { is_approved: true, role });
+      setUsers(users.map(u => u.id === userId ? updatedUser : u));
+    } catch (err: any) {
+      setUpdateError(`Failed to approve user: ${err.message}`);
+    }
+  }
+
+  async function handleRejectUser(userId: string) {
+    setUpdateError(null);
+    try {
+      // For now, we'll just leave them unapproved. In the future, you might want to delete the user.
+      const updatedUser = await updateUser(userId, { is_approved: false });
+      setUsers(users.map(u => u.id === userId ? updatedUser : u));
+    } catch (err: any) {
+      setUpdateError(`Failed to update user: ${err.message}`);
+    }
+  }
+
+  async function handleCreateUser(e: React.FormEvent) {
+    e.preventDefault();
+    setUpdateError(null);
+    setCreateSuccess(null);
+    
+    if (!createEmail || !createPassword) {
+      setUpdateError("Email and password are required");
+      return;
+    }
+    
+    setCreateLoading(true);
+    try {
+      const newUser: AdminUserCreate = {
+        email: createEmail,
+        password: createPassword,
+        full_name: createFullName || undefined,
+        role: createRole,
+        is_approved: createApproved,
+      };
+      const createdUser = await adminCreateUser(newUser);
+      setUsers([...users, createdUser]);
+      setCreateEmail("");
+      setCreatePassword("");
+      setCreateFullName("");
+      setCreateRole("viewer");
+      setCreateApproved(true);
+      setCreateSuccess(`User "${createdUser.email}" created successfully!`);
+    } catch (err: any) {
+      setUpdateError(`Failed to create user: ${err.message}`);
+    } finally {
+      setCreateLoading(false);
+    }
+  }
+
   function startEditRole(userId: string, currentRole: string) {
     setEditingUserId(userId);
     setNewRole(currentRole);
@@ -93,19 +160,195 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
     loc.is_primary_location || !loc.parent_id
   );
 
+  // Filter users by approval status
+  const approvedUsers = users.filter(u => u.is_approved);
+  const pendingUsers = users.filter(u => !u.is_approved);
+
   return (
     <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: "1000px" }}>
+      <div className="modal-content" style={{ maxWidth: "1100px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
           <h2>Admin - User Management</h2>
           <button className="btn-outline" onClick={onClose}>
             Close
           </button>
         </div>
+        
+        {/* Tabs */}
+        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", borderBottom: "1px solid #ccc", paddingBottom: "0.5rem" }}>
+          <button
+            className={activeTab === "users" ? "btn-primary" : "btn-outline"}
+            onClick={() => setActiveTab("users")}
+            style={{ fontSize: "0.875rem" }}
+          >
+            All Users ({approvedUsers.length})
+          </button>
+          <button
+            className={activeTab === "pending" ? "btn-primary" : "btn-outline"}
+            onClick={() => setActiveTab("pending")}
+            style={{ fontSize: "0.875rem", position: "relative" }}
+          >
+            Pending Approval ({pendingUsers.length})
+            {pendingUsers.length > 0 && (
+              <span style={{
+                position: "absolute",
+                top: "-8px",
+                right: "-8px",
+                backgroundColor: "#ff6b6b",
+                color: "#fff",
+                borderRadius: "50%",
+                width: "20px",
+                height: "20px",
+                fontSize: "0.75rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}>
+                {pendingUsers.length}
+              </span>
+            )}
+          </button>
+          <button
+            className={activeTab === "create" ? "btn-primary" : "btn-outline"}
+            onClick={() => setActiveTab("create")}
+            style={{ fontSize: "0.875rem" }}
+          >
+            Create User
+          </button>
+        </div>
+        
         {loading && <p>Loading users...</p>}
         {error && <p className="error-message">{error}</p>}
         {updateError && <p className="error-message">{updateError}</p>}
-        {!loading && !error && (
+        {createSuccess && <p style={{ color: "green", marginBottom: "1rem" }}>{createSuccess}</p>}
+        
+        {/* Create User Tab */}
+        {!loading && !error && activeTab === "create" && (
+          <form onSubmit={handleCreateUser} style={{ maxWidth: "500px" }}>
+            <div className="form-group">
+              <label htmlFor="create-email">Email *</label>
+              <input
+                id="create-email"
+                type="email"
+                value={createEmail}
+                onChange={(e) => setCreateEmail(e.target.value)}
+                required
+                autoComplete="email"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="create-password">Password *</label>
+              <input
+                id="create-password"
+                type="password"
+                value={createPassword}
+                onChange={(e) => setCreatePassword(e.target.value)}
+                required
+                autoComplete="new-password"
+                minLength={6}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="create-fullname">Full Name</label>
+              <input
+                id="create-fullname"
+                type="text"
+                value={createFullName}
+                onChange={(e) => setCreateFullName(e.target.value)}
+                autoComplete="name"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="create-role">Role</label>
+              <select
+                id="create-role"
+                value={createRole}
+                onChange={(e) => setCreateRole(e.target.value)}
+              >
+                <option value="viewer">Viewer</option>
+                <option value="editor">Editor</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <input
+                  type="checkbox"
+                  checked={createApproved}
+                  onChange={(e) => setCreateApproved(e.target.checked)}
+                />
+                Pre-approved (user can log in immediately)
+              </label>
+            </div>
+            <button type="submit" className="btn-primary" disabled={createLoading}>
+              {createLoading ? "Creating..." : "Create User"}
+            </button>
+          </form>
+        )}
+        
+        {/* Pending Users Tab */}
+        {!loading && !error && activeTab === "pending" && (
+          <div className="table-wrapper">
+            {pendingUsers.length === 0 ? (
+              <p style={{ textAlign: "center", padding: "2rem", color: "#666" }}>
+                No pending users to approve
+              </p>
+            ) : (
+              <table className="items-table">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Full Name</th>
+                    <th>Registered</th>
+                    <th>Set Role & Approve</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingUsers.map((user) => (
+                    <tr key={user.id}>
+                      <td>{user.email}</td>
+                      <td>{user.full_name || "—"}</td>
+                      <td>{new Date(user.created_at).toLocaleDateString()}</td>
+                      <td>
+                        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+                          <select
+                            defaultValue="viewer"
+                            id={`role-${user.id}`}
+                            style={{ padding: "0.25rem" }}
+                          >
+                            <option value="viewer">Viewer</option>
+                            <option value="editor">Editor</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                          <button
+                            className="btn-primary"
+                            onClick={() => {
+                              const select = document.getElementById(`role-${user.id}`) as HTMLSelectElement;
+                              handleApproveUser(user.id, select?.value || "viewer");
+                            }}
+                            style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem" }}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            className="btn-outline"
+                            onClick={() => handleRejectUser(user.id)}
+                            style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem", color: "#ff6b6b", borderColor: "#ff6b6b" }}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+        
+        {/* All Users Tab */}
+        {!loading && !error && activeTab === "users" && (
           <div className="table-wrapper">
             <table className="items-table">
               <thead>
@@ -113,13 +356,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
                   <th>Email</th>
                   <th>Full Name</th>
                   <th>Role</th>
+                  <th>Status</th>
                   <th>Location Access</th>
                   <th>Created</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
+                {approvedUsers.map((user) => (
                   <tr key={user.id}>
                     <td>{user.email}</td>
                     <td>{user.full_name || "—"}</td>
@@ -146,6 +390,18 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
                           {user.role}
                         </span>
                       )}
+                    </td>
+                    <td>
+                      <span style={{ 
+                        padding: "0.25rem 0.5rem",
+                        borderRadius: "4px",
+                        backgroundColor: user.is_approved ? "#4ecdc4" : "#ffcc00",
+                        color: user.is_approved ? "#fff" : "#333",
+                        fontSize: "0.875rem",
+                        fontWeight: "500"
+                      }}>
+                        {user.is_approved ? "Active" : "Pending"}
+                      </span>
                     </td>
                     <td>
                       {editingLocationUserId === user.id ? (

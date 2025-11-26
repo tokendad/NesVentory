@@ -23,9 +23,17 @@ class UserCreate(UserBase):
     password: str
 
 
+# Schema for admin to create users with custom role and approval status
+class AdminUserCreate(UserBase):
+    password: str
+    role: str = "viewer"
+    is_approved: bool = True
+
+
 class User(UserBase):
     id: UUID
     role: str
+    is_approved: bool = False
     created_at: datetime
     updated_at: datetime
     allowed_location_ids: Optional[List[UUID]] = None
@@ -40,6 +48,7 @@ class User(UserBase):
 class UserRead(UserBase):
     id: UUID
     role: str
+    is_approved: bool = False
     created_at: datetime
     updated_at: datetime
     allowed_location_ids: Optional[List[UUID]] = None
