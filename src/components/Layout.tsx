@@ -11,6 +11,8 @@ interface LayoutProps {
   onLocaleClick?: () => void;
 }
 
+export { useIsMobile };
+
 const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail, userName, onUserClick, onLocaleClick }) => {
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -54,7 +56,7 @@ const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail,
               🌐
             </button>
           )}
-          {(userName || userEmail) && (
+          {!isMobile && (userName || userEmail) && (
             <span 
               className="user-email" 
               onClick={onUserClick}
@@ -64,9 +66,11 @@ const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail,
               {userName || userEmail}
             </span>
           )}
-          <button className="btn-outline" onClick={onLogout}>
-            Logout
-          </button>
+          {!isMobile && (
+            <button className="btn-outline" onClick={onLogout}>
+              Logout
+            </button>
+          )}
         </div>
       </header>
       <div className="app-body">

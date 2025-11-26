@@ -1624,4 +1624,142 @@ tbody tr:hover {
   color: #4ade80;
 }
 
+/* Mobile User Card Styles */
+.mobile-user-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 1rem;
+  background: linear-gradient(
+    145deg,
+    rgba(15, 23, 42, 0.95),
+    rgba(15, 23, 42, 0.98)
+  );
+  border: 1px solid rgba(30, 64, 175, 0.7);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.6);
+}
+
+.mobile-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-user-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.mobile-user-name {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-user-name:hover {
+  color: var(--accent);
+}
+
+.mobile-user-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.btn-logout-mobile {
+  color: var(--danger);
+  border-color: rgba(249, 115, 115, 0.5);
+}
+
+.btn-logout-mobile:hover {
+  border-color: rgba(249, 115, 115, 0.8);
+  background: rgba(249, 115, 115, 0.1);
+}
+
+/* Mobile-specific user card adjustments */
+@media (max-width: 400px) {
+  .mobile-user-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .mobile-user-actions {
+    justify-content: stretch;
+  }
+  
+  .mobile-user-actions button {
+    flex: 1;
+  }
+}
+
+/* Improved Modal Mobile Responsiveness */
+@media (max-width: 600px) {
+  .modal-overlay {
+    padding: 0.5rem;
+    align-items: flex-start;
+    padding-top: 1rem;
+  }
+  
+  .modal-content {
+    max-width: 100%;
+    max-height: calc(100vh - 2rem);
+    padding: 1rem;
+    margin: 0;
+    border-radius: 0.75rem;
+  }
+  
+  .modal-header h2 {
+    font-size: 1.1rem;
+  }
+  
+  /* UserSettings modal specific mobile fixes */
+  .modal-content .form-vertical {
+    gap: 0.75rem;
+  }
+  
+  .modal-content .form-group {
+    gap: 0.2rem;
+  }
+  
+  .modal-content .form-group label {
+    font-size: 0.8rem;
+  }
+  
+  .modal-content .form-group input {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+  
+  .modal-content .form-actions {
+    flex-direction: column-reverse;
+    gap: 0.5rem;
+  }
+  
+  .modal-content .form-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  /* API key section mobile fixes */
+  .modal-content .form-group > div {
+    flex-wrap: wrap;
+  }
+  
+  .modal-content .form-group > div > input[type="text"],
+  .modal-content .form-group > div > input[type="password"] {
+    width: 100%;
+    min-width: 0;
+  }
+}
 
