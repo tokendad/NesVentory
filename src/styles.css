@@ -1817,3 +1817,63 @@ tbody tr:hover {
   }
 }
 
+/* Location Browser Card Styles */
+.location-card {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(30, 64, 175, 0.7);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.98));
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+
+.location-card:hover {
+  border-color: rgba(56, 189, 248, 0.7);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.6);
+}
+
+/* Location Browser Grid */
+.location-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+/* Location Breadcrumb */
+.location-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.breadcrumb-btn {
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 400;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.breadcrumb-btn:hover {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: rgba(148, 163, 184, 0.7);
+}
+
+.breadcrumb-btn.active {
+  background: var(--accent-soft);
+  border-color: rgba(56, 189, 248, 0.7);
+  color: #e0f2fe;
+  font-weight: 500;
+}
+

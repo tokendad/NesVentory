@@ -1,12 +1,14 @@
-import React, { useState, useMemo } from "react";
-import type { Location, LocationCreate } from "../lib/api";
+import React, { useState, useMemo, useCallback } from "react";
+import type { Location, LocationCreate, Item } from "../lib/api";
 import { createLocation, updateLocation, deleteLocation } from "../lib/api";
 
 interface LocationsPageProps {
   locations: Location[];
+  items?: Item[];
   loading: boolean;
   error?: string | null;
   onRefresh: () => void;
+  onItemClick?: (item: Item) => void;
 }
 
 const LOCATION_TYPES = [
@@ -22,9 +24,11 @@ const LOCATION_TYPES = [
 
 const LocationsPage: React.FC<LocationsPageProps> = ({
   locations,
+  items = [],
   loading,
   error,
   onRefresh,
+  onItemClick,
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
@@ -32,6 +36,8 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
   const [formLoading, setFormLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  // Track the selected location path (breadcrumb navigation)
+  const [selectedPath, setSelectedPath] = useState<Location[]>([]);
 
   // Form state
   const [formData, setFormData] = useState<LocationCreate>({
@@ -54,6 +60,53 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
   const primaryLocations = useMemo(() => {
     return locations.filter(loc => loc.is_primary_location || !loc.parent_id);
   }, [locations]);
+
+  // Get child locations for a given parent ID
+  const getChildLocations = useCallback((parentId: string | number | null): Location[] => {
+    if (parentId === null) {
+      // Return top-level locations (no parent or primary)
+      return locations.filter(loc => loc.is_primary_location || !loc.parent_id);
+    }
+    return locations.filter(loc => loc.parent_id?.toString() === parentId.toString());
+  }, [locations]);
+
+  // Get items for a specific location
+  const getItemsAtLocation = useCallback((locationId: string | number): Item[] => {
+    return items.filter(item => item.location_id?.toString() === locationId.toString());
+  }, [items]);
+
+  // Get the current selected location (last in path)
+  const currentLocation = selectedPath.length > 0 ? selectedPath[selectedPath.length - 1] : null;
+
+  // Get locations to display in the current panel
+  const currentPanelLocations = useMemo(() => {
+    if (currentLocation === null) {
+      return getChildLocations(null);
+    }
+    return getChildLocations(currentLocation.id);
+  }, [getChildLocations, currentLocation]);
+
+  // Get items for the current selected location
+  const currentLocationItems = useMemo(() => {
+    if (currentLocation === null) {
+      return [];
+    }
+    return getItemsAtLocation(currentLocation.id);
+  }, [getItemsAtLocation, currentLocation]);
+
+  // Handler to navigate to a location
+  const handleLocationClick = (location: Location) => {
+    setSelectedPath([...selectedPath, location]);
+  };
+
+  // Handler to navigate back to a specific level in the breadcrumb
+  const handleBreadcrumbClick = (index: number) => {
+    if (index < 0) {
+      setSelectedPath([]);
+    } else {
+      setSelectedPath(selectedPath.slice(0, index + 1));
+    }
+  };
 
   // Filter locations by search query
   const filteredLocations = useMemo(() => {
@@ -193,130 +246,291 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
   };
 
   return (
-    <section className="panel">
-      <div className="panel-header panel-header-left">
-        <div style={{ display: "flex", gap: "0.75rem" }}>
-          <button className="btn-outline" onClick={onRefresh} disabled={loading}>
-            {loading ? "Refreshing..." : "Refresh"}
-          </button>
-          <button className="btn-primary" onClick={handleOpenCreate}>
-            Add Location
-          </button>
+    <>
+      {/* Location Browser Panel */}
+      <section className="panel" style={{ marginBottom: "1rem" }}>
+        <div className="panel-header">
+          <h2>Browse Locations</h2>
         </div>
-        <h2>Locations</h2>
-      </div>
-      <div className="search-bar">
-        <input
-          type="text"
-          placeholder="Search locations by name, description, address..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="search-input"
-        />
-        {searchQuery && (
+        
+        {/* Breadcrumb navigation */}
+        <div className="location-breadcrumb">
           <button
-            className="search-clear"
-            onClick={() => setSearchQuery("")}
-            title="Clear search"
+            className={selectedPath.length === 0 ? "breadcrumb-btn active" : "breadcrumb-btn"}
+            onClick={() => handleBreadcrumbClick(-1)}
           >
-            ×
+            All Locations
           </button>
-        )}
-      </div>
-      {error && <div className="error-banner">{error}</div>}
-      {formError && !showForm && <div className="error-banner">{formError}</div>}
-      <div className="table-wrapper">
-        <table className="items-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Friendly Name</th>
-              <th>Type</th>
-              <th>Parent</th>
-              <th>Primary</th>
-              <th>Address</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {locations.length === 0 && !loading && (
-              <tr>
-                <td colSpan={7} className="empty-row">
-                  No locations found. Click "Add Location" to create your first location.
-                </td>
-              </tr>
-            )}
-            {locations.length > 0 && filteredLocations.length === 0 && searchQuery.trim() && !loading && (
-              <tr>
-                <td colSpan={7} className="empty-row">
-                  No locations match your search.
-                </td>
-              </tr>
-            )}
-            {filteredLocations.map((loc) => (
-              <tr key={loc.id}>
-                <td>{loc.name}</td>
-                <td>{loc.friendly_name || "—"}</td>
-                <td>{getLocationTypeLabel(loc.location_type)}</td>
-                <td>{getParentName(loc.parent_id)}</td>
-                <td>
-                  {loc.is_primary_location ? (
-                    <span style={{ 
-                      padding: "0.25rem 0.5rem",
+          {selectedPath.map((loc, index) => (
+            <React.Fragment key={loc.id}>
+              <span style={{ color: "var(--muted)" }}>›</span>
+              <button
+                className={index === selectedPath.length - 1 ? "breadcrumb-btn active" : "breadcrumb-btn"}
+                onClick={() => handleBreadcrumbClick(index)}
+              >
+                {loc.friendly_name || loc.name}
+              </button>
+            </React.Fragment>
+          ))}
+        </div>
+
+        {/* Location Cards Grid */}
+        <div className="location-cards-grid">
+          {currentPanelLocations.length === 0 && !loading && (
+            <div style={{ 
+              gridColumn: "1 / -1", 
+              textAlign: "center", 
+              padding: "2rem",
+              color: "var(--muted)",
+              fontStyle: "italic"
+            }}>
+              {currentLocation 
+                ? "No sub-locations in this location."
+                : "No locations found. Click 'Add Location' below to create your first location."}
+            </div>
+          )}
+          {currentPanelLocations.map((loc) => {
+            const childCount = getChildLocations(loc.id).length;
+            const itemCount = getItemsAtLocation(loc.id).length;
+            return (
+              <div
+                key={loc.id}
+                className="location-card"
+                onClick={() => handleLocationClick(loc)}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                  <span style={{ fontSize: "1.1rem", fontWeight: 500 }}>
+                    {loc.friendly_name || loc.name}
+                  </span>
+                  {loc.is_primary_location && (
+                    <span style={{
+                      padding: "0.125rem 0.35rem",
                       borderRadius: "4px",
                       backgroundColor: "#4ecdc4",
                       color: "#fff",
-                      fontSize: "0.75rem",
-                      fontWeight: "500"
+                      fontSize: "0.65rem",
+                      fontWeight: "600"
                     }}>
                       HOME
                     </span>
-                  ) : "—"}
-                </td>
-                <td>{loc.address || "—"}</td>
-                <td>
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
-                    <button
-                      className="btn-outline"
-                      onClick={() => handleOpenEdit(loc)}
-                      style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem" }}
+                  )}
+                </div>
+                {loc.location_type && (
+                  <div style={{ 
+                    fontSize: "0.75rem", 
+                    color: "var(--muted)", 
+                    marginBottom: "0.5rem" 
+                  }}>
+                    {getLocationTypeLabel(loc.location_type)}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: "0.75rem", fontSize: "0.8rem", color: "var(--muted)" }}>
+                  {childCount > 0 && (
+                    <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                      <span style={{ color: "var(--accent)" }} role="img" aria-label="Rooms">📁</span>
+                      {childCount} {childCount === 1 ? "room" : "rooms"}
+                    </span>
+                  )}
+                  {itemCount > 0 && (
+                    <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                      <span style={{ color: "var(--accent)" }} role="img" aria-label="Items">📦</span>
+                      {itemCount} {itemCount === 1 ? "item" : "items"}
+                    </span>
+                  )}
+                  {childCount === 0 && itemCount === 0 && (
+                    <span>Click to explore</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Items at current location */}
+        {currentLocation && currentLocationItems.length > 0 && (
+          <div style={{ marginTop: "1rem" }}>
+            <h3 style={{ 
+              fontSize: "0.95rem", 
+              fontWeight: 500, 
+              marginBottom: "0.75rem",
+              color: "var(--accent)"
+            }}>
+              Items in {currentLocation.friendly_name || currentLocation.name}
+            </h3>
+            <div className="table-wrapper" style={{ maxHeight: "300px" }}>
+              <table className="items-table compact">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Brand</th>
+                    <th>Model</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentLocationItems.map((item) => (
+                    <tr
+                      key={item.id}
+                      onClick={() => onItemClick?.(item)}
+                      style={{ cursor: onItemClick ? "pointer" : "default" }}
                     >
-                      Edit
-                    </button>
-                    {deleteConfirm === loc.id.toString() ? (
-                      <>
-                        <button
-                          className="btn-danger"
-                          onClick={() => handleDelete(loc.id.toString())}
-                          disabled={formLoading}
-                          style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem" }}
-                        >
-                          Confirm
-                        </button>
-                        <button
-                          className="btn-outline"
-                          onClick={() => setDeleteConfirm(null)}
-                          style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem" }}
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
+                      <td>{item.name}</td>
+                      <td>{item.brand || "—"}</td>
+                      <td>{item.model_number || "—"}</td>
+                      <td>
+                        {item.estimated_value != null 
+                          ? `$${item.estimated_value.toLocaleString()}` 
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Show message when no items at selected location */}
+        {currentLocation && currentLocationItems.length === 0 && currentPanelLocations.length === 0 && (
+          <div style={{
+            textAlign: "center",
+            padding: "1.5rem",
+            color: "var(--muted)",
+            fontStyle: "italic",
+            background: "rgba(15, 23, 42, 0.5)",
+            borderRadius: "0.5rem"
+          }}>
+            No items in this location.
+          </div>
+        )}
+      </section>
+
+      {/* Location Management Panel */}
+      <section className="panel">
+        <div className="panel-header panel-header-left">
+          <div style={{ display: "flex", gap: "0.75rem" }}>
+            <button className="btn-outline" onClick={onRefresh} disabled={loading}>
+              {loading ? "Refreshing..." : "Refresh"}
+            </button>
+            <button className="btn-primary" onClick={handleOpenCreate}>
+              Add Location
+            </button>
+          </div>
+          <h2>Manage Locations</h2>
+        </div>
+        <div className="search-bar">
+          <input
+            type="text"
+            placeholder="Search locations by name, description, address..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+          />
+          {searchQuery && (
+            <button
+              className="search-clear"
+              onClick={() => setSearchQuery("")}
+              title="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </div>
+        {error && <div className="error-banner">{error}</div>}
+        {formError && !showForm && <div className="error-banner">{formError}</div>}
+        <div className="table-wrapper">
+          <table className="items-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Friendly Name</th>
+                <th>Type</th>
+                <th>Parent</th>
+                <th>Primary</th>
+                <th>Address</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {locations.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={7} className="empty-row">
+                    No locations found. Click "Add Location" to create your first location.
+                  </td>
+                </tr>
+              )}
+              {locations.length > 0 && filteredLocations.length === 0 && searchQuery.trim() && !loading && (
+                <tr>
+                  <td colSpan={7} className="empty-row">
+                    No locations match your search.
+                  </td>
+                </tr>
+              )}
+              {filteredLocations.map((loc) => (
+                <tr key={loc.id}>
+                  <td>{loc.name}</td>
+                  <td>{loc.friendly_name || "—"}</td>
+                  <td>{getLocationTypeLabel(loc.location_type)}</td>
+                  <td>{getParentName(loc.parent_id)}</td>
+                  <td>
+                    {loc.is_primary_location ? (
+                      <span style={{ 
+                        padding: "0.25rem 0.5rem",
+                        borderRadius: "4px",
+                        backgroundColor: "#4ecdc4",
+                        color: "#fff",
+                        fontSize: "0.75rem",
+                        fontWeight: "500"
+                      }}>
+                        HOME
+                      </span>
+                    ) : "—"}
+                  </td>
+                  <td>{loc.address || "—"}</td>
+                  <td>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
                       <button
                         className="btn-outline"
-                        onClick={() => setDeleteConfirm(loc.id.toString())}
-                        style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem", color: "#dc3545" }}
+                        onClick={() => handleOpenEdit(loc)}
+                        style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem" }}
                       >
-                        Delete
+                        Edit
                       </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                      {deleteConfirm === loc.id.toString() ? (
+                        <>
+                          <button
+                            className="btn-danger"
+                            onClick={() => handleDelete(loc.id.toString())}
+                            disabled={formLoading}
+                            style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem" }}
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            className="btn-outline"
+                            onClick={() => setDeleteConfirm(null)}
+                            style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem" }}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          className="btn-outline"
+                          onClick={() => setDeleteConfirm(loc.id.toString())}
+                          style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem", color: "#dc3545" }}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       {/* Location Form Modal */}
       {showForm && (
@@ -486,7 +700,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
           </div>
         </div>
       )}
-    </section>
+    </>
   );
 };
 

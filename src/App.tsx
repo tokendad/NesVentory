@@ -421,9 +421,11 @@ const App: React.FC = () => {
         {view === "locations" && (
           <LocationsPage
             locations={locations}
+            items={items}
             loading={locationsLoading}
             error={locationsError}
             onRefresh={loadLocations}
+            onItemClick={handleItemClick}
           />
         )}
         {view === "status" && <Status />}
