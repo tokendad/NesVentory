@@ -148,11 +148,73 @@ def get_column_indices(header_row: tuple) -> dict:
     return indices
 
 
-def extract_parent_location_name(ws) -> Optional[str]:
+def extract_location_from_cell_value(cell_value: str) -> Optional[str]:
+    """
+    Extract location name from a cell value that may contain multiple lines.
+    The Encircle format often has the location name on the first line,
+    followed by "Report Date:" on subsequent lines.
+    
+    Returns the first valid line that doesn't look like metadata.
+    """
+    if not cell_value:
+        return None
+    
+    # Split by newlines and check each line
+    lines = str(cell_value).strip().split('\n')
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        # Skip lines that look like metadata
+        line_lower = line.lower()
+        if ("report date" in line_lower or 
+            "date:" in line_lower or
+            "encircle" in line_lower):
+            continue
+        # Found a valid location name
+        return line
+    
+    return None
+
+
+def extract_location_from_filename(filename: Optional[str]) -> Optional[str]:
+    """
+    Extract location name from an Encircle export filename.
+    Encircle filenames typically follow the pattern: LocationName__Encircle_Detailed__12345.xlsx
+    
+    Returns the location name portion, or None if the pattern doesn't match.
+    """
+    if not filename:
+        return None
+    
+    # Remove path if present, get just the filename
+    name = Path(filename).stem
+    
+    # Pattern: LocationName__Encircle_Detailed__12345
+    # Try to extract the part before "__Encircle"
+    match = re.match(r"^(.+?)__Encircle", name, re.IGNORECASE)
+    if match:
+        location = match.group(1).strip()
+        if location:
+            # Replace single underscores with spaces for better readability
+            # (double underscores are unlikely in location names before __Encircle)
+            location = location.replace('_', ' ').strip()
+            return location
+    
+    return None
+
+
+def extract_parent_location_name(ws, filename: Optional[str] = None) -> Optional[str]:
     """
     Extract parent location name from merged cell E1-G3 or similar area.
     The Encircle format typically has the location name in the header area
     around cells E1-G3 (merged).
+    
+    Falls back to extracting location from filename if cell extraction fails.
+    
+    Args:
+        ws: The worksheet to extract from
+        filename: Optional filename to use as fallback for location extraction
     """
     # Check for merged cells in the parent location header range first
     for merged_range in ws.merged_cells.ranges:
@@ -163,23 +225,25 @@ def extract_parent_location_name(ws) -> Optional[str]:
             merged_range.min_col <= PARENT_LOCATION_COL_END):
             # Get the value from the top-left cell of the merged range
             cell_value = ws.cell(row=merged_range.min_row, column=merged_range.min_col).value
-            if cell_value and str(cell_value).strip():
-                value = str(cell_value).strip()
-                # Skip if it looks like a date header (e.g., "Report Date:")
-                if "report date" not in value.lower() and "date:" not in value.lower():
-                    return value
+            if cell_value:
+                location_name = extract_location_from_cell_value(str(cell_value))
+                if location_name:
+                    return location_name
     
     # Fallback: scan cells in the parent location header range for a location name
     for row_idx in range(PARENT_LOCATION_ROW_START, PARENT_LOCATION_ROW_END + 1):
         for col_idx in range(PARENT_LOCATION_COL_START, PARENT_LOCATION_COL_END + 1):
             cell_value = ws.cell(row=row_idx, column=col_idx).value
-            if cell_value and str(cell_value).strip():
-                value = str(cell_value).strip()
-                # Skip if it looks like a date header or contains "Encircle"
-                if ("report date" not in value.lower() and 
-                    "date:" not in value.lower() and
-                    "encircle" not in value.lower()):
-                    return value
+            if cell_value:
+                location_name = extract_location_from_cell_value(str(cell_value))
+                if location_name:
+                    return location_name
+    
+    # Final fallback: try to extract location from filename
+    if filename:
+        location_name = extract_location_from_filename(filename)
+        if location_name:
+            return location_name
     
     return None
 
@@ -379,7 +443,8 @@ def process_encircle_import(
     db: Session,
     match_by_name: bool = True,
     parent_location_id: Optional[str] = None,
-    create_parent_from_file: bool = True
+    create_parent_from_file: bool = True,
+    xlsx_filename: Optional[str] = None
 ) -> ImportResult:
     """
     Process Encircle XLSX import with optional images.
@@ -391,6 +456,7 @@ def process_encircle_import(
         match_by_name: If True, match images by Description; else by No. prefix
         parent_location_id: Optional ID of existing parent location to use
         create_parent_from_file: If True and no parent_location_id, create parent from file header
+        xlsx_filename: Optional filename for fallback location extraction
     
     Returns:
         ImportResult with details about the import
@@ -402,8 +468,8 @@ def process_encircle_import(
         wb = load_workbook(filename=BytesIO(xlsx_content), data_only=True)
         ws = wb.active
         
-        # Extract parent location name from the file (merged cell E1-G3)
-        file_parent_location_name = extract_parent_location_name(ws)
+        # Extract parent location name from the file (merged cell E1-G3, with filename fallback)
+        file_parent_location_name = extract_parent_location_name(ws, xlsx_filename)
         result.parent_location_name = file_parent_location_name
         if file_parent_location_name:
             result.log.append(f"Detected parent location in file: {file_parent_location_name}")
@@ -695,13 +761,14 @@ def process_encircle_import(
     return result
 
 
-def preview_encircle_import(xlsx_content: bytes) -> dict:
+def preview_encircle_import(xlsx_content: bytes, filename: Optional[str] = None) -> dict:
     """
     Preview an Encircle XLSX file to extract the parent location name
     without actually importing anything.
     
     Args:
         xlsx_content: Bytes content of the XLSX file
+        filename: Optional filename for fallback location extraction
     
     Returns:
         Dictionary with parent_location_name
@@ -709,7 +776,7 @@ def preview_encircle_import(xlsx_content: bytes) -> dict:
     try:
         wb = load_workbook(filename=BytesIO(xlsx_content), data_only=True)
         ws = wb.active
-        parent_location_name = extract_parent_location_name(ws)
+        parent_location_name = extract_parent_location_name(ws, filename)
         return {
             "parent_location_name": parent_location_name,
             "success": True
@@ -742,8 +809,8 @@ async def preview_encircle(
     # Read xlsx content
     xlsx_content = await xlsx_file.read()
     
-    # Preview the file
-    result = preview_encircle_import(xlsx_content)
+    # Preview the file (pass filename for fallback location extraction)
+    result = preview_encircle_import(xlsx_content, xlsx_file.filename)
     
     if not result["success"]:
         raise HTTPException(
@@ -803,14 +870,15 @@ async def import_encircle(
                     content = await img.read()
                     image_data.append((img.filename, content))
     
-    # Process import
+    # Process import (pass filename for fallback location extraction)
     result = process_encircle_import(
         xlsx_content=xlsx_content,
         images=image_data,
         db=db,
         match_by_name=match_by_name,
         parent_location_id=parent_location_id,
-        create_parent_from_file=create_parent_from_file
+        create_parent_from_file=create_parent_from_file,
+        xlsx_filename=xlsx_file.filename
     )
     
     if result.errors:
