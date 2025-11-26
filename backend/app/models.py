@@ -75,8 +75,11 @@ class User(Base):
 
     id = Column(UUID(), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=True)  # Nullable for Google OAuth users
     full_name = Column(String(255), nullable=True)
+    
+    # Google OAuth - stores Google account ID for SSO
+    google_id = Column(String(255), unique=True, nullable=True, index=True)
 
     # Pass the values of the Enum directly to avoid type confusion
     role = Column(Enum(UserRole.ADMIN, UserRole.EDITOR, UserRole.VIEWER, name="user_role", type_=String),
