@@ -152,17 +152,38 @@ def parse_gemini_response(response_text: str) -> List[DetectedItem]:
                     if "items" in parsed and isinstance(parsed["items"], list):
                         return parse_gemini_response(json.dumps(parsed["items"]))
                     # Otherwise treat as a single item
+                    # Parse estimated value if present
+                    estimated_value = None
+                    value_str = parsed.get("estimated_value") or parsed.get("value")
+                    if value_str:
+                        try:
+                            if isinstance(value_str, (int, float)):
+                                estimated_value = float(value_str)
+                            else:
+                                clean_value = re.sub(r'[^\d.]', '', str(value_str))
+                                if clean_value:
+                                    estimated_value = float(clean_value)
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    # Add estimation date if there's an estimated value
+                    estimation_date = None
+                    if estimated_value is not None:
+                        estimation_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
+                    
                     items.append(DetectedItem(
                         name=parsed.get("name", "Unknown Item"),
                         description=parsed.get("description"),
                         brand=parsed.get("brand"),
-                        estimated_value=None,
-                        confidence=None
+                        estimated_value=estimated_value,
+                        confidence=None,
+                        estimation_date=estimation_date
                     ))
     except json.JSONDecodeError:
         logger.warning("Failed to parse JSON from Gemini response")
     
     # If no items parsed, try to extract item names from plain text
+    # Note: Plain text fallback doesn't provide estimated values, so estimation_date is None
     if not items:
         # Split by common delimiters and look for item-like entries
         lines = response_text.split('\n')
@@ -176,7 +197,7 @@ def parse_gemini_response(response_text: str) -> List[DetectedItem]:
                 cleaned = re.sub(r'^[-*•]\s*', '', line)
                 cleaned = re.sub(r'^\d+[.)\s]+', '', cleaned)
                 if cleaned and len(cleaned) > MIN_ITEM_NAME_LENGTH:
-                    items.append(DetectedItem(name=cleaned))
+                    items.append(DetectedItem(name=cleaned, estimation_date=None))
     
     return items
 
