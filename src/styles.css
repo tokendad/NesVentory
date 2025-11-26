@@ -907,6 +907,24 @@ tbody tr:hover {
   min-height: 80px;
 }
 
+.form-group .help-text {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.2rem;
+}
+
+.form-group .ai-estimate-note {
+  display: block;
+  font-style: italic;
+  color: var(--accent);
+}
+
+.form-group .user-estimate-note {
+  display: block;
+  font-style: italic;
+  color: var(--success);
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

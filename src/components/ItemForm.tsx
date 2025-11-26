@@ -12,12 +12,22 @@ interface ItemFormProps {
   initialData?: Partial<ItemCreate> & { tags?: Tag[] };
   isEditing?: boolean;
   currentUserId?: string;
+  currentUserName?: string;
 }
 
 // Get current date in YYYY-MM-DD format for new items
 const getCurrentDate = () => {
   const today = new Date();
   return today.toISOString().split('T')[0];
+};
+
+// Get current date in MM/DD/YY format for display
+const getCurrentDisplayDate = () => {
+  const today = new Date();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const year = String(today.getFullYear()).slice(-2);
+  return `${month}/${day}/${year}`;
 };
 
 const ItemForm: React.FC<ItemFormProps> = ({
@@ -27,6 +37,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
   initialData,
   isEditing = false,
   currentUserId,
+  currentUserName,
 }) => {
   const [formData, setFormData] = useState<ItemCreate>({
     name: initialData?.name || "",
@@ -37,6 +48,9 @@ const ItemForm: React.FC<ItemFormProps> = ({
     purchase_date: initialData?.purchase_date || (!isEditing ? getCurrentDate() : ""),
     purchase_price: initialData?.purchase_price || undefined,
     estimated_value: initialData?.estimated_value || undefined,
+    estimated_value_ai_date: initialData?.estimated_value_ai_date || undefined,
+    estimated_value_user_date: initialData?.estimated_value_user_date || undefined,
+    estimated_value_user_name: initialData?.estimated_value_user_name || undefined,
     retailer: initialData?.retailer || "",
     upc: initialData?.upc || "",
     location_id: initialData?.location_id || null,
@@ -128,21 +142,37 @@ const ItemForm: React.FC<ItemFormProps> = ({
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
     
-    setFormData((prev) => ({
-      ...prev,
-      [name]:
-        type === "checkbox"
-          ? checked
-          : name === "purchase_price" || name === "estimated_value"
-          ? value === ""
-            ? undefined
-            : parseFloat(value)
-          : name === "location_id"
-          ? value === ""
-            ? null
-            : value
-          : value,
-    }));
+    setFormData((prev) => {
+      const updates: Partial<ItemCreate> = {
+        [name]:
+          type === "checkbox"
+            ? checked
+            : name === "purchase_price" || name === "estimated_value"
+            ? value === ""
+              ? undefined
+              : parseFloat(value)
+            : name === "location_id"
+            ? value === ""
+              ? null
+              : value
+            : value,
+      };
+      
+      // When user changes the estimated value, clear AI date and set user info
+      if (name === "estimated_value") {
+        updates.estimated_value_ai_date = undefined;
+        // Only set user info if there's a value
+        if (value !== "") {
+          updates.estimated_value_user_date = getCurrentDisplayDate();
+          updates.estimated_value_user_name = currentUserName || "Unknown";
+        } else {
+          updates.estimated_value_user_date = undefined;
+          updates.estimated_value_user_name = undefined;
+        }
+      }
+      
+      return { ...prev, ...updates };
+    });
   };
 
   const handleContactInfoChange = (field: keyof ContactInfo, value: string) => {
@@ -612,6 +642,16 @@ const ItemForm: React.FC<ItemFormProps> = ({
                     min="0"
                     disabled={loading}
                   />
+                  {formData.estimated_value_ai_date && (
+                    <span className="help-text ai-estimate-note">
+                      ℹ️ AI best guess on date: {formData.estimated_value_ai_date}
+                    </span>
+                  )}
+                  {formData.estimated_value_user_date && formData.estimated_value_user_name && (
+                    <span className="help-text user-estimate-note">
+                      ℹ️ User supplied value by {formData.estimated_value_user_name} on date: {formData.estimated_value_user_date}
+                    </span>
+                  )}
                 </div>
               </div>
             </>
