@@ -169,7 +169,17 @@ const ItemForm: React.FC<ItemFormProps> = ({
     setLoading(true);
     setError(null);
     try {
-      await onSubmit(formData, photos);
+      // Sanitize form data before submission:
+      // Convert empty strings to null for fields that expect dates or UUIDs
+      // to prevent Pydantic validation errors on the backend
+      const sanitizedData: ItemCreate = {
+        ...formData,
+        purchase_date: formData.purchase_date === '' ? null : formData.purchase_date,
+        birthdate: formData.birthdate === '' ? null : formData.birthdate,
+        location_id: formData.location_id === '' ? null : formData.location_id,
+        associated_user_id: formData.associated_user_id === '' ? null : formData.associated_user_id,
+      };
+      await onSubmit(sanitizedData, photos);
     } catch (err: any) {
       setError(err.message || "Failed to save item");
     } finally {
