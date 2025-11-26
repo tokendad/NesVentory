@@ -112,7 +112,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
               type="email"
               value={user.email}
               disabled
-              style={{ backgroundColor: "#f5f5f5", cursor: "not-allowed" }}
+              style={{ backgroundColor: "#f5f5f5", color: "#1f2937", cursor: "not-allowed" }}
             />
             <small style={{ color: "#666", fontSize: "0.875rem" }}>Email cannot be changed</small>
           </div>
@@ -161,7 +161,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
                     type={showApiKey ? "text" : "password"}
                     value={currentApiKey}
                     readOnly
-                    style={{ flex: 1, backgroundColor: "#f5f5f5", fontFamily: "monospace" }}
+                    style={{ flex: 1, backgroundColor: "#f5f5f5", color: "#1f2937", fontFamily: "monospace" }}
                   />
                   <button
                     type="button"
