@@ -238,7 +238,7 @@ export interface LocationCreate {
 }
 
 export async function createLocation(location: LocationCreate): Promise<Location> {
-  const res = await fetch(`${API_BASE_URL}/api/locations`, {
+  const res = await fetch(`${API_BASE_URL}/api/locations/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -284,7 +284,7 @@ export async function deleteLocation(locationId: string): Promise<void> {
 }
 
 export async function createItem(item: ItemCreate): Promise<Item> {
-  const res = await fetch(`${API_BASE_URL}/api/items`, {
+  const res = await fetch(`${API_BASE_URL}/api/items/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -515,7 +515,7 @@ export async function fetchTags(): Promise<Tag[]> {
 }
 
 export async function createTag(name: string): Promise<Tag> {
-  const res = await fetch(`${API_BASE_URL}/api/tags`, {
+  const res = await fetch(`${API_BASE_URL}/api/tags/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
