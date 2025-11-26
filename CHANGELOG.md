@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.0] - 2025-11-26
+### Added
+- **AI Data Tag Parsing** - New feature to extract item information from data tags using AI
+  - New `/api/ai/parse-data-tag` endpoint for AI-powered data tag image analysis
+  - Extracts manufacturer, brand, model number, serial number, and production date from data tag photos
+  - "🤖 AI Scan" button in ItemForm next to data tag photo upload (only shown when AI is configured)
+  - Camera capture support on mobile devices for easy data tag scanning
+  - Scan results display with option to apply extracted data to form fields
+  - Automatically adds scanned image as the data tag photo
+  - Extracts additional product information like voltage, wattage, certifications, and country of origin
+
+### Changed
+- Bumped project version to 3.2.0
+
 ## [3.1.0] - 2025-11-26
 ### Added
 - **Enhanced Encircle XLSX Import** with Locations and SubLocations support
