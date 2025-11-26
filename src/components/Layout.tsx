@@ -44,8 +44,7 @@ const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail,
               </span>
             </button>
           )}
-          <span className="logo-dot" />
-          <span className="app-title">NesVentory</span>
+          <img src="/logo.png" alt="NesVentory" className="app-logo" />
         </div>
         <div className="app-header-right">
           {onThemeClick && (

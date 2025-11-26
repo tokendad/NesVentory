@@ -1,8 +1,14 @@
 # NesVentory - Home Inventory Management System
 
-**Version: 3.0.0**
+**Version: 3.3.0**
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
+
+## What's New in Version 3.3.0
+
+🎨 **Logo & Branding Support**
+- ✅ Application logo displayed in header and login screen
+- ✅ Customizable branding for deployments
 
 ## What's New in Version 3.0.0
 
@@ -54,6 +60,17 @@ The application comes with pre-seeded test users:
 | **Viewer** | viewer@nesventory.local | viewer123 | Read-only |
 
 ⚠️ **Important**: Change these credentials for production use!
+
+## 🎨 Customizing the Logo
+
+To customize the application logo for your deployment:
+
+1. Replace the logo file at `public/logo.png` with your own logo image
+2. Recommended dimensions: 200px width or larger (will be scaled automatically)
+3. Supported formats: PNG (recommended), JPG, SVG
+4. The logo appears in:
+   - Application header (scaled to 32px height)
+   - Login screen (scaled to 200px max width)
 
 ## 📚 Documentation
 
