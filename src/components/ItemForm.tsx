@@ -756,7 +756,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                             </div>
                           </div>
                         )}
-                        {!dataTagResult.manufacturer && !dataTagResult.model_number && 
+                        {!dataTagResult.manufacturer && !dataTagResult.brand && !dataTagResult.model_number && 
                          !dataTagResult.serial_number && !dataTagResult.production_date && (
                           <p className="no-data-found">No data tag information could be extracted. Try a clearer image.</p>
                         )}

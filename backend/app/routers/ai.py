@@ -189,18 +189,20 @@ def parse_data_tag_response(response_text: str) -> DataTagInfo:
             parsed = json.loads(json_str)
             
             if isinstance(parsed, dict):
-                # Extract manufacturer/brand
-                result.manufacturer = (
+                # Extract manufacturer first (used as fallback for brand)
+                manufacturer = (
                     parsed.get("manufacturer") or
                     parsed.get("mfr") or
                     parsed.get("maker") or
                     None
                 )
+                result.manufacturer = manufacturer
                 
+                # Extract brand (falls back to manufacturer if not found)
                 result.brand = (
                     parsed.get("brand") or
                     parsed.get("brand_name") or
-                    result.manufacturer  # Fall back to manufacturer if brand not found
+                    manufacturer  # Fall back to manufacturer if brand not found
                 )
                 
                 # Extract model number
