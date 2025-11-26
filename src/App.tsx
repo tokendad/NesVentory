@@ -227,15 +227,25 @@ const App: React.FC = () => {
   function handleUserSettingsUpdate(updatedUser: User) {
     setCurrentUser(updatedUser);
     // Persist only NON-SENSITIVE user fields to localStorage.
-    // NEVER store api_key, password, or any credentials!
+    // NEVER store api_key, password, auth_token, or any credentials!
+    // Defensive: make sure sensitive data is never stored
+    const {
+      id,
+      email,
+      full_name = "",
+      role,
+      created_at,
+      updated_at,
+    } = updatedUser;
     const safeUser = {
-      id: updatedUser.id,
-      email: updatedUser.email,
-      full_name: updatedUser.full_name || "",
-      role: updatedUser.role,
-      created_at: updatedUser.created_at,
-      updated_at: updatedUser.updated_at,
+      id,
+      email,
+      full_name,
+      role,
+      created_at,
+      updated_at,
     };
+    // You may optionally add a runtime assertion or warning if sensitive keys are present
     localStorage.setItem("NesVentory_currentUser", JSON.stringify(safeUser));
   }
 
