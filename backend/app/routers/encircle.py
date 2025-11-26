@@ -786,7 +786,7 @@ def preview_encircle_import(xlsx_content: bytes, filename: Optional[str] = None)
         return {
             "parent_location_name": None,
             "success": False,
-            "error": str(e)
+            "error": "An error occurred while previewing the Encircle file."
         }
 
 
