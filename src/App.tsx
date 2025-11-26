@@ -4,7 +4,7 @@ import RegisterForm from "./components/RegisterForm";
 import UserSettings from "./components/UserSettings";
 import LocaleSettings from "./components/LocaleSettings";
 import AdminPage from "./components/AdminPage";
-import Layout from "./components/Layout";
+import Layout, { useIsMobile } from "./components/Layout";
 import DashboardCards from "./components/DashboardCards";
 import ItemsTable from "./components/ItemsTable";
 import LocationsTree from "./components/LocationsTree";
@@ -38,6 +38,7 @@ import type { PhotoUpload } from "./lib/types";
 type View = "dashboard" | "items" | "locations" | "status" | "admin";
 
 const App: React.FC = () => {
+  const isMobile = useIsMobile();
   const [token, setToken] = useState<string | null>(
     () => localStorage.getItem("NesVentory_token")
   );
@@ -340,6 +341,11 @@ const App: React.FC = () => {
             <DashboardCards
               totalItems={items.length}
               totalLocations={locations.length}
+              isMobile={isMobile}
+              userName={currentUser?.full_name || undefined}
+              userEmail={userEmail}
+              onUserClick={() => setShowUserSettings(true)}
+              onLogout={handleLogout}
             />
             <section className="panel">
               <div className="panel-header">
