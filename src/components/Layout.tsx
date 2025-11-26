@@ -9,11 +9,12 @@ interface LayoutProps {
   userName?: string;
   onUserClick?: () => void;
   onLocaleClick?: () => void;
+  onThemeClick?: () => void;
 }
 
 export { useIsMobile };
 
-const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail, userName, onUserClick, onLocaleClick }) => {
+const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail, userName, onUserClick, onLocaleClick, onThemeClick }) => {
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -47,6 +48,15 @@ const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail,
           <span className="app-title">NesVentory</span>
         </div>
         <div className="app-header-right">
+          {onThemeClick && (
+            <button 
+              className="btn-outline" 
+              onClick={onThemeClick}
+              title="Theme Settings"
+            >
+              🎨
+            </button>
+          )}
           {onLocaleClick && (
             <button 
               className="btn-outline" 
