@@ -255,3 +255,35 @@ class MaintenanceTask(MaintenanceTaskBase):
 
     class Config:
         from_attributes = True
+
+
+# --- Bulk Operations Schemas ---
+
+class BulkDeleteRequest(BaseModel):
+    item_ids: List[UUID]
+
+
+class BulkDeleteResponse(BaseModel):
+    deleted_count: int
+    message: str
+
+
+class BulkUpdateTagsRequest(BaseModel):
+    item_ids: List[UUID]
+    tag_ids: List[UUID]
+    mode: str = "replace"  # "replace", "add", or "remove"
+
+
+class BulkUpdateTagsResponse(BaseModel):
+    updated_count: int
+    message: str
+
+
+class BulkUpdateLocationRequest(BaseModel):
+    item_ids: List[UUID]
+    location_id: Optional[UUID] = None
+
+
+class BulkUpdateLocationResponse(BaseModel):
+    updated_count: int
+    message: str

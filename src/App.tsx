@@ -17,15 +17,20 @@ import AIDetection from "./components/AIDetection";
 import {
   fetchItems,
   fetchLocations,
+  fetchTags,
   createItem,
   updateItem,
   deleteItem,
   uploadPhoto,
   getCurrentUser,
+  bulkDeleteItems,
+  bulkUpdateTags,
+  bulkUpdateLocation,
   type Item,
   type ItemCreate,
   type Location,
   type User,
+  type Tag,
 } from "./lib/api";
 import { PHOTO_TYPES } from "./lib/constants";
 import type { PhotoUpload } from "./lib/types";
@@ -47,6 +52,7 @@ const App: React.FC = () => {
   );
   const [items, setItems] = useState<Item[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [itemsLoading, setItemsLoading] = useState(false);
   const [locationsLoading, setLocationsLoading] = useState(false);
   const [itemsError, setItemsError] = useState<string | null>(null);
@@ -89,6 +95,15 @@ const App: React.FC = () => {
     }
   }
 
+  async function loadTags() {
+    try {
+      const data = await fetchTags();
+      setTags(data);
+    } catch (err: any) {
+      console.error("Failed to load tags:", err);
+    }
+  }
+
   async function loadCurrentUser() {
     try {
       const user = await getCurrentUser();
@@ -113,6 +128,7 @@ const App: React.FC = () => {
     if (!token) return;
     loadItems();
     loadLocations();
+    loadTags();
     loadCurrentUser();
   }, [token]);
 
@@ -163,6 +179,21 @@ const App: React.FC = () => {
     if (!selectedItem) return;
     await deleteItem(selectedItem.id.toString());
     setSelectedItem(null);
+    await loadItems();
+  }
+
+  async function handleBulkDelete(itemIds: string[]) {
+    await bulkDeleteItems(itemIds);
+    await loadItems();
+  }
+
+  async function handleBulkUpdateTags(itemIds: string[], tagIds: string[], mode: "replace" | "add" | "remove") {
+    await bulkUpdateTags(itemIds, tagIds, mode);
+    await loadItems();
+  }
+
+  async function handleBulkUpdateLocation(itemIds: string[], locationId: string | null) {
+    await bulkUpdateLocation(itemIds, locationId);
     await loadItems();
   }
 
@@ -374,6 +405,11 @@ const App: React.FC = () => {
             onItemClick={handleItemClick}
             onImport={() => setShowEncircleImport(true)}
             onAIScan={() => setShowAIDetection(true)}
+            onBulkDelete={handleBulkDelete}
+            onBulkUpdateTags={handleBulkUpdateTags}
+            onBulkUpdateLocation={handleBulkUpdateLocation}
+            tags={tags}
+            locations={locations}
           />
         )}
         {view === "locations" && (

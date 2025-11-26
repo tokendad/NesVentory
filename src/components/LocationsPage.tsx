@@ -194,8 +194,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
 
   return (
     <section className="panel">
-      <div className="panel-header">
-        <h2>Locations</h2>
+      <div className="panel-header panel-header-left">
         <div style={{ display: "flex", gap: "0.75rem" }}>
           <button className="btn-outline" onClick={onRefresh} disabled={loading}>
             {loading ? "Refreshing..." : "Refresh"}
@@ -204,6 +203,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
             Add Location
           </button>
         </div>
+        <h2>Locations</h2>
       </div>
       <div className="search-bar">
         <input
