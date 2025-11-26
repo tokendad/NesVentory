@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
 from pathlib import Path
 from werkzeug.utils import secure_filename
+from sqlalchemy import text, inspect
 from .config import settings
 import os
 import re
@@ -14,8 +15,68 @@ from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
 from .routers import items, locations, auth, status, photos, users, tags, encircle, ai
 
+
+def run_migrations():
+    """
+    Run database migrations to add missing columns to existing tables.
+    
+    This is needed because SQLAlchemy's create_all() only creates new tables,
+    it doesn't add new columns to existing tables. This function checks for
+    missing columns and adds them using ALTER TABLE statements.
+    """
+    # Whitelist of allowed table and column names for security
+    # Only these exact names are permitted in migrations
+    ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks"}
+    ALLOWED_COLUMNS = {"google_id"}
+    ALLOWED_TYPES = {"VARCHAR(255)"}
+    
+    # Define migrations: (table_name, column_name, column_definition)
+    migrations = [
+        # User model: google_id column added for Google OAuth SSO
+        ("users", "google_id", "VARCHAR(255)"),
+    ]
+    
+    with engine.begin() as conn:
+        # Create inspector inside the connection context for fresh metadata
+        inspector = inspect(conn)
+        
+        for table_name, column_name, column_type in migrations:
+            # Validate against whitelist to prevent SQL injection
+            if table_name not in ALLOWED_TABLES:
+                print(f"Migration skipped: table '{table_name}' not in whitelist")
+                continue
+            if column_name not in ALLOWED_COLUMNS:
+                print(f"Migration skipped: column '{column_name}' not in whitelist")
+                continue
+            if column_type not in ALLOWED_TYPES:
+                print(f"Migration skipped: type '{column_type}' not in whitelist")
+                continue
+            
+            # Check if table exists
+            if table_name not in inspector.get_table_names():
+                continue
+                
+            # Check if column already exists
+            existing_columns = [col['name'] for col in inspector.get_columns(table_name)]
+            if column_name in existing_columns:
+                continue
+            
+            # Add the missing column using validated identifiers
+            try:
+                # Using text() with pre-validated identifiers from whitelist
+                alter_stmt = text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
+                conn.execute(alter_stmt)
+                # Transaction is automatically committed by engine.begin() context manager
+                print(f"Migration: Added column '{column_name}' to table '{table_name}'")
+            except Exception as e:
+                print(f"Migration warning: Could not add column '{column_name}' to '{table_name}': {e}")
+
+
 # Auto-create tables on startup and seed with test data
 Base.metadata.create_all(bind=engine)
+
+# Run migrations to add any missing columns to existing tables
+run_migrations()
 
 # Seed the database with test data if it's empty
 try:
