@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import type { Location, LocationCreate, Item } from "../lib/api";
 import { createLocation, updateLocation, deleteLocation } from "../lib/api";
 
@@ -62,18 +62,18 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
   }, [locations]);
 
   // Get child locations for a given parent ID
-  const getChildLocations = (parentId: string | number | null): Location[] => {
+  const getChildLocations = useCallback((parentId: string | number | null): Location[] => {
     if (parentId === null) {
       // Return top-level locations (no parent or primary)
       return locations.filter(loc => loc.is_primary_location || !loc.parent_id);
     }
     return locations.filter(loc => loc.parent_id?.toString() === parentId.toString());
-  };
+  }, [locations]);
 
   // Get items for a specific location
-  const getItemsAtLocation = (locationId: string | number): Item[] => {
+  const getItemsAtLocation = useCallback((locationId: string | number): Item[] => {
     return items.filter(item => item.location_id?.toString() === locationId.toString());
-  };
+  }, [items]);
 
   // Get the current selected location (last in path)
   const currentLocation = selectedPath.length > 0 ? selectedPath[selectedPath.length - 1] : null;
@@ -84,7 +84,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
       return getChildLocations(null);
     }
     return getChildLocations(currentLocation.id);
-  }, [locations, currentLocation]);
+  }, [getChildLocations, currentLocation]);
 
   // Get items for the current selected location
   const currentLocationItems = useMemo(() => {
@@ -92,7 +92,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
       return [];
     }
     return getItemsAtLocation(currentLocation.id);
-  }, [items, currentLocation]);
+  }, [getItemsAtLocation, currentLocation]);
 
   // Handler to navigate to a location
   const handleLocationClick = (location: Location) => {
@@ -254,30 +254,10 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
         </div>
         
         {/* Breadcrumb navigation */}
-        <div className="location-breadcrumb" style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.5rem",
-          padding: "0.75rem",
-          marginBottom: "0.75rem",
-          background: "rgba(15, 23, 42, 0.5)",
-          borderRadius: "0.5rem",
-          flexWrap: "wrap"
-        }}>
+        <div className="location-breadcrumb">
           <button
-            className={selectedPath.length === 0 ? "breadcrumb-item active" : "breadcrumb-item"}
+            className={selectedPath.length === 0 ? "breadcrumb-btn active" : "breadcrumb-btn"}
             onClick={() => handleBreadcrumbClick(-1)}
-            style={{
-              background: selectedPath.length === 0 ? "var(--accent-soft)" : "transparent",
-              border: "1px solid",
-              borderColor: selectedPath.length === 0 ? "rgba(56, 189, 248, 0.7)" : "rgba(148, 163, 184, 0.5)",
-              borderRadius: "0.5rem",
-              padding: "0.35rem 0.75rem",
-              color: selectedPath.length === 0 ? "#e0f2fe" : "var(--muted)",
-              cursor: "pointer",
-              fontSize: "0.85rem",
-              fontWeight: selectedPath.length === 0 ? 500 : 400
-            }}
           >
             All Locations
           </button>
@@ -285,19 +265,8 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
             <React.Fragment key={loc.id}>
               <span style={{ color: "var(--muted)" }}>›</span>
               <button
-                className={index === selectedPath.length - 1 ? "breadcrumb-item active" : "breadcrumb-item"}
+                className={index === selectedPath.length - 1 ? "breadcrumb-btn active" : "breadcrumb-btn"}
                 onClick={() => handleBreadcrumbClick(index)}
-                style={{
-                  background: index === selectedPath.length - 1 ? "var(--accent-soft)" : "transparent",
-                  border: "1px solid",
-                  borderColor: index === selectedPath.length - 1 ? "rgba(56, 189, 248, 0.7)" : "rgba(148, 163, 184, 0.5)",
-                  borderRadius: "0.5rem",
-                  padding: "0.35rem 0.75rem",
-                  color: index === selectedPath.length - 1 ? "#e0f2fe" : "var(--muted)",
-                  cursor: "pointer",
-                  fontSize: "0.85rem",
-                  fontWeight: index === selectedPath.length - 1 ? 500 : 400
-                }}
               >
                 {loc.friendly_name || loc.name}
               </button>
@@ -306,12 +275,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
         </div>
 
         {/* Location Cards Grid */}
-        <div className="location-cards-grid" style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-          gap: "0.75rem",
-          marginBottom: "1rem"
-        }}>
+        <div className="location-cards-grid">
           {currentPanelLocations.length === 0 && !loading && (
             <div style={{ 
               gridColumn: "1 / -1", 
@@ -333,24 +297,6 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
                 key={loc.id}
                 className="location-card"
                 onClick={() => handleLocationClick(loc)}
-                style={{
-                  padding: "1rem",
-                  borderRadius: "0.75rem",
-                  border: "1px solid rgba(30, 64, 175, 0.7)",
-                  background: "linear-gradient(145deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.98))",
-                  cursor: "pointer",
-                  transition: "border-color 0.15s, transform 0.1s, box-shadow 0.15s"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(56, 189, 248, 0.7)";
-                  e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.boxShadow = "0 8px 20px rgba(15, 23, 42, 0.6)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(30, 64, 175, 0.7)";
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "none";
-                }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
                   <span style={{ fontSize: "1.1rem", fontWeight: 500 }}>
@@ -381,13 +327,13 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
                 <div style={{ display: "flex", gap: "0.75rem", fontSize: "0.8rem", color: "var(--muted)" }}>
                   {childCount > 0 && (
                     <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                      <span style={{ color: "var(--accent)" }}>📁</span>
+                      <span style={{ color: "var(--accent)" }} role="img" aria-label="Rooms">📁</span>
                       {childCount} {childCount === 1 ? "room" : "rooms"}
                     </span>
                   )}
                   {itemCount > 0 && (
                     <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                      <span style={{ color: "var(--accent)" }}>📦</span>
+                      <span style={{ color: "var(--accent)" }} role="img" aria-label="Items">📦</span>
                       {itemCount} {itemCount === 1 ? "item" : "items"}
                     </span>
                   )}
