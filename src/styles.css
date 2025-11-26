@@ -179,6 +179,11 @@ body {
   gap: 0.6rem;
 }
 
+.app-logo {
+  height: 32px;
+  width: auto;
+}
+
 .logo-dot {
   width: 14px;
   height: 14px;
@@ -523,6 +528,12 @@ tbody tr:hover {
 .login-header {
   text-align: center;
   margin-bottom: 1.1rem;
+}
+
+.login-logo {
+  max-width: 200px;
+  height: auto;
+  margin-bottom: 0.5rem;
 }
 
 .login-header h1 {

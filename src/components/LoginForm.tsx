@@ -124,8 +124,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick }) => 
     <div className="login-wrapper">
       <div className="login-card">
         <div className="login-header">
-          <span className="logo-dot large" />
-          <h1>NesVentory</h1>
+          <img src="/logo.png" alt="NesVentory" className="login-logo" />
           <p className="muted">Sign in to your home inventory</p>
         </div>
         <form onSubmit={handleSubmit} className="login-form">
