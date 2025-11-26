@@ -717,6 +717,16 @@ export interface AIStatusResponse {
   model?: string | null;
 }
 
+export interface DataTagInfo {
+  manufacturer?: string | null;
+  brand?: string | null;
+  model_number?: string | null;
+  serial_number?: string | null;
+  production_date?: string | null;
+  additional_info?: Record<string, unknown> | null;
+  raw_response?: string | null;
+}
+
 export async function getAIStatus(): Promise<AIStatusResponse> {
   const res = await fetch(`${API_BASE_URL}/api/ai/status`, {
     headers: {
@@ -739,5 +749,19 @@ export async function detectItemsFromImage(file: File): Promise<DetectionResult>
     body: formData,
   });
   return handleResponse<DetectionResult>(res);
+}
+
+export async function parseDataTagImage(file: File): Promise<DataTagInfo> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_BASE_URL}/api/ai/parse-data-tag`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+    },
+    body: formData,
+  });
+  return handleResponse<DataTagInfo>(res);
 }
 

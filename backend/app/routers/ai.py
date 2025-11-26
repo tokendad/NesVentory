@@ -49,6 +49,17 @@ class AIStatusResponse(BaseModel):
     model: Optional[str] = None
 
 
+class DataTagInfo(BaseModel):
+    """Schema for parsed data tag information."""
+    manufacturer: Optional[str] = None
+    brand: Optional[str] = None
+    model_number: Optional[str] = None
+    serial_number: Optional[str] = None
+    production_date: Optional[str] = None
+    additional_info: Optional[dict] = None
+    raw_response: Optional[str] = None
+
+
 def parse_gemini_response(response_text: str) -> List[DetectedItem]:
     """
     Parse the Gemini response text into a list of DetectedItem objects.
@@ -162,6 +173,83 @@ def parse_gemini_response(response_text: str) -> List[DetectedItem]:
     return items
 
 
+def parse_data_tag_response(response_text: str) -> DataTagInfo:
+    """
+    Parse the Gemini response text for data tag information.
+    
+    The AI is prompted to return JSON with specific fields.
+    """
+    result = DataTagInfo()
+    
+    try:
+        # Look for JSON object in the response
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            json_str = json_match.group()
+            parsed = json.loads(json_str)
+            
+            if isinstance(parsed, dict):
+                # Extract manufacturer first (used as fallback for brand)
+                manufacturer = (
+                    parsed.get("manufacturer") or
+                    parsed.get("mfr") or
+                    parsed.get("maker") or
+                    None
+                )
+                result.manufacturer = manufacturer
+                
+                # Extract brand (falls back to manufacturer if not found)
+                result.brand = (
+                    parsed.get("brand") or
+                    parsed.get("brand_name") or
+                    manufacturer  # Fall back to manufacturer if brand not found
+                )
+                
+                # Extract model number
+                result.model_number = (
+                    parsed.get("model_number") or
+                    parsed.get("model") or
+                    parsed.get("model_no") or
+                    parsed.get("part_number") or
+                    None
+                )
+                
+                # Extract serial number
+                result.serial_number = (
+                    parsed.get("serial_number") or
+                    parsed.get("serial") or
+                    parsed.get("serial_no") or
+                    parsed.get("sn") or
+                    None
+                )
+                
+                # Extract production date
+                result.production_date = (
+                    parsed.get("production_date") or
+                    parsed.get("manufacture_date") or
+                    parsed.get("mfg_date") or
+                    parsed.get("date") or
+                    parsed.get("date_of_manufacture") or
+                    None
+                )
+                
+                # Collect any additional fields not already captured
+                known_fields = {
+                    "manufacturer", "mfr", "maker", "brand", "brand_name",
+                    "model_number", "model", "model_no", "part_number",
+                    "serial_number", "serial", "serial_no", "sn",
+                    "production_date", "manufacture_date", "mfg_date", "date", "date_of_manufacture"
+                }
+                additional = {k: v for k, v in parsed.items() if k not in known_fields and v is not None}
+                if additional:
+                    result.additional_info = additional
+    except json.JSONDecodeError:
+        logger.warning("Failed to parse JSON from Gemini data tag response")
+        result.raw_response = response_text
+    
+    return result
+
+
 @router.get("/status", response_model=AIStatusResponse)
 def get_ai_status():
     """
@@ -269,4 +357,117 @@ Return an empty array [] if no identifiable items are found."""
         raise HTTPException(
             status_code=500,
             detail="Failed to analyze image. Please try again."
+        )
+
+
+@router.post("/parse-data-tag", response_model=DataTagInfo)
+async def parse_data_tag(
+    file: UploadFile = File(..., description="Image of a data tag/label to parse"),
+    db: Session = Depends(get_db)
+):
+    """
+    Analyze an uploaded image of a data tag/label using AI.
+    
+    Extracts manufacturer, serial number, model number, and production date
+    from product data tags, labels, or identification plates.
+    """
+    # Check if Gemini API is configured
+    if not settings.GEMINI_API_KEY or not settings.GEMINI_API_KEY.strip():
+        raise HTTPException(
+            status_code=503,
+            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment."
+        )
+    
+    # Validate file type
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed types: {', '.join(ALLOWED_IMAGE_TYPES)}"
+        )
+    
+    try:
+        # Import Gemini SDK
+        import google.generativeai as genai
+        
+        # Configure the API
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        
+        # Read and encode the image
+        image_data = await file.read()
+        image_base64 = base64.b64encode(image_data).decode("utf-8")
+        
+        # Create the model
+        model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        
+        # Construct the prompt for data tag parsing
+        prompt = """Analyze this image of a product data tag, label, or identification plate.
+
+Extract the following information if visible:
+1. manufacturer: The company/manufacturer name
+2. brand: The brand name (may be same as manufacturer)
+3. model_number: The model number or part number
+4. serial_number: The serial number (S/N)
+5. production_date: The manufacturing/production date (format as YYYY-MM-DD if possible, or original format if not clear)
+
+Also extract any other relevant product information you can find on the tag such as:
+- voltage/wattage/power ratings
+- certifications (UL, CE, etc.)
+- country of origin
+- capacity/dimensions
+
+Return ONLY a JSON object with these fields. Use null for any field that is not visible or cannot be determined.
+
+Example format:
+{
+  "manufacturer": "Samsung Electronics",
+  "brand": "Samsung",
+  "model_number": "UN55TU8000FXZA",
+  "serial_number": "ABC123456789",
+  "production_date": "2023-05-15",
+  "voltage": "120V",
+  "wattage": "150W",
+  "country": "Korea"
+}
+
+If no data tag information can be read from the image, return:
+{"manufacturer": null, "brand": null, "model_number": null, "serial_number": null, "production_date": null}"""
+
+        # Create the image part for the API
+        image_part = {
+            "mime_type": file.content_type,
+            "data": image_base64
+        }
+        
+        # Generate the response
+        response = model.generate_content([prompt, image_part])
+        
+        # Parse the response
+        response_text = response.text
+        result = parse_data_tag_response(response_text)
+        
+        # If parsing failed, include raw response
+        if not any([result.manufacturer, result.brand, result.model_number, 
+                    result.serial_number, result.production_date]):
+            result.raw_response = response_text
+        
+        return result
+        
+    except ImportError:
+        logger.error("google-generativeai package not installed")
+        raise HTTPException(
+            status_code=503,
+            detail="AI detection is not available. Required package not installed."
+        )
+    except Exception as e:
+        logger.exception("Error during AI data tag parsing")
+        error_msg = str(e)
+        # Don't expose internal error details
+        if "API key" in error_msg.lower() or "authentication" in error_msg.lower():
+            raise HTTPException(
+                status_code=503,
+                detail="AI service authentication failed. Please check GEMINI_API_KEY configuration."
+            )
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to analyze data tag image. Please try again."
         )

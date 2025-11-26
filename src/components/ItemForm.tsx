@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import type { ItemCreate, Location, Tag, ContactInfo } from "../lib/api";
-import { uploadPhoto, fetchTags, createTag } from "../lib/api";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse } from "../lib/api";
+import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus } from "../lib/api";
 import { formatPhotoType } from "../lib/utils";
 import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES, LIVING_TAG_NAME, RELATIONSHIP_LABELS } from "../lib/constants";
 import type { PhotoUpload } from "../lib/types";
@@ -54,6 +54,12 @@ const ItemForm: React.FC<ItemFormProps> = ({
   const [photos, setPhotos] = useState<PhotoUpload[]>([]);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [newTagName, setNewTagName] = useState("");
+  
+  // AI Data Tag scanning state
+  const [aiStatus, setAIStatus] = useState<AIStatusResponse | null>(null);
+  const [scanningDataTag, setScanningDataTag] = useState(false);
+  const [dataTagResult, setDataTagResult] = useState<DataTagInfo | null>(null);
+  const dataTagInputRef = useRef<HTMLInputElement>(null);
 
   // Memoize the Living tag ID to avoid recalculating on every render
   const livingTagId = useMemo(() => {
@@ -67,11 +73,16 @@ const ItemForm: React.FC<ItemFormProps> = ({
     return (formData.tag_ids || []).includes(livingTagId);
   }, [livingTagId, formData.tag_ids]);
 
-  // Load tags on mount
+  // Load tags and AI status on mount
   useEffect(() => {
     fetchTags()
       .then(setAvailableTags)
       .catch(err => console.error("Failed to load tags:", err));
+    
+    // Check AI status for data tag scanning feature
+    getAIStatus()
+      .then(setAIStatus)
+      .catch(() => setAIStatus({ enabled: false }));
   }, []);
 
   // Cleanup preview URLs on unmount
@@ -233,6 +244,66 @@ const ItemForm: React.FC<ItemFormProps> = ({
     } catch (err: any) {
       setError(err.message || "Failed to create tag");
     }
+  };
+
+  // Handle data tag scan - triggers file input
+  const handleDataTagScan = () => {
+    dataTagInputRef.current?.click();
+  };
+
+  // Handle data tag file selection and AI parsing
+  const handleDataTagFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || !files[0]) return;
+    
+    const file = files[0];
+    if (!ALLOWED_PHOTO_MIME_TYPES.includes(file.type)) {
+      setError("Please select a valid image file (JPEG, PNG, GIF, or WebP)");
+      return;
+    }
+    
+    // Also add this as the data tag photo
+    const preview = URL.createObjectURL(file);
+    setPhotos((prev) => {
+      // Revoke URLs for existing data tag photos
+      prev.filter(p => p.type === PHOTO_TYPES.DATA_TAG).forEach(p => URL.revokeObjectURL(p.preview));
+      // Remove existing data tag photos and add new one
+      return [...prev.filter(p => p.type !== PHOTO_TYPES.DATA_TAG), { file, preview, type: PHOTO_TYPES.DATA_TAG }];
+    });
+    
+    // Parse the data tag with AI
+    setScanningDataTag(true);
+    setError(null);
+    setDataTagResult(null);
+    
+    try {
+      const result = await parseDataTagImage(file);
+      setDataTagResult(result);
+    } catch (err: any) {
+      setError(err.message || "Failed to parse data tag image");
+    } finally {
+      setScanningDataTag(false);
+      // Reset the input so the same file can be selected again
+      if (dataTagInputRef.current) {
+        dataTagInputRef.current.value = "";
+      }
+    }
+  };
+
+  // Apply parsed data tag info to form fields
+  const applyDataTagInfo = (info: DataTagInfo) => {
+    setFormData(prev => ({
+      ...prev,
+      brand: info.brand || info.manufacturer || prev.brand,
+      model_number: info.model_number || prev.model_number,
+      serial_number: info.serial_number || prev.serial_number,
+    }));
+    setDataTagResult(null);
+  };
+
+  // Dismiss data tag result without applying
+  const dismissDataTagResult = () => {
+    setDataTagResult(null);
   };
 
   const livingMode = isLivingItemSelected;
@@ -601,15 +672,115 @@ const ItemForm: React.FC<ItemFormProps> = ({
 
                   <div className="photo-type-upload">
                     <label htmlFor="photo-data-tag">Data Tag</label>
-                    <input
-                      type="file"
-                      id="photo-data-tag"
-                      accept="image/*"
-                      onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DATA_TAG)}
-                      disabled={loading}
-                    />
-                    <span className="help-text">Photo of serial number or data tag</span>
+                    <div className="data-tag-controls">
+                      <input
+                        type="file"
+                        id="photo-data-tag"
+                        accept="image/*"
+                        onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DATA_TAG)}
+                        disabled={loading || scanningDataTag}
+                      />
+                      {aiStatus?.enabled && (
+                        <>
+                          <input
+                            type="file"
+                            ref={dataTagInputRef}
+                            accept="image/*"
+                            capture="environment"
+                            onChange={handleDataTagFileChange}
+                            disabled={loading || scanningDataTag}
+                            style={{ display: "none" }}
+                          />
+                          <button
+                            type="button"
+                            className="btn-outline btn-scan-data-tag"
+                            onClick={handleDataTagScan}
+                            disabled={loading || scanningDataTag}
+                            title="Take a photo of the data tag and auto-fill fields using AI"
+                          >
+                            {scanningDataTag ? "🔄 Scanning..." : "🤖 AI Scan"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    <span className="help-text">
+                      Photo of serial number or data tag
+                      {aiStatus?.enabled && " — Use AI Scan to auto-fill manufacturer, model & serial number"}
+                    </span>
                   </div>
+
+                  {/* Data Tag Scan Results */}
+                  {dataTagResult && (
+                    <div className="data-tag-result">
+                      <h4>📋 Data Tag Scan Results</h4>
+                      <div className="data-tag-fields">
+                        {dataTagResult.manufacturer && (
+                          <div className="data-tag-field">
+                            <span className="field-label">Manufacturer:</span>
+                            <span className="field-value">{dataTagResult.manufacturer}</span>
+                          </div>
+                        )}
+                        {dataTagResult.brand && dataTagResult.brand !== dataTagResult.manufacturer && (
+                          <div className="data-tag-field">
+                            <span className="field-label">Brand:</span>
+                            <span className="field-value">{dataTagResult.brand}</span>
+                          </div>
+                        )}
+                        {dataTagResult.model_number && (
+                          <div className="data-tag-field">
+                            <span className="field-label">Model Number:</span>
+                            <span className="field-value">{dataTagResult.model_number}</span>
+                          </div>
+                        )}
+                        {dataTagResult.serial_number && (
+                          <div className="data-tag-field">
+                            <span className="field-label">Serial Number:</span>
+                            <span className="field-value">{dataTagResult.serial_number}</span>
+                          </div>
+                        )}
+                        {dataTagResult.production_date && (
+                          <div className="data-tag-field">
+                            <span className="field-label">Production Date:</span>
+                            <span className="field-value">{dataTagResult.production_date}</span>
+                          </div>
+                        )}
+                        {dataTagResult.additional_info && Object.keys(dataTagResult.additional_info).length > 0 && (
+                          <div className="data-tag-additional">
+                            <span className="field-label">Additional Info:</span>
+                            <div className="additional-fields">
+                              {Object.entries(dataTagResult.additional_info).map(([key, value]) => (
+                                <span key={key} className="additional-field">
+                                  {key}: {String(value)}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {!dataTagResult.manufacturer && !dataTagResult.brand && !dataTagResult.model_number && 
+                         !dataTagResult.serial_number && !dataTagResult.production_date && (
+                          <p className="no-data-found">No data tag information could be extracted. Try a clearer image.</p>
+                        )}
+                      </div>
+                      <div className="data-tag-actions">
+                        <button
+                          type="button"
+                          className="btn-outline"
+                          onClick={dismissDataTagResult}
+                        >
+                          Dismiss
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          onClick={() => applyDataTagInfo(dataTagResult)}
+                          disabled={!dataTagResult.brand && !dataTagResult.manufacturer && 
+                                   !dataTagResult.model_number && !dataTagResult.serial_number}
+                        >
+                          Apply to Form
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="photo-type-upload">
                     <label htmlFor="photo-receipt">Receipt</label>

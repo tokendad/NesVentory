@@ -981,6 +981,124 @@ tbody tr:hover {
   opacity: 0.8;
 }
 
+/* Data Tag AI Scan Styles */
+.data-tag-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.data-tag-controls input[type="file"] {
+  flex: 1;
+  font-size: 0.8rem;
+  padding: 0.4rem;
+  cursor: pointer;
+}
+
+.btn-scan-data-tag {
+  white-space: nowrap;
+  font-size: 0.8rem !important;
+  padding: 0.4rem 0.75rem !important;
+  background: rgba(56, 189, 248, 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-scan-data-tag:hover:not(:disabled) {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.btn-scan-data-tag:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.data-tag-result {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 0.5rem;
+}
+
+.data-tag-result h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  color: var(--accent);
+}
+
+.data-tag-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.data-tag-field {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.data-tag-field .field-label {
+  font-weight: 500;
+  color: var(--muted);
+  min-width: 120px;
+}
+
+.data-tag-field .field-value {
+  color: var(--text);
+  word-break: break-word;
+}
+
+.data-tag-additional {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.data-tag-additional .field-label {
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 0.875rem;
+  display: block;
+  margin-bottom: 0.3rem;
+}
+
+.additional-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.additional-field {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.25rem;
+  color: var(--text);
+}
+
+.no-data-found {
+  font-size: 0.875rem;
+  color: var(--muted);
+  font-style: italic;
+  margin: 0;
+}
+
+.data-tag-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.data-tag-actions button {
+  font-size: 0.85rem;
+  padding: 0.4rem 0.75rem;
+}
+
 .photo-previews {
   margin-top: 1rem;
 }
