@@ -1,41 +1,77 @@
 # NesVentory - Home Inventory Management System
 
-**Version: 3.3.0**
+**Version: 4.0.0**
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
-## What's New in Version 3.3.0
+## 🚀 What's New in Version 4.0.0
+
+This is a major release preparing NesVentory for public release with comprehensive features, improved security, and a polished user experience.
+
+### ✨ Key Features in v4.0
 
 🎨 **Logo & Branding Support**
-- ✅ Application logo displayed in header and login screen
-- ✅ Customizable branding for deployments
+- Application logo displayed in header and login screen
+- Customizable branding for deployments
 
-## What's New in Version 3.0.0
+📷 **AI Photo Detection** (Google Gemini Powered)
+- Take a photo of any room and AI will detect items automatically
+- Advanced object recognition for furniture, electronics, appliances, and more
+- Get estimated values and descriptions for detected items
+- Bulk add detected items to your inventory
+- Mobile device camera support
 
-📷 **AI Photo Detection** - Major new feature!
-- ✅ Take a photo of any room and AI will detect items automatically
-- ✅ Uses Google Gemini for advanced object recognition
-- ✅ Detects furniture, electronics, appliances, and more
-- ✅ Get estimated values and descriptions for detected items
-- ✅ Bulk add detected items to your inventory
-- ✅ Works with mobile device cameras
+🤖 **AI Data Tag Parsing**
+- Extract item information from data tag photos using AI
+- Automatically parse manufacturer, model, serial number, and more
+- Quick inventory creation from product labels
+
+💰 **AI Value Estimation**
+- Set estimated values using AI with source tracking
+- Track when values were estimated and by whom
+
+🎨 **Theme & Color Support**
+- Customizable theme settings in user preferences
+- Dark/light mode support
+
+📍 **Hierarchical Location Browser**
+- Interactive clickable location navigation
+- Visual location tree with expand/collapse functionality
+
+👥 **Enhanced User Management**
+- Google OAuth SSO for login and registration
+- Admin user creation and approval workflow
+- Role-based access control (Admin, Editor, Viewer)
+- Location-based access restrictions
+
+📦 **Bulk Operations**
+- Multi-select items for bulk actions
+- Bulk delete, tag update, and location assignment
+- Left-aligned action bars for better UX
+
+📥 **Encircle Import**
+- Import items and photos from Encircle XLSX exports
+- Parent/sub-location hierarchy support
+- Automatic location creation from import files
 
 ## Features
 
 - 📦 **Inventory Management** - Track all your household items with detailed information
 - 📷 **AI Photo Detection** - Scan rooms with AI to detect and add items automatically
+- 🤖 **AI Data Tag Parsing** - Extract product info from data tag photos
 - 📍 **Location Hierarchy** - Organize items by rooms and sub-locations
 - 🏘️ **Multi-Property Support** - Manage multiple homes and multi-family properties
 - 👥 **Landlord/Tenant Management** - Track landlord and tenant info for rental properties
 - 📥 **Encircle Import** - Import items and photos from Encircle XLSX exports
 - 🔐 **Multi-user Support** - Role-based access control (Admin, Editor, Viewer)
+- 🔑 **Google OAuth SSO** - Sign in with Google for easy authentication
 - 🔒 **Location Access Control** - Restrict user access to specific properties
 - 🛠️ **Maintenance Tracking** - Schedule and track recurring maintenance tasks
 - 🌐 **International Formats** - Support for 25+ locales and 20+ currencies
 - 📱 **Modern UI** - Responsive React frontend with TypeScript
 - 🚀 **FastAPI Backend** - High-performance Python backend
-- 🐘 **PostgreSQL Database** - Reliable data storage
-- 🐳 **Docker Ready** - Easy deployment with Docker Compose
+- 🗄️ **SQLite Database** - Simple, embedded, file-based storage
+- 🐳 **Docker Ready** - Easy deployment with single unified container
 - 🎯 **Pre-seeded Test Data** - Start testing immediately with sample data
 
 ## Tech Stack

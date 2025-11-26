@@ -185,7 +185,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick }) => 
           )}
         </form>
         <p className="login-footer">
-          API: <code>{import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"}</code>
+          API: <code>{import.meta.env.VITE_API_BASE_URL || window.location.origin}</code>
         </p>
       </div>
     </div>

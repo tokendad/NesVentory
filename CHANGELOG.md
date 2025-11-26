@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.0.0] - 2025-11-26
+### Added - Major Public Release
+This version marks the public release of NesVentory with comprehensive features and security improvements.
+
+- **AI Features** (Google Gemini Powered)
+  - AI Photo Detection - Scan rooms to detect and inventory items automatically
+  - AI Data Tag Parsing - Extract product information from data tag photos
+  - AI Value Estimation - Get estimated values with source tracking
+
+- **User Experience Enhancements**
+  - Logo and branding support - Customizable application branding
+  - Theme and color support - User preference settings for themes
+  - Hierarchical location browser - Interactive clickable navigation
+  - Bulk item actions - Multi-select with left-aligned action bars
+
+- **Authentication & Security**
+  - Google OAuth SSO - Sign in with Google for easy authentication
+  - Admin user creation and approval workflow
+  - Enhanced location-based access control
+
+- **Data Import**
+  - Enhanced Encircle XLSX import with locations and sublocations support
+
+### Changed
+- Bumped project version to 4.0.0 for public release
+- Updated documentation for public release
+
+### Security
+- Reviewed codebase for private information and hardcoded paths
+- Updated dependencies and checked for known vulnerabilities
+
 ## [3.2.0] - 2025-11-26
 ### Added
 - **AI Data Tag Parsing** - New feature to extract item information from data tags using AI
