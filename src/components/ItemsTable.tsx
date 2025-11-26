@@ -75,6 +75,11 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
     });
   }, [items, searchQuery]);
 
+  // Clear selection when filter changes to avoid confusion
+  React.useEffect(() => {
+    setSelectedItemIds(new Set());
+  }, [searchQuery]);
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedItemIds(new Set(filteredItems.map(item => item.id.toString())));
@@ -93,15 +98,21 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
     setSelectedItemIds(newSelected);
   };
 
+  // Only count items that are both selected and currently visible in filtered list
+  const visibleSelectedIds = useMemo(() => {
+    const filteredIds = new Set(filteredItems.map(item => item.id.toString()));
+    return new Set(Array.from(selectedItemIds).filter(id => filteredIds.has(id)));
+  }, [filteredItems, selectedItemIds]);
+
   const isAllSelected = filteredItems.length > 0 && filteredItems.every(item => selectedItemIds.has(item.id.toString()));
-  const isSomeSelected = selectedItemIds.size > 0;
+  const isSomeSelected = visibleSelectedIds.size > 0;
 
   const handleBulkActionConfirm = async () => {
-    if (!bulkAction || selectedItemIds.size === 0) return;
+    if (!bulkAction || visibleSelectedIds.size === 0) return;
     
     setBulkActionLoading(true);
     try {
-      const itemIds = Array.from(selectedItemIds);
+      const itemIds = Array.from(visibleSelectedIds);
       
       if (bulkAction === "delete" && onBulkDelete) {
         await onBulkDelete(itemIds);
@@ -148,21 +159,21 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 onClick={() => setBulkAction("delete")}
                 disabled={loading}
               >
-                Delete ({selectedItemIds.size})
+                Delete ({visibleSelectedIds.size})
               </button>
               <button 
                 className="btn-outline" 
                 onClick={() => setBulkAction("updateTags")}
                 disabled={loading}
               >
-                Update Tags ({selectedItemIds.size})
+                Update Tags ({visibleSelectedIds.size})
               </button>
               <button 
                 className="btn-outline" 
                 onClick={() => setBulkAction("updateLocation")}
                 disabled={loading}
               >
-                Update Location ({selectedItemIds.size})
+                Update Location ({visibleSelectedIds.size})
               </button>
               <div style={{ width: "1px", height: "1.5rem", background: "var(--border-subtle)", margin: "0 0.25rem" }} />
             </>
@@ -283,7 +294,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
             </div>
             <div style={{ padding: "1rem 0" }}>
               <p style={{ color: "var(--danger)", fontWeight: 500, marginBottom: "1rem" }}>
-                You are about to delete {selectedItemIds.size} item{selectedItemIds.size !== 1 ? "s" : ""}.
+                You are about to delete {visibleSelectedIds.size} item{visibleSelectedIds.size !== 1 ? "s" : ""}.
               </p>
               <p style={{ color: "var(--muted)" }}>
                 This action cannot be undone. Please confirm your choice.
@@ -294,7 +305,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 Cancel
               </button>
               <button className="btn-danger" onClick={handleBulkActionConfirm} disabled={bulkActionLoading}>
-                {bulkActionLoading ? "Deleting..." : `Delete ${selectedItemIds.size} Item${selectedItemIds.size !== 1 ? "s" : ""}`}
+                {bulkActionLoading ? "Deleting..." : `Delete ${visibleSelectedIds.size} Item${visibleSelectedIds.size !== 1 ? "s" : ""}`}
               </button>
             </div>
           </div>
@@ -311,7 +322,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
             </div>
             <div style={{ padding: "1rem 0" }}>
               <p style={{ color: "var(--accent)", marginBottom: "1rem" }}>
-                This will affect {selectedItemIds.size} item{selectedItemIds.size !== 1 ? "s" : ""}.
+                This will affect {visibleSelectedIds.size} item{visibleSelectedIds.size !== 1 ? "s" : ""}.
               </p>
               
               <div className="form-group" style={{ marginBottom: "1rem" }}>
@@ -357,7 +368,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 onClick={handleBulkActionConfirm} 
                 disabled={bulkActionLoading || selectedTagIds.size === 0}
               >
-                {bulkActionLoading ? "Updating..." : `Update ${selectedItemIds.size} Item${selectedItemIds.size !== 1 ? "s" : ""}`}
+                {bulkActionLoading ? "Updating..." : `Update ${visibleSelectedIds.size} Item${visibleSelectedIds.size !== 1 ? "s" : ""}`}
               </button>
             </div>
           </div>
@@ -374,7 +385,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
             </div>
             <div style={{ padding: "1rem 0" }}>
               <p style={{ color: "var(--accent)", marginBottom: "1rem" }}>
-                This will affect {selectedItemIds.size} item{selectedItemIds.size !== 1 ? "s" : ""}.
+                This will affect {visibleSelectedIds.size} item{visibleSelectedIds.size !== 1 ? "s" : ""}.
               </p>
               
               <div className="form-group">
@@ -402,7 +413,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                 onClick={handleBulkActionConfirm} 
                 disabled={bulkActionLoading}
               >
-                {bulkActionLoading ? "Updating..." : `Update ${selectedItemIds.size} Item${selectedItemIds.size !== 1 ? "s" : ""}`}
+                {bulkActionLoading ? "Updating..." : `Update ${visibleSelectedIds.size} Item${visibleSelectedIds.size !== 1 ? "s" : ""}`}
               </button>
             </div>
           </div>
