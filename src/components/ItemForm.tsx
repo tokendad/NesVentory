@@ -801,6 +801,12 @@ const ItemForm: React.FC<ItemFormProps> = ({
                             <span className="field-value">{dataTagResult.production_date}</span>
                           </div>
                         )}
+                        {dataTagResult.estimated_value != null && (
+                          <div className="data-tag-field">
+                            <span className="field-label">Estimated Value:</span>
+                            <span className="field-value">${dataTagResult.estimated_value.toLocaleString()}</span>
+                          </div>
+                        )}
                         {dataTagResult.additional_info && Object.keys(dataTagResult.additional_info).length > 0 && (
                           <div className="data-tag-additional">
                             <span className="field-label">Additional Info:</span>
@@ -814,7 +820,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                           </div>
                         )}
                         {!dataTagResult.manufacturer && !dataTagResult.brand && !dataTagResult.model_number && 
-                         !dataTagResult.serial_number && !dataTagResult.production_date && (
+                         !dataTagResult.serial_number && !dataTagResult.production_date && !dataTagResult.estimated_value && (
                           <p className="no-data-found">No data tag information could be extracted. Try a clearer image.</p>
                         )}
                       </div>
@@ -831,7 +837,8 @@ const ItemForm: React.FC<ItemFormProps> = ({
                           className="btn-primary"
                           onClick={() => applyDataTagInfo(dataTagResult)}
                           disabled={!dataTagResult.brand && !dataTagResult.manufacturer && 
-                                   !dataTagResult.model_number && !dataTagResult.serial_number}
+                                   !dataTagResult.model_number && !dataTagResult.serial_number && 
+                                   !dataTagResult.estimated_value}
                         >
                           Apply to Form
                         </button>
