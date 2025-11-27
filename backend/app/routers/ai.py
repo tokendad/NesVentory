@@ -16,6 +16,7 @@ import re
 
 from ..config import settings
 from ..deps import get_db
+from .. import models, schemas, auth
 
 logger = logging.getLogger(__name__)
 
@@ -526,3 +527,124 @@ If no data tag information can be read from the image, return:
             status_code=500,
             detail="Failed to analyze data tag image. Please try again."
         )
+
+
+def estimate_item_value_with_ai(item: models.Item) -> Optional[float]:
+    """
+    Use AI to estimate the value of a single item based on its details.
+    Returns the estimated value in USD, or None if estimation fails.
+    """
+    try:
+        import google.generativeai as genai
+        
+        # Configure the API
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        
+        # Create the model
+        model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        
+        # Build item description for AI
+        item_details = []
+        if item.name:
+            item_details.append(f"Name: {item.name}")
+        if item.description:
+            item_details.append(f"Description: {item.description}")
+        if item.brand:
+            item_details.append(f"Brand: {item.brand}")
+        if item.model_number:
+            item_details.append(f"Model: {item.model_number}")
+        if item.purchase_price:
+            item_details.append(f"Original purchase price: ${item.purchase_price}")
+        if item.purchase_date:
+            item_details.append(f"Purchase date: {item.purchase_date}")
+        
+        item_description = "\n".join(item_details)
+        
+        prompt = f"""Based on the following item details, estimate its current market value in USD.
+Consider factors like brand reputation, typical depreciation, and current market conditions.
+
+{item_description}
+
+Return ONLY a JSON object with a single field "estimated_value" containing the numeric value (no currency symbol).
+Example: {{"estimated_value": 150}}
+
+If you cannot determine a reasonable estimate, return: {{"estimated_value": null}}"""
+
+        # Generate the response
+        response = model.generate_content(prompt)
+        response_text = response.text
+        
+        # Parse the response
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            parsed = json.loads(json_match.group())
+            value = parsed.get("estimated_value")
+            if value is not None:
+                return float(value)
+        
+        return None
+        
+    except Exception as e:
+        logger.warning(f"Failed to estimate value for item {item.id}: {e}")
+        return None
+
+
+@router.post("/run-valuation", response_model=schemas.AIValuationRunResponse)
+async def run_ai_valuation(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Run AI valuation on all items in the database.
+    
+    This endpoint will:
+    - Skip items with user-supplied estimated values (estimated_value_user_date is set)
+    - Update items with AI-generated estimated values
+    - Track the estimation date
+    
+    Note: Be mindful of Gemini API rate limits based on your tier level.
+    See: https://ai.google.dev/gemini-api/docs/rate-limits
+    """
+    # Check if Gemini API is configured
+    if not settings.GEMINI_API_KEY or not settings.GEMINI_API_KEY.strip():
+        raise HTTPException(
+            status_code=503,
+            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment."
+        )
+    
+    # Get all items from the database
+    items = db.query(models.Item).all()
+    
+    items_processed = 0
+    items_updated = 0
+    items_skipped = 0
+    
+    for item in items:
+        items_processed += 1
+        
+        # Skip items with user-supplied values
+        if item.estimated_value_user_date:
+            items_skipped += 1
+            continue
+        
+        # Try to estimate the value using AI
+        estimated_value = estimate_item_value_with_ai(item)
+        
+        if estimated_value is not None:
+            item.estimated_value = estimated_value
+            item.estimated_value_ai_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
+            items_updated += 1
+    
+    # Update the user's last run timestamp
+    current_user.ai_schedule_last_run = datetime.now(timezone.utc)
+    db.add(current_user)
+    
+    # Commit all changes
+    db.commit()
+    
+    return schemas.AIValuationRunResponse(
+        items_processed=items_processed,
+        items_updated=items_updated,
+        items_skipped=items_skipped,
+        message=f"AI valuation complete. Updated {items_updated} items, skipped {items_skipped} items with user-supplied values."
+    )

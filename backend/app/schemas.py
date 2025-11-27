@@ -38,6 +38,10 @@ class User(UserBase):
     updated_at: datetime
     allowed_location_ids: Optional[List[UUID]] = None
     api_key: Optional[str] = None
+    # AI Valuation Schedule Settings
+    ai_schedule_enabled: bool = False
+    ai_schedule_interval_days: int = 7
+    ai_schedule_last_run: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -53,6 +57,10 @@ class UserRead(UserBase):
     updated_at: datetime
     allowed_location_ids: Optional[List[UUID]] = None
     api_key: Optional[str] = None
+    # AI Valuation Schedule Settings
+    ai_schedule_enabled: bool = False
+    ai_schedule_interval_days: int = 7
+    ai_schedule_last_run: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -61,6 +69,20 @@ class UserRead(UserBase):
 # Schema for updating user location access
 class UserLocationAccess(BaseModel):
     location_ids: List[UUID]
+
+
+# Schema for AI schedule settings
+class AIScheduleSettings(BaseModel):
+    ai_schedule_enabled: bool
+    ai_schedule_interval_days: int
+
+
+# Schema for AI valuation run response
+class AIValuationRunResponse(BaseModel):
+    items_processed: int
+    items_updated: int
+    items_skipped: int
+    message: str
 
 
 # --- Location Schemas ---

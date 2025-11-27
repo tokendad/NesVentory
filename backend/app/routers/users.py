@@ -19,7 +19,7 @@ def generate_api_key() -> str:
 
 
 def get_user_with_locations(user: models.User) -> dict:
-    """Helper to serialize user with allowed_location_ids, api_key, and is_approved."""
+    """Helper to serialize user with allowed_location_ids, api_key, is_approved, and AI settings."""
     return {
         "id": user.id,
         "email": user.email,
@@ -29,7 +29,10 @@ def get_user_with_locations(user: models.User) -> dict:
         "created_at": user.created_at,
         "updated_at": user.updated_at,
         "allowed_location_ids": [loc.id for loc in user.allowed_locations] if user.allowed_locations else [],
-        "api_key": user.api_key
+        "api_key": user.api_key,
+        "ai_schedule_enabled": user.ai_schedule_enabled,
+        "ai_schedule_interval_days": user.ai_schedule_interval_days,
+        "ai_schedule_last_run": user.ai_schedule_last_run
     }
 
 
@@ -235,6 +238,36 @@ def revoke_user_api_key(
     Returns the updated user with the API key removed.
     """
     current_user.api_key = None
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    return get_user_with_locations(current_user)
+
+
+@router.get("/users/me/ai-schedule", response_model=schemas.AIScheduleSettings)
+def get_ai_schedule_settings(
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """
+    Get the AI valuation schedule settings for the current user.
+    """
+    return schemas.AIScheduleSettings(
+        ai_schedule_enabled=current_user.ai_schedule_enabled,
+        ai_schedule_interval_days=current_user.ai_schedule_interval_days
+    )
+
+
+@router.put("/users/me/ai-schedule", response_model=schemas.UserRead)
+def update_ai_schedule_settings(
+    settings: schemas.AIScheduleSettings,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update the AI valuation schedule settings for the current user.
+    """
+    current_user.ai_schedule_enabled = settings.ai_schedule_enabled
+    current_user.ai_schedule_interval_days = settings.ai_schedule_interval_days
     db.add(current_user)
     db.commit()
     db.refresh(current_user)
