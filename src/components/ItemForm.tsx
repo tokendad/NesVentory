@@ -801,7 +801,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                             <span className="field-value">{dataTagResult.production_date}</span>
                           </div>
                         )}
-                        {dataTagResult.estimated_value != null && (
+                        {dataTagResult.estimated_value !== null && dataTagResult.estimated_value !== undefined && (
                           <div className="data-tag-field">
                             <span className="field-label">Estimated Value:</span>
                             <span className="field-value">${dataTagResult.estimated_value.toLocaleString()}</span>
