@@ -36,18 +36,23 @@ jobs:
       - name: Generate release notes
         id: notes
         run: |
-          last_tag="${{ steps.last_tag.outputs.last_tag }}"
-          if [ -z "$last_tag" ]; then
-            # If no tag exists, use all history
-            log_range=""
+          # Use RELEASE_NOTES.md if it exists, otherwise generate from commits
+          if [ -f "RELEASE_NOTES.md" ]; then
+            cp RELEASE_NOTES.md release_notes.txt
           else
-            log_range="$last_tag..HEAD"
+            last_tag="${{ steps.last_tag.outputs.last_tag }}"
+            if [ -z "$last_tag" ]; then
+              # If no tag exists, use all history
+              log_range=""
+            else
+              log_range="$last_tag..HEAD"
+            fi
+            # Collect major changes
+            majors=$(git log $log_range --pretty=format:"%s" | grep -E '^(feat:|breaking change:)' || true)
+            # Collect patches
+            patches=$(git log $log_range --pretty=format:"%s" | grep '^fix:' || true)
+            printf "## Major changes\n%s\n\n## Patch issues\n%s\n" "$majors" "$patches" > release_notes.txt
           fi
-          # Collect major changes
-          majors=$(git log $log_range --pretty=format:"%s" | grep -E '^(feat:|breaking change:)' || true)
-          # Collect patches
-          patches=$(git log $log_range --pretty=format:"%s" | grep '^fix:' || true)
-          printf "## Major changes\n%s\n\n## Patch issues\n%s\n" "$majors" "$patches" > release_notes.txt
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
