@@ -57,7 +57,6 @@ RUN pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pyth
 
 # Copy backend application
 COPY --chown=nesventory:nesventory backend/app /app/app
-COPY --chown=nesventory:nesventory backend/models.py backend/schemas.py backend/db.py /app/
 COPY --chown=nesventory:nesventory VERSION /app/VERSION
 
 # Copy pre-built frontend from the builder stage
