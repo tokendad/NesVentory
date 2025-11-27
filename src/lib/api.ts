@@ -497,6 +497,10 @@ export interface User {
   updated_at: string;
   allowed_location_ids?: string[] | null;
   api_key?: string | null;
+  // AI Valuation Schedule Settings
+  ai_schedule_enabled?: boolean;
+  ai_schedule_interval_days?: number;
+  ai_schedule_last_run?: string | null;
 }
 
 export interface UserCreate {
@@ -511,6 +515,19 @@ export interface AdminUserCreate {
   full_name?: string | null;
   role?: string;
   is_approved?: boolean;
+}
+
+export interface AIScheduleSettings {
+  ai_schedule_enabled: boolean;
+  ai_schedule_interval_days: number;
+}
+
+export interface AIValuationRunResponse {
+  items_processed: number;
+  items_updated: number;
+  items_skipped: number;
+  message: string;
+  ai_schedule_last_run?: string | null;
 }
 
 export async function registerUser(userCreate: UserCreate): Promise<User> {
@@ -828,5 +845,41 @@ export async function googleAuth(credential: string): Promise<GoogleAuthResponse
     body: JSON.stringify({ credential }),
   });
   return handleResponse<GoogleAuthResponse>(res);
+}
+
+// --- AI Schedule APIs ---
+
+export async function getAIScheduleSettings(): Promise<AIScheduleSettings> {
+  const res = await fetch(`${API_BASE_URL}/api/users/me/ai-schedule`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<AIScheduleSettings>(res);
+}
+
+export async function updateAIScheduleSettings(settings: AIScheduleSettings): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/users/me/ai-schedule`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(settings),
+  });
+  return handleResponse<User>(res);
+}
+
+export async function runAIValuation(): Promise<AIValuationRunResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/ai/run-valuation`, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<AIValuationRunResponse>(res);
 }
 

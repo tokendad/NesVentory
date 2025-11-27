@@ -26,8 +26,9 @@ def run_migrations():
     # Whitelist of allowed table and column names for security
     # Only these exact names are permitted in migrations
     ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks"}
-    ALLOWED_COLUMNS = {"google_id", "estimated_value_ai_date", "estimated_value_user_date", "estimated_value_user_name"}
-    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)"}
+    ALLOWED_COLUMNS = {"google_id", "estimated_value_ai_date", "estimated_value_user_date", "estimated_value_user_name",
+                       "ai_schedule_enabled", "ai_schedule_interval_days", "ai_schedule_last_run"}
+    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "BOOLEAN DEFAULT FALSE", "INTEGER DEFAULT 7", "TIMESTAMP"}
     
     # Define migrations: (table_name, column_name, column_definition)
     migrations = [
@@ -37,6 +38,10 @@ def run_migrations():
         ("items", "estimated_value_ai_date", "VARCHAR(20)"),
         ("items", "estimated_value_user_date", "VARCHAR(20)"),
         ("items", "estimated_value_user_name", "VARCHAR(255)"),
+        # User model: AI schedule settings with defaults for existing users
+        ("users", "ai_schedule_enabled", "BOOLEAN DEFAULT FALSE"),
+        ("users", "ai_schedule_interval_days", "INTEGER DEFAULT 7"),
+        ("users", "ai_schedule_last_run", "TIMESTAMP"),
     ]
     
     with engine.begin() as conn:
