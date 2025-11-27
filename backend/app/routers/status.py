@@ -3,14 +3,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from ..config import settings
 from ..deps import get_db
+from ..database import SQLALCHEMY_DATABASE_URL, db_path
 import httpx
-import re
+import os
 from typing import Dict, Any, Optional
 
 router = APIRouter()
-
-# Regex pattern for extracting version numbers
-SQLITE_VERSION_PATTERN = r'(\d+\.\d+(?:\.\d+)?)'
 
 
 async def get_latest_postgres_version() -> Optional[str]:
@@ -34,13 +32,17 @@ async def get_latest_postgres_version() -> Optional[str]:
 def get_database_info(db: Session) -> Dict[str, Any]:
     """Get database health and information."""
     try:
-        # Get database version to determine database type
-        version_result = db.execute(text("SELECT version()")).fetchone()
-        version_full = version_result[0] if version_result else "Unknown"
+        # Detect database type from the connection URL (before querying)
+        is_sqlite = SQLALCHEMY_DATABASE_URL.startswith("sqlite")
+        is_postgres = "postgresql" in SQLALCHEMY_DATABASE_URL.lower()
         
-        # Detect database type
-        is_postgres = "PostgreSQL" in version_full
-        is_sqlite = "sqlite" in version_full.lower()
+        # Get database version using appropriate query for the database type
+        if is_sqlite:
+            version_result = db.execute(text("SELECT sqlite_version()")).fetchone()
+        else:
+            version_result = db.execute(text("SELECT version()")).fetchone()
+        
+        version_full = version_result[0] if version_result else "Unknown"
         
         db_version = "Unknown"
         db_size_readable = "Unknown"
@@ -80,16 +82,29 @@ def get_database_info(db: Session) -> Dict[str, Any]:
                 data_directory = "Unknown"
         
         elif is_sqlite:
-            # For SQLite, try to extract just the version number
-            # Example: "3.37.2" from "3.37.2 2022-01-06 13:25:41..."
-            version_match = re.search(SQLITE_VERSION_PATTERN, version_full)
-            if version_match:
-                db_version = version_match.group(1)
-            else:
-                db_version = version_full
-            # Size and location not available for SQLite in the same way
-            db_size_readable = "Not available (SQLite)"
-            data_directory = "Not available (SQLite)"
+            # For SQLite, sqlite_version() returns just the version string (e.g., "3.37.2")
+            db_version = version_full
+            
+            # Get database file size from the file system
+            try:
+                if os.path.exists(db_path):
+                    db_size_bytes = os.path.getsize(db_path)
+                    # Convert to human-readable format
+                    if db_size_bytes >= 1024 ** 3:  # GB
+                        db_size_readable = f"{db_size_bytes / (1024 ** 3):.2f} GB"
+                    elif db_size_bytes >= 1024 ** 2:  # MB
+                        db_size_readable = f"{db_size_bytes / (1024 ** 2):.2f} MB"
+                    elif db_size_bytes >= 1024:  # KB
+                        db_size_readable = f"{db_size_bytes / 1024:.2f} KB"
+                    else:
+                        db_size_readable = f"{db_size_bytes} bytes"
+                else:
+                    db_size_readable = "Database file not found"
+            except Exception:
+                db_size_readable = "Unknown"
+            
+            # Get database file location
+            data_directory = str(db_path)
         
         return {
             "status": "healthy",
