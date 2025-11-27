@@ -19,12 +19,14 @@ import shutil
 import re
 import logging
 import tempfile
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from io import BytesIO
 from openpyxl import load_workbook
+import base64
 
 from .. import models, schemas
 from ..deps import get_db
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -424,6 +426,157 @@ def classify_image_type(path: Path) -> str:
     return "default"
 
 
+def estimate_value_from_image(image_path: Path) -> tuple[Optional[float], Optional[str], Optional[str], Optional[str]]:
+    """
+    Use Gemini AI to analyze an image (data tag or item photo) and extract:
+    - Estimated value
+    - Model number
+    - Serial number
+    - Brand
+    
+    Returns (estimated_value, model_number, serial_number, brand) or (None, None, None, None) if AI is not configured or fails.
+    """
+    if not settings.GEMINI_API_KEY or not settings.GEMINI_API_KEY.strip():
+        return None, None, None, None
+    
+    try:
+        import google.generativeai as genai
+        
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        
+        # Read and encode the image
+        with open(image_path, "rb") as f:
+            image_data = f.read()
+        image_base64 = base64.b64encode(image_data).decode("utf-8")
+        
+        model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        
+        # Determine MIME type
+        mime_type = get_mime_type(image_path)
+        
+        prompt = """Analyze this image which may be a product data tag, label, or photo of an item.
+
+Extract the following information if visible or identifiable:
+1. brand: The brand or manufacturer name
+2. model_number: The model number or part number  
+3. serial_number: The serial number (S/N)
+4. estimated_value: Based on the brand, model, and product type, estimate the current market/replacement value in USD (just the number)
+
+Return ONLY a JSON object with these fields. Use null for any field that cannot be determined.
+
+Example format:
+{
+  "brand": "GE",
+  "model_number": "GIE19JSNBRSS",
+  "serial_number": "SR769052",
+  "estimated_value": 850
+}"""
+
+        image_part = {
+            "mime_type": mime_type,
+            "data": image_base64
+        }
+        
+        response = model.generate_content([prompt, image_part])
+        response_text = response.text
+        
+        # Parse the response
+        import json
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            parsed = json.loads(json_match.group())
+            
+            estimated_value = None
+            value_str = parsed.get("estimated_value") or parsed.get("value")
+            if value_str:
+                try:
+                    if isinstance(value_str, (int, float)):
+                        estimated_value = float(value_str)
+                    else:
+                        clean_value = re.sub(r'[^\d.]', '', str(value_str))
+                        if clean_value:
+                            estimated_value = float(clean_value)
+                except (ValueError, TypeError):
+                    pass
+            
+            model_number = parsed.get("model_number") or parsed.get("model")
+            serial_number = parsed.get("serial_number") or parsed.get("serial")
+            brand = parsed.get("brand") or parsed.get("manufacturer")
+            
+            return estimated_value, model_number, serial_number, brand
+            
+    except Exception as e:
+        logger.warning(f"Failed to estimate value from image: {e}")
+    
+    return None, None, None, None
+
+
+def estimate_value_from_description(
+    name: str,
+    brand: Optional[str] = None,
+    model_number: Optional[str] = None,
+    description: Optional[str] = None
+) -> Optional[float]:
+    """
+    Use Gemini AI to estimate the value of an item based on its name, brand, model, and description.
+    
+    Returns the estimated value or None if AI is not configured or fails.
+    """
+    if not settings.GEMINI_API_KEY or not settings.GEMINI_API_KEY.strip():
+        return None
+    
+    try:
+        import google.generativeai as genai
+        
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        
+        # Build context about the item
+        item_info = f"Item: {name}"
+        if brand:
+            item_info += f"\nBrand: {brand}"
+        if model_number:
+            item_info += f"\nModel: {model_number}"
+        if description:
+            item_info += f"\nDescription: {description}"
+        
+        prompt = f"""Based on the following item information, estimate the current market/replacement value in USD.
+
+{item_info}
+
+Return ONLY a JSON object with the estimated value. Example:
+{{"estimated_value": 450}}
+
+If you cannot make a reasonable estimate, return:
+{{"estimated_value": null}}"""
+
+        response = model.generate_content(prompt)
+        response_text = response.text
+        
+        # Parse the response
+        import json
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            parsed = json.loads(json_match.group())
+            
+            value_str = parsed.get("estimated_value") or parsed.get("value")
+            if value_str:
+                try:
+                    if isinstance(value_str, (int, float)):
+                        return float(value_str)
+                    else:
+                        clean_value = re.sub(r'[^\d.]', '', str(value_str))
+                        if clean_value:
+                            return float(clean_value)
+                except (ValueError, TypeError):
+                    pass
+                    
+    except Exception as e:
+        logger.warning(f"Failed to estimate value from description: {e}")
+    
+    return None
+
+
 class ImportResult:
     def __init__(self):
         self.items_created = 0
@@ -633,8 +786,65 @@ def process_encircle_import(
                 purchase_price = parse_currency(row[col_indices["purchase_price"]])
             
             estimated_value = None
+            estimated_value_ai_date = None
             if "estimated_value" in col_indices and col_indices["estimated_value"] < len(row):
                 estimated_value = parse_currency(row[col_indices["estimated_value"]])
+            
+            # AI estimation: If estimated_value is None/blank, try to get it from AI
+            if estimated_value is None and image_paths:
+                # First, find data tag images for this item
+                if match_by_name:
+                    matched_images = match_images_by_name(image_paths, name)
+                    if not matched_images:
+                        matched_images = match_images_by_number(image_paths, no)
+                else:
+                    matched_images = match_images_by_number(image_paths, no)
+                
+                # Look for data tag photos first
+                data_tag_photos = [img for img in matched_images if classify_image_type(img) == "data_tag"]
+                
+                if data_tag_photos:
+                    # Try to get value from data tag photo
+                    for dt_photo in data_tag_photos:
+                        ai_value, ai_model, ai_serial, ai_brand = estimate_value_from_image(dt_photo)
+                        if ai_value is not None:
+                            estimated_value = ai_value
+                            estimated_value_ai_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
+                            result.log.append(f"  -> AI estimated value ${ai_value:.2f} from data tag photo")
+                            # Also update model/serial/brand if they were blank
+                            if not model_number and ai_model:
+                                model_number = ai_model
+                            if not serial_number and ai_serial:
+                                serial_number = ai_serial
+                            if not brand and ai_brand:
+                                brand = ai_brand
+                            break
+                
+                # If still no value, try any other matched photos
+                if estimated_value is None and matched_images:
+                    other_photos = [img for img in matched_images if classify_image_type(img) != "data_tag"]
+                    for photo in other_photos:
+                        ai_value, ai_model, ai_serial, ai_brand = estimate_value_from_image(photo)
+                        if ai_value is not None:
+                            estimated_value = ai_value
+                            estimated_value_ai_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
+                            result.log.append(f"  -> AI estimated value ${ai_value:.2f} from item photo")
+                            # Also update model/serial/brand if they were blank
+                            if not model_number and ai_model:
+                                model_number = ai_model
+                            if not serial_number and ai_serial:
+                                serial_number = ai_serial
+                            if not brand and ai_brand:
+                                brand = ai_brand
+                            break
+            
+            # If still no estimated value, try AI estimation from item details (best guess)
+            if estimated_value is None:
+                ai_value = estimate_value_from_description(name, brand, model_number, None)
+                if ai_value is not None:
+                    estimated_value = ai_value
+                    estimated_value_ai_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
+                    result.log.append(f"  -> AI estimated value ${ai_value:.2f} from item description")
             
             # Build warranties list if warranty info is present
             warranties = None
@@ -681,6 +891,7 @@ def process_encircle_import(
                 purchase_date=purchase_date,
                 purchase_price=purchase_price,
                 estimated_value=estimated_value,
+                estimated_value_ai_date=estimated_value_ai_date,
                 warranties=warranties
             )
             db.add(item)
