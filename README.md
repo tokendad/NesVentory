@@ -81,6 +81,20 @@ This is a major release preparing NesVentory for public release with comprehensi
 - **Database**: SQLite (embedded, file-based)
 - **Containerization**: Docker (single unified container)
 
+## 📸 Screenshots
+
+### Login Screen
+![Login Screen](screenshots/login.png)
+
+### Dashboard
+![Dashboard](screenshots/dashboard.png)
+
+### Items List
+![Items List](screenshots/items.png)
+
+### Item Details
+![Item Details](screenshots/item-details.png)
+
 ## 🚀 Getting Started
 
 **For complete installation instructions, see [INSTALL.txt](INSTALL.txt)**
@@ -96,17 +110,6 @@ The application comes with pre-seeded test users:
 | **Viewer** | viewer@nesventory.local | viewer123 | Read-only |
 
 ⚠️ **Important**: Change these credentials for production use!
-
-## 🎨 Customizing the Logo
-
-To customize the application logo for your deployment:
-
-1. Replace the logo file at `public/logo.png` with your own logo image
-2. Recommended dimensions: 200px width or larger (will be scaled automatically)
-3. Supported formats: PNG (recommended), JPG, SVG
-4. The logo appears in:
-   - Application header (scaled to 32px height)
-   - Login screen (scaled to 200px max width)
 
 ## 📚 Documentation
 
