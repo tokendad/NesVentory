@@ -122,6 +122,20 @@ This project is open source. See the [LICENSE](LICENSE) file for details.
 
 Contributions are welcome! Please feel free to submit issues and pull requests.
 
+### Commit Message Guidelines
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) to standardize commit messages. All commits in pull requests are automatically checked.
+
+Please use one of the following prefixes for your commit messages:
+
+- `feat:` - A new feature (e.g., `feat: add user profile page`)
+- `fix:` - A bug fix (e.g., `fix: resolve login timeout issue`)
+- `docs:` - Documentation changes (e.g., `docs: update installation guide`)
+- `chore:` - Maintenance tasks (e.g., `chore: update dependencies`)
+- `BREAKING CHANGE:` - A breaking API change (can also be indicated with `!` after the type, e.g., `feat!: remove legacy API`)
+
+Other valid prefixes include: `style:`, `refactor:`, `perf:`, `test:`, `build:`, `ci:`, `revert:`
+
 ## 📞 Support
 
 For issues and support, please visit:
