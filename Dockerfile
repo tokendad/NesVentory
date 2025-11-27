@@ -63,8 +63,9 @@ COPY --chown=nesventory:nesventory VERSION /app/VERSION
 COPY --from=frontend-builder --chown=nesventory:nesventory /frontend/dist /app/static
 
 # Create necessary directories
-RUN mkdir -p /app/uploads/photos /app/data && \
-    chown -R nesventory:nesventory /app/uploads /app/data
+# Media files are stored in /app/data/media to persist with the database
+RUN mkdir -p /app/data/media/photos && \
+    chown -R nesventory:nesventory /app/data
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

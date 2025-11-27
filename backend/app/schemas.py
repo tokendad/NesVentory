@@ -187,6 +187,10 @@ class ItemBase(BaseModel):
     purchase_date: Optional[date] = None
     purchase_price: Optional[Decimal] = None
     estimated_value: Optional[Decimal] = None
+    # Tracking for estimated value source (AI or user)
+    estimated_value_ai_date: Optional[str] = None  # Date when AI estimated (MM/DD/YY format)
+    estimated_value_user_date: Optional[str] = None  # Date when user supplied (MM/DD/YY format)
+    estimated_value_user_name: Optional[str] = None  # Username who supplied the value
     retailer: Optional[str] = None
     upc: Optional[str] = None
     warranties: Optional[List[dict]] = None
@@ -215,6 +219,10 @@ class ItemUpdate(BaseModel):
     purchase_date: Optional[date] = None
     purchase_price: Optional[Decimal] = None
     estimated_value: Optional[Decimal] = None
+    # Tracking for estimated value source (AI or user)
+    estimated_value_ai_date: Optional[str] = None
+    estimated_value_user_date: Optional[str] = None
+    estimated_value_user_name: Optional[str] = None
     retailer: Optional[str] = None
     upc: Optional[str] = None
     warranties: Optional[List[dict]] = None

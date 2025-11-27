@@ -15,7 +15,6 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pathlib import Path
 from uuid import UUID
-import os
 import shutil
 import re
 import logging
@@ -32,8 +31,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/import", tags=["import"])
 
 # Upload directory for photos
-UPLOAD_BASE = os.getenv("UPLOAD_DIR", "/app/uploads")
-UPLOAD_DIR = Path(UPLOAD_BASE) / "photos"
+# Media files are stored in /app/data/media to ensure they persist with the database
+UPLOAD_DIR = Path("/app/data/media/photos")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Allowed image extensions

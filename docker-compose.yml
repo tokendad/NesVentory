@@ -17,18 +17,9 @@ services:
       DB_PATH: ${DB_PATH:-/app/data/nesventory.db}
       APP_PORT: ${APP_PORT:-8001}
     volumes:
-      # SQLite database file (persistent data storage)
-      - nesventory_data:/app/data
-      
-      # Optional: Uploads/media volume for storing images and attachments
-      # Uncomment and adjust the path below to enable media storage
-      # - /path/to/media:/app/uploads
-      
+      # Data directory (contains SQLite database and uploaded media files)
+      - /path/to/nesventory_data:/app/data
       # Optional: Synchronize container's timezone with host's timezone
-      # Uncomment the line below to use host timezone
-      # - /etc/localtime:/etc/localtime:ro
+      - /etc/localtime:/etc/localtime:ro
     ports:
       - "${APP_PORT:-8001}:${APP_PORT:-8001}"
-
-volumes:
-  nesventory_data:

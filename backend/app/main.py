@@ -6,7 +6,6 @@ from pathlib import Path
 from werkzeug.utils import secure_filename
 from sqlalchemy import text, inspect
 from .config import settings
-import os
 import re
 
 # 🔥 IMPORTANT: Load all SQLAlchemy models so tables get created
@@ -27,13 +26,17 @@ def run_migrations():
     # Whitelist of allowed table and column names for security
     # Only these exact names are permitted in migrations
     ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks"}
-    ALLOWED_COLUMNS = {"google_id"}
-    ALLOWED_TYPES = {"VARCHAR(255)"}
+    ALLOWED_COLUMNS = {"google_id", "estimated_value_ai_date", "estimated_value_user_date", "estimated_value_user_name"}
+    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)"}
     
     # Define migrations: (table_name, column_name, column_definition)
     migrations = [
         # User model: google_id column added for Google OAuth SSO
         ("users", "google_id", "VARCHAR(255)"),
+        # Item model: estimated value tracking columns for AI and user attribution
+        ("items", "estimated_value_ai_date", "VARCHAR(20)"),
+        ("items", "estimated_value_user_date", "VARCHAR(20)"),
+        ("items", "estimated_value_user_name", "VARCHAR(255)"),
     ]
     
     with engine.begin() as conn:
@@ -129,8 +132,8 @@ app.include_router(encircle.router, prefix="/api")
 app.include_router(ai.router, prefix="/api")
 
 # Setup uploads directory and mount static files
-UPLOAD_BASE = os.getenv("UPLOAD_DIR", "/app/uploads")
-UPLOAD_DIR = Path(UPLOAD_BASE)
+# Media files are stored in /app/data/media to ensure they persist with the database
+UPLOAD_DIR = Path("/app/data/media")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 (UPLOAD_DIR / "photos").mkdir(exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
