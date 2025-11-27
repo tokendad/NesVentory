@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
-import os
 import shutil
 import logging
 from pathlib import Path
@@ -14,9 +13,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/items", tags=["photos"])
 
-# Directory to store uploaded photos - use environment variable or default
-UPLOAD_BASE = os.getenv("UPLOAD_DIR", "/app/uploads")
-UPLOAD_DIR = Path(UPLOAD_BASE) / "photos"
+# Directory to store uploaded photos
+# Media files are stored in /app/data/media to ensure they persist with the database
+UPLOAD_DIR = Path("/app/data/media/photos")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Allowed file types for photo uploads

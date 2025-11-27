@@ -216,6 +216,10 @@ class Item(Base):
     purchase_date = Column(Date, nullable=True)
     purchase_price = Column(Numeric(12, 2), nullable=True)
     estimated_value = Column(Numeric(12, 2), nullable=True)
+    # Tracking for estimated value source (AI or user)
+    estimated_value_ai_date = Column(String(20), nullable=True)  # Date when AI estimated (MM/DD/YY format)
+    estimated_value_user_date = Column(String(20), nullable=True)  # Date when user supplied (MM/DD/YY format)
+    estimated_value_user_name = Column(String(255), nullable=True)  # Username who supplied the value
     retailer = Column(String(255), nullable=True)
 
     # UPC / barcode

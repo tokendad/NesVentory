@@ -214,16 +214,13 @@ CORS Settings:
   CORS_ORIGINS                  - Comma-separated allowed origins
 
 Docker Volume Configuration:
-  The docker-compose.yml file includes optional volume mounts that can be
-  uncommented and configured based on your needs:
+  The docker-compose.yml file uses a single data volume that contains both
+  the SQLite database and uploaded media files:
 
-  Config Volume:
-    - /data/DockerConfigs/nesventory:/config
-      Stores persistent configuration and database backups
-  
-  Media Volume:
-    - /media:/media
-      Stores uploaded images and media attachments
+  Data Volume:
+    - /path/to/nesventory_data:/app/data
+      Stores the SQLite database file and uploaded media files in a
+      subdirectory (/app/data/media/photos)
   
   Timezone Sync:
     - /etc/localtime:/etc/localtime:ro

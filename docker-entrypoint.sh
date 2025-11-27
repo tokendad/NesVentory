@@ -12,14 +12,11 @@ PGID=${PGID:-1000}
 # Ensure data directory exists and has correct ownership
 # This is critical for bind mounts where Docker creates directories as root
 if [ -d "/app/data" ]; then
+    # Create media subdirectory for uploads if it doesn't exist
+    mkdir -p /app/data/media/photos
     # Fix ownership of the data directory using PUID/PGID
     # These match the nesventory user created in Dockerfile
     chown -R "${PUID}:${PGID}" /app/data 2>/dev/null || true
-fi
-
-# Ensure uploads directory exists and has correct ownership
-if [ -d "/app/uploads" ]; then
-    chown -R "${PUID}:${PGID}" /app/uploads 2>/dev/null || true
 fi
 
 # Default command if none provided

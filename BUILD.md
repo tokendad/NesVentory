@@ -110,8 +110,9 @@ The v2.0 unified container contains:
 
 ### Data Persistence
 
-- Database file: `/app/data/nesventory.db` (mount `/app/data` as volume)
-- Uploads: `/app/uploads` (optional volume mount)
+- Database file: `/app/data/nesventory.db`
+- Media uploads: `/app/data/media/` (photos subdirectory)
+- Mount `/app/data` as a volume to persist both database and media files
 
 ## Differences from v1.x
 
