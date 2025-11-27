@@ -527,6 +527,7 @@ export interface AIValuationRunResponse {
   items_updated: number;
   items_skipped: number;
   message: string;
+  ai_schedule_last_run?: string | null;
 }
 
 export async function registerUser(userCreate: UserCreate): Promise<User> {

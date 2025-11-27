@@ -558,6 +558,11 @@ def estimate_item_value_with_ai(item: models.Item) -> Optional[float]:
         if item.purchase_date:
             item_details.append(f"Purchase date: {item.purchase_date}")
         
+        # Skip items with insufficient details for valuation
+        if not item_details:
+            logger.info(f"Skipping item {item.id}: no details available for valuation")
+            return None
+        
         item_description = "\n".join(item_details)
         
         prompt = f"""Based on the following item details, estimate its current market value in USD.
@@ -574,13 +579,21 @@ If you cannot determine a reasonable estimate, return: {{"estimated_value": null
         response = model.generate_content(prompt)
         response_text = response.text
         
-        # Parse the response
+        # Parse the response with explicit JSON error handling
         json_match = re.search(r'\{[\s\S]*\}', response_text)
         if json_match:
-            parsed = json.loads(json_match.group())
-            value = parsed.get("estimated_value")
-            if value is not None:
-                return float(value)
+            try:
+                parsed = json.loads(json_match.group())
+                value = parsed.get("estimated_value")
+                if value is not None:
+                    try:
+                        return float(value)
+                    except (ValueError, TypeError):
+                        logger.warning(f"Invalid estimated_value format for item {item.id}: {value}")
+                        return None
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse JSON response for item {item.id}: {e}")
+                return None
         
         return None
         
@@ -642,9 +655,13 @@ async def run_ai_valuation(
     # Commit all changes
     db.commit()
     
+    # Refresh to get the updated timestamp
+    db.refresh(current_user)
+    
     return schemas.AIValuationRunResponse(
         items_processed=items_processed,
         items_updated=items_updated,
         items_skipped=items_skipped,
-        message=f"AI valuation complete. Updated {items_updated} items, skipped {items_skipped} items with user-supplied values."
+        message=f"AI valuation complete. Updated {items_updated} items, skipped {items_skipped} items with user-supplied values.",
+        ai_schedule_last_run=current_user.ai_schedule_last_run
     )

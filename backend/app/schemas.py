@@ -83,6 +83,7 @@ class AIValuationRunResponse(BaseModel):
     items_updated: int
     items_skipped: int
     message: str
+    ai_schedule_last_run: Optional[datetime] = None
 
 
 # --- Location Schemas ---

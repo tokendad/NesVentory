@@ -165,12 +165,13 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
     try {
       const result = await runAIValuation();
       setAIValuationResult(result);
-      // Refresh user to get updated last_run timestamp
-      const updatedUser = await updateAIScheduleSettings({
-        ai_schedule_enabled: aiScheduleEnabled,
-        ai_schedule_interval_days: aiScheduleInterval
-      });
-      onUpdate(updatedUser);
+      // Update user with the new last_run timestamp from the response
+      if (result.ai_schedule_last_run) {
+        onUpdate({
+          ...user,
+          ai_schedule_last_run: result.ai_schedule_last_run
+        });
+      }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Failed to run AI valuation";
       setError(errorMessage);
