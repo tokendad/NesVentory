@@ -337,6 +337,13 @@ const ItemForm: React.FC<ItemFormProps> = ({
       brand: info.brand || info.manufacturer || prev.brand,
       model_number: info.model_number || prev.model_number,
       serial_number: info.serial_number || prev.serial_number,
+      // Only apply estimated value if it's provided by AI and there's no existing value
+      estimated_value: info.estimated_value ?? prev.estimated_value,
+      // Set AI date if value came from AI, otherwise preserve existing value
+      estimated_value_ai_date: info.estimated_value ? info.estimation_date : prev.estimated_value_ai_date,
+      // Clear user date if value came from AI
+      estimated_value_user_date: info.estimated_value ? undefined : prev.estimated_value_user_date,
+      estimated_value_user_name: info.estimated_value ? undefined : prev.estimated_value_user_name,
     }));
     setDataTagResult(null);
   };

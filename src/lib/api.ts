@@ -752,6 +752,8 @@ export interface DataTagInfo {
   model_number?: string | null;
   serial_number?: string | null;
   production_date?: string | null;
+  estimated_value?: number | null;
+  estimation_date?: string | null;  // Date when AI estimated the value (MM/DD/YY format)
   additional_info?: Record<string, unknown> | null;
   raw_response?: string | null;
 }

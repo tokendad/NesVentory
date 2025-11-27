@@ -58,6 +58,8 @@ class DataTagInfo(BaseModel):
     model_number: Optional[str] = None
     serial_number: Optional[str] = None
     production_date: Optional[str] = None
+    estimated_value: Optional[float] = None  # Estimated value in USD
+    estimation_date: Optional[str] = None  # Date when AI estimated the value (MM/DD/YY format)
     additional_info: Optional[dict] = None
     raw_response: Optional[str] = None
 
@@ -262,12 +264,34 @@ def parse_data_tag_response(response_text: str) -> DataTagInfo:
                     None
                 )
                 
+                # Parse estimated value
+                estimated_value = None
+                value_str = parsed.get("estimated_value") or parsed.get("value") or parsed.get("estimated_price")
+                if value_str:
+                    try:
+                        if isinstance(value_str, (int, float)):
+                            estimated_value = float(value_str)
+                        else:
+                            # Remove currency symbols and parse
+                            clean_value = re.sub(r'[^\d.]', '', str(value_str))
+                            if clean_value:
+                                estimated_value = float(clean_value)
+                    except (ValueError, TypeError):
+                        pass
+                
+                result.estimated_value = estimated_value
+                
+                # Add estimation date if there's an estimated value
+                if estimated_value is not None:
+                    result.estimation_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
+                
                 # Collect any additional fields not already captured
                 known_fields = {
                     "manufacturer", "mfr", "maker", "brand", "brand_name",
                     "model_number", "model", "model_no", "part_number",
                     "serial_number", "serial", "serial_no", "sn",
-                    "production_date", "manufacture_date", "mfg_date", "date", "date_of_manufacture"
+                    "production_date", "manufacture_date", "mfg_date", "date", "date_of_manufacture",
+                    "estimated_value", "value", "estimated_price"
                 }
                 additional = {k: v for k, v in parsed.items() if k not in known_fields and v is not None}
                 if additional:
@@ -437,6 +461,7 @@ Extract the following information if visible:
 3. model_number: The model number or part number
 4. serial_number: The serial number (S/N)
 5. production_date: The manufacturing/production date (format as YYYY-MM-DD if possible, or original format if not clear)
+6. estimated_value: Based on the manufacturer, brand, and model information, estimate the current market value in USD (just the number, no currency symbol)
 
 Also extract any other relevant product information you can find on the tag such as:
 - voltage/wattage/power ratings
@@ -453,13 +478,14 @@ Example format:
   "model_number": "UN55TU8000FXZA",
   "serial_number": "ABC123456789",
   "production_date": "2023-05-15",
+  "estimated_value": 450,
   "voltage": "120V",
   "wattage": "150W",
   "country": "Korea"
 }
 
 If no data tag information can be read from the image, return:
-{"manufacturer": null, "brand": null, "model_number": null, "serial_number": null, "production_date": null}"""
+{"manufacturer": null, "brand": null, "model_number": null, "serial_number": null, "production_date": null, "estimated_value": null}"""
 
         # Create the image part for the API
         image_part = {
