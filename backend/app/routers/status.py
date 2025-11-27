@@ -11,6 +11,18 @@ from typing import Dict, Any, Optional
 router = APIRouter()
 
 
+def format_size_readable(size_bytes: int) -> str:
+    """Convert bytes to human-readable format."""
+    if size_bytes >= 1024 ** 3:  # GB
+        return f"{size_bytes / (1024 ** 3):.2f} GB"
+    elif size_bytes >= 1024 ** 2:  # MB
+        return f"{size_bytes / (1024 ** 2):.2f} MB"
+    elif size_bytes >= 1024:  # KB
+        return f"{size_bytes / 1024:.2f} KB"
+    else:
+        return f"{size_bytes} bytes"
+
+
 async def get_latest_postgres_version() -> Optional[str]:
     """Fetch the latest PostgreSQL version from official sources."""
     try:
@@ -61,16 +73,7 @@ def get_database_info(db: Session) -> Dict[str, Any]:
                     text("SELECT pg_database_size(current_database())")
                 ).fetchone()
                 db_size_bytes = db_size_result[0] if db_size_result else 0
-                
-                # Convert to human-readable format
-                if db_size_bytes >= 1024 ** 3:  # GB
-                    db_size_readable = f"{db_size_bytes / (1024 ** 3):.2f} GB"
-                elif db_size_bytes >= 1024 ** 2:  # MB
-                    db_size_readable = f"{db_size_bytes / (1024 ** 2):.2f} MB"
-                elif db_size_bytes >= 1024:  # KB
-                    db_size_readable = f"{db_size_bytes / 1024:.2f} KB"
-                else:
-                    db_size_readable = f"{db_size_bytes} bytes"
+                db_size_readable = format_size_readable(db_size_bytes)
             except Exception:
                 db_size_readable = "Unknown"
             
@@ -87,20 +90,9 @@ def get_database_info(db: Session) -> Dict[str, Any]:
             
             # Get database file size from the file system
             try:
-                if os.path.exists(db_path):
-                    db_size_bytes = os.path.getsize(db_path)
-                    # Convert to human-readable format
-                    if db_size_bytes >= 1024 ** 3:  # GB
-                        db_size_readable = f"{db_size_bytes / (1024 ** 3):.2f} GB"
-                    elif db_size_bytes >= 1024 ** 2:  # MB
-                        db_size_readable = f"{db_size_bytes / (1024 ** 2):.2f} MB"
-                    elif db_size_bytes >= 1024:  # KB
-                        db_size_readable = f"{db_size_bytes / 1024:.2f} KB"
-                    else:
-                        db_size_readable = f"{db_size_bytes} bytes"
-                else:
-                    db_size_readable = "Database file not found"
-            except Exception:
+                db_size_bytes = os.path.getsize(db_path)
+                db_size_readable = format_size_readable(db_size_bytes)
+            except OSError:
                 db_size_readable = "Unknown"
             
             # Get database file location
