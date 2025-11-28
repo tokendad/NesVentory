@@ -45,7 +45,31 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
-    return db.query(models.User).filter(models.User.email == email).first()
+    """
+    Look up a user by their email address or short username.
+    
+    Supports login with:
+    - Full email address (e.g., "admin@nesventory.local")
+    - Short username (e.g., "admin") - will match email starting with "username@"
+    
+    For short usernames, the lookup will find any user whose email starts with
+    the provided username followed by "@".
+    """
+    # First try exact email match
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if user:
+        return user
+    
+    # If no @ symbol in the input, treat it as a short username
+    # and search for any email that starts with "username@"
+    if "@" not in email:
+        username_prefix = email + "@"
+        user = db.query(models.User).filter(
+            models.User.email.like(f"{username_prefix}%")
+        ).first()
+        return user
+    
+    return None
 
 
 def get_user_by_api_key(db: Session, api_key: str) -> Optional[models.User]:
