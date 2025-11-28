@@ -6,9 +6,11 @@ import {
   getAIStatus, 
   updateAIScheduleSettings, 
   runAIValuation,
+  enrichFromDataTags,
   type User,
   type AIStatusResponse,
-  type AIValuationRunResponse
+  type AIValuationRunResponse,
+  type AIEnrichmentRunResponse
 } from "../lib/api";
 
 interface UserSettingsProps {
@@ -36,6 +38,10 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
   const [aiValuationLoading, setAIValuationLoading] = useState(false);
   const [aiValuationResult, setAIValuationResult] = useState<AIValuationRunResponse | null>(null);
   const [aiScheduleSuccess, setAIScheduleSuccess] = useState(false);
+  
+  // AI Enrichment states
+  const [aiEnrichmentLoading, setAIEnrichmentLoading] = useState(false);
+  const [aiEnrichmentResult, setAIEnrichmentResult] = useState<AIEnrichmentRunResponse | null>(null);
 
   // Check AI status on mount
   useEffect(() => {
@@ -156,7 +162,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
   }
 
   async function handleRunNow() {
-    if (!window.confirm("This will run AI valuation on all items without user-supplied values. This may take a while and use API credits. Continue?")) {
+    if (!window.confirm("This will run AI valuation on all items without user-supplied values. This may take a while and use API credits. Large inventories on the free tier may take significant time due to rate limiting. Continue?")) {
       return;
     }
     setAIValuationLoading(true);
@@ -177,6 +183,24 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
       setError(errorMessage);
     } finally {
       setAIValuationLoading(false);
+    }
+  }
+
+  async function handleEnrichFromDataTags() {
+    if (!window.confirm("This will scan all items with data tag photos and use AI to fill in missing details (brand, model, serial, value). This may take a while and use API credits. Large inventories on the free tier may take significant time due to rate limiting. Continue?")) {
+      return;
+    }
+    setAIEnrichmentLoading(true);
+    setError(null);
+    setAIEnrichmentResult(null);
+    try {
+      const result = await enrichFromDataTags();
+      setAIEnrichmentResult(result);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to run AI enrichment";
+      setError(errorMessage);
+    } finally {
+      setAIEnrichmentLoading(false);
     }
   }
 
@@ -408,29 +432,97 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
                   type="button"
                   className="btn-primary"
                   onClick={handleRunNow}
-                  disabled={aiValuationLoading}
+                  disabled={aiValuationLoading || aiEnrichmentLoading}
                   style={{ width: "100%" }}
                 >
-                  {aiValuationLoading ? "Running AI Valuation..." : "🚀 Run Now"}
+                  {aiValuationLoading ? "Running AI Valuation..." : "🚀 Run Valuation Now"}
                 </button>
 
                 {/* Valuation Result */}
                 {aiValuationResult && (
                   <div style={{ 
-                    backgroundColor: "#e8f5e9", 
-                    border: "1px solid #81c784", 
+                    backgroundColor: aiValuationResult.message.includes("rate limit") ? "#fff3e0" : "#e8f5e9", 
+                    border: `1px solid ${aiValuationResult.message.includes("rate limit") ? "#ffb74d" : "#81c784"}`, 
                     borderRadius: "4px", 
                     padding: "0.75rem",
                     marginTop: "0.75rem"
                   }}>
-                    <strong style={{ color: "#2e7d32" }}>✓ Valuation Complete</strong>
-                    <ul style={{ margin: "0.5rem 0 0 1rem", fontSize: "0.875rem", color: "#2e7d32" }}>
+                    <strong style={{ color: aiValuationResult.message.includes("rate limit") ? "#e65100" : "#2e7d32" }}>
+                      {aiValuationResult.message.includes("rate limit") ? "⚠️ Valuation Partial" : "✓ Valuation Complete"}
+                    </strong>
+                    <ul style={{ margin: "0.5rem 0 0 1rem", fontSize: "0.875rem", color: aiValuationResult.message.includes("rate limit") ? "#e65100" : "#2e7d32" }}>
                       <li>Items processed: {aiValuationResult.items_processed}</li>
                       <li>Items updated: {aiValuationResult.items_updated}</li>
                       <li>Items skipped (user values): {aiValuationResult.items_skipped}</li>
                     </ul>
+                    {aiValuationResult.message.includes("rate limit") && (
+                      <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.8rem", color: "#e65100" }}>
+                        Rate limit reached. Please wait and retry later.
+                      </p>
+                    )}
                   </div>
                 )}
+
+                {/* Enrich from Data Tags Section */}
+                <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "1rem", marginTop: "1rem" }}>
+                  <label>📷 Enrich from Data Tags</label>
+                  <small style={{ color: "#666", fontSize: "0.875rem", display: "block", marginBottom: "0.5rem" }}>
+                    Scan items with data tag photos to extract brand, model, serial number, and estimated value.
+                    Useful for filling in missing details after imports.
+                  </small>
+                  
+                  {/* Processing Time Warning */}
+                  <div style={{ 
+                    backgroundColor: "#fff3e0", 
+                    border: "1px solid #ffb74d", 
+                    borderRadius: "4px", 
+                    padding: "0.5rem",
+                    marginBottom: "0.75rem",
+                    fontSize: "0.8rem"
+                  }}>
+                    <strong style={{ color: "#e65100" }}>⏱️ Processing Time Notice</strong>
+                    <p style={{ margin: "0.25rem 0 0 0", color: "#e65100" }}>
+                      Large inventories on the free tier may take significant time to process due to rate limiting 
+                      (~4 seconds per item). Consider running during off-peak hours.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn-outline"
+                    onClick={handleEnrichFromDataTags}
+                    disabled={aiValuationLoading || aiEnrichmentLoading}
+                    style={{ width: "100%" }}
+                  >
+                    {aiEnrichmentLoading ? "Enriching Items..." : "📷 Enrich from Data Tags"}
+                  </button>
+
+                  {/* Enrichment Result */}
+                  {aiEnrichmentResult && (
+                    <div style={{ 
+                      backgroundColor: aiEnrichmentResult.quota_exceeded ? "#fff3e0" : "#e8f5e9", 
+                      border: `1px solid ${aiEnrichmentResult.quota_exceeded ? "#ffb74d" : "#81c784"}`, 
+                      borderRadius: "4px", 
+                      padding: "0.75rem",
+                      marginTop: "0.75rem"
+                    }}>
+                      <strong style={{ color: aiEnrichmentResult.quota_exceeded ? "#e65100" : "#2e7d32" }}>
+                        {aiEnrichmentResult.quota_exceeded ? "⚠️ Enrichment Partial" : "✓ Enrichment Complete"}
+                      </strong>
+                      <ul style={{ margin: "0.5rem 0 0 1rem", fontSize: "0.875rem", color: aiEnrichmentResult.quota_exceeded ? "#e65100" : "#2e7d32" }}>
+                        <li>Items with data tags: {aiEnrichmentResult.items_with_data_tags}</li>
+                        <li>Items processed: {aiEnrichmentResult.items_processed}</li>
+                        <li>Items updated: {aiEnrichmentResult.items_updated}</li>
+                        <li>Items skipped (complete): {aiEnrichmentResult.items_skipped}</li>
+                      </ul>
+                      {aiEnrichmentResult.quota_exceeded && (
+                        <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.8rem", color: "#e65100" }}>
+                          Rate limit reached. Please wait and retry later.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>

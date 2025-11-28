@@ -86,6 +86,16 @@ class AIValuationRunResponse(BaseModel):
     ai_schedule_last_run: Optional[datetime] = None
 
 
+# Schema for AI enrichment run response (for items with data tag photos)
+class AIEnrichmentRunResponse(BaseModel):
+    items_processed: int
+    items_updated: int
+    items_skipped: int
+    items_with_data_tags: int
+    quota_exceeded: bool = False
+    message: str
+
+
 # --- Location Schemas ---
 
 class LocationBase(BaseModel):

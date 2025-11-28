@@ -159,9 +159,34 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
         
         {result ? (
           <div className="import-result">
-            <div className="success-banner">
+            <div className={result.quota_exceeded ? "warning-banner" : "success-banner"} style={result.quota_exceeded ? {
+              backgroundColor: "#fff3e0",
+              border: "1px solid #ffb74d",
+              color: "#e65100",
+              padding: "0.75rem",
+              borderRadius: "4px",
+              marginBottom: "1rem"
+            } : undefined}>
               {result.message}
             </div>
+            
+            {/* Quota exceeded warning */}
+            {result.quota_exceeded && (
+              <div style={{
+                backgroundColor: "#e3f2fd",
+                border: "1px solid #64b5f6",
+                borderRadius: "4px",
+                padding: "0.75rem",
+                marginBottom: "1rem"
+              }}>
+                <strong style={{ color: "#1565c0" }}>💡 Tip</strong>
+                <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.875rem", color: "#1565c0" }}>
+                  Some items were imported without AI-assisted details due to rate limits. 
+                  You can use <strong>User Settings → Enrich from Data Tags</strong> later to fill in missing details 
+                  from data tag photos.
+                </p>
+              </div>
+            )}
             
             <div className="import-stats">
               <div className="import-stat">
@@ -196,7 +221,7 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
               <h4>Import Log</h4>
               <div className="log-content">
                 {result.log.map((line, idx) => (
-                  <div key={idx} className="log-line">{line}</div>
+                  <div key={idx} className="log-line" style={line.includes("⚠️") ? { color: "#e65100", fontWeight: 500 } : undefined}>{line}</div>
                 ))}
               </div>
             </div>

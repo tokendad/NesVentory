@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.3.0] - 2025-11-28
+### Added
+- **Gemini API Quota Handling** - Gracefully handle rate limits on free tier
+  - Detect quota exceeded errors and continue imports without AI assistance
+  - Show user-friendly warning when rate limits are reached
+  - Items imported without AI can be enriched later using the new enrichment feature
+  
+- **AI Request Throttling** - Avoid hitting rate limits on free tier
+  - Configurable delay between AI requests (default: 4 seconds)
+  - New `GEMINI_REQUEST_DELAY` environment variable to customize throttle delay
+  - Processing time warning for large inventories on free tier
+  
+- **Enrich from Data Tags Feature** - New helper to fill in missing item details
+  - New `/api/ai/enrich-from-data-tags` endpoint
+  - Scans items with data tag photos and extracts brand, model, serial, and estimated value
+  - Useful for completing items that were imported without AI due to quota limits
+  - Added "Enrich from Data Tags" button in User Settings under AI section
+  
+- **Improved Import Flow** - Better feedback when quota is exceeded during imports
+  - Continue importing items using XLSX data when AI quota is reached
+  - Show quota warning in import results with tip to use enrichment feature later
+  - Log entries highlight quota-related issues with warning icon
+
+### Changed
+- Updated AI valuation to handle quota errors gracefully and report partial progress
+- Enhanced encircle import to continue without AI when quota is exceeded
+- Added processing time warnings for operations on large inventories
+- Bumped project version to 4.3.0
+
 ## [4.2.0] - 2025-11-28
 ### Added
 - **QR Code Label Printing for Locations** - Print QR code labels to affix to boxes, bins, and containers
