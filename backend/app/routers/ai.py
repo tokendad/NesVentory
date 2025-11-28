@@ -947,7 +947,7 @@ async def enrich_items_from_data_tags(
     items_with_data_tags = (
         db.query(models.Item)
         .join(models.Photo, models.Item.id == models.Photo.item_id)
-        .filter(models.Photo.is_data_tag == True)
+        .filter(models.Photo.is_data_tag.is_(True))
         .distinct()
         .all()
     )
