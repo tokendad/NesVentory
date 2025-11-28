@@ -2,23 +2,88 @@
 AI-powered image analysis router.
 
 Uses Google Gemini to detect and identify items in photos.
+Includes request throttling to avoid rate limits on free tier.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from pydantic import BaseModel
 from datetime import datetime, timezone
+from pathlib import Path
 import base64
 import json
 import logging
 import re
+import time
 
 from ..config import settings
 from ..deps import get_db
 from .. import models, schemas, auth
 
 logger = logging.getLogger(__name__)
+
+
+# Error message for quota exceeded
+QUOTA_EXCEEDED_MESSAGE = (
+    "Gemini API rate limit exceeded. Your current tier's quota has been reached. "
+    "Please retry later or consider upgrading your tier. "
+    "See: https://ai.google.dev/gemini-api/docs/rate-limits"
+)
+
+# Track last AI request time for throttling
+_last_ai_request_time: float = 0.0
+
+
+def throttle_ai_request():
+    """
+    Throttle AI requests to avoid rate limits on free tier.
+    
+    This function sleeps if needed to ensure minimum delay between requests.
+    The delay is configurable via GEMINI_REQUEST_DELAY (default: 4 seconds).
+    """
+    global _last_ai_request_time
+    
+    delay = settings.GEMINI_REQUEST_DELAY
+    if delay <= 0:
+        return
+    
+    current_time = time.time()
+    elapsed = current_time - _last_ai_request_time
+    
+    if elapsed < delay:
+        sleep_time = delay - elapsed
+        logger.debug(f"Throttling AI request: sleeping {sleep_time:.2f}s")
+        time.sleep(sleep_time)
+    
+    _last_ai_request_time = time.time()
+
+
+def is_quota_error(error: Exception) -> bool:
+    """
+    Check if the error is a Gemini API quota exceeded error.
+    
+    Returns True if the error indicates rate limiting or quota exceeded.
+    """
+    error_str = str(error).lower()
+    quota_indicators = [
+        "quota exceeded",
+        "rate limit",
+        "resource exhausted",
+        "429",
+        "too many requests",
+        "quota_exceeded",
+        "rate_limit",
+        "resourceexhausted",
+        "free_tier_requests",
+        "generate_content_free_tier",
+    ]
+    return any(indicator in error_str for indicator in quota_indicators)
+
+
+class QuotaExceededError(Exception):
+    """Custom exception for Gemini API quota exceeded errors."""
+    pass
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -402,6 +467,12 @@ Return an empty array [] if no identifiable items are found."""
     except Exception as e:
         logger.exception("Error during AI item detection")
         error_msg = str(e)
+        # Check for quota exceeded error
+        if is_quota_error(e):
+            raise HTTPException(
+                status_code=429,
+                detail=QUOTA_EXCEEDED_MESSAGE
+            )
         # Don't expose internal error details
         if "API key" in error_msg.lower() or "authentication" in error_msg.lower():
             raise HTTPException(
@@ -517,6 +588,12 @@ If no data tag information can be read from the image, return:
     except Exception as e:
         logger.exception("Error during AI data tag parsing")
         error_msg = str(e)
+        # Check for quota exceeded error
+        if is_quota_error(e):
+            raise HTTPException(
+                status_code=429,
+                detail=QUOTA_EXCEEDED_MESSAGE
+            )
         # Don't expose internal error details
         if "API key" in error_msg.lower() or "authentication" in error_msg.lower():
             raise HTTPException(
@@ -533,9 +610,15 @@ def estimate_item_value_with_ai(item: models.Item) -> Optional[float]:
     """
     Use AI to estimate the value of a single item based on its details.
     Returns the estimated value in USD, or None if estimation fails.
+    
+    Includes request throttling to avoid rate limits on free tier.
+    Raises QuotaExceededError if Gemini API quota is exceeded.
     """
     try:
         import google.generativeai as genai
+        
+        # Throttle requests to avoid rate limits
+        throttle_ai_request()
         
         # Configure the API
         genai.configure(api_key=settings.GEMINI_API_KEY)
@@ -598,8 +681,38 @@ If you cannot determine a reasonable estimate, return: {{"estimated_value": null
         return None
         
     except Exception as e:
+        # Check for quota exceeded error and re-raise as QuotaExceededError
+        if is_quota_error(e):
+            logger.warning(f"Gemini API quota exceeded while estimating value for item {item.id}")
+            raise QuotaExceededError(QUOTA_EXCEEDED_MESSAGE)
         logger.warning(f"Failed to estimate value for item {item.id}: {e}")
         return None
+
+
+def get_estimated_processing_time(item_count: int) -> str:
+    """
+    Calculate and format estimated processing time based on item count and throttle delay.
+    
+    Args:
+        item_count: Number of items to process
+        
+    Returns:
+        Human-readable string describing estimated time
+    """
+    delay = settings.GEMINI_REQUEST_DELAY
+    if delay <= 0:
+        return "a few seconds"
+    
+    total_seconds = item_count * delay
+    
+    if total_seconds < 60:
+        return f"about {int(total_seconds)} seconds"
+    elif total_seconds < 3600:
+        minutes = int(total_seconds / 60)
+        return f"about {minutes} minute{'s' if minutes > 1 else ''}"
+    else:
+        hours = total_seconds / 3600
+        return f"about {hours:.1f} hour{'s' if hours > 1 else ''}"
 
 
 @router.post("/run-valuation", response_model=schemas.AIValuationRunResponse)
@@ -614,6 +727,7 @@ async def run_ai_valuation(
     - Skip items with user-supplied estimated values (estimated_value_user_date is set)
     - Update items with AI-generated estimated values
     - Track the estimation date
+    - Stop processing if Gemini API quota is exceeded
     
     Note: Be mindful of Gemini API rate limits based on your tier level.
     See: https://ai.google.dev/gemini-api/docs/rate-limits
@@ -631,6 +745,7 @@ async def run_ai_valuation(
     items_processed = 0
     items_updated = 0
     items_skipped = 0
+    quota_exceeded = False
     
     for item in items:
         items_processed += 1
@@ -641,12 +756,17 @@ async def run_ai_valuation(
             continue
         
         # Try to estimate the value using AI
-        estimated_value = estimate_item_value_with_ai(item)
-        
-        if estimated_value is not None:
-            item.estimated_value = estimated_value
-            item.estimated_value_ai_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
-            items_updated += 1
+        try:
+            estimated_value = estimate_item_value_with_ai(item)
+            
+            if estimated_value is not None:
+                item.estimated_value = estimated_value
+                item.estimated_value_ai_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
+                items_updated += 1
+        except QuotaExceededError:
+            quota_exceeded = True
+            logger.warning("Gemini API quota exceeded during valuation run, stopping early")
+            break
     
     # Update the user's last run timestamp
     current_user.ai_schedule_last_run = datetime.now(timezone.utc)
@@ -658,10 +778,263 @@ async def run_ai_valuation(
     # Refresh to get the updated timestamp
     db.refresh(current_user)
     
+    # Build the message based on quota status
+    if quota_exceeded:
+        message = (
+            f"AI valuation stopped early due to rate limit. "
+            f"Updated {items_updated} items, skipped {items_skipped} items with user-supplied values. "
+            f"Please wait and retry later. See: https://ai.google.dev/gemini-api/docs/rate-limits"
+        )
+    else:
+        message = f"AI valuation complete. Updated {items_updated} items, skipped {items_skipped} items with user-supplied values."
+    
     return schemas.AIValuationRunResponse(
         items_processed=items_processed,
         items_updated=items_updated,
         items_skipped=items_skipped,
-        message=f"AI valuation complete. Updated {items_updated} items, skipped {items_skipped} items with user-supplied values.",
+        message=message,
         ai_schedule_last_run=current_user.ai_schedule_last_run
+    )
+
+
+def enrich_item_from_data_tag_photo(
+    item: models.Item, 
+    photo_path: str
+) -> Tuple[bool, Optional[str], Optional[str], Optional[str], Optional[float]]:
+    """
+    Use AI to analyze a data tag photo and extract item details.
+    
+    Includes request throttling to avoid rate limits on free tier.
+    Returns a tuple of (success, brand, model_number, serial_number, estimated_value).
+    Raises QuotaExceededError if Gemini API quota is exceeded.
+    """
+    try:
+        import google.generativeai as genai
+        
+        # Resolve the photo path
+        # Photos are stored with paths like "/uploads/photos/filename.jpg"
+        # The actual file is at "/app/data/media/photos/filename.jpg"
+        if photo_path.startswith("/uploads/"):
+            actual_path = Path("/app/data/media") / photo_path.replace("/uploads/", "")
+        else:
+            actual_path = Path(photo_path)
+        
+        if not actual_path.exists():
+            logger.warning(f"Data tag photo not found at {actual_path}")
+            return False, None, None, None, None
+        
+        # Throttle requests to avoid rate limits
+        throttle_ai_request()
+        
+        # Configure the API
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        
+        # Create the model
+        model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        
+        # Read and encode the image
+        with open(actual_path, "rb") as f:
+            image_data = f.read()
+        image_base64 = base64.b64encode(image_data).decode("utf-8")
+        
+        # Determine MIME type from file extension
+        ext = actual_path.suffix.lower()
+        mime_types = {
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg", 
+            ".png": "image/png",
+            ".gif": "image/gif",
+            ".webp": "image/webp",
+        }
+        mime_type = mime_types.get(ext, "image/jpeg")
+        
+        prompt = """Analyze this image of a product data tag, label, or identification plate.
+
+Extract the following information if visible:
+1. brand: The brand or manufacturer name
+2. model_number: The model number or part number
+3. serial_number: The serial number (S/N)
+4. estimated_value: Based on the brand, model, and product type, estimate the current market/replacement value in USD (just the number)
+
+Return ONLY a JSON object with these fields. Use null for any field that cannot be determined.
+
+Example format:
+{
+  "brand": "Samsung",
+  "model_number": "UN55TU8000FXZA",
+  "serial_number": "ABC123456789",
+  "estimated_value": 450
+}"""
+
+        image_part = {
+            "mime_type": mime_type,
+            "data": image_base64
+        }
+        
+        response = model.generate_content([prompt, image_part])
+        response_text = response.text
+        
+        # Parse the response
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            try:
+                parsed = json.loads(json_match.group())
+                
+                brand = parsed.get("brand") or parsed.get("manufacturer")
+                model_number = parsed.get("model_number") or parsed.get("model")
+                serial_number = parsed.get("serial_number") or parsed.get("serial")
+                
+                estimated_value = None
+                value_str = parsed.get("estimated_value") or parsed.get("value")
+                if value_str:
+                    try:
+                        if isinstance(value_str, (int, float)):
+                            estimated_value = float(value_str)
+                        else:
+                            clean_value = re.sub(r'[^\d.]', '', str(value_str))
+                            if clean_value:
+                                estimated_value = float(clean_value)
+                    except (ValueError, TypeError):
+                        pass
+                
+                return True, brand, model_number, serial_number, estimated_value
+                
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse JSON response: {e}")
+                return False, None, None, None, None
+        
+        return False, None, None, None, None
+        
+    except Exception as e:
+        # Check for quota exceeded error and re-raise
+        if is_quota_error(e):
+            logger.warning("Gemini API quota exceeded during data tag enrichment")
+            raise QuotaExceededError(QUOTA_EXCEEDED_MESSAGE)
+        logger.warning(f"Failed to enrich item from data tag: {e}")
+        return False, None, None, None, None
+
+
+@router.post("/enrich-from-data-tags", response_model=schemas.AIEnrichmentRunResponse)
+async def enrich_items_from_data_tags(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Scan all items for data tag photos and use AI to extract missing details.
+    
+    This endpoint will:
+    - Find items that have data tag photos
+    - Skip items that already have complete details (brand, model, serial, and estimated value)
+    - Use AI to analyze data tag photos and extract details
+    - Update items with extracted information
+    - Stop if Gemini API quota is exceeded and report progress
+    
+    This is useful for:
+    - Filling in missing details after bulk imports
+    - Enriching items that were imported without AI due to quota limits
+    
+    Note: Be mindful of Gemini API rate limits based on your tier level.
+    See: https://ai.google.dev/gemini-api/docs/rate-limits
+    """
+    # Check if Gemini API is configured
+    if not settings.GEMINI_API_KEY or not settings.GEMINI_API_KEY.strip():
+        raise HTTPException(
+            status_code=503,
+            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment."
+        )
+    
+    # Get all items with data tag photos
+    items_with_data_tags = (
+        db.query(models.Item)
+        .join(models.Photo, models.Item.id == models.Photo.item_id)
+        .filter(models.Photo.is_data_tag.is_(True))
+        .distinct()
+        .all()
+    )
+    
+    items_processed = 0
+    items_updated = 0
+    items_skipped = 0
+    quota_exceeded = False
+    
+    for item in items_with_data_tags:
+        items_processed += 1
+        
+        # Check if item already has complete details
+        has_brand = bool(item.brand)
+        has_model = bool(item.model_number)
+        has_serial = bool(item.serial_number)
+        has_value = item.estimated_value is not None
+        
+        # Skip if all details are already present
+        if has_brand and has_model and has_serial and has_value:
+            items_skipped += 1
+            continue
+        
+        # Find data tag photos for this item
+        data_tag_photos = [p for p in item.photos if p.is_data_tag]
+        if not data_tag_photos:
+            items_skipped += 1
+            continue
+        
+        # Try to enrich from data tag photos
+        for photo in data_tag_photos:
+            try:
+                success, brand, model_number, serial_number, estimated_value = enrich_item_from_data_tag_photo(
+                    item, photo.path
+                )
+                
+                if success:
+                    updated = False
+                    
+                    # Only update fields that are currently empty
+                    if not has_brand and brand:
+                        item.brand = brand
+                        updated = True
+                    if not has_model and model_number:
+                        item.model_number = model_number
+                        updated = True
+                    if not has_serial and serial_number:
+                        item.serial_number = serial_number
+                        updated = True
+                    if not has_value and estimated_value is not None:
+                        item.estimated_value = estimated_value
+                        item.estimated_value_ai_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
+                        updated = True
+                    
+                    if updated:
+                        items_updated += 1
+                        break  # Stop after successful enrichment from one photo
+                        
+            except QuotaExceededError:
+                quota_exceeded = True
+                logger.warning("Gemini API quota exceeded during enrichment, stopping early")
+                break
+        
+        if quota_exceeded:
+            break
+    
+    # Commit all changes
+    db.commit()
+    
+    # Build the message based on quota status
+    if quota_exceeded:
+        message = (
+            f"AI enrichment stopped early due to rate limit. "
+            f"Processed {items_processed} items with data tags, updated {items_updated}, skipped {items_skipped}. "
+            f"Please wait and retry later. See: https://ai.google.dev/gemini-api/docs/rate-limits"
+        )
+    else:
+        message = (
+            f"AI enrichment complete. "
+            f"Processed {items_processed} items with data tags, updated {items_updated}, skipped {items_skipped} (already complete)."
+        )
+    
+    return schemas.AIEnrichmentRunResponse(
+        items_processed=items_processed,
+        items_updated=items_updated,
+        items_skipped=items_skipped,
+        items_with_data_tags=len(items_with_data_tags),
+        quota_exceeded=quota_exceeded,
+        message=message
     )

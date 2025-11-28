@@ -532,6 +532,15 @@ export interface AIValuationRunResponse {
   ai_schedule_last_run?: string | null;
 }
 
+export interface AIEnrichmentRunResponse {
+  items_processed: number;
+  items_updated: number;
+  items_skipped: number;
+  items_with_data_tags: number;
+  quota_exceeded: boolean;
+  message: string;
+}
+
 export async function registerUser(userCreate: UserCreate): Promise<User> {
   const res = await fetch(`${API_BASE_URL}/api/users`, {
     method: "POST",
@@ -668,6 +677,8 @@ export interface EncircleImportResult {
   sublocations_created: number;
   parent_location_name: string | null;
   log: string[];
+  warnings?: string[];
+  quota_exceeded?: boolean;
 }
 
 export interface EncirclePreviewResult {
@@ -883,5 +894,16 @@ export async function runAIValuation(): Promise<AIValuationRunResponse> {
     },
   });
   return handleResponse<AIValuationRunResponse>(res);
+}
+
+export async function enrichFromDataTags(): Promise<AIEnrichmentRunResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/ai/enrich-from-data-tags`, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<AIEnrichmentRunResponse>(res);
 }
 

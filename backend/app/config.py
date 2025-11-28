@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     # AI Photo Detection settings (Gemini)
     GEMINI_API_KEY: Optional[str] = None
     GEMINI_MODEL: str = "gemini-2.0-flash"
+    # Delay between AI requests in seconds (to avoid rate limits on free tier)
+    # Free tier allows 15 requests per minute, so 4-5 seconds delay is recommended
+    GEMINI_REQUEST_DELAY: float = 4.0
 
     # Google OAuth settings
     GOOGLE_CLIENT_ID: Optional[str] = None

@@ -8,11 +8,12 @@ Supports:
 - Additional item fields: Brand, Model, Serial, Quantity, Retailer, 
   Purchase date, Purchase price, Estimated value, Warranty info
 - Hierarchical location structure (Parent → Sub-locations)
+- Graceful handling of Gemini API quota limits
 """
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from pathlib import Path
 from uuid import UUID
 import shutil
@@ -23,6 +24,7 @@ from datetime import datetime, date, timezone
 from io import BytesIO
 from openpyxl import load_workbook
 import base64
+import json
 
 from .. import models, schemas
 from ..deps import get_db
@@ -31,6 +33,71 @@ from ..config import settings
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/import", tags=["import"])
+
+
+# Error message for quota exceeded
+QUOTA_EXCEEDED_MESSAGE = (
+    "Gemini API rate limit exceeded. Import will continue without AI-assisted details. "
+    "You can use the 'Enrich from Data Tags' feature later to fill in missing details. "
+    "See: https://ai.google.dev/gemini-api/docs/rate-limits"
+)
+
+
+def is_quota_error(error: Exception) -> bool:
+    """
+    Check if the error is a Gemini API quota exceeded error.
+    
+    Returns True if the error indicates rate limiting or quota exceeded.
+    """
+    error_str = str(error).lower()
+    quota_indicators = [
+        "quota exceeded",
+        "rate limit",
+        "resource exhausted",
+        "429",
+        "too many requests",
+        "quota_exceeded",
+        "rate_limit",
+        "resourceexhausted",
+        "free_tier_requests",
+        "generate_content_free_tier",
+    ]
+    return any(indicator in error_str for indicator in quota_indicators)
+
+
+class QuotaExceededError(Exception):
+    """Custom exception for Gemini API quota exceeded errors."""
+    pass
+
+
+# Track last AI request time for throttling
+_last_ai_request_time: float = 0.0
+
+
+def throttle_ai_request():
+    """
+    Throttle AI requests to avoid rate limits on free tier.
+    
+    This function sleeps if needed to ensure minimum delay between requests.
+    The delay is configurable via GEMINI_REQUEST_DELAY (default: 4 seconds).
+    """
+    global _last_ai_request_time
+    import time
+    
+    delay = settings.GEMINI_REQUEST_DELAY
+    if delay <= 0:
+        return
+    
+    current_time = time.time()
+    elapsed = current_time - _last_ai_request_time
+    
+    if elapsed < delay:
+        sleep_time = delay - elapsed
+        logger.debug(f"Throttling AI request: sleeping {sleep_time:.2f}s")
+        time.sleep(sleep_time)
+    
+    _last_ai_request_time = time.time()
+
 
 # Upload directory for photos
 # Media files are stored in /app/data/media to ensure they persist with the database
@@ -426,7 +493,7 @@ def classify_image_type(path: Path) -> str:
     return "default"
 
 
-def estimate_value_from_image(image_path: Path) -> tuple[Optional[float], Optional[str], Optional[str], Optional[str]]:
+def estimate_value_from_image(image_path: Path) -> Tuple[Optional[float], Optional[str], Optional[str], Optional[str]]:
     """
     Use Gemini AI to analyze an image (data tag or item photo) and extract:
     - Estimated value
@@ -434,13 +501,18 @@ def estimate_value_from_image(image_path: Path) -> tuple[Optional[float], Option
     - Serial number
     - Brand
     
+    Includes request throttling to avoid rate limits on free tier.
     Returns (estimated_value, model_number, serial_number, brand) or (None, None, None, None) if AI is not configured or fails.
+    Raises QuotaExceededError if Gemini API quota is exceeded.
     """
     if not settings.GEMINI_API_KEY or not settings.GEMINI_API_KEY.strip():
         return None, None, None, None
     
     try:
         import google.generativeai as genai
+        
+        # Throttle requests to avoid rate limits
+        throttle_ai_request()
         
         genai.configure(api_key=settings.GEMINI_API_KEY)
         
@@ -481,7 +553,6 @@ Example format:
         response_text = response.text
         
         # Parse the response
-        import json
         json_match = re.search(r'\{[\s\S]*\}', response_text)
         if json_match:
             parsed = json.loads(json_match.group())
@@ -506,6 +577,10 @@ Example format:
             return estimated_value, model_number, serial_number, brand
             
     except Exception as e:
+        # Check for quota exceeded error and re-raise
+        if is_quota_error(e):
+            logger.warning("Gemini API quota exceeded during image analysis")
+            raise QuotaExceededError(QUOTA_EXCEEDED_MESSAGE)
         logger.warning(f"Failed to estimate value from image: {e}")
     
     return None, None, None, None
@@ -520,13 +595,18 @@ def estimate_value_from_description(
     """
     Use Gemini AI to estimate the value of an item based on its name, brand, model, and description.
     
+    Includes request throttling to avoid rate limits on free tier.
     Returns the estimated value or None if AI is not configured or fails.
+    Raises QuotaExceededError if Gemini API quota is exceeded.
     """
     if not settings.GEMINI_API_KEY or not settings.GEMINI_API_KEY.strip():
         return None
     
     try:
         import google.generativeai as genai
+        
+        # Throttle requests to avoid rate limits
+        throttle_ai_request()
         
         genai.configure(api_key=settings.GEMINI_API_KEY)
         model = genai.GenerativeModel(settings.GEMINI_MODEL)
@@ -554,7 +634,6 @@ If you cannot make a reasonable estimate, return:
         response_text = response.text
         
         # Parse the response
-        import json
         json_match = re.search(r'\{[\s\S]*\}', response_text)
         if json_match:
             parsed = json.loads(json_match.group())
@@ -572,6 +651,10 @@ If you cannot make a reasonable estimate, return:
                     pass
                     
     except Exception as e:
+        # Check for quota exceeded error and re-raise
+        if is_quota_error(e):
+            logger.warning("Gemini API quota exceeded during description analysis")
+            raise QuotaExceededError(QUOTA_EXCEEDED_MESSAGE)
         logger.warning(f"Failed to estimate value from description: {e}")
     
     return None
@@ -587,6 +670,8 @@ class ImportResult:
         self.parent_location_name: Optional[str] = None
         self.errors: List[str] = []
         self.log: List[str] = []
+        self.warnings: List[str] = []  # Warnings that don't stop import (e.g., quota exceeded)
+        self.quota_exceeded: bool = False  # Track if AI quota was exceeded
 
 
 def process_encircle_import(
@@ -791,60 +876,72 @@ def process_encircle_import(
                 estimated_value = parse_currency(row[col_indices["estimated_value"]])
             
             # AI estimation: If estimated_value is None/blank, try to get it from AI
-            if estimated_value is None and image_paths:
-                # First, find data tag images for this item
-                if match_by_name:
-                    matched_images = match_images_by_name(image_paths, name)
-                    if not matched_images:
+            # Skip AI if quota was already exceeded in a previous item
+            if estimated_value is None and image_paths and not result.quota_exceeded:
+                try:
+                    # First, find data tag images for this item
+                    if match_by_name:
+                        matched_images = match_images_by_name(image_paths, name)
+                        if not matched_images:
+                            matched_images = match_images_by_number(image_paths, no)
+                    else:
                         matched_images = match_images_by_number(image_paths, no)
-                else:
-                    matched_images = match_images_by_number(image_paths, no)
-                
-                # Look for data tag photos first
-                data_tag_photos = [img for img in matched_images if classify_image_type(img) == "data_tag"]
-                
-                if data_tag_photos:
-                    # Try to get value from data tag photo
-                    for dt_photo in data_tag_photos:
-                        ai_value, ai_model, ai_serial, ai_brand = estimate_value_from_image(dt_photo)
-                        if ai_value is not None:
-                            estimated_value = ai_value
-                            estimated_value_ai_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
-                            result.log.append(f"  -> AI estimated value ${ai_value:.2f} from data tag photo")
-                            # Also update model/serial/brand if they were blank
-                            if not model_number and ai_model:
-                                model_number = ai_model
-                            if not serial_number and ai_serial:
-                                serial_number = ai_serial
-                            if not brand and ai_brand:
-                                brand = ai_brand
-                            break
-                
-                # If still no value, try any other matched photos
-                if estimated_value is None and matched_images:
-                    other_photos = [img for img in matched_images if classify_image_type(img) != "data_tag"]
-                    for photo in other_photos:
-                        ai_value, ai_model, ai_serial, ai_brand = estimate_value_from_image(photo)
-                        if ai_value is not None:
-                            estimated_value = ai_value
-                            estimated_value_ai_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
-                            result.log.append(f"  -> AI estimated value ${ai_value:.2f} from item photo")
-                            # Also update model/serial/brand if they were blank
-                            if not model_number and ai_model:
-                                model_number = ai_model
-                            if not serial_number and ai_serial:
-                                serial_number = ai_serial
-                            if not brand and ai_brand:
-                                brand = ai_brand
-                            break
+                    
+                    # Look for data tag photos first
+                    data_tag_photos = [img for img in matched_images if classify_image_type(img) == "data_tag"]
+                    
+                    if data_tag_photos:
+                        # Try to get value from data tag photo
+                        for dt_photo in data_tag_photos:
+                            ai_value, ai_model, ai_serial, ai_brand = estimate_value_from_image(dt_photo)
+                            if ai_value is not None:
+                                estimated_value = ai_value
+                                estimated_value_ai_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
+                                result.log.append(f"  -> AI estimated value ${ai_value:.2f} from data tag photo")
+                                # Also update model/serial/brand if they were blank
+                                if not model_number and ai_model:
+                                    model_number = ai_model
+                                if not serial_number and ai_serial:
+                                    serial_number = ai_serial
+                                if not brand and ai_brand:
+                                    brand = ai_brand
+                                break
+                    
+                    # If still no value, try any other matched photos
+                    if estimated_value is None and matched_images:
+                        other_photos = [img for img in matched_images if classify_image_type(img) != "data_tag"]
+                        for photo in other_photos:
+                            ai_value, ai_model, ai_serial, ai_brand = estimate_value_from_image(photo)
+                            if ai_value is not None:
+                                estimated_value = ai_value
+                                estimated_value_ai_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
+                                result.log.append(f"  -> AI estimated value ${ai_value:.2f} from item photo")
+                                # Also update model/serial/brand if they were blank
+                                if not model_number and ai_model:
+                                    model_number = ai_model
+                                if not serial_number and ai_serial:
+                                    serial_number = ai_serial
+                                if not brand and ai_brand:
+                                    brand = ai_brand
+                                break
+                except QuotaExceededError:
+                    result.quota_exceeded = True
+                    result.warnings.append(QUOTA_EXCEEDED_MESSAGE)
+                    result.log.append("⚠️ AI quota exceeded - continuing import without AI-assisted details")
             
             # If still no estimated value, try AI estimation from item details (best guess)
-            if estimated_value is None:
-                ai_value = estimate_value_from_description(name, brand, model_number, None)
-                if ai_value is not None:
-                    estimated_value = ai_value
-                    estimated_value_ai_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
-                    result.log.append(f"  -> AI estimated value ${ai_value:.2f} from item description")
+            # Skip AI if quota was already exceeded
+            if estimated_value is None and not result.quota_exceeded:
+                try:
+                    ai_value = estimate_value_from_description(name, brand, model_number, None)
+                    if ai_value is not None:
+                        estimated_value = ai_value
+                        estimated_value_ai_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
+                        result.log.append(f"  -> AI estimated value ${ai_value:.2f} from item description")
+                except QuotaExceededError:
+                    result.quota_exceeded = True
+                    result.warnings.append(QUOTA_EXCEEDED_MESSAGE)
+                    result.log.append("⚠️ AI quota exceeded - continuing import without AI-assisted details")
             
             # Build warranties list if warranty info is present
             warranties = None
@@ -961,6 +1058,13 @@ def process_encircle_import(
         result.log.append(f"Items without photos: {result.items_without_photos}")
         result.log.append(f"Parent locations created: {result.locations_created}")
         result.log.append(f"Sub-locations (rooms) created: {result.sublocations_created}")
+        
+        # Add quota warning if applicable
+        if result.quota_exceeded:
+            result.log.append("")
+            result.log.append("⚠️ Note: AI quota was exceeded during import.")
+            result.log.append("Items were imported using XLSX data only.")
+            result.log.append("Use 'Enrich from Data Tags' in User Settings to add AI-assisted details later.")
         
     except Exception as e:
         db.rollback()
@@ -1101,13 +1205,24 @@ async def import_encircle(
             }
         )
     
+    # Build appropriate message based on quota status
+    if result.quota_exceeded:
+        message = (
+            "Import completed with AI rate limit warning. "
+            "Items imported using XLSX data. Use 'Enrich from Data Tags' to add AI-assisted details later."
+        )
+    else:
+        message = "Import completed successfully"
+    
     return {
-        "message": "Import completed successfully",
+        "message": message,
         "items_created": result.items_created,
         "photos_attached": result.photos_attached,
         "items_without_photos": result.items_without_photos,
         "locations_created": result.locations_created,
         "sublocations_created": result.sublocations_created,
         "parent_location_name": result.parent_location_name,
-        "log": result.log
+        "log": result.log,
+        "warnings": result.warnings,
+        "quota_exceeded": result.quota_exceeded
     }
