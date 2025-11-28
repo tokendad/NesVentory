@@ -53,7 +53,8 @@ def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
     - Short username (e.g., "admin") - will match email starting with "username@"
     
     For short usernames, the lookup will find any user whose email starts with
-    the provided username followed by "@".
+    the provided username followed by "@". If multiple users match, returns None
+    to avoid unpredictable behavior.
     """
     # First try exact email match
     user = db.query(models.User).filter(models.User.email == email).first()
@@ -63,11 +64,21 @@ def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
     # If no @ symbol in the input, treat it as a short username
     # and search for any email that starts with "username@"
     if "@" not in email:
-        username_prefix = email + "@"
-        user = db.query(models.User).filter(
-            models.User.email.like(f"{username_prefix}%")
-        ).first()
-        return user
+        # Escape SQL LIKE wildcards in the username to prevent injection
+        escaped_username = email.replace("%", r"\%").replace("_", r"\_")
+        username_prefix = escaped_username + "@"
+        
+        # Query for matching users with escaped LIKE pattern
+        matching_users = db.query(models.User).filter(
+            models.User.email.like(f"{username_prefix}%", escape="\\")
+        ).all()
+        
+        # Only return a user if exactly one match is found
+        # Multiple matches would be ambiguous
+        if len(matching_users) == 1:
+            return matching_users[0]
+        
+        return None
     
     return None
 
