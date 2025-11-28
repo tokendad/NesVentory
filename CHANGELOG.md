@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.1.0] - 2025-11-28
+### Added
+- **Short Username Login Support** - Allow users to login with just their username instead of full email
+  - Users can now login with just "admin" instead of "admin@nesventory.local"
+  - Backend matches usernames by finding emails that start with "username@"
+  - Full email login still works for backward compatibility
+  - Updated login form to accept both username and email formats
+
+### Changed
+- Updated login form label from "Email" to "Username or Email"
+- Added placeholder text showing example formats
+- Bumped project version to 4.1.0
+
 ## [4.0.0] - 2025-11-26
 ### Added - Major Public Release
 This version marks the public release of NesVentory with comprehensive features and security improvements.

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import logging
 from typing import Optional
 
 import bcrypt
@@ -14,6 +15,7 @@ from . import models
 from .deps import get_db
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token", auto_error=False)
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
@@ -45,7 +47,48 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
-    return db.query(models.User).filter(models.User.email == email).first()
+    """
+    Look up a user by their email address or short username.
+    
+    Supports login with:
+    - Full email address (e.g., "admin@nesventory.local")
+    - Short username (e.g., "admin") - will match email starting with "username@"
+    
+    For short usernames, the lookup will find any user whose email starts with
+    the provided username followed by "@". If multiple users match, returns None
+    to avoid unpredictable behavior.
+    """
+    # First try exact email match
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if user:
+        return user
+    
+    # If no @ symbol in the input, treat it as a short username
+    # and search for any email that starts with "username@"
+    if "@" not in email:
+        # Escape SQL LIKE special characters in the username
+        # Order matters: escape backslash first, then wildcards
+        escaped_username = email.replace("\\", "\\\\").replace("%", r"\%").replace("_", r"\_")
+        username_prefix = escaped_username + "@"
+        
+        # Query for matching users with escaped LIKE pattern
+        matching_users = db.query(models.User).filter(
+            models.User.email.like(f"{username_prefix}%", escape="\\")
+        ).all()
+        
+        # Only return a user if exactly one match is found
+        # Multiple matches would be ambiguous
+        if len(matching_users) == 1:
+            return matching_users[0]
+        
+        if len(matching_users) > 1:
+            logger.warning(
+                f"Ambiguous username login: '{email}' matches {len(matching_users)} users"
+            )
+        
+        return None
+    
+    return None
 
 
 def get_user_by_api_key(db: Session, api_key: str) -> Optional[models.User]:

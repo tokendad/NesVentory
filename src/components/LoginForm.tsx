@@ -129,13 +129,14 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick }) => 
         </div>
         <form onSubmit={handleSubmit} className="login-form">
           <label className="field">
-            <span>Email</span>
+            <span>Username or Email</span>
             <input
-              type="email"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="username"
+              placeholder="username or user@example.com"
             />
           </label>
           <label className="field">
