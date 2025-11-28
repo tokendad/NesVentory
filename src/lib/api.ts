@@ -148,6 +148,7 @@ export interface Location {
   name: string;
   parent_id?: number | string | null;
   is_primary_location?: boolean;
+  is_container?: boolean;
   friendly_name?: string | null;
   description?: string | null;
   address?: string | null;
@@ -231,6 +232,7 @@ export interface LocationCreate {
   name: string;
   parent_id?: string | null;
   is_primary_location?: boolean;
+  is_container?: boolean;
   friendly_name?: string | null;
   description?: string | null;
   address?: string | null;

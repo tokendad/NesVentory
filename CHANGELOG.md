@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.2.0] - 2025-11-28
+### Added
+- **QR Code Label Printing for Locations** - Print QR code labels to affix to boxes, bins, and containers
+  - New "📱 QR" button on each location card for easy access to print QR labels
+  - QR codes link to the location page, displaying items when scanned
+  - Support for multiple label sizes: 2"x1", 2"x2", 4"x2", 4"x3", 4"x6"
+  - Designed for thermal label printers (Dymo, Brother, Zebra, etc.)
+  - Optional item list printed on the label showing container contents
+  - Seasonal holiday icons for decoration (Christmas, Halloween, Easter, etc.)
+  
+- **Container Location Type** - New `is_container` field for locations
+  - Mark locations as containers (boxes, bins, cases) for storing multiple items
+  - Visual "BOX" badge on container locations in the UI
+  - Form checkbox to designate a location as a container
+  - Container flag appears on QR labels when enabled
+
+### Changed
+- Updated Location model and API schemas to support `is_container` field
+- Added `qrcode` npm package for QR code generation
+- Bumped project version to 4.2.0
+
+### Planned
+- Android app support for scanning QR codes and viewing container contents
+
 ## [4.1.0] - 2025-11-28
 ### Added
 - **Short Username Login Support** - Allow users to login with just their username instead of full email

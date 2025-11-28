@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import type { Location, LocationCreate, Item } from "../lib/api";
 import { createLocation, updateLocation, deleteLocation } from "../lib/api";
+import QRLabelPrint from "./QRLabelPrint";
 
 interface LocationsPageProps {
   locations: Location[];
@@ -38,12 +39,15 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   // Track the selected location path (breadcrumb navigation)
   const [selectedPath, setSelectedPath] = useState<Location[]>([]);
+  // QR Label printing
+  const [showQRPrint, setShowQRPrint] = useState<Location | null>(null);
 
   // Form state
   const [formData, setFormData] = useState<LocationCreate>({
     name: "",
     parent_id: null,
     is_primary_location: false,
+    is_container: false,
     friendly_name: null,
     description: null,
     address: null,
@@ -133,6 +137,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
       name: "",
       parent_id: null,
       is_primary_location: false,
+      is_container: false,
       friendly_name: null,
       description: null,
       address: null,
@@ -159,6 +164,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
       name: location.name,
       parent_id: location.parent_id?.toString() || null,
       is_primary_location: location.is_primary_location || false,
+      is_container: location.is_container || false,
       friendly_name: location.friendly_name || null,
       description: location.description || null,
       address: location.address || null,
@@ -303,16 +309,10 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
                     {loc.friendly_name || loc.name}
                   </span>
                   {loc.is_primary_location && (
-                    <span style={{
-                      padding: "0.125rem 0.35rem",
-                      borderRadius: "4px",
-                      backgroundColor: "#4ecdc4",
-                      color: "#fff",
-                      fontSize: "0.65rem",
-                      fontWeight: "600"
-                    }}>
-                      HOME
-                    </span>
+                    <span className="location-badge home">HOME</span>
+                  )}
+                  {loc.is_container && (
+                    <span className="location-badge container">BOX</span>
                   )}
                 </div>
                 {loc.location_type && (
@@ -324,22 +324,41 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
                     {getLocationTypeLabel(loc.location_type)}
                   </div>
                 )}
-                <div style={{ display: "flex", gap: "0.75rem", fontSize: "0.8rem", color: "var(--muted)" }}>
-                  {childCount > 0 && (
-                    <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                      <span style={{ color: "var(--accent)" }} role="img" aria-label="Rooms">📁</span>
-                      {childCount} {childCount === 1 ? "room" : "rooms"}
-                    </span>
-                  )}
-                  {itemCount > 0 && (
-                    <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                      <span style={{ color: "var(--accent)" }} role="img" aria-label="Items">📦</span>
-                      {itemCount} {itemCount === 1 ? "item" : "items"}
-                    </span>
-                  )}
-                  {childCount === 0 && itemCount === 0 && (
-                    <span>Click to explore</span>
-                  )}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: "0.75rem", fontSize: "0.8rem", color: "var(--muted)" }}>
+                    {childCount > 0 && (
+                      <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                        <span style={{ color: "var(--accent)" }} role="img" aria-label="Rooms">📁</span>
+                        {childCount} {childCount === 1 ? "room" : "rooms"}
+                      </span>
+                    )}
+                    {itemCount > 0 && (
+                      <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                        <span style={{ color: "var(--accent)" }} role="img" aria-label="Items">📦</span>
+                        {itemCount} {itemCount === 1 ? "item" : "items"}
+                      </span>
+                    )}
+                    {childCount === 0 && itemCount === 0 && (
+                      <span>Click to explore</span>
+                    )}
+                  </div>
+                  <button
+                    className="btn-outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowQRPrint(loc);
+                    }}
+                    style={{ 
+                      fontSize: "0.7rem", 
+                      padding: "0.2rem 0.5rem",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.25rem"
+                    }}
+                    title="Print QR Label"
+                  >
+                    📱 QR
+                  </button>
                 </div>
               </div>
             );
@@ -628,6 +647,23 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
               </div>
 
               <div className="form-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    name="is_container"
+                    checked={formData.is_container || false}
+                    onChange={handleChange}
+                    disabled={formLoading}
+                  />
+                  <span>📦 Container (Box/Bin/Case with multiple items)</span>
+                </label>
+                <span className="help-text">
+                  Mark this location as a container for storing multiple items. 
+                  A QR code can be printed and affixed to the box.
+                </span>
+              </div>
+
+              <div className="form-group">
                 <label htmlFor="address">Address</label>
                 <input
                   type="text"
@@ -699,6 +735,15 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* QR Label Print Modal */}
+      {showQRPrint && (
+        <QRLabelPrint
+          location={showQRPrint}
+          items={getItemsAtLocation(showQRPrint.id)}
+          onClose={() => setShowQRPrint(null)}
+        />
       )}
     </>
   );

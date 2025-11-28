@@ -137,6 +137,9 @@ class Location(Base):
     # Flag for primary/main locations (homes)
     is_primary_location = Column(Boolean, default=False, nullable=False)
     
+    # Flag for container locations (boxes, bins, cases that contain multiple items)
+    is_container = Column(Boolean, default=False, nullable=False)
+    
     # New detail fields
     friendly_name = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)

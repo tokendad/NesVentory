@@ -1,8 +1,32 @@
 # NesVentory - Home Inventory Management System
 
-**Version: 4.0.0**
+**Version: 4.2.0**
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
+
+## 🚀 What's New in Version 4.2.0
+
+This release adds QR code label printing for locations and container support for boxes and bins.
+
+### ✨ Key Features in v4.2
+
+📱 **QR Code Label Printing**
+- Generate QR code labels for any location
+- Print labels for boxes, bins, and storage containers
+- Multiple label sizes supported (2"x1" to 4"x6")
+- Compatible with thermal label printers (Dymo, Brother, Zebra)
+- Optional item list printed on label
+- Seasonal holiday icons for decoration
+
+📦 **Container Location Support**
+- Mark locations as containers (boxes, bins, cases)
+- Visual "BOX" badge on container locations
+- Scan QR code to see all items in a container
+- Perfect for seasonal storage organization
+
+🤖 **Android App Support (Planned)**
+- Future support for scanning QR codes via mobile app
+- Quick container contents viewing on the go
 
 ## 🚀 What's New in Version 4.0.0
 
@@ -60,6 +84,8 @@ This is a major release preparing NesVentory for public release with comprehensi
 - 📷 **AI Photo Detection** - Scan rooms with AI to detect and add items automatically
 - 🤖 **AI Data Tag Parsing** - Extract product info from data tag photos
 - 📍 **Location Hierarchy** - Organize items by rooms and sub-locations
+- 📱 **QR Code Labels** - Print QR labels for locations and containers
+- 📦 **Container Support** - Mark locations as boxes/bins for seasonal storage
 - 🏘️ **Multi-Property Support** - Manage multiple homes and multi-family properties
 - 👥 **Landlord/Tenant Management** - Track landlord and tenant info for rental properties
 - 📥 **Encircle Import** - Import items and photos from Encircle XLSX exports

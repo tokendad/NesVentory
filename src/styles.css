@@ -2067,3 +2067,152 @@ tbody tr:hover {
   gap: 0.5rem;
 }
 
+/* QR Label Print Styles */
+.qr-options {
+  margin-bottom: 1.5rem;
+}
+
+.qr-preview-section {
+  margin-bottom: 1.5rem;
+}
+
+.qr-preview-section h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.qr-label-preview {
+  background: #fff;
+  border: 2px dashed var(--border-subtle);
+  border-radius: 0.5rem;
+  padding: 8px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.qr-label-preview .label-container {
+  display: flex;
+  gap: 10px;
+  height: 100%;
+}
+
+.qr-label-preview .qr-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-label-preview .qr-code {
+  max-width: 120px;
+  max-height: 120px;
+}
+
+.qr-label-preview .qr-loading {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.qr-label-preview .info-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #000;
+}
+
+.qr-label-preview .location-name {
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #000;
+}
+
+.qr-label-preview .location-type {
+  font-size: 10px;
+  color: #666;
+  margin-bottom: 4px;
+  text-transform: capitalize;
+}
+
+.qr-label-preview .holiday-icon {
+  font-size: 16px;
+}
+
+.qr-label-preview .items-list {
+  font-size: 9px;
+  line-height: 1.3;
+  overflow: hidden;
+  flex: 1;
+  color: #333;
+}
+
+.qr-label-preview .items-list-title {
+  font-weight: bold;
+  margin-bottom: 2px;
+  font-size: 10px;
+  color: #000;
+}
+
+.qr-label-preview .item-entry {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qr-label-preview .container-badge {
+  background: #4ecdc4;
+  color: white;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 8px;
+  font-weight: bold;
+}
+
+.label-printer-info {
+  background: var(--bg-elevated-softer);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.label-printer-info h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.label-printer-info ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.label-printer-info li {
+  margin-bottom: 0.25rem;
+}
+
+/* Location card badges */
+.location-badge {
+  padding: 0.125rem 0.35rem;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.location-badge.home {
+  background-color: #4ecdc4;
+}
+
+.location-badge.container {
+  background-color: #f59e0b;
+}
+
