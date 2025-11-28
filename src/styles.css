@@ -2199,3 +2199,20 @@ tbody tr:hover {
   margin-bottom: 0.25rem;
 }
 
+/* Location card badges */
+.location-badge {
+  padding: 0.125rem 0.35rem;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.location-badge.home {
+  background-color: #4ecdc4;
+}
+
+.location-badge.container {
+  background-color: #f59e0b;
+}
+

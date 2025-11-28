@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import QRCode from "qrcode";
 import type { Location, Item } from "../lib/api";
 
@@ -42,6 +42,22 @@ const LABEL_SIZES = [
   { value: "4x6", label: '4" x 6" (Shipping)', width: 384, height: 576 },
 ];
 
+// Max items per label size
+const LABEL_MAX_ITEMS: Record<string, number> = {
+  "2x1": 0,
+  "2x2": 3,
+  "4x2": 5,
+  "4x3": 8,
+  "4x6": 10,
+};
+
+// HTML escape function for security
+const escapeHtml = (text: string): string => {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+};
+
 const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
   location,
   items,
@@ -52,7 +68,13 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
   const [selectedHoliday, setSelectedHoliday] = useState("none");
   const [selectedSize, setSelectedSize] = useState("4x2");
   const [loading, setLoading] = useState(true);
+  const [printError, setPrintError] = useState<string | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+
+  // Memoize label size to avoid repeated lookups
+  const labelSize = useMemo(() => {
+    return LABEL_SIZES.find((s) => s.value === selectedSize);
+  }, [selectedSize]);
 
   // Generate the URL that the QR code will point to
   const getLocationUrl = () => {
@@ -91,19 +113,19 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      alert("Please allow pop-ups to print the label.");
+      setPrintError("Please allow pop-ups to print the label.");
       return;
     }
 
-    const labelSize = LABEL_SIZES.find((s) => s.value === selectedSize);
     const width = labelSize?.width || 384;
     const height = labelSize?.height || 192;
+    const escapedTitle = escapeHtml(location.friendly_name || location.name);
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>QR Label - ${location.friendly_name || location.name}</title>
+          <title>QR Label - ${escapedTitle}</title>
           <style>
             @page {
               size: ${width / 96}in ${height / 96}in;
@@ -208,11 +230,10 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
     }, 250);
   };
 
-  const labelSize = LABEL_SIZES.find((s) => s.value === selectedSize);
   const holidayIcon = HOLIDAY_ICONS[selectedHoliday];
 
-  // Limit items shown based on label size
-  const maxItems = selectedSize === "2x1" ? 0 : selectedSize === "2x2" ? 3 : selectedSize === "4x2" ? 5 : 10;
+  // Limit items shown based on label size using lookup table
+  const maxItems = LABEL_MAX_ITEMS[selectedSize] || 5;
   const displayItems = items.slice(0, maxItems);
   const hasMoreItems = items.length > maxItems;
 
@@ -225,6 +246,19 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
             ✕
           </button>
         </div>
+
+        {/* Error Message */}
+        {printError && (
+          <div className="error-banner">
+            {printError}
+            <button 
+              onClick={() => setPrintError(null)}
+              style={{ marginLeft: "0.5rem", background: "none", border: "none", color: "inherit", cursor: "pointer" }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Options */}
         <div className="qr-options">

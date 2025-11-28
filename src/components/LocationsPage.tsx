@@ -309,28 +309,10 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
                     {loc.friendly_name || loc.name}
                   </span>
                   {loc.is_primary_location && (
-                    <span style={{
-                      padding: "0.125rem 0.35rem",
-                      borderRadius: "4px",
-                      backgroundColor: "#4ecdc4",
-                      color: "#fff",
-                      fontSize: "0.65rem",
-                      fontWeight: "600"
-                    }}>
-                      HOME
-                    </span>
+                    <span className="location-badge home">HOME</span>
                   )}
                   {loc.is_container && (
-                    <span style={{
-                      padding: "0.125rem 0.35rem",
-                      borderRadius: "4px",
-                      backgroundColor: "#f59e0b",
-                      color: "#fff",
-                      fontSize: "0.65rem",
-                      fontWeight: "600"
-                    }}>
-                      BOX
-                    </span>
+                    <span className="location-badge container">BOX</span>
                   )}
                 </div>
                 {loc.location_type && (
