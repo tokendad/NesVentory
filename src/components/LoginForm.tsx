@@ -136,7 +136,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick }) => 
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="username"
-              placeholder="admin or admin@nesventory.local"
+              placeholder="username or user@example.com"
             />
           </label>
           <label className="field">
