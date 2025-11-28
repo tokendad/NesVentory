@@ -82,8 +82,8 @@ jobs:
           features=$(git log $log_range --pretty=format:"%s" 2>/dev/null | grep -E '^feat(\(.+\))?:' | sed 's/^feat(\([^)]*\)): /- **\1**: /' | sed 's/^feat: /- /' || true)
           fixes=$(git log $log_range --pretty=format:"%s" 2>/dev/null | grep -E '^fix(\(.+\))?:' | sed 's/^fix(\([^)]*\)): /- **\1**: /' | sed 's/^fix: /- /' || true)
           breaking=$(git log $log_range --pretty=format:"%s" 2>/dev/null | grep -iE '^(breaking change|BREAKING CHANGE)' || true)
-          deps=$(git log $log_range --pretty=format:"%s" 2>/dev/null | grep -iE '^(chore\(deps\)|build\(deps\)|Bump .+ from .+ to)' | head -20 || true)
-          security=$(git log $log_range --pretty=format:"%s" 2>/dev/null | grep -iE '^(security|fix\(security\))' || true)
+          deps=$(git log $log_range --pretty=format:"%s" 2>/dev/null | grep -iE '^(chore\(deps\)|build\(deps\)|Bump .+ from .+ to)' | sed 's/^chore(deps): //' | sed 's/^build(deps): //' | head -20 || true)
+          security=$(git log $log_range --pretty=format:"%s" 2>/dev/null | grep -iE '^(security|fix\(security\))' | sed 's/^security: //' | sed 's/^fix(security): //' || true)
           
           # Add New Features section
           if [ -n "$features" ]; then

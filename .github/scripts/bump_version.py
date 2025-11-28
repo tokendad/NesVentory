@@ -23,19 +23,23 @@ def main():
     with open(version_file, 'r') as f:
         version = f.read().strip()
 
-    # Parse version (expected format: MAJOR.MINOR.PATCH)
-    parts = version.split('.')
+    # Parse version (expected format: MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-suffix)
+    # Split on first hyphen to separate version from suffix
+    if '-' in version:
+        version_part, suffix = version.split('-', 1)
+        suffix = '-' + suffix
+    else:
+        version_part = version
+        suffix = ''
+
+    parts = version_part.split('.')
     if len(parts) < 3:
         print(f"Error: Version must be MAJOR.MINOR.PATCH format, got: {version}")
         sys.exit(1)
 
     major = int(parts[0])
     minor = int(parts[1])
-    
-    # Handle patch with possible suffix (e.g., 1.0.0-alpha)
-    patch_parts = parts[2].split('-')
-    patch = int(patch_parts[0])
-    suffix = '-' + patch_parts[1] if len(patch_parts) > 1 else ''
+    patch = int(parts[2])
 
     # Bump version based on label type
     if label_type == 'bug':
