@@ -700,7 +700,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                             <span className="field-value">{barcodeResult.description}</span>
                           </div>
                         )}
-                        {barcodeResult.estimated_value !== null && barcodeResult.estimated_value !== undefined && (
+                        {barcodeResult.estimated_value != null && (
                           <div className="barcode-result-field">
                             <span className="field-label">Est. Value:</span>
                             <span className="field-value">${barcodeResult.estimated_value.toLocaleString()}</span>

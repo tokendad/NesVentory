@@ -747,8 +747,13 @@ async def lookup_barcode(
             detail="UPC code is required."
         )
     
-    # UPC codes are typically 8, 12, 13, or 14 digits
-    # Remove any hyphens or spaces
+    # UPC codes come in various formats:
+    # - UPC-A: 12 digits (most common in North America)
+    # - UPC-E: 6-8 digits (compressed UPC-A)
+    # - EAN-8: 8 digits (European)
+    # - EAN-13: 13 digits (International)
+    # - GTIN-14: 14 digits (Global Trade Item Number)
+    # Remove any hyphens or spaces for validation
     upc_clean = re.sub(r'[\s\-]', '', upc)
     if not upc_clean.isdigit() or len(upc_clean) < 6 or len(upc_clean) > 14:
         raise HTTPException(
@@ -786,12 +791,12 @@ Return ONLY a JSON object with these fields. Use null for any field that cannot 
 Example format if product is found:
 {{
   "found": true,
-  "name": "Sony WH-1000XM4 Wireless Headphones",
-  "brand": "Sony",
-  "description": "Premium noise-canceling Bluetooth headphones with 30-hour battery life",
-  "model_number": "WH-1000XM4",
+  "name": "Wireless Bluetooth Headphones Model ABC-123",
+  "brand": "Brand Name",
+  "description": "Over-ear wireless headphones with noise cancellation",
+  "model_number": "ABC-123",
   "category": "Electronics",
-  "estimated_value": 280
+  "estimated_value": 150
 }}
 
 Example format if product is NOT found:
