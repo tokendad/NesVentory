@@ -150,6 +150,10 @@ body {
   justify-content: stretch;
 }
 
+.app-root > * {
+  width: 100%;
+}
+
 .app-shell {
   display: flex;
   flex-direction: column;
@@ -512,7 +516,9 @@ tbody tr:hover {
   align-items: center;
   justify-content: center;
   width: 100%;
+  min-height: 100vh;
   padding: 2rem 1rem;
+  box-sizing: border-box;
 }
 
 .login-card {
