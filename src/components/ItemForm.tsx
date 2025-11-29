@@ -438,6 +438,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
     // Parse the barcode from the image
     setScanningBarcode(true);
     setError(null);
+    setBarcodeResult(null);
     
     try {
       const result = await scanBarcodeImage(file);
@@ -448,13 +449,28 @@ const ItemForm: React.FC<ItemFormProps> = ({
           ...prev,
           upc: scannedUpc
         }));
+        
+        // Automatically look up product info for the scanned barcode
+        setScanningBarcode(false);  // Update state to show we're now looking up
+        setLookingUpBarcode(true);
+        
+        try {
+          const lookupResult = await lookupBarcode(scannedUpc);
+          setBarcodeResult(lookupResult);  // Show results for user to accept/reject
+        } catch (lookupErr: any) {
+          // If lookup fails, we still have the UPC in the field
+          setError(lookupErr.message || "Barcode scanned but product lookup failed");
+        } finally {
+          setLookingUpBarcode(false);
+        }
       } else {
         setError("Could not read barcode from image. Please try again with a clearer photo.");
+        setScanningBarcode(false);
       }
     } catch (err: any) {
       setError(err.message || "Failed to scan barcode image");
-    } finally {
       setScanningBarcode(false);
+    } finally {
       // Reset the input so the same file can be selected again
       if (barcodeScanInputRef.current) {
         barcodeScanInputRef.current.value = "";
@@ -750,7 +766,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                 )}
               </div>
               {aiStatus?.enabled && (
-                <span className="help-text">Tap 📷 to scan barcode with camera, or enter manually and use AI Scan</span>
+                <span className="help-text">Tap 📷 to scan barcode and auto-lookup product info</span>
               )}
             </div>
           </div>
