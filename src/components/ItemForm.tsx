@@ -443,9 +443,10 @@ const ItemForm: React.FC<ItemFormProps> = ({
       const result = await scanBarcodeImage(file);
       if (result.found && result.upc) {
         // Update the UPC field with the scanned value
+        const scannedUpc = result.upc;  // Capture in local variable for closure
         setFormData(prev => ({
           ...prev,
-          upc: result.upc || ""
+          upc: scannedUpc
         }));
       } else {
         setError("Could not read barcode from image. Please try again with a clearer photo.");

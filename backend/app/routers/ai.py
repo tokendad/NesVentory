@@ -94,6 +94,12 @@ ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
 MIN_ITEM_NAME_LENGTH = 2
 MAX_ITEM_NAME_LENGTH = 100
 
+# UPC/barcode length constraints
+# UPC-E: 6-8 digits (compressed), UPC-A: 12 digits, EAN-8: 8 digits
+# EAN-13: 13 digits, GTIN-14: 14 digits
+MIN_UPC_LENGTH = 6
+MAX_UPC_LENGTH = 14
+
 
 class DetectedItem(BaseModel):
     """Schema for a detected item from AI analysis."""
@@ -876,12 +882,11 @@ def parse_barcode_scan_response(response_text: str) -> BarcodeScanResult:
             parsed = json.loads(json_str)
             
             if isinstance(parsed, dict):
-                # Check if barcode was found
+                # Check if barcode was found - handle both boolean and string "true"/"false"
                 found = parsed.get("found", False)
-                if found is True or (isinstance(found, str) and found.lower() == "true"):
-                    result.found = True
-                else:
-                    result.found = False
+                result.found = found is True or (isinstance(found, str) and found.lower() == "true")
+                
+                if not result.found:
                     result.raw_response = response_text
                     return result
                 
@@ -894,11 +899,11 @@ def parse_barcode_scan_response(response_text: str) -> BarcodeScanResult:
                     None
                 )
                 
-                # Clean and validate the UPC
+                # Clean and validate the UPC using constants
                 if upc:
                     # Remove any non-digit characters
                     upc_clean = re.sub(r'[^\d]', '', str(upc))
-                    if upc_clean and len(upc_clean) >= 6 and len(upc_clean) <= 14:
+                    if upc_clean and MIN_UPC_LENGTH <= len(upc_clean) <= MAX_UPC_LENGTH:
                         result.upc = upc_clean
                     else:
                         result.found = False
