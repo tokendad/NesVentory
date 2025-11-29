@@ -1,0 +1,27 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: nesventory-pdb
+  namespace: nesventory
+  labels:
+    app.kubernetes.io/name: nesventory
+    app.kubernetes.io/component: availability
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: nesventory
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgres-pdb
+  namespace: nesventory
+  labels:
+    app.kubernetes.io/name: nesventory
+    app.kubernetes.io/component: database
+spec:
+  minAvailable: 2  # Ensure at least 2 PostgreSQL pods are always available
+  selector:
+    matchLabels:
+      app: postgres-ha
