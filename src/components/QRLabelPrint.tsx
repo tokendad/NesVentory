@@ -2,10 +2,20 @@ import React, { useEffect, useState, useRef, useMemo } from "react";
 import QRCode from "qrcode";
 import type { Location, Item } from "../lib/api";
 
+// Print mode options
+export type PrintMode = "qr_only" | "qr_with_items" | "items_only";
+
+export const PRINT_MODE_OPTIONS: { value: PrintMode; label: string }[] = [
+  { value: "qr_only", label: "Print QR Code Only" },
+  { value: "qr_with_items", label: "Print QR Code with Item List" },
+  { value: "items_only", label: "Print Item List Only" },
+];
+
 interface QRLabelPrintProps {
   location: Location;
   items: Item[];
   onClose: () => void;
+  initialPrintMode?: PrintMode;
 }
 
 // Seasonal holiday icons
@@ -62,9 +72,10 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
   location,
   items,
   onClose,
+  initialPrintMode,
 }) => {
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
-  const [showItemList, setShowItemList] = useState(true);
+  const [printMode, setPrintMode] = useState<PrintMode>(initialPrintMode || "qr_with_items");
   const [selectedHoliday, setSelectedHoliday] = useState("none");
   const [selectedSize, setSelectedSize] = useState("4x2");
   const [loading, setLoading] = useState(true);
@@ -241,7 +252,7 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content large" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Print QR Label</h2>
+          <h2>Print Label</h2>
           <button className="modal-close" onClick={onClose}>
             ✕
           </button>
@@ -302,14 +313,21 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
 
           {items.length > 0 && selectedSize !== "2x1" && (
             <div className="form-group">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={showItemList}
-                  onChange={(e) => setShowItemList(e.target.checked)}
-                />
-                <span>Include item list on label</span>
-              </label>
+              <label htmlFor="printMode">Print Mode</label>
+              <select
+                id="printMode"
+                value={printMode}
+                onChange={(e) => setPrintMode(e.target.value as PrintMode)}
+              >
+                {PRINT_MODE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <span className="help-text">
+                Choose what to include on the label
+              </span>
             </div>
           )}
         </div>
@@ -328,13 +346,15 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
             }}
           >
             <div ref={printRef} className="label-container">
-              <div className="qr-section">
-                {loading ? (
-                  <div className="qr-loading">Generating...</div>
-                ) : (
-                  <img src={qrDataUrl} alt="QR Code" className="qr-code" />
-                )}
-              </div>
+              {printMode !== "items_only" && (
+                <div className="qr-section">
+                  {loading ? (
+                    <div className="qr-loading">Generating...</div>
+                  ) : (
+                    <img src={qrDataUrl} alt="QR Code" className="qr-code" />
+                  )}
+                </div>
+              )}
               <div className="info-section">
                 <div className="location-name">
                   {holidayIcon && <span className="holiday-icon">{holidayIcon}</span>}
@@ -348,12 +368,12 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
                     {location.location_type.replace(/_/g, " ")}
                   </div>
                 )}
-                {showItemList && displayItems.length > 0 && (
+                {printMode !== "qr_only" && displayItems.length > 0 && (
                   <div className="items-list">
                     <div className="items-list-title">
                       Contents ({items.length} item{items.length !== 1 ? "s" : ""}):
                     </div>
-                    {displayItems.map((item, index) => (
+                    {displayItems.map((item) => (
                       <div key={item.id} className="item-entry">
                         • {item.name}
                         {item.brand && ` (${item.brand})`}
@@ -389,7 +409,7 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
           <button
             className="btn-primary"
             onClick={handlePrint}
-            disabled={loading}
+            disabled={printMode !== "items_only" && loading}
           >
             🖨️ Print Label
           </button>

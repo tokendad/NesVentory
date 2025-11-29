@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import type { Location, LocationCreate, Item } from "../lib/api";
 import { createLocation, updateLocation, deleteLocation } from "../lib/api";
-import QRLabelPrint from "./QRLabelPrint";
+import QRLabelPrint, { PRINT_MODE_OPTIONS, type PrintMode } from "./QRLabelPrint";
 
 interface LocationsPageProps {
   locations: Location[];
@@ -41,6 +41,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
   const [selectedPath, setSelectedPath] = useState<Location[]>([]);
   // QR Label printing
   const [showQRPrint, setShowQRPrint] = useState<Location | null>(null);
+  const [printModeFromEdit, setPrintModeFromEdit] = useState<PrintMode>("qr_with_items");
 
   // Form state
   const [formData, setFormData] = useState<LocationCreate>({
@@ -719,6 +720,52 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
                 </div>
               </div>
 
+              {/* Print Label Section - Only show when editing */}
+              {editingLocation && (
+                <div className="form-group" style={{ 
+                  marginTop: "1rem", 
+                  padding: "1rem", 
+                  borderRadius: "0.5rem",
+                  background: "rgba(78, 205, 196, 0.1)",
+                  border: "1px solid rgba(78, 205, 196, 0.3)"
+                }}>
+                  <label style={{ fontWeight: 500, marginBottom: "0.5rem", display: "block" }}>
+                    🖨️ Print Label
+                  </label>
+                  <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-end" }}>
+                    <div style={{ flex: 1 }}>
+                      <select
+                        id="printMode"
+                        value={printModeFromEdit}
+                        onChange={(e) => setPrintModeFromEdit(e.target.value as PrintMode)}
+                        disabled={formLoading}
+                        style={{ width: "100%" }}
+                      >
+                        {PRINT_MODE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-outline"
+                      onClick={() => {
+                        setShowQRPrint(editingLocation);
+                      }}
+                      disabled={formLoading}
+                      style={{ whiteSpace: "nowrap" }}
+                    >
+                      🖨️ Print
+                    </button>
+                  </div>
+                  <span className="help-text" style={{ marginTop: "0.5rem", display: "block" }}>
+                    Print a label for this location with your selected content
+                  </span>
+                </div>
+              )}
+
               <div className="form-actions">
                 <button
                   type="button"
@@ -743,6 +790,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
           location={showQRPrint}
           items={getItemsAtLocation(showQRPrint.id)}
           onClose={() => setShowQRPrint(null)}
+          initialPrintMode={printModeFromEdit}
         />
       )}
     </>
