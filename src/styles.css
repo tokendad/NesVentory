@@ -1304,6 +1304,93 @@ tbody tr:hover {
   padding: 0.4rem 0.75rem;
 }
 
+/* Barcode/UPC Lookup Styles */
+.upc-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.upc-input-wrapper input[type="text"] {
+  flex: 1;
+}
+
+.btn-barcode-lookup {
+  white-space: nowrap;
+  font-size: 0.8rem !important;
+  padding: 0.4rem 0.75rem !important;
+  background: rgba(56, 189, 248, 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-barcode-lookup:hover:not(:disabled) {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.btn-barcode-lookup:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.barcode-lookup-result {
+  margin-top: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 0.5rem;
+}
+
+.barcode-lookup-result h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  color: var(--accent);
+}
+
+.barcode-result-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.barcode-result-field {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.barcode-result-field .field-label {
+  font-weight: 500;
+  color: var(--muted);
+  min-width: 100px;
+}
+
+.barcode-result-field .field-value {
+  color: var(--text);
+  word-break: break-word;
+}
+
+.barcode-result-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.barcode-result-actions button {
+  font-size: 0.85rem;
+  padding: 0.4rem 0.75rem;
+}
+
+.no-result-message {
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin: 0 0 1rem 0;
+}
+
 .photo-previews {
   margin-top: 1rem;
 }
