@@ -151,7 +151,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
   return (
     <section className="panel">
       <div className="panel-header panel-header-left">
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
           {isSomeSelected && (
             <>
               <button 
