@@ -48,7 +48,7 @@ metadata:
     app.kubernetes.io/name: nesventory
     app.kubernetes.io/component: database
 spec:
-  serviceName: postgres-ha
+  serviceName: postgres-ha-headless  # Reference headless service for proper DNS resolution
   replicas: 3  # HA configuration with 3 replicas
   selector:
     matchLabels:

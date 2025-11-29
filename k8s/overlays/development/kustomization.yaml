@@ -41,14 +41,14 @@ patches:
         path: /spec/maxReplicas
         value: 3
 
-  # Adjust PDB for single instance
+  # Adjust PDB for single instance - keep at least 1 available to prevent data loss
   - target:
       kind: PodDisruptionBudget
       name: postgres-pdb
     patch: |
       - op: replace
         path: /spec/minAvailable
-        value: 0
+        value: 1
 
 labels:
   - pairs:

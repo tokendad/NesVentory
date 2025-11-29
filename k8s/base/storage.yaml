@@ -14,20 +14,5 @@ spec:
       storage: 10Gi
   # Uncomment and set your storage class if needed
   # storageClassName: standard
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: postgres-data-pvc
-  namespace: nesventory
-  labels:
-    app.kubernetes.io/name: nesventory
-    app.kubernetes.io/component: database
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 20Gi
-  # Uncomment and set your storage class if needed
-  # storageClassName: standard
+# Note: PostgreSQL storage is managed via volumeClaimTemplates in postgres.yaml StatefulSet
+# Each replica gets its own PVC automatically (postgres-data-postgres-ha-0, etc.)
