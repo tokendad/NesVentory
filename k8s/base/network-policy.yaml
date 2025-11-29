@@ -1,0 +1,108 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: nesventory-network-policy
+  namespace: nesventory
+  labels:
+    app.kubernetes.io/name: nesventory
+    app.kubernetes.io/component: security
+spec:
+  podSelector:
+    matchLabels:
+      app: nesventory
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow ingress from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8001
+    # Allow internal communication within namespace
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8001
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow PostgreSQL connections within namespace
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres-ha
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow external HTTPS (for AI API calls)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-network-policy
+  namespace: nesventory
+  labels:
+    app.kubernetes.io/name: nesventory
+    app.kubernetes.io/component: security
+spec:
+  podSelector:
+    matchLabels:
+      app: postgres-ha
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only allow connections from nesventory app
+    - from:
+        - podSelector:
+            matchLabels:
+              app: nesventory
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow replication between PostgreSQL pods
+    - from:
+        - podSelector:
+            matchLabels:
+              app: postgres-ha
+      ports:
+        - protocol: TCP
+          port: 5432
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Allow replication between PostgreSQL pods
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres-ha
+      ports:
+        - protocol: TCP
+          port: 5432

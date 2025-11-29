@@ -1,0 +1,180 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+  namespace: nesventory
+  labels:
+    app.kubernetes.io/name: nesventory
+    app.kubernetes.io/component: database
+data:
+  init-db.sh: |
+    #!/bin/bash
+    set -e
+
+    # Create the nesventory database and user
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
+        -- Create nesventory user if not exists
+        DO \$\$
+        BEGIN
+            IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'nesventory') THEN
+                CREATE USER nesventory WITH PASSWORD '$NESVENTORY_PASSWORD';
+            END IF;
+        END
+        \$\$;
+
+        -- Create nesventory database if not exists
+        SELECT 'CREATE DATABASE nesventory OWNER nesventory'
+        WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'nesventory')\gexec
+
+        -- Grant all privileges
+        GRANT ALL PRIVILEGES ON DATABASE nesventory TO nesventory;
+    EOSQL
+
+    # Connect to nesventory database and grant schema privileges
+    psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "nesventory" <<-EOSQL
+        GRANT ALL ON SCHEMA public TO nesventory;
+        GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO nesventory;
+        GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO nesventory;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON TABLES TO nesventory;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL PRIVILEGES ON SEQUENCES TO nesventory;
+    EOSQL
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-ha
+  namespace: nesventory
+  labels:
+    app.kubernetes.io/name: nesventory
+    app.kubernetes.io/component: database
+spec:
+  serviceName: postgres-ha-headless  # Reference headless service for proper DNS resolution
+  replicas: 3  # HA configuration with 3 replicas
+  selector:
+    matchLabels:
+      app: postgres-ha
+  template:
+    metadata:
+      labels:
+        app: postgres-ha
+        app.kubernetes.io/name: nesventory
+        app.kubernetes.io/component: database
+    spec:
+      securityContext:
+        fsGroup: 999  # postgres group
+      initContainers:
+        - name: init-permissions
+          image: busybox:1.37
+          command: ['sh', '-c', 'chown -R 999:999 /var/lib/postgresql/data || true']
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_DB
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: POSTGRES_PASSWORD
+            - name: NESVENTORY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secrets
+                  key: NESVENTORY_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+      volumes:
+        - name: init-scripts
+          configMap:
+            name: postgres-init-scripts
+            defaultMode: 0755
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+        labels:
+          app.kubernetes.io/name: nesventory
+          app.kubernetes.io/component: database
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-ha
+  namespace: nesventory
+  labels:
+    app.kubernetes.io/name: nesventory
+    app.kubernetes.io/component: database
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+      name: postgres
+  selector:
+    app: postgres-ha
+---
+# Headless service for StatefulSet DNS resolution
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-ha-headless
+  namespace: nesventory
+  labels:
+    app.kubernetes.io/name: nesventory
+    app.kubernetes.io/component: database
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+      name: postgres
+  selector:
+    app: postgres-ha

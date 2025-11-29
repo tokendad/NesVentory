@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nesventory-config
+  namespace: nesventory
+  labels:
+    app.kubernetes.io/name: nesventory
+    app.kubernetes.io/component: config
+data:
+  # Application settings
+  PROJECT_NAME: "NesVentory"
+  APP_PORT: "8001"
+  TZ: "Etc/UTC"
+
+  # Database connection settings (PostgreSQL HA)
+  DB_HOST: "postgres-ha"
+  DB_PORT: "5432"
+  DB_NAME: "nesventory"
+  DB_USER: "nesventory"
+
+  # JWT settings
+  JWT_ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "1440"
+
+  # AI settings (optional - leave empty to disable)
+  GEMINI_MODEL: "gemini-2.0-flash"
+  GEMINI_REQUEST_DELAY: "4.0"
+
+  # CORS settings (update with your domain)
+  CORS_ORIGINS: ""

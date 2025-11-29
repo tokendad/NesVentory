@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: nesventory-base
+
+namespace: nesventory
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - storage.yaml
+  - postgres.yaml
+  - deployment.yaml
+  - hpa.yaml
+  - ingress.yaml
+  - network-policy.yaml
+  - pdb.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/managed-by: kustomize
+      app.kubernetes.io/part-of: nesventory

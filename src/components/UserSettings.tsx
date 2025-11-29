@@ -32,6 +32,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
   
   // AI Schedule states
   const [aiStatus, setAIStatus] = useState<AIStatusResponse | null>(null);
+  const [aiStatusLoading, setAIStatusLoading] = useState(true);
   const [aiScheduleEnabled, setAIScheduleEnabled] = useState(user.ai_schedule_enabled ?? false);
   const [aiScheduleInterval, setAIScheduleInterval] = useState(user.ai_schedule_interval_days ?? 7);
   const [aiScheduleLoading, setAIScheduleLoading] = useState(false);
@@ -51,6 +52,8 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
         setAIStatus(status);
       } catch {
         setAIStatus({ enabled: false });
+      } finally {
+        setAIStatusLoading(false);
       }
     }
     checkAIStatus();
@@ -335,7 +338,17 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
               Automatically update estimated values for all items using AI. Items with user-supplied values will be skipped.
             </small>
             
-            {!aiStatus?.enabled ? (
+            {aiStatusLoading ? (
+              <div style={{ 
+                backgroundColor: "#e3f2fd", 
+                border: "1px solid #64b5f6", 
+                borderRadius: "4px", 
+                padding: "0.75rem",
+                marginBottom: "0.5rem"
+              }}>
+                <strong style={{ color: "#1565c0" }}>⏳ Checking AI configuration...</strong>
+              </div>
+            ) : !aiStatus?.enabled ? (
               <div style={{ 
                 backgroundColor: "#fff3e0", 
                 border: "1px solid #ffb74d", 

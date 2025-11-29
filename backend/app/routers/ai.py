@@ -130,6 +130,24 @@ class DataTagInfo(BaseModel):
     raw_response: Optional[str] = None
 
 
+class BarcodeLookupRequest(BaseModel):
+    """Schema for barcode lookup request."""
+    upc: str
+
+
+class BarcodeLookupResult(BaseModel):
+    """Schema for barcode lookup response."""
+    found: bool
+    name: Optional[str] = None
+    description: Optional[str] = None
+    brand: Optional[str] = None
+    model_number: Optional[str] = None
+    estimated_value: Optional[float] = None
+    estimation_date: Optional[str] = None  # Date when AI estimated the value (MM/DD/YY format)
+    category: Optional[str] = None
+    raw_response: Optional[str] = None
+
+
 def parse_gemini_response(response_text: str) -> List[DetectedItem]:
     """
     Parse the Gemini response text into a list of DetectedItem objects.
@@ -603,6 +621,235 @@ If no data tag information can be read from the image, return:
         raise HTTPException(
             status_code=500,
             detail="Failed to analyze data tag image. Please try again."
+        )
+
+
+def parse_barcode_lookup_response(response_text: str) -> BarcodeLookupResult:
+    """
+    Parse the Gemini response text for barcode lookup information.
+    
+    The AI is prompted to return JSON with specific fields.
+    """
+    result = BarcodeLookupResult(found=False)
+    
+    try:
+        # Look for JSON object in the response
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            json_str = json_match.group()
+            parsed = json.loads(json_str)
+            
+            if isinstance(parsed, dict):
+                # Check if product was found
+                found = parsed.get("found", False)
+                if found is True or (isinstance(found, str) and found.lower() == "true"):
+                    result.found = True
+                else:
+                    result.found = False
+                    result.raw_response = response_text
+                    return result
+                
+                # Extract product name
+                result.name = (
+                    parsed.get("name") or
+                    parsed.get("product_name") or
+                    parsed.get("title") or
+                    None
+                )
+                
+                # Extract description
+                result.description = (
+                    parsed.get("description") or
+                    parsed.get("product_description") or
+                    None
+                )
+                
+                # Extract brand
+                result.brand = (
+                    parsed.get("brand") or
+                    parsed.get("manufacturer") or
+                    None
+                )
+                
+                # Extract model number
+                result.model_number = (
+                    parsed.get("model_number") or
+                    parsed.get("model") or
+                    parsed.get("model_no") or
+                    None
+                )
+                
+                # Extract category
+                result.category = (
+                    parsed.get("category") or
+                    parsed.get("product_category") or
+                    None
+                )
+                
+                # Parse estimated value
+                estimated_value = None
+                value_str = parsed.get("estimated_value") or parsed.get("value") or parsed.get("price")
+                if value_str:
+                    try:
+                        if isinstance(value_str, (int, float)):
+                            estimated_value = float(value_str)
+                        else:
+                            # Remove currency symbols and parse
+                            clean_value = re.sub(r'[^\d.]', '', str(value_str))
+                            if clean_value:
+                                estimated_value = float(clean_value)
+                    except (ValueError, TypeError):
+                        pass
+                
+                result.estimated_value = estimated_value
+                
+                # Add estimation date if there's an estimated value
+                if estimated_value is not None:
+                    result.estimation_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
+                    
+    except json.JSONDecodeError:
+        logger.warning("Failed to parse JSON from Gemini barcode lookup response")
+        result.raw_response = response_text
+    
+    return result
+
+
+@router.post("/barcode-lookup", response_model=BarcodeLookupResult)
+async def lookup_barcode(
+    request: BarcodeLookupRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Look up product information using a barcode/UPC code.
+    
+    Uses Gemini AI to identify the product and provide details like:
+    - Product name
+    - Brand/Manufacturer
+    - Description
+    - Estimated value
+    - Category
+    
+    Note: This uses AI to look up products based on UPC codes. Results
+    may vary in accuracy as the AI uses its training data to identify products.
+    """
+    # Check if Gemini API is configured
+    if not settings.GEMINI_API_KEY or not settings.GEMINI_API_KEY.strip():
+        raise HTTPException(
+            status_code=503,
+            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment."
+        )
+    
+    # Validate UPC format (basic validation)
+    upc = request.upc.strip()
+    if not upc:
+        raise HTTPException(
+            status_code=400,
+            detail="UPC code is required."
+        )
+    
+    # UPC codes come in various formats:
+    # - UPC-A: 12 digits (most common in North America)
+    # - UPC-E: 6-8 digits (compressed UPC-A)
+    # - EAN-8: 8 digits (European)
+    # - EAN-13: 13 digits (International)
+    # - GTIN-14: 14 digits (Global Trade Item Number)
+    # Remove any hyphens or spaces for validation
+    upc_clean = re.sub(r'[\s\-]', '', upc)
+    if not upc_clean.isdigit() or len(upc_clean) < 6 or len(upc_clean) > 14:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid UPC code format. UPC should be 6-14 digits."
+        )
+    
+    try:
+        # Import Gemini SDK
+        import google.generativeai as genai
+        
+        # Throttle requests to avoid rate limits
+        throttle_ai_request()
+        
+        # Configure the API
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        
+        # Create the model
+        model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        
+        # Construct the prompt for barcode lookup
+        prompt = f"""Look up the product associated with this UPC/barcode: {upc_clean}
+
+Based on your knowledge, provide information about this product. If you can identify the product, return:
+1. found: true if you can identify the product, false otherwise
+2. name: The full product name
+3. brand: The brand or manufacturer name
+4. description: A brief description of the product
+5. model_number: The model number if known
+6. category: The product category (e.g., "Electronics", "Household", "Food", "Clothing")
+7. estimated_value: The estimated current retail value in USD (just the number, no currency symbol)
+
+Return ONLY a JSON object with these fields. Use null for any field that cannot be determined.
+
+Example format if product is found:
+{{
+  "found": true,
+  "name": "Wireless Bluetooth Headphones Model ABC-123",
+  "brand": "Brand Name",
+  "description": "Over-ear wireless headphones with noise cancellation",
+  "model_number": "ABC-123",
+  "category": "Electronics",
+  "estimated_value": 150
+}}
+
+Example format if product is NOT found:
+{{
+  "found": false,
+  "name": null,
+  "brand": null,
+  "description": null,
+  "model_number": null,
+  "category": null,
+  "estimated_value": null
+}}
+
+Important: Only return found: true if you are reasonably confident about the product identification.
+If the UPC is not in your knowledge base or you cannot identify it, return found: false."""
+
+        # Generate the response
+        response = model.generate_content(prompt)
+        
+        # Parse the response
+        response_text = response.text
+        result = parse_barcode_lookup_response(response_text)
+        
+        # If parsing failed or not found, include raw response
+        if not result.found and not result.raw_response:
+            result.raw_response = response_text
+        
+        return result
+        
+    except ImportError:
+        logger.error("google-generativeai package not installed")
+        raise HTTPException(
+            status_code=503,
+            detail="AI detection is not available. Required package not installed."
+        )
+    except Exception as e:
+        logger.exception("Error during barcode lookup")
+        error_msg = str(e)
+        # Check for quota exceeded error
+        if is_quota_error(e):
+            raise HTTPException(
+                status_code=429,
+                detail=QUOTA_EXCEEDED_MESSAGE
+            )
+        # Don't expose internal error details
+        if "API key" in error_msg.lower() or "authentication" in error_msg.lower():
+            raise HTTPException(
+                status_code=503,
+                detail="AI service authentication failed. Please check GEMINI_API_KEY configuration."
+            )
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to look up barcode. Please try again."
         )
 
 
