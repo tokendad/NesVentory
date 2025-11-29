@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import type { Location, LocationCreate, Item } from "../lib/api";
 import { createLocation, updateLocation, deleteLocation } from "../lib/api";
-import QRLabelPrint from "./QRLabelPrint";
+import QRLabelPrint, { PRINT_MODE_OPTIONS, type PrintMode } from "./QRLabelPrint";
 
 interface LocationsPageProps {
   locations: Location[];
@@ -41,7 +41,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
   const [selectedPath, setSelectedPath] = useState<Location[]>([]);
   // QR Label printing
   const [showQRPrint, setShowQRPrint] = useState<Location | null>(null);
-  const [printModeFromEdit, setPrintModeFromEdit] = useState<"qr_only" | "qr_with_items" | "items_only">("qr_with_items");
+  const [printModeFromEdit, setPrintModeFromEdit] = useState<PrintMode>("qr_with_items");
 
   // Form state
   const [formData, setFormData] = useState<LocationCreate>({
@@ -737,13 +737,15 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
                       <select
                         id="printMode"
                         value={printModeFromEdit}
-                        onChange={(e) => setPrintModeFromEdit(e.target.value as "qr_only" | "qr_with_items" | "items_only")}
+                        onChange={(e) => setPrintModeFromEdit(e.target.value as PrintMode)}
                         disabled={formLoading}
                         style={{ width: "100%" }}
                       >
-                        <option value="qr_only">Print QR Code Only</option>
-                        <option value="qr_with_items">Print QR Code with Item List</option>
-                        <option value="items_only">Print Item List Only</option>
+                        {PRINT_MODE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <button

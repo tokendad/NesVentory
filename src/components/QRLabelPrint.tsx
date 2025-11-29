@@ -3,9 +3,9 @@ import QRCode from "qrcode";
 import type { Location, Item } from "../lib/api";
 
 // Print mode options
-type PrintMode = "qr_only" | "qr_with_items" | "items_only";
+export type PrintMode = "qr_only" | "qr_with_items" | "items_only";
 
-const PRINT_MODE_OPTIONS: { value: PrintMode; label: string }[] = [
+export const PRINT_MODE_OPTIONS: { value: PrintMode; label: string }[] = [
   { value: "qr_only", label: "Print QR Code Only" },
   { value: "qr_with_items", label: "Print QR Code with Item List" },
   { value: "items_only", label: "Print Item List Only" },
