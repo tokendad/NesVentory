@@ -136,7 +136,8 @@ export function formatDateTime(
  * @param locationId - The ID of the location to get the path for
  * @param locations - Array of all locations to build hierarchy from
  * @param separator - String to use as separator between path segments (default: " / ")
- * @returns Full path string (e.g., "Home1 / Floor 1 / Bathroom") or "—" if not found
+ * @returns Full path string (e.g., "Home1 / Floor 1 / Bathroom") or "—" if not found.
+ *          If circular references are detected, returns partial path up to the cycle point.
  */
 export function getLocationPath(
   locationId: number | string | null | undefined,
@@ -145,11 +146,14 @@ export function getLocationPath(
 ): string {
   if (!locationId) return "—";
   
-  // Find the location
-  const location = locations.find(
-    (loc) => loc.id.toString() === locationId.toString()
-  );
+  // Build a Map for O(1) lookups instead of O(n) for each level
+  const locationMap = new Map<string, Location>();
+  for (const loc of locations) {
+    locationMap.set(loc.id.toString(), loc);
+  }
   
+  // Find the location
+  const location = locationMap.get(locationId.toString());
   if (!location) return "—";
   
   // Build path by traversing parent hierarchy
@@ -159,15 +163,14 @@ export function getLocationPath(
   
   while (current) {
     const currentId = current.id.toString();
-    if (visited.has(currentId)) break; // Prevent circular reference
+    if (visited.has(currentId)) break; // Prevent circular reference - returns partial path
     visited.add(currentId);
     
     pathParts.unshift(current.friendly_name || current.name);
     
-    if (current.parent_id) {
-      current = locations.find(
-        (loc) => loc.id.toString() === current!.parent_id!.toString()
-      );
+    if (current.parent_id != null) {
+      const parentId = current.parent_id.toString();
+      current = locationMap.get(parentId);
     } else {
       break;
     }
