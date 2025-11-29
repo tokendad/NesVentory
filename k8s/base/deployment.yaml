@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nesventory
+  namespace: nesventory
+  labels:
+    app.kubernetes.io/name: nesventory
+    app.kubernetes.io/component: application
+spec:
+  replicas: 2  # Initial replicas, managed by HPA
+  selector:
+    matchLabels:
+      app: nesventory
+  template:
+    metadata:
+      labels:
+        app: nesventory
+        app.kubernetes.io/name: nesventory
+        app.kubernetes.io/component: application
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.37
+          command: ['sh', '-c', 'until nc -z postgres-ha 5432; do echo "Waiting for PostgreSQL..."; sleep 2; done']
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+      containers:
+        - name: nesventory
+          image: ghcr.io/tokendad/nesventory:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8001
+              name: http
+          envFrom:
+            - configMapRef:
+                name: nesventory-config
+          env:
+            # Database connection with PostgreSQL
+            - name: DATABASE_URL
+              value: "postgresql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB_NAME)"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nesventory-secrets
+                  key: DB_PASSWORD
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nesventory-secrets
+                  key: SECRET_KEY
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nesventory-secrets
+                  key: JWT_SECRET_KEY
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nesventory-secrets
+                  key: GEMINI_API_KEY
+                  optional: true
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: nesventory-secrets
+                  key: GOOGLE_CLIENT_ID
+                  optional: true
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: nesventory-secrets
+                  key: GOOGLE_CLIENT_SECRET
+                  optional: true
+            # Override for Kubernetes - don't use SQLite
+            - name: USE_POSTGRES
+              value: "true"
+          volumeMounts:
+            - name: media-storage
+              mountPath: /app/data/media
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8001
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8001
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: media-storage
+          persistentVolumeClaim:
+            claimName: nesventory-media-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nesventory
+  namespace: nesventory
+  labels:
+    app.kubernetes.io/name: nesventory
+    app.kubernetes.io/component: application
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8001
+      protocol: TCP
+      name: http
+  selector:
+    app: nesventory
