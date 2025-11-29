@@ -2309,3 +2309,146 @@ tbody tr:hover {
   background-color: #f59e0b;
 }
 
+/* Tabbed Item Form Styles */
+.modal-content-wide {
+  max-width: 900px;
+  width: 95%;
+}
+
+.item-form-tabbed {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Tab Navigation */
+.tab-navigation {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 2px solid var(--border-panel);
+  padding-bottom: 0;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.tab-button {
+  background: transparent;
+  border: none;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.tab-button:hover {
+  color: var(--text);
+  background: var(--bg-elevated-softer);
+}
+
+.tab-button.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Tab Panels */
+.tab-panels {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Warranty Form Styles */
+.warranty-form-item {
+  background: var(--bg-elevated-softer);
+  border: 1px solid var(--border-panel);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.warranty-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.warranty-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--accent);
+}
+
+.warranty-add-buttons {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+/* Small button variant for warranty form */
+.item-form-tabbed .warranty-form-item .btn-small {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+/* Danger outline button variant for warranty remove */
+.item-form-tabbed .warranty-form-item .btn-danger-outline {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.item-form-tabbed .warranty-form-item .btn-danger-outline:hover {
+  background: rgba(249, 115, 115, 0.1);
+}
+
+/* Responsive Tab Adjustments */
+@media (max-width: 768px) {
+  .modal-content-wide {
+    max-width: 100%;
+    width: 100%;
+    margin: 0.5rem;
+    max-height: calc(100vh - 1rem);
+  }
+
+  .tab-navigation {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    gap: 0;
+  }
+
+  .tab-button {
+    padding: 0.6rem 0.9rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  .warranty-add-buttons {
+    flex-direction: column;
+  }
+
+  .warranty-add-buttons button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .tab-button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+  }
+}
+

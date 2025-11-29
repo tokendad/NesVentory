@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult } from "../lib/api";
+import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, Warranty } from "../lib/api";
 import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode } from "../lib/api";
 import { formatPhotoType } from "../lib/utils";
 import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES, LIVING_TAG_NAME, RELATIONSHIP_LABELS } from "../lib/constants";
 import type { PhotoUpload } from "../lib/types";
 
+// Tab type for the form
+type TabId = "basic" | "warranty" | "media";
+
 interface ItemFormProps {
   onSubmit: (item: ItemCreate, photos: PhotoUpload[]) => Promise<void>;
   onCancel: () => void;
   locations: Location[];
-  initialData?: Partial<ItemCreate> & { tags?: Tag[] };
+  initialData?: Partial<ItemCreate> & { tags?: Tag[]; warranties?: Warranty[] };
   isEditing?: boolean;
   currentUserId?: string;
   currentUserName?: string;
@@ -78,6 +81,14 @@ const ItemForm: React.FC<ItemFormProps> = ({
   // Barcode lookup state
   const [lookingUpBarcode, setLookingUpBarcode] = useState(false);
   const [barcodeResult, setBarcodeResult] = useState<BarcodeLookupResult | null>(null);
+
+  // Tab state for non-mobile view
+  const [activeTab, setActiveTab] = useState<TabId>("basic");
+
+  // Warranty state
+  const [warranties, setWarranties] = useState<Warranty[]>(
+    initialData?.warranties || []
+  );
 
   // Memoize the Living tag ID to avoid recalculating on every render
   const livingTagId = useMemo(() => {
@@ -212,6 +223,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
         birthdate: formData.birthdate === '' ? null : formData.birthdate,
         location_id: formData.location_id === '' ? null : formData.location_id,
         associated_user_id: formData.associated_user_id === '' ? null : formData.associated_user_id,
+        warranties: warranties.length > 0 ? warranties : undefined,
       };
       await onSubmit(sanitizedData, photos);
     } catch (err: any) {
@@ -403,661 +415,952 @@ const ItemForm: React.FC<ItemFormProps> = ({
     setBarcodeResult(null);
   };
 
+  // Warranty handlers
+  const addWarranty = (type: 'manufacturer' | 'extended') => {
+    setWarranties(prev => [...prev, { type }]);
+  };
+
+  const removeWarranty = (index: number) => {
+    setWarranties(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateWarranty = <K extends keyof Warranty>(
+    index: number,
+    field: K,
+    value: Warranty[K]
+  ) => {
+    setWarranties(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
   const livingMode = isLivingItemSelected;
+
+  // Render content for Tab 1: Basic Item Information
+  const renderBasicInfoTab = () => (
+    <div className="tab-content">
+      {/* Tags Section - Always visible */}
+      <div className="form-section">
+        <h3>Tags</h3>
+        <p className="help-text">Select "Living" tag for people, pets, plants, or other living things</p>
+        <div className="tags-selection">
+          {availableTags.map((tag) => (
+            <label key={tag.id} className="tag-checkbox">
+              <input
+                type="checkbox"
+                checked={(formData.tag_ids || []).includes(tag.id)}
+                onChange={() => handleTagToggle(tag.id)}
+                disabled={loading}
+              />
+              <span className={tag.is_predefined ? "tag-predefined" : "tag-custom"}>
+                {tag.name}
+              </span>
+            </label>
+          ))}
+        </div>
+        <div className="new-tag-input">
+          <input
+            type="text"
+            placeholder="Create new tag..."
+            value={newTagName}
+            onChange={(e) => setNewTagName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleCreateTag())}
+            disabled={loading}
+          />
+          <button
+            type="button"
+            onClick={handleCreateTag}
+            disabled={loading || !newTagName.trim()}
+            className="btn-outline"
+          >
+            Add Tag
+          </button>
+        </div>
+      </div>
+      
+      {/* Name and Description - Always visible */}
+      <div className="form-group">
+        <label htmlFor="name">Name *</label>
+        <input
+          type="text"
+          id="name"
+          name="name"
+          value={formData.name}
+          onChange={handleChange}
+          required
+          disabled={loading}
+          placeholder={livingMode ? "Person/Pet/Plant name" : "Item name"}
+        />
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="description">Description</label>
+        <textarea
+          id="description"
+          name="description"
+          value={formData.description || ""}
+          onChange={handleChange}
+          rows={3}
+          disabled={loading}
+          placeholder={livingMode ? "Notes about this person, pet, or plant" : "Item description"}
+        />
+      </div>
+
+      {/* Living Item Fields */}
+      {livingMode && (
+        <div className="form-section living-section">
+          <h3>Living Item Details</h3>
+          
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="relationship_type">Relationship</label>
+              <select
+                id="relationship_type"
+                name="relationship_type"
+                value={formData.relationship_type || ""}
+                onChange={handleChange}
+                disabled={loading || formData.is_current_user}
+              >
+                <option value="">-- Select Relationship --</option>
+                {Object.entries(RELATIONSHIP_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="birthdate">Birthdate</label>
+              <input
+                type="date"
+                id="birthdate"
+                name="birthdate"
+                value={formData.birthdate || ""}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          {currentUserId && (
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={formData.is_current_user || false}
+                  onChange={(e) => handleIsCurrentUserChange(e.target.checked)}
+                  disabled={loading}
+                />
+                <span>This is me (associate with my account)</span>
+              </label>
+            </div>
+          )}
+
+          <div className="form-section contact-section">
+            <h4>Contact Information</h4>
+            
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="contact_phone">Phone</label>
+                <input
+                  type="tel"
+                  id="contact_phone"
+                  value={formData.contact_info?.phone || ""}
+                  onChange={(e) => handleContactInfoChange('phone', e.target.value)}
+                  disabled={loading}
+                  placeholder="Phone number"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="contact_email">Email</label>
+                <input
+                  type="email"
+                  id="contact_email"
+                  value={formData.contact_info?.email || ""}
+                  onChange={(e) => handleContactInfoChange('email', e.target.value)}
+                  disabled={loading}
+                  placeholder="Email address"
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="contact_address">Address</label>
+              <input
+                type="text"
+                id="contact_address"
+                value={formData.contact_info?.address || ""}
+                onChange={(e) => handleContactInfoChange('address', e.target.value)}
+                disabled={loading}
+                placeholder="Address"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="contact_notes">Contact Notes</label>
+              <textarea
+                id="contact_notes"
+                value={formData.contact_info?.notes || ""}
+                onChange={(e) => handleContactInfoChange('notes', e.target.value)}
+                rows={2}
+                disabled={loading}
+                placeholder="Additional contact notes"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Non-Living Item Fields */}
+      {!livingMode && (
+        <>
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="brand">Brand</label>
+              <input
+                type="text"
+                id="brand"
+                name="brand"
+                value={formData.brand || ""}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="model_number">Model Number</label>
+              <input
+                type="text"
+                id="model_number"
+                name="model_number"
+                value={formData.model_number || ""}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="serial_number">Serial Number</label>
+              <input
+                type="text"
+                id="serial_number"
+                name="serial_number"
+                value={formData.serial_number || ""}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="upc">UPC / Barcode</label>
+              <div className="upc-input-wrapper">
+                <input
+                  type="text"
+                  id="upc"
+                  name="upc"
+                  value={formData.upc || ""}
+                  onChange={handleChange}
+                  disabled={loading || lookingUpBarcode}
+                  placeholder="Enter UPC/barcode"
+                />
+                {aiStatus?.enabled && (
+                  <button
+                    type="button"
+                    className="btn-outline btn-barcode-lookup"
+                    onClick={handleBarcodeLookup}
+                    disabled={loading || lookingUpBarcode || !formData.upc?.trim()}
+                    title="Look up product info from UPC/barcode using AI"
+                  >
+                    {lookingUpBarcode ? "🔄 Looking up..." : "🤖 AI Scan"}
+                  </button>
+                )}
+              </div>
+              {aiStatus?.enabled && (
+                <span className="help-text">Enter barcode and click AI Scan to auto-fill product info</span>
+              )}
+            </div>
+          </div>
+
+          {/* Barcode Lookup Results */}
+          {barcodeResult && (
+            <div className="barcode-lookup-result">
+              {barcodeResult.found ? (
+                <>
+                  <h4>📦 Product Found</h4>
+                  <div className="barcode-result-fields">
+                    {barcodeResult.name && (
+                      <div className="barcode-result-field">
+                        <span className="field-label">Product:</span>
+                        <span className="field-value">{barcodeResult.name}</span>
+                      </div>
+                    )}
+                    {barcodeResult.brand && (
+                      <div className="barcode-result-field">
+                        <span className="field-label">Brand:</span>
+                        <span className="field-value">{barcodeResult.brand}</span>
+                      </div>
+                    )}
+                    {barcodeResult.model_number && (
+                      <div className="barcode-result-field">
+                        <span className="field-label">Model:</span>
+                        <span className="field-value">{barcodeResult.model_number}</span>
+                      </div>
+                    )}
+                    {barcodeResult.category && (
+                      <div className="barcode-result-field">
+                        <span className="field-label">Category:</span>
+                        <span className="field-value">{barcodeResult.category}</span>
+                      </div>
+                    )}
+                    {barcodeResult.description && (
+                      <div className="barcode-result-field">
+                        <span className="field-label">Description:</span>
+                        <span className="field-value">{barcodeResult.description}</span>
+                      </div>
+                    )}
+                    {barcodeResult.estimated_value != null && (
+                      <div className="barcode-result-field">
+                        <span className="field-label">Est. Value:</span>
+                        <span className="field-value">${barcodeResult.estimated_value.toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="barcode-result-actions">
+                    <button
+                      type="button"
+                      className="btn-outline"
+                      onClick={dismissBarcodeResult}
+                    >
+                      Dismiss
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => applyBarcodeResult(barcodeResult)}
+                    >
+                      Apply to Form
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h4>❌ Product Not Found</h4>
+                  <p className="no-result-message">
+                    Could not identify a product for this UPC/barcode. The barcode may not be in our knowledge base.
+                  </p>
+                  <div className="barcode-result-actions">
+                    <button
+                      type="button"
+                      className="btn-outline"
+                      onClick={dismissBarcodeResult}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="purchase_date">Purchase Date</label>
+              <input
+                type="date"
+                id="purchase_date"
+                name="purchase_date"
+                value={formData.purchase_date || ""}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="retailer">Retailer</label>
+              <input
+                type="text"
+                id="retailer"
+                name="retailer"
+                value={formData.retailer || ""}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="purchase_price">Purchase Price</label>
+              <input
+                type="number"
+                id="purchase_price"
+                name="purchase_price"
+                value={formData.purchase_price ?? ""}
+                onChange={handleChange}
+                step="0.01"
+                min="0"
+                disabled={loading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="estimated_value">Estimated Value</label>
+              <input
+                type="number"
+                id="estimated_value"
+                name="estimated_value"
+                value={formData.estimated_value ?? ""}
+                onChange={handleChange}
+                step="0.01"
+                min="0"
+                disabled={loading}
+              />
+              {formData.estimated_value_ai_date && (
+                <span className="help-text ai-estimate-note">
+                  ℹ️ AI best guess on date: {formData.estimated_value_ai_date}
+                </span>
+              )}
+              {formData.estimated_value_user_date && formData.estimated_value_user_name && (
+                <span className="help-text user-estimate-note">
+                  ℹ️ User supplied value by {formData.estimated_value_user_name} on date: {formData.estimated_value_user_date}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Primary Photo in Basic Tab */}
+          <div className="form-section">
+            <h3>Primary Photo</h3>
+            <div className="photo-type-upload">
+              <label htmlFor="photo-default">Default/Primary Photo</label>
+              <input
+                type="file"
+                id="photo-default"
+                accept="image/*"
+                onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DEFAULT)}
+                disabled={loading}
+              />
+              <span className="help-text">Primary photo for the item</span>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Location - Always visible */}
+      <div className="form-group">
+        <label htmlFor="location_id">Location</label>
+        <select
+          id="location_id"
+          name="location_id"
+          value={formData.location_id?.toString() || ""}
+          onChange={handleChange}
+          disabled={loading}
+        >
+          <option value="">-- No Location --</option>
+          {locations.map((location) => (
+            <option key={location.id} value={location.id.toString()}>
+              {location.name}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+
+  // Render content for Tab 2: Warranty Information
+  const renderWarrantyTab = () => (
+    <div className="tab-content">
+      <div className="form-section">
+        <h3>Warranty Information</h3>
+        <p className="help-text">Add manufacturer or extended warranty information for this item</p>
+        
+        {warranties.map((warranty, index) => (
+          <div key={index} className="warranty-form-item">
+            <div className="warranty-header">
+              <h4>{warranty.type === 'manufacturer' ? '🏭 Manufacturer Warranty' : '📋 Extended Warranty'}</h4>
+              <button
+                type="button"
+                className="btn-outline btn-small btn-danger-outline"
+                onClick={() => removeWarranty(index)}
+                disabled={loading}
+              >
+                Remove
+              </button>
+            </div>
+            
+            <div className="form-row">
+              <div className="form-group">
+                <label>Provider / Company</label>
+                <input
+                  type="text"
+                  value={warranty.provider || ""}
+                  onChange={(e) => updateWarranty(index, 'provider', e.target.value || null)}
+                  disabled={loading}
+                  placeholder="Warranty provider name"
+                />
+              </div>
+              <div className="form-group">
+                <label>Policy Number</label>
+                <input
+                  type="text"
+                  value={warranty.policy_number || ""}
+                  onChange={(e) => updateWarranty(index, 'policy_number', e.target.value || null)}
+                  disabled={loading}
+                  placeholder="Policy or contract number"
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Duration (months)</label>
+                <input
+                  type="number"
+                  value={warranty.duration_months ?? ""}
+                  onChange={(e) => updateWarranty(index, 'duration_months', e.target.value ? parseInt(e.target.value) : null)}
+                  disabled={loading}
+                  min="0"
+                  placeholder="Duration in months"
+                />
+              </div>
+              <div className="form-group">
+                <label>Expiration Date</label>
+                <input
+                  type="date"
+                  value={warranty.expiration_date || ""}
+                  onChange={(e) => updateWarranty(index, 'expiration_date', e.target.value || null)}
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Notes</label>
+              <textarea
+                value={warranty.notes || ""}
+                onChange={(e) => updateWarranty(index, 'notes', e.target.value || null)}
+                disabled={loading}
+                rows={2}
+                placeholder="Additional warranty notes, phone numbers, contact info..."
+              />
+            </div>
+          </div>
+        ))}
+
+        <div className="warranty-add-buttons">
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={() => addWarranty('manufacturer')}
+            disabled={loading}
+          >
+            + Add Manufacturer Warranty
+          </button>
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={() => addWarranty('extended')}
+            disabled={loading}
+          >
+            + Add Extended Warranty
+          </button>
+        </div>
+      </div>
+
+      {/* Warranty Photos */}
+      <div className="form-section">
+        <h3>Warranty Photos</h3>
+        <div className="photo-type-upload">
+          <label htmlFor="photo-warranty">Warranty Documents</label>
+          <input
+            type="file"
+            id="photo-warranty"
+            accept="image/*"
+            onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.WARRANTY)}
+            disabled={loading}
+            multiple
+          />
+          <span className="help-text">Upload photos of warranty cards, documents, or receipts</span>
+        </div>
+        
+        {/* Show warranty photo previews */}
+        {photos.filter(p => p.type === PHOTO_TYPES.WARRANTY).length > 0 && (
+          <div className="photo-previews">
+            <h4>Warranty Photos ({photos.filter(p => p.type === PHOTO_TYPES.WARRANTY).length})</h4>
+            <div className="photo-preview-grid">
+              {photos.map((photo, index) => 
+                photo.type === PHOTO_TYPES.WARRANTY && (
+                  <div key={index} className="photo-preview-item">
+                    <img src={photo.preview} alt={`Warranty ${index + 1}`} />
+                    <div className="photo-preview-info">
+                      <span className="photo-type-badge">{formatPhotoType(photo.type)}</span>
+                      <button
+                        type="button"
+                        className="remove-photo-btn"
+                        onClick={() => removePhoto(index)}
+                        disabled={loading}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Render content for Tab 3: Media (All Photos)
+  const renderMediaTab = () => (
+    <div className="tab-content">
+      <div className="form-section">
+        <h3>Photos</h3>
+        
+        <div className="photo-upload-section">
+          {livingMode ? (
+            <>
+              <div className="photo-type-upload">
+                <label htmlFor="photo-profile-media">Profile Picture</label>
+                <input
+                  type="file"
+                  id="photo-profile-media"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.PROFILE)}
+                  disabled={loading}
+                />
+                <span className="help-text">Profile photo for this person, pet, or plant</span>
+              </div>
+
+              <div className="photo-type-upload">
+                <label htmlFor="photo-optional-media">Additional Photos</label>
+                <input
+                  type="file"
+                  id="photo-optional-media"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
+                  disabled={loading}
+                  multiple
+                />
+                <span className="help-text">Any additional photos</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="photo-type-upload">
+                <label htmlFor="photo-default-media">Default/Primary Photo</label>
+                <input
+                  type="file"
+                  id="photo-default-media"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DEFAULT)}
+                  disabled={loading}
+                />
+                <span className="help-text">Primary photo for the item</span>
+              </div>
+
+              <div className="photo-type-upload">
+                <label htmlFor="photo-data-tag-media">Data Tag</label>
+                <div className="data-tag-controls">
+                  <input
+                    type="file"
+                    id="photo-data-tag-media"
+                    accept="image/*"
+                    onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DATA_TAG)}
+                    disabled={loading || scanningDataTag}
+                  />
+                  {aiStatus?.enabled && (
+                    <>
+                      <input
+                        type="file"
+                        ref={dataTagInputRef}
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleDataTagFileChange}
+                        disabled={loading || scanningDataTag}
+                        style={{ display: "none" }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-outline btn-scan-data-tag"
+                        onClick={handleDataTagScan}
+                        disabled={loading || scanningDataTag}
+                        title="Take a photo of the data tag and auto-fill fields using AI"
+                      >
+                        {scanningDataTag ? "🔄 Scanning..." : "🤖 AI Scan"}
+                      </button>
+                    </>
+                  )}
+                </div>
+                <span className="help-text">
+                  Photo of serial number or data tag
+                  {aiStatus?.enabled && " — Use AI Scan to auto-fill manufacturer, model & serial number"}
+                </span>
+              </div>
+
+              {/* Data Tag Scan Results */}
+              {dataTagResult && (
+                <div className="data-tag-result">
+                  <h4>📋 Data Tag Scan Results</h4>
+                  <div className="data-tag-fields">
+                    {dataTagResult.manufacturer && (
+                      <div className="data-tag-field">
+                        <span className="field-label">Manufacturer:</span>
+                        <span className="field-value">{dataTagResult.manufacturer}</span>
+                      </div>
+                    )}
+                    {dataTagResult.brand && dataTagResult.brand !== dataTagResult.manufacturer && (
+                      <div className="data-tag-field">
+                        <span className="field-label">Brand:</span>
+                        <span className="field-value">{dataTagResult.brand}</span>
+                      </div>
+                    )}
+                    {dataTagResult.model_number && (
+                      <div className="data-tag-field">
+                        <span className="field-label">Model Number:</span>
+                        <span className="field-value">{dataTagResult.model_number}</span>
+                      </div>
+                    )}
+                    {dataTagResult.serial_number && (
+                      <div className="data-tag-field">
+                        <span className="field-label">Serial Number:</span>
+                        <span className="field-value">{dataTagResult.serial_number}</span>
+                      </div>
+                    )}
+                    {dataTagResult.production_date && (
+                      <div className="data-tag-field">
+                        <span className="field-label">Production Date:</span>
+                        <span className="field-value">{dataTagResult.production_date}</span>
+                      </div>
+                    )}
+                    {dataTagResult.estimated_value !== null && dataTagResult.estimated_value !== undefined && (
+                      <div className="data-tag-field">
+                        <span className="field-label">Estimated Value:</span>
+                        <span className="field-value">${dataTagResult.estimated_value.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {dataTagResult.additional_info && Object.keys(dataTagResult.additional_info).length > 0 && (
+                      <div className="data-tag-additional">
+                        <span className="field-label">Additional Info:</span>
+                        <div className="additional-fields">
+                          {Object.entries(dataTagResult.additional_info).map(([key, value]) => (
+                            <span key={key} className="additional-field">
+                              {key}: {String(value)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {!dataTagResult.manufacturer && !dataTagResult.brand && !dataTagResult.model_number && 
+                     !dataTagResult.serial_number && !dataTagResult.production_date && !dataTagResult.estimated_value && (
+                      <p className="no-data-found">No data tag information could be extracted. Try a clearer image.</p>
+                    )}
+                  </div>
+                  <div className="data-tag-actions">
+                    <button
+                      type="button"
+                      className="btn-outline"
+                      onClick={dismissDataTagResult}
+                    >
+                      Dismiss
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => applyDataTagInfo(dataTagResult)}
+                      disabled={!dataTagResult.brand && !dataTagResult.manufacturer && 
+                               !dataTagResult.model_number && !dataTagResult.serial_number && 
+                               !dataTagResult.estimated_value}
+                    >
+                      Apply to Form
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="photo-type-upload">
+                <label htmlFor="photo-receipt-media">Receipt</label>
+                <input
+                  type="file"
+                  id="photo-receipt-media"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.RECEIPT)}
+                  disabled={loading}
+                  multiple
+                />
+                <span className="help-text">Purchase receipt</span>
+              </div>
+
+              <div className="photo-type-upload">
+                <label htmlFor="photo-warranty-media">Warranty Information</label>
+                <input
+                  type="file"
+                  id="photo-warranty-media"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.WARRANTY)}
+                  disabled={loading}
+                  multiple
+                />
+                <span className="help-text">Warranty documents or cards</span>
+              </div>
+
+              <div className="photo-type-upload">
+                <label htmlFor="photo-optional-media">Additional Photos</label>
+                <input
+                  type="file"
+                  id="photo-optional-media"
+                  accept="image/*"
+                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
+                  disabled={loading}
+                  multiple
+                />
+                <span className="help-text">Any additional photos</span>
+              </div>
+            </>
+          )}
+        </div>
+
+        {photos.length > 0 && (
+          <div className="photo-previews">
+            <h4>All Selected Photos ({photos.length})</h4>
+            <div className="photo-preview-grid">
+              {photos.map((photo, index) => (
+                <div key={index} className="photo-preview-item">
+                  <img src={photo.preview} alt={`Preview ${index + 1}`} />
+                  <div className="photo-preview-info">
+                    <span className="photo-type-badge">{formatPhotoType(photo.type)}</span>
+                    <button
+                      type="button"
+                      className="remove-photo-btn"
+                      onClick={() => removePhoto(index)}
+                      disabled={loading}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content modal-content-wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{isEditing ? "Edit Item" : livingMode ? "Add Living Item" : "Add New Item"}</h2>
           <button className="modal-close" onClick={onCancel}>
             ✕
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="item-form">
+        <form onSubmit={handleSubmit} className="item-form item-form-tabbed">
           {error && <div className="error-banner">{error}</div>}
           
-          <div className="form-section">
-            <h3>Tags</h3>
-            <p className="help-text">Select "Living" tag for people, pets, plants, or other living things</p>
-            <div className="tags-selection">
-              {availableTags.map((tag) => (
-                <label key={tag.id} className="tag-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={(formData.tag_ids || []).includes(tag.id)}
-                    onChange={() => handleTagToggle(tag.id)}
-                    disabled={loading}
-                  />
-                  <span className={tag.is_predefined ? "tag-predefined" : "tag-custom"}>
-                    {tag.name}
-                  </span>
-                </label>
-              ))}
-            </div>
-            <div className="new-tag-input">
-              <input
-                type="text"
-                placeholder="Create new tag..."
-                value={newTagName}
-                onChange={(e) => setNewTagName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleCreateTag())}
-                disabled={loading}
-              />
+          {/* Tab Navigation - Only show for non-living items */}
+          {!livingMode && (
+            <div className="tab-navigation">
               <button
                 type="button"
-                onClick={handleCreateTag}
-                disabled={loading || !newTagName.trim()}
-                className="btn-outline"
+                className={`tab-button ${activeTab === 'basic' ? 'active' : ''}`}
+                onClick={() => setActiveTab('basic')}
               >
-                Add Tag
+                📋 Basic Info
+              </button>
+              <button
+                type="button"
+                className={`tab-button ${activeTab === 'warranty' ? 'active' : ''}`}
+                onClick={() => setActiveTab('warranty')}
+              >
+                🛡️ Warranty
+              </button>
+              <button
+                type="button"
+                className={`tab-button ${activeTab === 'media' ? 'active' : ''}`}
+                onClick={() => setActiveTab('media')}
+              >
+                📷 Media
               </button>
             </div>
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="name">Name *</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-              disabled={loading}
-              placeholder={livingMode ? "Person/Pet/Plant name" : "Item name"}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="description">Description</label>
-            <textarea
-              id="description"
-              name="description"
-              value={formData.description || ""}
-              onChange={handleChange}
-              rows={3}
-              disabled={loading}
-              placeholder={livingMode ? "Notes about this person, pet, or plant" : "Item description"}
-            />
-          </div>
-
-          {/* Living Item Fields */}
-          {livingMode && (
-            <>
-              <div className="form-section living-section">
-                <h3>Living Item Details</h3>
-                
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="relationship_type">Relationship</label>
-                    <select
-                      id="relationship_type"
-                      name="relationship_type"
-                      value={formData.relationship_type || ""}
-                      onChange={handleChange}
-                      disabled={loading || formData.is_current_user}
-                    >
-                      <option value="">-- Select Relationship --</option>
-                      {Object.entries(RELATIONSHIP_LABELS).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="birthdate">Birthdate</label>
-                    <input
-                      type="date"
-                      id="birthdate"
-                      name="birthdate"
-                      value={formData.birthdate || ""}
-                      onChange={handleChange}
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-
-                {currentUserId && (
-                  <div className="form-group">
-                    <label className="checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={formData.is_current_user || false}
-                        onChange={(e) => handleIsCurrentUserChange(e.target.checked)}
-                        disabled={loading}
-                      />
-                      <span>This is me (associate with my account)</span>
-                    </label>
-                  </div>
-                )}
-
-                <div className="form-section contact-section">
-                  <h4>Contact Information</h4>
-                  
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label htmlFor="contact_phone">Phone</label>
-                      <input
-                        type="tel"
-                        id="contact_phone"
-                        value={formData.contact_info?.phone || ""}
-                        onChange={(e) => handleContactInfoChange('phone', e.target.value)}
-                        disabled={loading}
-                        placeholder="Phone number"
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label htmlFor="contact_email">Email</label>
-                      <input
-                        type="email"
-                        id="contact_email"
-                        value={formData.contact_info?.email || ""}
-                        onChange={(e) => handleContactInfoChange('email', e.target.value)}
-                        disabled={loading}
-                        placeholder="Email address"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="contact_address">Address</label>
-                    <input
-                      type="text"
-                      id="contact_address"
-                      value={formData.contact_info?.address || ""}
-                      onChange={(e) => handleContactInfoChange('address', e.target.value)}
-                      disabled={loading}
-                      placeholder="Address"
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="contact_notes">Contact Notes</label>
-                    <textarea
-                      id="contact_notes"
-                      value={formData.contact_info?.notes || ""}
-                      onChange={(e) => handleContactInfoChange('notes', e.target.value)}
-                      rows={2}
-                      disabled={loading}
-                      placeholder="Additional contact notes"
-                    />
-                  </div>
-                </div>
-              </div>
-            </>
           )}
 
-          {/* Non-Living Item Fields */}
-          {!livingMode && (
-            <>
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="brand">Brand</label>
-                  <input
-                    type="text"
-                    id="brand"
-                    name="brand"
-                    value={formData.brand || ""}
-                    onChange={handleChange}
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="model_number">Model Number</label>
-                  <input
-                    type="text"
-                    id="model_number"
-                    name="model_number"
-                    value={formData.model_number || ""}
-                    onChange={handleChange}
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="serial_number">Serial Number</label>
-                  <input
-                    type="text"
-                    id="serial_number"
-                    name="serial_number"
-                    value={formData.serial_number || ""}
-                    onChange={handleChange}
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="upc">UPC / Barcode</label>
-                  <div className="upc-input-wrapper">
-                    <input
-                      type="text"
-                      id="upc"
-                      name="upc"
-                      value={formData.upc || ""}
-                      onChange={handleChange}
-                      disabled={loading || lookingUpBarcode}
-                      placeholder="Enter UPC/barcode"
-                    />
-                    {aiStatus?.enabled && (
-                      <button
-                        type="button"
-                        className="btn-outline btn-barcode-lookup"
-                        onClick={handleBarcodeLookup}
-                        disabled={loading || lookingUpBarcode || !formData.upc?.trim()}
-                        title="Look up product info from UPC/barcode using AI"
-                      >
-                        {lookingUpBarcode ? "🔄 Looking up..." : "🔍 Lookup"}
-                      </button>
-                    )}
-                  </div>
-                  {aiStatus?.enabled && (
-                    <span className="help-text">Enter barcode and click Lookup to auto-fill product info</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Barcode Lookup Results */}
-              {barcodeResult && (
-                <div className="barcode-lookup-result">
-                  {barcodeResult.found ? (
-                    <>
-                      <h4>📦 Product Found</h4>
-                      <div className="barcode-result-fields">
-                        {barcodeResult.name && (
-                          <div className="barcode-result-field">
-                            <span className="field-label">Product:</span>
-                            <span className="field-value">{barcodeResult.name}</span>
-                          </div>
-                        )}
-                        {barcodeResult.brand && (
-                          <div className="barcode-result-field">
-                            <span className="field-label">Brand:</span>
-                            <span className="field-value">{barcodeResult.brand}</span>
-                          </div>
-                        )}
-                        {barcodeResult.model_number && (
-                          <div className="barcode-result-field">
-                            <span className="field-label">Model:</span>
-                            <span className="field-value">{barcodeResult.model_number}</span>
-                          </div>
-                        )}
-                        {barcodeResult.category && (
-                          <div className="barcode-result-field">
-                            <span className="field-label">Category:</span>
-                            <span className="field-value">{barcodeResult.category}</span>
-                          </div>
-                        )}
-                        {barcodeResult.description && (
-                          <div className="barcode-result-field">
-                            <span className="field-label">Description:</span>
-                            <span className="field-value">{barcodeResult.description}</span>
-                          </div>
-                        )}
-                        {barcodeResult.estimated_value != null && (
-                          <div className="barcode-result-field">
-                            <span className="field-label">Est. Value:</span>
-                            <span className="field-value">${barcodeResult.estimated_value.toLocaleString()}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="barcode-result-actions">
-                        <button
-                          type="button"
-                          className="btn-outline"
-                          onClick={dismissBarcodeResult}
-                        >
-                          Dismiss
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-primary"
-                          onClick={() => applyBarcodeResult(barcodeResult)}
-                        >
-                          Apply to Form
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <h4>❌ Product Not Found</h4>
-                      <p className="no-result-message">
-                        Could not identify a product for this UPC/barcode. The barcode may not be in our knowledge base.
-                      </p>
-                      <div className="barcode-result-actions">
-                        <button
-                          type="button"
-                          className="btn-outline"
-                          onClick={dismissBarcodeResult}
-                        >
-                          Dismiss
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="purchase_date">Purchase Date</label>
-                  <input
-                    type="date"
-                    id="purchase_date"
-                    name="purchase_date"
-                    value={formData.purchase_date || ""}
-                    onChange={handleChange}
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="retailer">Retailer</label>
-                  <input
-                    type="text"
-                    id="retailer"
-                    name="retailer"
-                    value={formData.retailer || ""}
-                    onChange={handleChange}
-                    disabled={loading}
-                  />
-                </div>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="purchase_price">Purchase Price</label>
-                  <input
-                    type="number"
-                    id="purchase_price"
-                    name="purchase_price"
-                    value={formData.purchase_price ?? ""}
-                    onChange={handleChange}
-                    step="0.01"
-                    min="0"
-                    disabled={loading}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="estimated_value">Estimated Value</label>
-                  <input
-                    type="number"
-                    id="estimated_value"
-                    name="estimated_value"
-                    value={formData.estimated_value ?? ""}
-                    onChange={handleChange}
-                    step="0.01"
-                    min="0"
-                    disabled={loading}
-                  />
-                  {formData.estimated_value_ai_date && (
-                    <span className="help-text ai-estimate-note">
-                      ℹ️ AI best guess on date: {formData.estimated_value_ai_date}
-                    </span>
-                  )}
-                  {formData.estimated_value_user_date && formData.estimated_value_user_name && (
-                    <span className="help-text user-estimate-note">
-                      ℹ️ User supplied value by {formData.estimated_value_user_name} on date: {formData.estimated_value_user_date}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-
-          <div className="form-group">
-            <label htmlFor="location_id">Location</label>
-            <select
-              id="location_id"
-              name="location_id"
-              value={formData.location_id?.toString() || ""}
-              onChange={handleChange}
-              disabled={loading}
-            >
-              <option value="">-- No Location --</option>
-              {locations.map((location) => (
-                <option key={location.id} value={location.id.toString()}>
-                  {location.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-section">
-            <h3>Photos</h3>
-            
-            <div className="photo-upload-section">
-              {livingMode ? (
-                <>
-                  <div className="photo-type-upload">
-                    <label htmlFor="photo-profile">Profile Picture</label>
-                    <input
-                      type="file"
-                      id="photo-profile"
-                      accept="image/*"
-                      onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.PROFILE)}
-                      disabled={loading}
-                    />
-                    <span className="help-text">Profile photo for this person, pet, or plant</span>
-                  </div>
-
-                  <div className="photo-type-upload">
-                    <label htmlFor="photo-optional">Additional Photos</label>
-                    <input
-                      type="file"
-                      id="photo-optional"
-                      accept="image/*"
-                      onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
-                      disabled={loading}
-                      multiple
-                    />
-                    <span className="help-text">Any additional photos</span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="photo-type-upload">
-                    <label htmlFor="photo-default">Default/Primary Photo</label>
-                    <input
-                      type="file"
-                      id="photo-default"
-                      accept="image/*"
-                      onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DEFAULT)}
-                      disabled={loading}
-                    />
-                    <span className="help-text">Primary photo for the item</span>
-                  </div>
-
-                  <div className="photo-type-upload">
-                    <label htmlFor="photo-data-tag">Data Tag</label>
-                    <div className="data-tag-controls">
+          {/* Tab Content */}
+          <div className="tab-panels">
+            {livingMode ? (
+              // For living items, show all content without tabs
+              <>
+                {renderBasicInfoTab()}
+                <div className="form-section">
+                  <h3>Photos</h3>
+                  <div className="photo-upload-section">
+                    <div className="photo-type-upload">
+                      <label htmlFor="photo-profile-living">Profile Picture</label>
                       <input
                         type="file"
-                        id="photo-data-tag"
+                        id="photo-profile-living"
                         accept="image/*"
-                        onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DATA_TAG)}
-                        disabled={loading || scanningDataTag}
+                        onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.PROFILE)}
+                        disabled={loading}
                       />
-                      {aiStatus?.enabled && (
-                        <>
-                          <input
-                            type="file"
-                            ref={dataTagInputRef}
-                            accept="image/*"
-                            capture="environment"
-                            onChange={handleDataTagFileChange}
-                            disabled={loading || scanningDataTag}
-                            style={{ display: "none" }}
-                          />
-                          <button
-                            type="button"
-                            className="btn-outline btn-scan-data-tag"
-                            onClick={handleDataTagScan}
-                            disabled={loading || scanningDataTag}
-                            title="Take a photo of the data tag and auto-fill fields using AI"
-                          >
-                            {scanningDataTag ? "🔄 Scanning..." : "🤖 AI Scan"}
-                          </button>
-                        </>
-                      )}
+                      <span className="help-text">Profile photo for this person, pet, or plant</span>
                     </div>
-                    <span className="help-text">
-                      Photo of serial number or data tag
-                      {aiStatus?.enabled && " — Use AI Scan to auto-fill manufacturer, model & serial number"}
-                    </span>
+
+                    <div className="photo-type-upload">
+                      <label htmlFor="photo-optional-living">Additional Photos</label>
+                      <input
+                        type="file"
+                        id="photo-optional-living"
+                        accept="image/*"
+                        onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
+                        disabled={loading}
+                        multiple
+                      />
+                      <span className="help-text">Any additional photos</span>
+                    </div>
                   </div>
 
-                  {/* Data Tag Scan Results */}
-                  {dataTagResult && (
-                    <div className="data-tag-result">
-                      <h4>📋 Data Tag Scan Results</h4>
-                      <div className="data-tag-fields">
-                        {dataTagResult.manufacturer && (
-                          <div className="data-tag-field">
-                            <span className="field-label">Manufacturer:</span>
-                            <span className="field-value">{dataTagResult.manufacturer}</span>
-                          </div>
-                        )}
-                        {dataTagResult.brand && dataTagResult.brand !== dataTagResult.manufacturer && (
-                          <div className="data-tag-field">
-                            <span className="field-label">Brand:</span>
-                            <span className="field-value">{dataTagResult.brand}</span>
-                          </div>
-                        )}
-                        {dataTagResult.model_number && (
-                          <div className="data-tag-field">
-                            <span className="field-label">Model Number:</span>
-                            <span className="field-value">{dataTagResult.model_number}</span>
-                          </div>
-                        )}
-                        {dataTagResult.serial_number && (
-                          <div className="data-tag-field">
-                            <span className="field-label">Serial Number:</span>
-                            <span className="field-value">{dataTagResult.serial_number}</span>
-                          </div>
-                        )}
-                        {dataTagResult.production_date && (
-                          <div className="data-tag-field">
-                            <span className="field-label">Production Date:</span>
-                            <span className="field-value">{dataTagResult.production_date}</span>
-                          </div>
-                        )}
-                        {dataTagResult.estimated_value !== null && dataTagResult.estimated_value !== undefined && (
-                          <div className="data-tag-field">
-                            <span className="field-label">Estimated Value:</span>
-                            <span className="field-value">${dataTagResult.estimated_value.toLocaleString()}</span>
-                          </div>
-                        )}
-                        {dataTagResult.additional_info && Object.keys(dataTagResult.additional_info).length > 0 && (
-                          <div className="data-tag-additional">
-                            <span className="field-label">Additional Info:</span>
-                            <div className="additional-fields">
-                              {Object.entries(dataTagResult.additional_info).map(([key, value]) => (
-                                <span key={key} className="additional-field">
-                                  {key}: {String(value)}
-                                </span>
-                              ))}
+                  {photos.length > 0 && (
+                    <div className="photo-previews">
+                      <h4>Selected Photos ({photos.length})</h4>
+                      <div className="photo-preview-grid">
+                        {photos.map((photo, index) => (
+                          <div key={index} className="photo-preview-item">
+                            <img src={photo.preview} alt={`Preview ${index + 1}`} />
+                            <div className="photo-preview-info">
+                              <span className="photo-type-badge">{formatPhotoType(photo.type)}</span>
+                              <button
+                                type="button"
+                                className="remove-photo-btn"
+                                onClick={() => removePhoto(index)}
+                                disabled={loading}
+                              >
+                                ✕
+                              </button>
                             </div>
                           </div>
-                        )}
-                        {!dataTagResult.manufacturer && !dataTagResult.brand && !dataTagResult.model_number && 
-                         !dataTagResult.serial_number && !dataTagResult.production_date && !dataTagResult.estimated_value && (
-                          <p className="no-data-found">No data tag information could be extracted. Try a clearer image.</p>
-                        )}
-                      </div>
-                      <div className="data-tag-actions">
-                        <button
-                          type="button"
-                          className="btn-outline"
-                          onClick={dismissDataTagResult}
-                        >
-                          Dismiss
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-primary"
-                          onClick={() => applyDataTagInfo(dataTagResult)}
-                          disabled={!dataTagResult.brand && !dataTagResult.manufacturer && 
-                                   !dataTagResult.model_number && !dataTagResult.serial_number && 
-                                   !dataTagResult.estimated_value}
-                        >
-                          Apply to Form
-                        </button>
+                        ))}
                       </div>
                     </div>
                   )}
-
-                  <div className="photo-type-upload">
-                    <label htmlFor="photo-receipt">Receipt</label>
-                    <input
-                      type="file"
-                      id="photo-receipt"
-                      accept="image/*"
-                      onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.RECEIPT)}
-                      disabled={loading}
-                      multiple
-                    />
-                    <span className="help-text">Purchase receipt</span>
-                  </div>
-
-                  <div className="photo-type-upload">
-                    <label htmlFor="photo-warranty">Warranty Information</label>
-                    <input
-                      type="file"
-                      id="photo-warranty"
-                      accept="image/*"
-                      onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.WARRANTY)}
-                      disabled={loading}
-                      multiple
-                    />
-                    <span className="help-text">Warranty documents or cards</span>
-                  </div>
-
-                  <div className="photo-type-upload">
-                    <label htmlFor="photo-optional">Additional Photos</label>
-                    <input
-                      type="file"
-                      id="photo-optional"
-                      accept="image/*"
-                      onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
-                      disabled={loading}
-                      multiple
-                    />
-                    <span className="help-text">Any additional photos</span>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {photos.length > 0 && (
-              <div className="photo-previews">
-                <h4>Selected Photos ({photos.length})</h4>
-                <div className="photo-preview-grid">
-                  {photos.map((photo, index) => (
-                    <div key={index} className="photo-preview-item">
-                      <img src={photo.preview} alt={`Preview ${index + 1}`} />
-                      <div className="photo-preview-info">
-                        <span className="photo-type-badge">{formatPhotoType(photo.type)}</span>
-                        <button
-                          type="button"
-                          className="remove-photo-btn"
-                          onClick={() => removePhoto(index)}
-                          disabled={loading}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  ))}
                 </div>
-              </div>
+              </>
+            ) : (
+              // For non-living items, use tabbed interface
+              <>
+                {activeTab === 'basic' && renderBasicInfoTab()}
+                {activeTab === 'warranty' && renderWarrantyTab()}
+                {activeTab === 'media' && renderMediaTab()}
+              </>
             )}
           </div>
 

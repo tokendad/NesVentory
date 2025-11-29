@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.4.0] - 2025-11-29
+### Added
+- **Tabbed Edit Item Interface** - Reorganized item form with tabs for better UX on web browsers
+  - **Basic Info Tab**: Name, brand, serial, model, retailer, purchase price, purchase date, primary photo, location
+  - **Warranty Tab**: Warranty provider, policy number, duration, expiration, notes, and warranty photos
+  - **Media Tab**: All photos including data tag, receipts, warranty documents, and additional photos
+  - Tabs only shown for non-living items; living items retain scroll layout
+  
+- **Enhanced Warranty Management** - Full CRUD support for item warranties
+  - Add multiple manufacturer and extended warranties per item
+  - Track warranty provider/company name
+  - Track policy/contract numbers
+  - Set warranty duration in months
+  - Set warranty expiration date
+  - Add notes for contact info and additional details
+  - Upload warranty document photos in dedicated section
+  
+- **AI Scan Button Consistency** - AI scan options on all supported fields
+  - AI Scan button on UPC/Barcode field for product lookup
+  - AI Scan button on Data Tag photo upload for field extraction
+  - Consistent emoji-based button styling across AI features
+
+### Changed
+- Widened modal dialog for tabbed interface (900px max-width)
+- Reorganized photo uploads across tabs for better workflow
+- Updated help text to reflect AI scan functionality
+- Bumped project version to 4.4.0
+
 ## [4.3.0] - 2025-11-28
 ### Added
 - **Gemini API Quota Handling** - Gracefully handle rate limits on free tier

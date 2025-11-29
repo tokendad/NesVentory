@@ -1,34 +1,34 @@
 # NesVentory - Home Inventory Management System
 
-**Version: 4.2.0**
+**Version: 4.4.0**
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
-## 🚀 What's New in Version 4.2.0
+## 🚀 What's New in Version 4.4.0
 
-This release adds QR code label printing for locations and container support for boxes and bins.
+This release introduces a tabbed Edit Item interface for better organization and adds warranty management capabilities.
 
-### ✨ Key Features in v4.2
+### ✨ Key Features in v4.4
 
-📱 **QR Code Label Printing**
-- Generate QR code labels for any location
-- Print labels for boxes, bins, and storage containers
-- Multiple label sizes supported (2"x1" to 4"x6")
-- Compatible with thermal label printers (Dymo, Brother, Zebra)
-- Optional item list printed on label
-- Seasonal holiday icons for decoration
+📋 **Tabbed Edit Item Interface**
+- New tabbed layout replaces scrolling form for non-living items
+- **Basic Info Tab**: Name, brand, serial, model, retailer, purchase price, purchase date, primary photo, location
+- **Warranty Tab**: Add and manage manufacturer and extended warranties with provider, policy number, duration, expiration date, and notes
+- **Media Tab**: All photos including data tag with AI scan, receipts, warranty documents, and additional photos
+- AI Scan buttons included where backend support exists (data tag scanning, barcode lookup)
 
-📦 **Container Location Support**
-- Mark locations as containers (boxes, bins, cases)
-- Visual "BOX" badge on container locations
-- Scan QR code to see all items in a container
-- Perfect for seasonal storage organization
+🛡️ **Enhanced Warranty Management**
+- Add multiple manufacturer and extended warranties per item
+- Track warranty provider, policy number, duration, and expiration
+- Upload and manage warranty document photos
+- Notes field for contact info and additional details
 
-🤖 **Android App Support (Planned)**
-- Future support for scanning QR codes via mobile app
-- Quick container contents viewing on the go
+🤖 **AI Scan Integration**
+- AI Scan button on barcode/UPC field for automatic product lookup
+- AI Scan button on data tag photo upload for automatic field extraction
+- Consistent AI scanning experience across all supported fields
 
-## 🚀 What's New in Version 4.0.0
+## 🚀 What's New in Version 4.3.0
 
 This is a major release preparing NesVentory for public release with comprehensive features, improved security, and a polished user experience.
 
