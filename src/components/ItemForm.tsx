@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse } from "../lib/api";
-import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus } from "../lib/api";
+import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult } from "../lib/api";
+import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode } from "../lib/api";
 import { formatPhotoType } from "../lib/utils";
 import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES, LIVING_TAG_NAME, RELATIONSHIP_LABELS } from "../lib/constants";
 import type { PhotoUpload } from "../lib/types";
@@ -74,6 +74,10 @@ const ItemForm: React.FC<ItemFormProps> = ({
   const [scanningDataTag, setScanningDataTag] = useState(false);
   const [dataTagResult, setDataTagResult] = useState<DataTagInfo | null>(null);
   const dataTagInputRef = useRef<HTMLInputElement>(null);
+  
+  // Barcode lookup state
+  const [lookingUpBarcode, setLookingUpBarcode] = useState(false);
+  const [barcodeResult, setBarcodeResult] = useState<BarcodeLookupResult | null>(null);
 
   // Memoize the Living tag ID to avoid recalculating on every render
   const livingTagId = useMemo(() => {
@@ -353,6 +357,52 @@ const ItemForm: React.FC<ItemFormProps> = ({
     setDataTagResult(null);
   };
 
+  // Handle barcode lookup
+  const handleBarcodeLookup = async () => {
+    const upc = formData.upc?.trim();
+    if (!upc) {
+      setError("Please enter a UPC/barcode to look up");
+      return;
+    }
+    
+    setLookingUpBarcode(true);
+    setError(null);
+    setBarcodeResult(null);
+    
+    try {
+      const result = await lookupBarcode(upc);
+      setBarcodeResult(result);
+    } catch (err: any) {
+      setError(err.message || "Failed to look up barcode");
+    } finally {
+      setLookingUpBarcode(false);
+    }
+  };
+
+  // Apply barcode lookup result to form fields
+  const applyBarcodeResult = (result: BarcodeLookupResult) => {
+    setFormData(prev => ({
+      ...prev,
+      name: result.name || prev.name,
+      description: result.description || prev.description,
+      brand: result.brand || prev.brand,
+      model_number: result.model_number || prev.model_number,
+      // Only apply estimated value if it's provided by AI and there's no existing value
+      estimated_value: result.estimated_value ?? prev.estimated_value,
+      // Set AI date if value came from AI, otherwise preserve existing value
+      estimated_value_ai_date: result.estimated_value ? result.estimation_date : prev.estimated_value_ai_date,
+      // Clear user date if value came from AI
+      estimated_value_user_date: result.estimated_value ? undefined : prev.estimated_value_user_date,
+      estimated_value_user_name: result.estimated_value ? undefined : prev.estimated_value_user_name,
+    }));
+    setBarcodeResult(null);
+  };
+
+  // Dismiss barcode result without applying
+  const dismissBarcodeResult = () => {
+    setBarcodeResult(null);
+  };
+
   const livingMode = isLivingItemSelected;
 
   return (
@@ -584,17 +634,115 @@ const ItemForm: React.FC<ItemFormProps> = ({
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="upc">UPC</label>
-                  <input
-                    type="text"
-                    id="upc"
-                    name="upc"
-                    value={formData.upc || ""}
-                    onChange={handleChange}
-                    disabled={loading}
-                  />
+                  <label htmlFor="upc">UPC / Barcode</label>
+                  <div className="upc-input-wrapper">
+                    <input
+                      type="text"
+                      id="upc"
+                      name="upc"
+                      value={formData.upc || ""}
+                      onChange={handleChange}
+                      disabled={loading || lookingUpBarcode}
+                      placeholder="Enter UPC/barcode"
+                    />
+                    {aiStatus?.enabled && (
+                      <button
+                        type="button"
+                        className="btn-outline btn-barcode-lookup"
+                        onClick={handleBarcodeLookup}
+                        disabled={loading || lookingUpBarcode || !formData.upc?.trim()}
+                        title="Look up product info from UPC/barcode using AI"
+                      >
+                        {lookingUpBarcode ? "🔄 Looking up..." : "🔍 Lookup"}
+                      </button>
+                    )}
+                  </div>
+                  {aiStatus?.enabled && (
+                    <span className="help-text">Enter barcode and click Lookup to auto-fill product info</span>
+                  )}
                 </div>
               </div>
+
+              {/* Barcode Lookup Results */}
+              {barcodeResult && (
+                <div className="barcode-lookup-result">
+                  {barcodeResult.found ? (
+                    <>
+                      <h4>📦 Product Found</h4>
+                      <div className="barcode-result-fields">
+                        {barcodeResult.name && (
+                          <div className="barcode-result-field">
+                            <span className="field-label">Product:</span>
+                            <span className="field-value">{barcodeResult.name}</span>
+                          </div>
+                        )}
+                        {barcodeResult.brand && (
+                          <div className="barcode-result-field">
+                            <span className="field-label">Brand:</span>
+                            <span className="field-value">{barcodeResult.brand}</span>
+                          </div>
+                        )}
+                        {barcodeResult.model_number && (
+                          <div className="barcode-result-field">
+                            <span className="field-label">Model:</span>
+                            <span className="field-value">{barcodeResult.model_number}</span>
+                          </div>
+                        )}
+                        {barcodeResult.category && (
+                          <div className="barcode-result-field">
+                            <span className="field-label">Category:</span>
+                            <span className="field-value">{barcodeResult.category}</span>
+                          </div>
+                        )}
+                        {barcodeResult.description && (
+                          <div className="barcode-result-field">
+                            <span className="field-label">Description:</span>
+                            <span className="field-value">{barcodeResult.description}</span>
+                          </div>
+                        )}
+                        {barcodeResult.estimated_value !== null && barcodeResult.estimated_value !== undefined && (
+                          <div className="barcode-result-field">
+                            <span className="field-label">Est. Value:</span>
+                            <span className="field-value">${barcodeResult.estimated_value.toLocaleString()}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="barcode-result-actions">
+                        <button
+                          type="button"
+                          className="btn-outline"
+                          onClick={dismissBarcodeResult}
+                        >
+                          Dismiss
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          onClick={() => applyBarcodeResult(barcodeResult)}
+                        >
+                          Apply to Form
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h4>❌ Product Not Found</h4>
+                      <p className="no-result-message">
+                        Could not identify a product for this UPC/barcode. The barcode may not be in our knowledge base.
+                      </p>
+                      <div className="barcode-result-actions">
+                        <button
+                          type="button"
+                          className="btn-outline"
+                          onClick={dismissBarcodeResult}
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               <div className="form-row">
                 <div className="form-group">

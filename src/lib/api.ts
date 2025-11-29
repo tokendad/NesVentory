@@ -788,6 +788,18 @@ export interface DataTagInfo {
   raw_response?: string | null;
 }
 
+export interface BarcodeLookupResult {
+  found: boolean;
+  name?: string | null;
+  description?: string | null;
+  brand?: string | null;
+  model_number?: string | null;
+  estimated_value?: number | null;
+  estimation_date?: string | null;  // Date when AI estimated the value (MM/DD/YY format)
+  category?: string | null;
+  raw_response?: string | null;
+}
+
 export async function getAIStatus(): Promise<AIStatusResponse> {
   const res = await fetch(`${API_BASE_URL}/api/ai/status`, {
     headers: {
@@ -824,6 +836,19 @@ export async function parseDataTagImage(file: File): Promise<DataTagInfo> {
     body: formData,
   });
   return handleResponse<DataTagInfo>(res);
+}
+
+export async function lookupBarcode(upc: string): Promise<BarcodeLookupResult> {
+  const res = await fetch(`${API_BASE_URL}/api/ai/barcode-lookup`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ upc }),
+  });
+  return handleResponse<BarcodeLookupResult>(res);
 }
 
 // --- Google OAuth ---
