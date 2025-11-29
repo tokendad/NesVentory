@@ -21,8 +21,12 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
   const [detectedParentName, setDetectedParentName] = useState<string | null>(null);
   const [useExistingLocation, setUseExistingLocation] = useState(false);
   
+  // Image selection mode: 'files' or 'folder'
+  const [imageSelectionMode, setImageSelectionMode] = useState<'files' | 'folder'>('files');
+  
   const xlsxInputRef = useRef<HTMLInputElement>(null);
   const imagesInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch available locations on mount
   useEffect(() => {
@@ -67,6 +71,22 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
   };
 
   const handleImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const validImages: File[] = [];
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      
+      for (let i = 0; i < files.length; i++) {
+        if (allowedTypes.includes(files[i].type)) {
+          validImages.push(files[i]);
+        }
+      }
+      
+      setImages(validImages);
+    }
+  };
+
+  const handleFolderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
       const validImages: File[] = [];
@@ -145,6 +165,14 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
     if (imagesInputRef.current) {
       imagesInputRef.current.value = "";
     }
+    if (folderInputRef.current) {
+      folderInputRef.current.value = "";
+    }
+  };
+
+  const handleImageSelectionModeChange = (mode: 'files' | 'folder') => {
+    setImageSelectionMode(mode);
+    clearImages();
   };
 
   return (
@@ -357,16 +385,58 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
                 Select image files to attach to items. Images will be matched to items based on their filenames.
               </p>
               
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ marginRight: '16px' }}>
+                  <input
+                    type="radio"
+                    name="imageSelectionMode"
+                    value="files"
+                    checked={imageSelectionMode === 'files'}
+                    onChange={() => handleImageSelectionModeChange('files')}
+                    disabled={loading}
+                    style={{ marginRight: '4px' }}
+                  />
+                  Select individual files
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="imageSelectionMode"
+                    value="folder"
+                    checked={imageSelectionMode === 'folder'}
+                    onChange={() => handleImageSelectionModeChange('folder')}
+                    disabled={loading}
+                    style={{ marginRight: '4px' }}
+                  />
+                  All images in folder
+                </label>
+              </div>
+              
               <div className="file-input-wrapper">
-                <input
-                  type="file"
-                  ref={imagesInputRef}
-                  accept="image/*"
-                  multiple
-                  onChange={handleImagesChange}
-                  disabled={loading}
-                  id="images-input"
-                />
+                {imageSelectionMode === 'files' ? (
+                  <input
+                    type="file"
+                    ref={imagesInputRef}
+                    accept="image/*"
+                    multiple
+                    onChange={handleImagesChange}
+                    disabled={loading}
+                    id="images-input"
+                  />
+                ) : (
+                  <input
+                    type="file"
+                    ref={folderInputRef}
+                    // @ts-expect-error webkitdirectory is not in React's type definitions
+                    webkitdirectory=""
+                    // @ts-expect-error directory is not in React's type definitions
+                    directory=""
+                    multiple
+                    onChange={handleFolderChange}
+                    disabled={loading}
+                    id="folder-input"
+                  />
+                )}
                 {images.length > 0 && (
                   <div className="file-info">
                     <span className="file-name">{images.length} image(s) selected</span>
