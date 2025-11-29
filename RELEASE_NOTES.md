@@ -1,60 +1,58 @@
-# NesVentory v4.0.0 - Public Release
+# NesVentory v4.4.0 - Tabbed Edit Item Interface
 
 ## Overview
 
-Version 4.0.0 marks the public release of NesVentory, a comprehensive home inventory management system. This release includes all major features developed since v1.0 and is ready for public use.
+Version 4.4.0 introduces a redesigned Edit Item interface with a tabbed layout for better organization of item information, warranty management, and media uploads on web browsers.
 
 ## Major Features
 
-### AI-Powered Inventory Management
-- **AI Photo Detection** - Scan any room with your camera and let AI detect items automatically using Google Gemini
-- **AI Data Tag Parsing** - Take a photo of a product's data tag/label to extract manufacturer, model, serial number, and more
-- **AI Value Estimation** - Get AI-powered estimated values for your items with source tracking
+### Tabbed Edit Item Interface
+- **Basic Info Tab** - Core item details
+  - Name, description, brand, model number, serial number
+  - UPC/Barcode with AI Scan lookup button
+  - Purchase date, retailer, purchase price, estimated value
+  - Primary photo upload
+  - Location selection (hierarchical)
+  
+- **Warranty Tab** - Complete warranty management
+  - Add manufacturer warranties
+  - Add extended warranties
+  - Track provider/company, policy number
+  - Set duration (months) and expiration date
+  - Notes field for phone numbers and contact info
+  - Upload warranty document photos
+  
+- **Media Tab** - All photo management
+  - Primary/default photo
+  - Data tag photo with AI Scan button
+  - Receipt photos
+  - Warranty document photos
+  - Additional/optional photos
 
-### Logo & Branding Support
-- Display custom logo in header and login screen
-- Configurable branding for deployments
+### AI Scan Integration
+- AI Scan button on UPC/Barcode field for automatic product lookup
+- AI Scan button on Data Tag photo for automatic field extraction
+- Consistent styling with robot emoji (🤖) across all AI features
 
-### Theme & Color Support
-- User preference settings for themes
-- Customizable color schemes
+### Enhanced Warranty Management
+- Support for multiple warranties per item
+- Separate manufacturer and extended warranty types
+- Full fields: provider, policy number, duration, expiration, notes
+- Dedicated warranty photo section
 
-### Hierarchical Location Browser
-- Interactive clickable navigation
-- Visual tree structure with expand/collapse
+## UI/UX Improvements
 
-### User Management
-- Google OAuth SSO for easy authentication
-- Admin user creation and approval workflow
-- Role-based access control (Admin, Editor, Viewer)
-- Location-based access restrictions
+- Wider modal dialog (900px) for better form layout
+- Tab navigation with visual active state
+- Responsive design maintains usability on smaller screens
+- Living items retain traditional scroll layout (tabs only for non-living items)
 
-### Bulk Operations
-- Multi-select items for bulk actions
-- Bulk delete, tag update, and location assignment
-- Left-aligned action bars for better UX
+## Recent Features from v4.3.0
 
-### Data Import
-- Enhanced Encircle XLSX import
-- Parent/sub-location hierarchy support
-- Automatic location creation from import files
-
-## Core Features
-
-- 📦 Inventory Management - Track all household items with detailed information
-- 📍 Location Hierarchy - Organize items by rooms and sub-locations
-- 🏘️ Multi-Property Support - Manage multiple homes and multi-family properties
-- 👥 Landlord/Tenant Management - Track landlord and tenant info for rental properties
-- 🛠️ Maintenance Tracking - Schedule and track recurring maintenance tasks
-- 🌐 International Formats - Support for 25+ locales and 20+ currencies
-- 🐳 Docker Ready - Easy deployment with single unified container
-- 🎯 Pre-seeded Test Data - Start testing immediately with sample data
-
-## Bug Fixes
-- Fixed code scanning alert for clear text storage of sensitive info
-- Fixed build breaking login functionality
-- Fixed API key visibility in User Settings
-- Fixed AI data tag scan update error
+- Gemini API quota handling with graceful fallback
+- AI request throttling for free tier users
+- Enrich from Data Tags feature for batch AI processing
+- Improved import flow with quota exceeded warnings
 
 ## Technical Details
 
@@ -66,26 +64,20 @@ Version 4.0.0 marks the public release of NesVentory, a comprehensive home inven
 
 ## Breaking Changes
 
-None - This release is backward compatible with v3.x data.
+None - This release is backward compatible with v4.x data.
 
 ## Migration Notes
 
-For users upgrading from v3.x:
-1. Update your Docker image to v4.0.0
+For users upgrading from v4.3.x:
+1. Update your Docker image to v4.4.0
 2. No database migration required
-3. Existing data will be preserved
-
-## Security Notes
-
-- Reviewed codebase for private information and hardcoded paths
-- Checked dependencies for known vulnerabilities
-- Enhanced secret handling and API key management
+3. Existing data and warranties will be preserved
 
 ## Documentation
 
-- Updated README.md with comprehensive feature list
-- Updated INSTALL.txt with current installation instructions
-- Updated CHANGELOG.md with version history
+- Updated README.md with v4.4.0 features
+- Updated CHANGELOG.md with detailed changes
+- Updated RELEASE_NOTES.md
 
 ---
 
