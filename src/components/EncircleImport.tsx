@@ -6,6 +6,14 @@ interface EncircleImportProps {
   onSuccess: () => void;
 }
 
+// Allowed image MIME types for import
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+// Filter files to only include valid image types
+const filterValidImages = (files: FileList): File[] => {
+  return Array.from(files).filter(file => ALLOWED_IMAGE_TYPES.includes(file.type));
+};
+
 const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) => {
   const [xlsxFile, setXlsxFile] = useState<File | null>(null);
   const [images, setImages] = useState<File[]>([]);
@@ -73,32 +81,14 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
   const handleImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      const validImages: File[] = [];
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-      
-      for (let i = 0; i < files.length; i++) {
-        if (allowedTypes.includes(files[i].type)) {
-          validImages.push(files[i]);
-        }
-      }
-      
-      setImages(validImages);
+      setImages(filterValidImages(files));
     }
   };
 
   const handleFolderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      const validImages: File[] = [];
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-      
-      for (let i = 0; i < files.length; i++) {
-        if (allowedTypes.includes(files[i].type)) {
-          validImages.push(files[i]);
-        }
-      }
-      
-      setImages(validImages);
+      setImages(filterValidImages(files));
     }
   };
 
@@ -429,8 +419,6 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
                     ref={folderInputRef}
                     // @ts-expect-error webkitdirectory is not in React's type definitions
                     webkitdirectory=""
-                    // @ts-expect-error directory is not in React's type definitions
-                    directory=""
                     multiple
                     onChange={handleFolderChange}
                     disabled={loading}
