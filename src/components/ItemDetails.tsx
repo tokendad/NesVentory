@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import type { Item, Location } from "../lib/api";
 import { getApiBaseUrl } from "../lib/api";
-import { formatPhotoType, formatCurrency, formatDate, formatDateTime } from "../lib/utils";
+import { formatPhotoType, formatCurrency, formatDate, formatDateTime, getLocationPath } from "../lib/utils";
 import { RELATIONSHIP_LABELS, LIVING_TAG_NAME } from "../lib/constants";
 
 interface ItemDetailsProps {
@@ -204,7 +204,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
             <div className="details-grid">
               <div className="detail-item">
                 <span className="detail-label">Location:</span>
-                <span className="detail-value">{location?.name || "—"}</span>
+                <span className="detail-value">{getLocationPath(item.location_id, locations)}</span>
               </div>
             </div>
           </div>
