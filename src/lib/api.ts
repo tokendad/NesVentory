@@ -932,3 +932,96 @@ export async function enrichFromDataTags(): Promise<AIEnrichmentRunResponse> {
   return handleResponse<AIEnrichmentRunResponse>(res);
 }
 
+// --- Google Drive Backup APIs ---
+
+export interface GDriveStatus {
+  enabled: boolean;
+  connected: boolean;
+  last_backup: string | null;
+}
+
+export interface GDriveBackupResponse {
+  success: boolean;
+  message: string;
+  backup_id?: string | null;
+  backup_name?: string | null;
+  backup_date?: string | null;
+}
+
+export interface GDriveBackupFile {
+  id: string;
+  name: string;
+  created_time: string;
+  size?: string | null;
+}
+
+export interface GDriveBackupList {
+  backups: GDriveBackupFile[];
+}
+
+export async function getGDriveStatus(): Promise<GDriveStatus> {
+  const res = await fetch(`${API_BASE_URL}/api/gdrive/status`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<GDriveStatus>(res);
+}
+
+export async function connectGDrive(code: string): Promise<GDriveStatus> {
+  const res = await fetch(`${API_BASE_URL}/api/gdrive/connect`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ code }),
+  });
+  return handleResponse<GDriveStatus>(res);
+}
+
+export async function disconnectGDrive(): Promise<GDriveStatus> {
+  const res = await fetch(`${API_BASE_URL}/api/gdrive/disconnect`, {
+    method: "DELETE",
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<GDriveStatus>(res);
+}
+
+export async function createGDriveBackup(): Promise<GDriveBackupResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/gdrive/backup`, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<GDriveBackupResponse>(res);
+}
+
+export async function listGDriveBackups(): Promise<GDriveBackupList> {
+  const res = await fetch(`${API_BASE_URL}/api/gdrive/backups`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<GDriveBackupList>(res);
+}
+
+export async function deleteGDriveBackup(backupId: string): Promise<GDriveBackupResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/gdrive/backups/${backupId}`, {
+    method: "DELETE",
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<GDriveBackupResponse>(res);
+}
+

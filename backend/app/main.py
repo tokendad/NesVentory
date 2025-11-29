@@ -12,7 +12,7 @@ import re
 from . import models
 from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
-from .routers import items, locations, auth, status, photos, users, tags, encircle, ai
+from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive
 
 
 def run_migrations():
@@ -27,8 +27,9 @@ def run_migrations():
     # Only these exact names are permitted in migrations
     ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks"}
     ALLOWED_COLUMNS = {"google_id", "estimated_value_ai_date", "estimated_value_user_date", "estimated_value_user_name",
-                       "ai_schedule_enabled", "ai_schedule_interval_days", "ai_schedule_last_run"}
-    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "BOOLEAN DEFAULT FALSE", "INTEGER DEFAULT 7", "TIMESTAMP"}
+                       "ai_schedule_enabled", "ai_schedule_interval_days", "ai_schedule_last_run",
+                       "gdrive_refresh_token", "gdrive_last_backup"}
+    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "BOOLEAN DEFAULT FALSE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT"}
     
     # Define migrations: (table_name, column_name, column_definition)
     migrations = [
@@ -42,6 +43,9 @@ def run_migrations():
         ("users", "ai_schedule_enabled", "BOOLEAN DEFAULT FALSE"),
         ("users", "ai_schedule_interval_days", "INTEGER DEFAULT 7"),
         ("users", "ai_schedule_last_run", "TIMESTAMP"),
+        # User model: Google Drive backup settings
+        ("users", "gdrive_refresh_token", "TEXT"),
+        ("users", "gdrive_last_backup", "TIMESTAMP"),
     ]
     
     with engine.begin() as conn:
@@ -135,6 +139,7 @@ app.include_router(users.router, prefix="/api")
 app.include_router(tags.router, prefix="/api")
 app.include_router(encircle.router, prefix="/api")
 app.include_router(ai.router, prefix="/api")
+app.include_router(gdrive.router, prefix="/api")
 
 # Setup uploads directory and mount static files
 # Media files are stored in /app/data/media to ensure they persist with the database
