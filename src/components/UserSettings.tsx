@@ -29,6 +29,31 @@ interface UserSettingsProps {
   onUpdate: (updatedUser: User) => void;
 }
 
+// Type definition for Google Identity Services OAuth2 code client
+interface GoogleOAuth2CodeClient {
+  requestCode: () => void;
+}
+
+interface GoogleOAuth2Config {
+  client_id: string;
+  scope: string;
+  callback: (response: { code?: string }) => void;
+}
+
+interface GoogleOAuth2 {
+  initCodeClient: (config: GoogleOAuth2Config) => GoogleOAuth2CodeClient;
+}
+
+interface GoogleAccounts {
+  oauth2?: GoogleOAuth2;
+}
+
+interface GoogleWindow extends Window {
+  google?: {
+    accounts?: GoogleAccounts;
+  };
+}
+
 const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) => {
   const [fullName, setFullName] = useState(user.full_name || "");
   const [password, setPassword] = useState("");
@@ -152,11 +177,8 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
     setError(null);
     
     // Use Google Identity Services to get authorization code
-    const google = (window as typeof window & { google?: { accounts?: { oauth2?: { initCodeClient: (config: {
-      client_id: string;
-      scope: string;
-      callback: (response: { code?: string }) => void;
-    }) => { requestCode: () => void } } } } })?.google;
+    const googleWindow = window as GoogleWindow;
+    const google = googleWindow.google;
     
     if (!google?.accounts?.oauth2) {
       // Load the Google Identity Services script if not loaded
@@ -178,11 +200,8 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
   }
 
   function initiateGDriveOAuth() {
-    const google = (window as typeof window & { google?: { accounts?: { oauth2?: { initCodeClient: (config: {
-      client_id: string;
-      scope: string;
-      callback: (response: { code?: string }) => void;
-    }) => { requestCode: () => void } } } } })?.google;
+    const googleWindow = window as GoogleWindow;
+    const google = googleWindow.google;
     
     if (!google?.accounts?.oauth2 || !googleClientId) {
       setError("Google Sign-In not ready");
@@ -891,7 +910,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
                             <div style={{ fontWeight: 500 }}>{backup.name}</div>
                             <div style={{ color: "#666", fontSize: "0.75rem" }}>
                               {formatBackupDate(backup.created_time)}
-                              {backup.size && ` • ${(parseInt(backup.size) / 1024).toFixed(1)} KB`}
+                              {backup.size && !isNaN(Number(backup.size)) && ` • ${(Number(backup.size) / 1024).toFixed(1)} KB`}
                             </div>
                           </div>
                           <button

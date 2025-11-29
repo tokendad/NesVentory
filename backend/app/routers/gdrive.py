@@ -360,10 +360,11 @@ async def create_backup(
             'parents': [folder_id],
             'mimeType': 'application/json'
         }
+        # Use resumable=False for in-memory uploads (more efficient for small JSON data)
         media = MediaInMemoryUpload(
             backup_json.encode('utf-8'),
             mimetype='application/json',
-            resumable=True
+            resumable=False
         )
         
         file = service.files().create(
