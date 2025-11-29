@@ -94,6 +94,12 @@ ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
 MIN_ITEM_NAME_LENGTH = 2
 MAX_ITEM_NAME_LENGTH = 100
 
+# UPC/barcode length constraints
+# UPC-E: 6-8 digits (compressed), UPC-A: 12 digits, EAN-8: 8 digits
+# EAN-13: 13 digits, GTIN-14: 14 digits
+MIN_UPC_LENGTH = 6
+MAX_UPC_LENGTH = 14
+
 
 class DetectedItem(BaseModel):
     """Schema for a detected item from AI analysis."""
@@ -145,6 +151,13 @@ class BarcodeLookupResult(BaseModel):
     estimated_value: Optional[float] = None
     estimation_date: Optional[str] = None  # Date when AI estimated the value (MM/DD/YY format)
     category: Optional[str] = None
+    raw_response: Optional[str] = None
+
+
+class BarcodeScanResult(BaseModel):
+    """Schema for barcode scan response (reading barcode from image)."""
+    found: bool
+    upc: Optional[str] = None
     raw_response: Optional[str] = None
 
 
@@ -850,6 +863,181 @@ If the UPC is not in your knowledge base or you cannot identify it, return found
         raise HTTPException(
             status_code=500,
             detail="Failed to look up barcode. Please try again."
+        )
+
+
+def parse_barcode_scan_response(response_text: str) -> BarcodeScanResult:
+    """
+    Parse the Gemini response text for barcode scan (reading barcode from image).
+    
+    The AI is prompted to return JSON with the UPC code.
+    """
+    result = BarcodeScanResult(found=False)
+    
+    try:
+        # Look for JSON object in the response
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            json_str = json_match.group()
+            parsed = json.loads(json_str)
+            
+            if isinstance(parsed, dict):
+                # Check if barcode was found - handle both boolean and string "true"/"false"
+                found = parsed.get("found", False)
+                result.found = found is True or (isinstance(found, str) and found.lower() == "true")
+                
+                if not result.found:
+                    result.raw_response = response_text
+                    return result
+                
+                # Extract UPC/barcode value
+                upc = (
+                    parsed.get("upc") or
+                    parsed.get("barcode") or
+                    parsed.get("code") or
+                    parsed.get("ean") or
+                    None
+                )
+                
+                # Clean and validate the UPC using constants
+                if upc:
+                    # Remove any non-digit characters
+                    upc_clean = re.sub(r'[^\d]', '', str(upc))
+                    if upc_clean and MIN_UPC_LENGTH <= len(upc_clean) <= MAX_UPC_LENGTH:
+                        result.upc = upc_clean
+                    else:
+                        result.found = False
+                        result.raw_response = response_text
+                else:
+                    result.found = False
+                    result.raw_response = response_text
+                    
+    except json.JSONDecodeError:
+        logger.warning("Failed to parse JSON from Gemini barcode scan response")
+        result.raw_response = response_text
+    
+    return result
+
+
+@router.post("/scan-barcode", response_model=BarcodeScanResult)
+async def scan_barcode_image(
+    file: UploadFile = File(..., description="Image of a barcode to scan"),
+    db: Session = Depends(get_db)
+):
+    """
+    Scan a barcode image and extract the UPC/barcode number.
+    
+    Uses Gemini AI to read the barcode from an uploaded image and return
+    the UPC/barcode digits. This is useful for mobile devices where users
+    can take a photo of a barcode to automatically fill in the UPC field.
+    
+    Supported barcode types:
+    - UPC-A (12 digits)
+    - UPC-E (6-8 digits)
+    - EAN-8 (8 digits)
+    - EAN-13 (13 digits)
+    - GTIN-14 (14 digits)
+    """
+    # Check if Gemini API is configured
+    if not settings.GEMINI_API_KEY or not settings.GEMINI_API_KEY.strip():
+        raise HTTPException(
+            status_code=503,
+            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment."
+        )
+    
+    # Validate file type
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed types: {', '.join(ALLOWED_IMAGE_TYPES)}"
+        )
+    
+    try:
+        # Import Gemini SDK
+        import google.generativeai as genai
+        
+        # Throttle requests to avoid rate limits
+        throttle_ai_request()
+        
+        # Configure the API
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        
+        # Read and encode the image
+        image_data = await file.read()
+        image_base64 = base64.b64encode(image_data).decode("utf-8")
+        
+        # Create the model
+        model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        
+        # Construct the prompt for barcode scanning
+        prompt = """Analyze this image and look for any barcode or UPC code.
+
+If you find a barcode (UPC-A, UPC-E, EAN-8, EAN-13, or similar), extract the numeric digits.
+
+Return ONLY a JSON object with these fields:
+1. found: true if a barcode is visible and readable, false otherwise
+2. upc: The barcode digits (numbers only, no hyphens or spaces)
+
+Example format if barcode is found:
+{
+  "found": true,
+  "upc": "012345678901"
+}
+
+Example format if no barcode is found:
+{
+  "found": false,
+  "upc": null
+}
+
+Important: 
+- Only return found: true if you can clearly read the barcode digits
+- Return only the numeric digits, no letters or special characters
+- If the barcode is blurry or partially visible, return found: false"""
+
+        # Create the image part for the API
+        image_part = {
+            "mime_type": file.content_type,
+            "data": image_base64
+        }
+        
+        # Generate the response
+        response = model.generate_content([prompt, image_part])
+        
+        # Parse the response
+        response_text = response.text
+        result = parse_barcode_scan_response(response_text)
+        
+        # If parsing failed or not found, include raw response
+        if not result.found and not result.raw_response:
+            result.raw_response = response_text
+        
+        return result
+        
+    except ImportError:
+        logger.error("google-generativeai package not installed")
+        raise HTTPException(
+            status_code=503,
+            detail="AI detection is not available. Required package not installed."
+        )
+    except Exception as e:
+        logger.exception("Error during barcode image scanning")
+        error_msg = str(e)
+        # Check for quota exceeded error
+        if is_quota_error(e):
+            raise HTTPException(
+                status_code=429,
+                detail=QUOTA_EXCEEDED_MESSAGE
+            )
+        # Don't expose internal error details
+        if "API key" in error_msg.lower() or "authentication" in error_msg.lower():
+            raise HTTPException(
+                status_code=503,
+                detail="AI service authentication failed. Please check GEMINI_API_KEY configuration."
+            )
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to scan barcode image. Please try again."
         )
 
 
