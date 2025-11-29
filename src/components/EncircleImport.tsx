@@ -295,9 +295,10 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
                 <div className="detected-location" style={{ 
                   marginTop: '12px', 
                   padding: '12px', 
-                  backgroundColor: 'var(--bg-secondary, #f5f5f5)', 
+                  backgroundColor: 'var(--bg-elevated-softer)', 
                   borderRadius: '6px',
-                  border: '1px solid var(--border-color, #ddd)'
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text)'
                 }}>
                   <strong>📍 Detected Location:</strong> {detectedParentName}
                   <p className="help-text" style={{ margin: '8px 0 0 0' }}>
