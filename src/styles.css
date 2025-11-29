@@ -2399,18 +2399,20 @@ tbody tr:hover {
   margin-top: 1rem;
 }
 
-.btn-small {
-  padding: 0.25rem 0.5rem !important;
-  font-size: 0.8rem !important;
+/* Small button variant for warranty form */
+.item-form-tabbed .warranty-form-item .btn-small {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
 }
 
-.btn-danger-outline {
-  border-color: var(--danger) !important;
-  color: var(--danger) !important;
+/* Danger outline button variant for warranty remove */
+.item-form-tabbed .warranty-form-item .btn-danger-outline {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
-.btn-danger-outline:hover {
-  background: rgba(249, 115, 115, 0.1) !important;
+.item-form-tabbed .warranty-form-item .btn-danger-outline:hover {
+  background: rgba(249, 115, 115, 0.1);
 }
 
 /* Responsive Tab Adjustments */

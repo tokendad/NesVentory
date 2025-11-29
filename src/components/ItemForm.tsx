@@ -424,7 +424,11 @@ const ItemForm: React.FC<ItemFormProps> = ({
     setWarranties(prev => prev.filter((_, i) => i !== index));
   };
 
-  const updateWarranty = (index: number, field: keyof Warranty, value: string | number | null) => {
+  const updateWarranty = <K extends keyof Warranty>(
+    index: number,
+    field: K,
+    value: Warranty[K]
+  ) => {
     setWarranties(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
