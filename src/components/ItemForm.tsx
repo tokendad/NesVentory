@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, Warranty } from "../lib/api";
-import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode } from "../lib/api";
+import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, BarcodeScanResult, Warranty } from "../lib/api";
+import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode, scanBarcodeImage } from "../lib/api";
 import { formatPhotoType, getLocationPath } from "../lib/utils";
 import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES, LIVING_TAG_NAME, RELATIONSHIP_LABELS } from "../lib/constants";
 import type { PhotoUpload } from "../lib/types";
@@ -81,6 +81,10 @@ const ItemForm: React.FC<ItemFormProps> = ({
   // Barcode lookup state
   const [lookingUpBarcode, setLookingUpBarcode] = useState(false);
   const [barcodeResult, setBarcodeResult] = useState<BarcodeLookupResult | null>(null);
+  
+  // Barcode scanning state (mobile camera)
+  const [scanningBarcode, setScanningBarcode] = useState(false);
+  const barcodeScanInputRef = useRef<HTMLInputElement>(null);
 
   // Tab state for non-mobile view
   const [activeTab, setActiveTab] = useState<TabId>("basic");
@@ -415,6 +419,48 @@ const ItemForm: React.FC<ItemFormProps> = ({
     setBarcodeResult(null);
   };
 
+  // Handle barcode scan - triggers file input (mobile camera)
+  const handleBarcodeScan = () => {
+    barcodeScanInputRef.current?.click();
+  };
+
+  // Handle barcode image capture and AI parsing
+  const handleBarcodeScanFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || !files[0]) return;
+    
+    const file = files[0];
+    if (!ALLOWED_PHOTO_MIME_TYPES.includes(file.type)) {
+      setError("Please select a valid image file (JPEG, PNG, GIF, or WebP)");
+      return;
+    }
+    
+    // Parse the barcode from the image
+    setScanningBarcode(true);
+    setError(null);
+    
+    try {
+      const result = await scanBarcodeImage(file);
+      if (result.found && result.upc) {
+        // Update the UPC field with the scanned value
+        setFormData(prev => ({
+          ...prev,
+          upc: result.upc || ""
+        }));
+      } else {
+        setError("Could not read barcode from image. Please try again with a clearer photo.");
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to scan barcode image");
+    } finally {
+      setScanningBarcode(false);
+      // Reset the input so the same file can be selected again
+      if (barcodeScanInputRef.current) {
+        barcodeScanInputRef.current.value = "";
+      }
+    }
+  };
+
   // Warranty handlers
   const addWarranty = (type: 'manufacturer' | 'extended') => {
     setWarranties(prev => [...prev, { type }]);
@@ -666,23 +712,44 @@ const ItemForm: React.FC<ItemFormProps> = ({
                   name="upc"
                   value={formData.upc || ""}
                   onChange={handleChange}
-                  disabled={loading || lookingUpBarcode}
+                  disabled={loading || lookingUpBarcode || scanningBarcode}
                   placeholder="Enter UPC/barcode"
                 />
                 {aiStatus?.enabled && (
-                  <button
-                    type="button"
-                    className="btn-outline btn-barcode-lookup"
-                    onClick={handleBarcodeLookup}
-                    disabled={loading || lookingUpBarcode || !formData.upc?.trim()}
-                    title="Look up product info from UPC/barcode using AI"
-                  >
-                    {lookingUpBarcode ? "🔄 Looking up..." : "🤖 AI Scan"}
-                  </button>
+                  <>
+                    {/* Hidden file input for barcode camera scanning */}
+                    <input
+                      type="file"
+                      ref={barcodeScanInputRef}
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleBarcodeScanFileChange}
+                      disabled={loading || scanningBarcode}
+                      style={{ display: "none" }}
+                    />
+                    <button
+                      type="button"
+                      className="btn-outline btn-barcode-scan"
+                      onClick={handleBarcodeScan}
+                      disabled={loading || scanningBarcode}
+                      title="Scan barcode with camera"
+                    >
+                      {scanningBarcode ? "🔄" : "📷"}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-outline btn-barcode-lookup"
+                      onClick={handleBarcodeLookup}
+                      disabled={loading || lookingUpBarcode || !formData.upc?.trim()}
+                      title="Look up product info from UPC/barcode using AI"
+                    >
+                      {lookingUpBarcode ? "🔄 Looking up..." : "🤖 AI Scan"}
+                    </button>
+                  </>
                 )}
               </div>
               {aiStatus?.enabled && (
-                <span className="help-text">Enter barcode and click AI Scan to auto-fill product info</span>
+                <span className="help-text">Tap 📷 to scan barcode with camera, or enter manually and use AI Scan</span>
               )}
             </div>
           </div>

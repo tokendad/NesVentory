@@ -1333,6 +1333,29 @@ tbody tr:hover {
   cursor: not-allowed;
 }
 
+.btn-barcode-scan {
+  white-space: nowrap;
+  font-size: 1rem !important;
+  padding: 0.4rem 0.6rem !important;
+  background: rgba(56, 189, 248, 0.1);
+  border-color: var(--accent);
+  color: var(--accent);
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-barcode-scan:hover:not(:disabled) {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.btn-barcode-scan:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .barcode-lookup-result {
   margin-top: 0.75rem;
   margin-bottom: 1rem;

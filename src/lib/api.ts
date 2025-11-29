@@ -851,6 +851,26 @@ export async function lookupBarcode(upc: string): Promise<BarcodeLookupResult> {
   return handleResponse<BarcodeLookupResult>(res);
 }
 
+export interface BarcodeScanResult {
+  found: boolean;
+  upc?: string | null;
+  raw_response?: string | null;
+}
+
+export async function scanBarcodeImage(file: File): Promise<BarcodeScanResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_BASE_URL}/api/ai/scan-barcode`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+    },
+    body: formData,
+  });
+  return handleResponse<BarcodeScanResult>(res);
+}
+
 // --- Google OAuth ---
 
 export interface GoogleOAuthStatus {
