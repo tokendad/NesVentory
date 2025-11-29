@@ -47,7 +47,6 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
   // Check AI status on mount
   useEffect(() => {
     async function checkAIStatus() {
-      setAIStatusLoading(true);
       try {
         const status = await getAIStatus();
         setAIStatus(status);
