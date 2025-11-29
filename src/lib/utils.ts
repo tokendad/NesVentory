@@ -3,6 +3,7 @@
  */
 
 import { getLocaleConfig } from './locale';
+import type { Location } from './api';
 
 /**
  * Format photo type name for display
@@ -128,4 +129,49 @@ export function formatDateTime(
   } catch (error) {
     return typeof dateTime === 'string' ? dateTime : '—';
   }
+}
+
+/**
+ * Build the full hierarchical path for a location
+ * @param locationId - The ID of the location to get the path for
+ * @param locations - Array of all locations to build hierarchy from
+ * @param separator - String to use as separator between path segments (default: " / ")
+ * @returns Full path string (e.g., "Home1 / Floor 1 / Bathroom") or "—" if not found
+ */
+export function getLocationPath(
+  locationId: number | string | null | undefined,
+  locations: Location[],
+  separator: string = " / "
+): string {
+  if (!locationId) return "—";
+  
+  // Find the location
+  const location = locations.find(
+    (loc) => loc.id.toString() === locationId.toString()
+  );
+  
+  if (!location) return "—";
+  
+  // Build path by traversing parent hierarchy
+  const pathParts: string[] = [];
+  let current: Location | undefined = location;
+  const visited = new Set<string>(); // Prevent infinite loops from circular references
+  
+  while (current) {
+    const currentId = current.id.toString();
+    if (visited.has(currentId)) break; // Prevent circular reference
+    visited.add(currentId);
+    
+    pathParts.unshift(current.friendly_name || current.name);
+    
+    if (current.parent_id) {
+      current = locations.find(
+        (loc) => loc.id.toString() === current!.parent_id!.toString()
+      );
+    } else {
+      break;
+    }
+  }
+  
+  return pathParts.join(separator);
 }

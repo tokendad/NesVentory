@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import type { Item, Tag, Location } from "../lib/api";
-import { formatCurrency, formatDate } from "../lib/utils";
+import { formatCurrency, formatDate, getLocationPath } from "../lib/utils";
 
 interface ItemsTableProps {
   items: Item[];
@@ -398,7 +398,7 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
                   <option value="">No Location</option>
                   {locations.map((location) => (
                     <option key={location.id} value={location.id.toString()}>
-                      {location.name}
+                      {getLocationPath(location.id, locations)}
                     </option>
                   ))}
                 </select>

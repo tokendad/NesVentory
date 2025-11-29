@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { importEncircle, previewEncircle, fetchLocations, type EncircleImportResult, type Location } from "../lib/api";
+import { getLocationPath } from "../lib/utils";
 
 interface EncircleImportProps {
   onClose: () => void;
@@ -348,8 +349,7 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
                     <option value="">Select a location...</option>
                     {locations.map((loc) => (
                       <option key={String(loc.id)} value={String(loc.id)}>
-                        {loc.name}
-                        {loc.friendly_name ? ` (${loc.friendly_name})` : ''}
+                        {getLocationPath(loc.id, locations)}
                       </option>
                     ))}
                   </select>

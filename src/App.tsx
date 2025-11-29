@@ -35,6 +35,7 @@ import {
 } from "./lib/api";
 import { PHOTO_TYPES } from "./lib/constants";
 import type { PhotoUpload } from "./lib/types";
+import { getLocationPath } from "./lib/utils";
 
 type View = "dashboard" | "items" | "locations" | "status" | "admin";
 
@@ -217,11 +218,7 @@ const App: React.FC = () => {
   }
 
   function getLocationName(locationId: number | string | null | undefined): string {
-    if (!locationId) return "—";
-    const location = locations.find(
-      (loc) => loc.id.toString() === locationId.toString()
-    );
-    return location?.name || "—";
+    return getLocationPath(locationId, locations);
   }
 
   function handleUserSettingsUpdate(updatedUser: User) {

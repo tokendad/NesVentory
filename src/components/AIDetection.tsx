@@ -8,6 +8,7 @@ import {
   type Location,
   type ItemCreate,
 } from "../lib/api";
+import { getLocationPath } from "../lib/utils";
 
 // Confidence threshold constants for visual display
 const HIGH_CONFIDENCE_THRESHOLD = 0.8;
@@ -351,7 +352,7 @@ const AIDetection: React.FC<AIDetectionProps> = ({ onClose, onAddItems, location
                         <option value="">No location</option>
                         {locations.map((loc) => (
                           <option key={loc.id.toString()} value={loc.id.toString()}>
-                            {loc.name}
+                            {getLocationPath(loc.id, locations)}
                           </option>
                         ))}
                       </select>

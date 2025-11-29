@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, Warranty } from "../lib/api";
 import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode } from "../lib/api";
-import { formatPhotoType } from "../lib/utils";
+import { formatPhotoType, getLocationPath } from "../lib/utils";
 import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES, LIVING_TAG_NAME, RELATIONSHIP_LABELS } from "../lib/constants";
 import type { PhotoUpload } from "../lib/types";
 
@@ -865,7 +865,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
           <option value="">-- No Location --</option>
           {locations.map((location) => (
             <option key={location.id} value={location.id.toString()}>
-              {location.name}
+              {getLocationPath(location.id, locations)}
             </option>
           ))}
         </select>
