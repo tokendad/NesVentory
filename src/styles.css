@@ -1408,6 +1408,25 @@ tbody tr:hover {
   padding: 0.4rem 0.75rem;
 }
 
+.barcode-result-source {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+  padding: 0.35rem 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.25rem;
+}
+
+.barcode-result-source .source-label {
+  color: var(--muted);
+}
+
+.barcode-result-source .source-value {
+  color: var(--accent);
+  font-weight: 500;
+}
+
 .no-result-message {
   font-size: 0.875rem;
   color: var(--muted);

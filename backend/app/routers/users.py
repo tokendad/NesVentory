@@ -19,7 +19,7 @@ def generate_api_key() -> str:
 
 
 def get_user_with_locations(user: models.User) -> dict:
-    """Helper to serialize user with allowed_location_ids, api_key, is_approved, and AI settings."""
+    """Helper to serialize user with allowed_location_ids, api_key, is_approved, AI settings, and UPC databases."""
     return {
         "id": user.id,
         "email": user.email,
@@ -32,7 +32,8 @@ def get_user_with_locations(user: models.User) -> dict:
         "api_key": user.api_key,
         "ai_schedule_enabled": user.ai_schedule_enabled,
         "ai_schedule_interval_days": user.ai_schedule_interval_days,
-        "ai_schedule_last_run": user.ai_schedule_last_run
+        "ai_schedule_last_run": user.ai_schedule_last_run,
+        "upc_databases": user.upc_databases
     }
 
 
@@ -268,6 +269,62 @@ def update_ai_schedule_settings(
     """
     current_user.ai_schedule_enabled = settings.ai_schedule_enabled
     current_user.ai_schedule_interval_days = settings.ai_schedule_interval_days
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    return get_user_with_locations(current_user)
+
+
+@router.get("/users/me/upc-databases", response_model=schemas.UPCDatabaseConfigUpdate)
+def get_upc_database_settings(
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """
+    Get the UPC database configuration for the current user.
+    Returns the list of UPC databases in priority order with their enabled status and API keys.
+    """
+    from ..upc_service import get_default_upc_config
+    
+    upc_databases = current_user.upc_databases
+    if upc_databases is None:
+        upc_databases = get_default_upc_config()
+    
+    return schemas.UPCDatabaseConfigUpdate(
+        upc_databases=[schemas.UPCDatabaseConfig(**db) for db in upc_databases]
+    )
+
+
+@router.put("/users/me/upc-databases", response_model=schemas.UserRead)
+def update_upc_database_settings(
+    config: schemas.UPCDatabaseConfigUpdate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update the UPC database configuration for the current user.
+    
+    The order of databases in the list determines the lookup priority
+    (first = highest priority).
+    
+    Each database can be enabled/disabled and have an API key configured.
+    """
+    from ..upc_service import get_available_databases
+    
+    # Validate that all database IDs are valid
+    available_ids = {db["id"] for db in get_available_databases()}
+    for db_config in config.upc_databases:
+        if db_config.id not in available_ids:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown database ID: {db_config.id}. Valid IDs: {', '.join(available_ids)}"
+            )
+    
+    # Convert to dict format for storage
+    current_user.upc_databases = [
+        {"id": db.id, "enabled": db.enabled, "api_key": db.api_key}
+        for db in config.upc_databases
+    ]
+    
     db.add(current_user)
     db.commit()
     db.refresh(current_user)

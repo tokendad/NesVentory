@@ -503,6 +503,8 @@ export interface User {
   ai_schedule_enabled?: boolean;
   ai_schedule_interval_days?: number;
   ai_schedule_last_run?: string | null;
+  // UPC Database Configuration
+  upc_databases?: { id: string; enabled: boolean; api_key?: string | null }[] | null;
 }
 
 export interface UserCreate {
@@ -869,6 +871,88 @@ export async function scanBarcodeImage(file: File): Promise<BarcodeScanResult> {
     body: formData,
   });
   return handleResponse<BarcodeScanResult>(res);
+}
+
+// --- Multi-Database UPC Lookup ---
+
+export interface MultiBarcodeLookupResult {
+  found: boolean;
+  source: string;  // The database that returned this result (e.g., 'gemini', 'upcdatabase')
+  name?: string | null;
+  description?: string | null;
+  brand?: string | null;
+  model_number?: string | null;
+  estimated_value?: number | null;
+  estimation_date?: string | null;
+  category?: string | null;
+  raw_response?: string | null;
+  has_next_database: boolean;
+  next_database_id?: string | null;
+  next_database_name?: string | null;
+}
+
+export interface UPCDatabaseConfig {
+  id: string;
+  enabled: boolean;
+  api_key?: string | null;
+}
+
+export interface AvailableUPCDatabase {
+  id: string;
+  name: string;
+  description: string;
+  requires_api_key: boolean;
+  api_key_url?: string | null;
+}
+
+export interface AvailableUPCDatabasesResponse {
+  databases: AvailableUPCDatabase[];
+}
+
+export async function lookupBarcodeMulti(upc: string, databaseId?: string | null): Promise<MultiBarcodeLookupResult> {
+  const res = await fetch(`${API_BASE_URL}/api/ai/barcode-lookup-multi`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ upc, database_id: databaseId || null }),
+  });
+  return handleResponse<MultiBarcodeLookupResult>(res);
+}
+
+export async function getAvailableUPCDatabases(): Promise<AvailableUPCDatabasesResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/ai/upc-databases`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<AvailableUPCDatabasesResponse>(res);
+}
+
+export async function getUPCDatabaseSettings(): Promise<{ upc_databases: UPCDatabaseConfig[] }> {
+  const res = await fetch(`${API_BASE_URL}/api/users/me/upc-databases`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<{ upc_databases: UPCDatabaseConfig[] }>(res);
+}
+
+export async function updateUPCDatabaseSettings(upcDatabases: UPCDatabaseConfig[]): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/users/me/upc-databases`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ upc_databases: upcDatabases }),
+  });
+  return handleResponse<User>(res);
 }
 
 // --- Google OAuth ---

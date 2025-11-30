@@ -99,6 +99,11 @@ class User(Base):
     # Google Drive Backup Settings
     gdrive_refresh_token = Column(Text, nullable=True)  # OAuth refresh token for Drive API
     gdrive_last_backup = Column(DateTime, nullable=True)  # Timestamp of last successful backup
+    
+    # UPC Database Configuration - stored as JSON array with priority order
+    # Format: [{"id": "gemini", "enabled": true, "api_key": null}, {"id": "upcdatabase", "enabled": true, "api_key": "..."}, ...]
+    # The order of items in the array determines the lookup priority (first = highest priority)
+    upc_databases = Column(JSON, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

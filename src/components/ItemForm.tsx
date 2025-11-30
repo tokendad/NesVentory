@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, BarcodeScanResult, Warranty } from "../lib/api";
-import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode, scanBarcodeImage } from "../lib/api";
+import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, BarcodeScanResult, Warranty, MultiBarcodeLookupResult } from "../lib/api";
+import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode, scanBarcodeImage, lookupBarcodeMulti } from "../lib/api";
 import { formatPhotoType, getLocationPath } from "../lib/utils";
 import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES, LIVING_TAG_NAME, RELATIONSHIP_LABELS } from "../lib/constants";
 import type { PhotoUpload } from "../lib/types";
@@ -78,9 +78,10 @@ const ItemForm: React.FC<ItemFormProps> = ({
   const [dataTagResult, setDataTagResult] = useState<DataTagInfo | null>(null);
   const dataTagInputRef = useRef<HTMLInputElement>(null);
   
-  // Barcode lookup state
+  // Barcode lookup state - now supports multi-database with accept/reject flow
   const [lookingUpBarcode, setLookingUpBarcode] = useState(false);
-  const [barcodeResult, setBarcodeResult] = useState<BarcodeLookupResult | null>(null);
+  const [barcodeResult, setBarcodeResult] = useState<MultiBarcodeLookupResult | null>(null);
+  const [currentUpcForLookup, setCurrentUpcForLookup] = useState<string>("");  // Track UPC for reject flow
   
   // Barcode scanning state (mobile camera)
   const [scanningBarcode, setScanningBarcode] = useState(false);
@@ -373,9 +374,9 @@ const ItemForm: React.FC<ItemFormProps> = ({
     setDataTagResult(null);
   };
 
-  // Handle barcode lookup
-  const handleBarcodeLookup = async () => {
-    const upc = formData.upc?.trim();
+  // Handle barcode lookup - uses multi-database flow
+  const handleBarcodeLookup = async (databaseId?: string | null) => {
+    const upc = databaseId ? currentUpcForLookup : formData.upc?.trim();
     if (!upc) {
       setError("Please enter a UPC/barcode to look up");
       return;
@@ -384,9 +385,10 @@ const ItemForm: React.FC<ItemFormProps> = ({
     setLookingUpBarcode(true);
     setError(null);
     setBarcodeResult(null);
+    setCurrentUpcForLookup(upc);  // Store for reject flow
     
     try {
-      const result = await lookupBarcode(upc);
+      const result = await lookupBarcodeMulti(upc, databaseId);
       setBarcodeResult(result);
     } catch (err: any) {
       setError(err.message || "Failed to look up barcode");
@@ -395,8 +397,21 @@ const ItemForm: React.FC<ItemFormProps> = ({
     }
   };
 
+  // Handle "Try Next Database" when user rejects current result
+  const handleTryNextDatabase = async () => {
+    if (!barcodeResult?.next_database_id) {
+      // No more databases - show not found message
+      setError("Product not found in any configured database. Please enter details manually.");
+      setBarcodeResult(null);
+      return;
+    }
+    
+    // Look up from the next database
+    await handleBarcodeLookup(barcodeResult.next_database_id);
+  };
+
   // Apply barcode lookup result to form fields
-  const applyBarcodeResult = (result: BarcodeLookupResult) => {
+  const applyBarcodeResult = (result: MultiBarcodeLookupResult) => {
     setFormData(prev => ({
       ...prev,
       name: result.name || prev.name,
@@ -412,11 +427,13 @@ const ItemForm: React.FC<ItemFormProps> = ({
       estimated_value_user_name: result.estimated_value ? undefined : prev.estimated_value_user_name,
     }));
     setBarcodeResult(null);
+    setCurrentUpcForLookup("");
   };
 
-  // Dismiss barcode result without applying
+  // Dismiss barcode result without applying (reject)
   const dismissBarcodeResult = () => {
     setBarcodeResult(null);
+    setCurrentUpcForLookup("");
   };
 
   // Handle barcode scan - triggers file input (mobile camera)
@@ -449,13 +466,14 @@ const ItemForm: React.FC<ItemFormProps> = ({
           ...prev,
           upc: scannedUpc
         }));
+        setCurrentUpcForLookup(scannedUpc);
         
-        // Automatically look up product info for the scanned barcode
+        // Automatically look up product info for the scanned barcode using multi-database flow
         setScanningBarcode(false);  // Update state to show we're now looking up
         setLookingUpBarcode(true);
         
         try {
-          const lookupResult = await lookupBarcode(scannedUpc);
+          const lookupResult = await lookupBarcodeMulti(scannedUpc);
           setBarcodeResult(lookupResult);  // Show results for user to accept/reject
         } catch (lookupErr: any) {
           // If lookup fails, we still have the UPC in the field
@@ -771,12 +789,20 @@ const ItemForm: React.FC<ItemFormProps> = ({
             </div>
           </div>
 
-          {/* Barcode Lookup Results */}
+          {/* Barcode Lookup Results - Multi-Database with Accept/Reject Flow */}
           {barcodeResult && (
             <div className="barcode-lookup-result">
               {barcodeResult.found ? (
                 <>
                   <h4>📦 Product Found</h4>
+                  <div className="barcode-result-source">
+                    <span className="source-label">Source:</span>
+                    <span className="source-value">
+                      {barcodeResult.source === 'gemini' ? '🤖 Gemini AI' : 
+                       barcodeResult.source === 'upcdatabase' ? '📚 UPC Database' : 
+                       barcodeResult.source}
+                    </span>
+                  </div>
                   <div className="barcode-result-fields">
                     {barcodeResult.name && (
                       <div className="barcode-result-field">
@@ -816,36 +842,75 @@ const ItemForm: React.FC<ItemFormProps> = ({
                     )}
                   </div>
                   <div className="barcode-result-actions">
+                    {barcodeResult.has_next_database && (
+                      <button
+                        type="button"
+                        className="btn-outline"
+                        onClick={handleTryNextDatabase}
+                        disabled={lookingUpBarcode}
+                        title={`Try ${barcodeResult.next_database_name || 'next database'}`}
+                      >
+                        {lookingUpBarcode ? "🔄 Checking..." : `Try ${barcodeResult.next_database_name || 'Next'}`}
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="btn-outline"
                       onClick={dismissBarcodeResult}
                     >
-                      Dismiss
+                      Cancel
                     </button>
                     <button
                       type="button"
                       className="btn-primary"
                       onClick={() => applyBarcodeResult(barcodeResult)}
                     >
-                      Apply to Form
+                      Accept
                     </button>
                   </div>
                 </>
               ) : (
                 <>
                   <h4>❌ Product Not Found</h4>
+                  <div className="barcode-result-source">
+                    <span className="source-label">Searched:</span>
+                    <span className="source-value">
+                      {barcodeResult.source === 'gemini' ? '🤖 Gemini AI' : 
+                       barcodeResult.source === 'upcdatabase' ? '📚 UPC Database' : 
+                       barcodeResult.source}
+                    </span>
+                  </div>
                   <p className="no-result-message">
-                    Could not identify a product for this UPC/barcode. The barcode may not be in our knowledge base.
+                    Could not identify a product for this UPC/barcode in this database.
                   </p>
                   <div className="barcode-result-actions">
-                    <button
-                      type="button"
-                      className="btn-outline"
-                      onClick={dismissBarcodeResult}
-                    >
-                      Dismiss
-                    </button>
+                    {barcodeResult.has_next_database ? (
+                      <>
+                        <button
+                          type="button"
+                          className="btn-outline"
+                          onClick={dismissBarcodeResult}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          onClick={handleTryNextDatabase}
+                          disabled={lookingUpBarcode}
+                        >
+                          {lookingUpBarcode ? "🔄 Checking..." : `Try ${barcodeResult.next_database_name || 'Next Database'}`}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-outline"
+                        onClick={dismissBarcodeResult}
+                      >
+                        Enter Details Manually
+                      </button>
+                    )}
                   </div>
                 </>
               )}
