@@ -956,7 +956,8 @@ async def lookup_barcode_multi(
             # Provide a more helpful error message by checking what's not configured
             gemini_configured = bool(settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.strip())
             upcdatabase_configured = any(
-                db.get("id") == "upcdatabase" and db.get("enabled", True) and db.get("api_key")
+                db.get("id") == "upcdatabase" and db.get("enabled", True) and 
+                db.get("api_key") and str(db.get("api_key")).strip()
                 for db in upc_databases
             )
             
