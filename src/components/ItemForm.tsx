@@ -774,7 +774,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                     <button
                       type="button"
                       className="btn-outline btn-barcode-lookup"
-                      onClick={handleBarcodeLookup}
+                      onClick={() => handleBarcodeLookup()}
                       disabled={loading || lookingUpBarcode || !formData.upc?.trim()}
                       title="Look up product info from UPC/barcode using AI"
                     >

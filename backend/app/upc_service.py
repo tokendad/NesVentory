@@ -23,6 +23,16 @@ from .config import settings
 logger = logging.getLogger(__name__)
 
 
+# UPC/barcode length constraints
+# UPC-E: 6-8 digits (compressed), UPC-A: 12 digits, EAN-8: 8 digits
+# EAN-13: 13 digits, GTIN-14: 14 digits
+MIN_UPC_LENGTH = 6
+MAX_UPC_LENGTH = 14
+
+# HTTP request timeout for external API calls (seconds)
+UPC_API_TIMEOUT = 10.0
+
+
 @dataclass
 class UPCLookupResult:
     """Result from a UPC database lookup."""
@@ -36,6 +46,24 @@ class UPCLookupResult:
     estimation_date: Optional[str] = None
     category: Optional[str] = None
     raw_response: Optional[str] = None
+
+
+def validate_upc(upc: str) -> tuple[bool, str]:
+    """
+    Validate a UPC code format.
+    
+    Args:
+        upc: The UPC code to validate
+        
+    Returns:
+        Tuple of (is_valid, cleaned_upc_or_error_message)
+    """
+    upc_clean = re.sub(r'[\s\-]', '', upc)
+    if not upc_clean.isdigit():
+        return False, "UPC must contain only digits"
+    if len(upc_clean) < MIN_UPC_LENGTH or len(upc_clean) > MAX_UPC_LENGTH:
+        return False, f"Invalid UPC code format. UPC should be {MIN_UPC_LENGTH}-{MAX_UPC_LENGTH} digits."
+    return True, upc_clean
 
 
 # Available UPC database definitions
@@ -251,7 +279,7 @@ class UPCDatabaseOrg(UPCDatabase):
                 "Accept": "application/json"
             }
             
-            with httpx.Client(timeout=10.0) as client:
+            with httpx.Client(timeout=UPC_API_TIMEOUT) as client:
                 response = client.get(url, headers=headers)
             
             if response.status_code == 404:
@@ -287,7 +315,27 @@ class UPCDatabaseOrg(UPCDatabase):
             )
     
     def _parse_response(self, data: dict) -> UPCLookupResult:
-        """Parse the upcdatabase.org API response."""
+        """
+        Parse the upcdatabase.org API response.
+        
+        Expected response format on success:
+        {
+            "success": true,
+            "barcode": "012345678901",
+            "title": "Product Name",
+            "description": "Product description",
+            "brand": "Brand Name",
+            "model": "Model Number",
+            "category": "Product Category",
+            ...
+        }
+        
+        Expected response format on failure:
+        {
+            "success": false,
+            "message": "Error message"
+        }
+        """
         result = UPCLookupResult(found=False, source="upcdatabase")
         
         # Check if the response indicates success
@@ -347,14 +395,15 @@ def lookup_upc(
         UPCLookupResult from the first database that finds the product,
         or a not-found result if no database finds it
     """
-    # Validate UPC format
-    upc_clean = re.sub(r'[\s\-]', '', upc)
-    if not upc_clean.isdigit() or len(upc_clean) < 6 or len(upc_clean) > 14:
+    # Validate UPC format using shared validation function
+    is_valid, result = validate_upc(upc)
+    if not is_valid:
         return UPCLookupResult(
             found=False,
             source="validation",
-            raw_response="Invalid UPC code format. UPC should be 6-14 digits."
+            raw_response=result  # Contains error message
         )
+    upc_clean = result  # Contains cleaned UPC
     
     # Use default config if none provided
     if upc_databases is None:
@@ -409,14 +458,15 @@ def lookup_upc_from_database(
     Returns:
         UPCLookupResult from the specified database
     """
-    # Validate UPC format
-    upc_clean = re.sub(r'[\s\-]', '', upc)
-    if not upc_clean.isdigit() or len(upc_clean) < 6 or len(upc_clean) > 14:
+    # Validate UPC format using shared validation function
+    is_valid, result = validate_upc(upc)
+    if not is_valid:
         return UPCLookupResult(
             found=False,
             source="validation",
-            raw_response="Invalid UPC code format. UPC should be 6-14 digits."
+            raw_response=result  # Contains error message
         )
+    upc_clean = result  # Contains cleaned UPC
     
     database = get_database_instance(db_id, api_key)
     if database is None:
