@@ -28,8 +28,8 @@ def run_migrations():
     ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks"}
     ALLOWED_COLUMNS = {"google_id", "estimated_value_ai_date", "estimated_value_user_date", "estimated_value_user_name",
                        "ai_schedule_enabled", "ai_schedule_interval_days", "ai_schedule_last_run",
-                       "gdrive_refresh_token", "gdrive_last_backup"}
-    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "BOOLEAN DEFAULT FALSE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT"}
+                       "gdrive_refresh_token", "gdrive_last_backup", "upc_databases"}
+    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "BOOLEAN DEFAULT FALSE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT", "JSON"}
     
     # Define migrations: (table_name, column_name, column_definition)
     migrations = [
@@ -46,6 +46,8 @@ def run_migrations():
         # User model: Google Drive backup settings
         ("users", "gdrive_refresh_token", "TEXT"),
         ("users", "gdrive_last_backup", "TIMESTAMP"),
+        # User model: UPC database configuration (JSON array with priority order)
+        ("users", "upc_databases", "JSON"),
     ]
     
     with engine.begin() as conn:
