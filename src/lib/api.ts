@@ -1129,3 +1129,133 @@ export async function deleteGDriveBackup(backupId: string): Promise<GDriveBackup
   return handleResponse<GDriveBackupResponse>(res);
 }
 
+// --- Log Settings APIs ---
+
+export interface LogSettings {
+  rotation_type: string;  // "schedule" or "size"
+  rotation_schedule_hours: number;  // Default 24 hours
+  rotation_size_mb: number;  // Default 10 MB
+  log_level: string;  // "warn_error", "debug", or "trace"
+  retention_days: number;  // Days to keep rotated logs
+  auto_delete_enabled: boolean;  // Whether to auto-delete old logs
+}
+
+export interface LogFile {
+  name: string;
+  size_bytes: number;
+  size_display: string;
+  modified_at: string;
+  log_type: string;  // "current", "rotated", "debug", "trace"
+}
+
+export interface LogSettingsResponse {
+  settings: LogSettings;
+  log_files: LogFile[];
+}
+
+export interface DeleteLogsResponse {
+  deleted_count: number;
+  message: string;
+}
+
+export interface RotateLogsResponse {
+  message: string;
+  rotated: boolean;
+  rotated_file?: string;
+}
+
+export async function getLogSettings(): Promise<LogSettingsResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/logs/settings`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<LogSettingsResponse>(res);
+}
+
+export async function updateLogSettings(settings: LogSettings): Promise<LogSettingsResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/logs/settings`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(settings),
+  });
+  return handleResponse<LogSettingsResponse>(res);
+}
+
+export async function deleteLogFiles(fileNames: string[]): Promise<DeleteLogsResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/logs/files`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ file_names: fileNames }),
+  });
+  return handleResponse<DeleteLogsResponse>(res);
+}
+
+export async function rotateLogsNow(): Promise<RotateLogsResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/logs/rotate`, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<RotateLogsResponse>(res);
+}
+
+export async function getLogFiles(): Promise<LogFile[]> {
+  const res = await fetch(`${API_BASE_URL}/api/logs/files`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<LogFile[]>(res);
+}
+
+export interface LogContentResponse {
+  file_name: string;
+  content: string;
+  truncated: boolean;
+  total_lines: number;
+  returned_lines: number;
+}
+
+export interface IssueReportData {
+  app_version: string;
+  database_type: string;
+  database_version: string;
+  log_level: string;
+  error_logs: string;
+  system_info: string;
+  github_issue_url: string;
+}
+
+export async function getLogContent(fileName: string, lines: number = 100): Promise<LogContentResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/logs/content/${encodeURIComponent(fileName)}?lines=${lines}`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<LogContentResponse>(res);
+}
+
+export async function getIssueReportData(): Promise<IssueReportData> {
+  const res = await fetch(`${API_BASE_URL}/api/logs/issue-report`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<IssueReportData>(res);
+}
+
