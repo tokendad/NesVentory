@@ -315,10 +315,11 @@ async def get_log_content(
     lines = min(max(1, lines), 1000)
     
     # Security: ensure filename is safe and within log directory
-    if ".." in file_name or "/" in file_name or "\\" in file_name:
+    normalized_name = os.path.normpath(file_name)
+    # Reject absolute paths and path traversal outside log directory
+    if os.path.isabs(normalized_name) or normalized_name.startswith("..") or any(part == ".." for part in Path(normalized_name).parts):
         raise HTTPException(status_code=400, detail="Invalid file name")
-    
-    filepath = LOG_DIR / file_name
+    filepath = LOG_DIR / normalized_name
     
     # Verify the file is within LOG_DIR (prevent path traversal)
     try:
