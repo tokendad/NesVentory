@@ -2494,3 +2494,86 @@ tbody tr:hover {
   }
 }
 
+/* Modal Header with Photo */
+.modal-header-with-photo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-header-with-photo .modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.modal-header-photo {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 0.5rem;
+  border: 2px solid var(--border-panel);
+  flex-shrink: 0;
+}
+
+/* Existing Photos Grid in Media Tab */
+.existing-photos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.existing-photo-item {
+  position: relative;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 1px solid var(--border-panel);
+  background: var(--bg-elevated);
+}
+
+.existing-photo-image {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  display: block;
+}
+
+.existing-photo-info {
+  padding: 0.5rem;
+  background: var(--bg-elevated-softer);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.existing-photo-info .photo-type-badge {
+  position: static;
+  align-self: flex-start;
+}
+
+.photo-filename {
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+@media (max-width: 600px) {
+  .modal-header-photo {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .existing-photos-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+  }
+  
+  .existing-photo-image {
+    height: 100px;
+  }
+}
+
