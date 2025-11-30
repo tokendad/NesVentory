@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from "react";
 import type { Location, LocationCreate, Item } from "../lib/api";
 import { createLocation, updateLocation, deleteLocation } from "../lib/api";
 import QRLabelPrint, { PRINT_MODE_OPTIONS, type PrintMode } from "./QRLabelPrint";
+import { getLocationPath } from "../lib/utils";
 
 interface LocationsPageProps {
   locations: Location[];
@@ -488,7 +489,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
               )}
               {filteredLocations.map((loc) => (
                 <tr key={loc.id}>
-                  <td>{loc.name}</td>
+                  <td>{getLocationPath(loc.id, locations)}</td>
                   <td>{loc.friendly_name || "—"}</td>
                   <td>{getLocationTypeLabel(loc.location_type)}</td>
                   <td>{getParentName(loc.parent_id)}</td>
