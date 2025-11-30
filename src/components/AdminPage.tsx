@@ -1037,10 +1037,15 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
                     <div className="modal-actions">
                       <button
                         className="btn-outline"
-                        onClick={() => {
-                          navigator.clipboard.writeText(logContentData);
-                          setLogSuccess("Log content copied to clipboard!");
-                          setTimeout(() => setLogSuccess(null), 3000);
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(logContentData);
+                            setLogSuccess("Log content copied to clipboard!");
+                            setTimeout(() => setLogSuccess(null), 3000);
+                          } catch {
+                            setLogError("Failed to copy to clipboard. Please select and copy manually.");
+                            setTimeout(() => setLogError(null), 3000);
+                          }
                         }}
                       >
                         📋 Copy to Clipboard

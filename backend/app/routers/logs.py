@@ -3,15 +3,23 @@ Log settings router for NesVentory admin panel.
 Handles log rotation, deletion, and log level configuration.
 """
 import json
+import platform
+import urllib.parse
 from datetime import datetime
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from .. import auth, models
+from ..config import settings as app_settings
+from ..database import SQLALCHEMY_DATABASE_URL
 
 
 router = APIRouter(prefix="/logs", tags=["logs"])
+
+# GitHub repository for issue reporting (can be overridden)
+GITHUB_REPO_OWNER = "tokendad"
+GITHUB_REPO_NAME = "NesVentory"
 
 # Default log settings
 LOG_DIR = Path("/app/data/logs")
@@ -349,10 +357,6 @@ async def get_issue_report_data(
     """Get system information and error logs for creating a GitHub issue. Admin only."""
     check_admin(current_user)
     
-    from ..config import settings as app_settings
-    from ..database import SQLALCHEMY_DATABASE_URL
-    import platform
-    
     # Get app version
     app_version = app_settings.VERSION
     
@@ -379,52 +383,42 @@ async def get_issue_report_data(
         error_logs = "No log file found"
     
     # Collect system info
-    system_info = f"""
-- Platform: {platform.system()} {platform.release()}
-- Python: {platform.python_version()}
-- Architecture: {platform.machine()}
-"""
+    system_info = (
+        f"- Platform: {platform.system()} {platform.release()}\n"
+        f"- Python: {platform.python_version()}\n"
+        f"- Architecture: {platform.machine()}"
+    )
     
     # Create GitHub issue URL with pre-filled content
-    # URL encode the content for the GitHub issue URL
-    import urllib.parse
-    
     issue_title = urllib.parse.quote("Bug Report: [Brief description]")
-    issue_body = urllib.parse.quote(f"""## Description
-[Please describe the issue you encountered]
-
-## Steps to Reproduce
-1. [Step 1]
-2. [Step 2]
-3. [Step 3]
-
-## Expected Behavior
-[What did you expect to happen?]
-
-## Actual Behavior
-[What actually happened?]
-
-## System Information
-- NesVentory Version: {app_version}
-- Database Type: {database_type}
-- Log Level: {log_settings.log_level}
-{system_info}
-
-## Recent Logs
-<details>
-<summary>Click to expand log content</summary>
-
-```
-{error_logs[:2000]}
-```
-
-</details>
-
-## Additional Context
-[Add any other context about the problem here]
-""")
+    issue_body = urllib.parse.quote(
+        "## Description\n"
+        "[Please describe the issue you encountered]\n\n"
+        "## Steps to Reproduce\n"
+        "1. [Step 1]\n"
+        "2. [Step 2]\n"
+        "3. [Step 3]\n\n"
+        "## Expected Behavior\n"
+        "[What did you expect to happen?]\n\n"
+        "## Actual Behavior\n"
+        "[What actually happened?]\n\n"
+        "## System Information\n"
+        f"- NesVentory Version: {app_version}\n"
+        f"- Database Type: {database_type}\n"
+        f"- Log Level: {log_settings.log_level}\n"
+        f"{system_info}\n\n"
+        "## Recent Logs\n"
+        "<details>\n"
+        "<summary>Click to expand log content</summary>\n\n"
+        "```\n"
+        f"{error_logs[:2000]}\n"
+        "```\n\n"
+        "</details>\n\n"
+        "## Additional Context\n"
+        "[Add any other context about the problem here]\n"
+    )
     
-    github_issue_url = f"https://github.com/tokendad/NesVentory/issues/new?title={issue_title}&body={issue_body}"
+    github_issue_url = f"https://github.com/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/issues/new?title={issue_title}&body={issue_body}"
     
     return IssueReportData(
         app_version=app_version,
