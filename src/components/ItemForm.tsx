@@ -101,6 +101,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
   );
 
   // Get the primary photo from existing photos for header display
+  // Priority order: 1) Photos explicitly marked as is_primary, 2) Photos with 'default' type, 3) null
   const primaryPhoto = useMemo(() => {
     return existingPhotos.find(p => p.is_primary) || existingPhotos.find(p => p.photo_type === PHOTO_TYPES.DEFAULT) || null;
   }, [existingPhotos]);
@@ -1173,7 +1174,8 @@ const ItemForm: React.FC<ItemFormProps> = ({
       return path.split('/').pop() || path;
     };
 
-    // Helper function to get photo type label
+    // Helper function to get photo type label for display
+    // Priority: is_primary flag, then is_data_tag flag, then photo_type field
     const getPhotoTypeLabel = (photo: Photo): string => {
       if (photo.is_primary) return 'Primary';
       if (photo.is_data_tag) return 'Data Tag';
@@ -1499,9 +1501,47 @@ const ItemForm: React.FC<ItemFormProps> = ({
           {/* Tab Content */}
           <div className="tab-panels">
             {livingMode ? (
-              // For living items, show all content without tabs
+              // For living items, show all content without tabs (including tags)
               <>
                 {renderBasicInfoTab()}
+                {/* Tags section for living items */}
+                <div className="form-section">
+                  <h3>Tags</h3>
+                  <p className="help-text">Select "Living" tag for people, pets, plants, or other living things</p>
+                  <div className="tags-selection">
+                    {availableTags.map((tag) => (
+                      <label key={tag.id} className="tag-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={(formData.tag_ids || []).includes(tag.id)}
+                          onChange={() => handleTagToggle(tag.id)}
+                          disabled={loading}
+                        />
+                        <span className={tag.is_predefined ? "tag-predefined" : "tag-custom"}>
+                          {tag.name}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="new-tag-input">
+                    <input
+                      type="text"
+                      placeholder="Create new tag..."
+                      value={newTagName}
+                      onChange={(e) => setNewTagName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleCreateTag())}
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCreateTag}
+                      disabled={loading || !newTagName.trim()}
+                      className="btn-outline"
+                    >
+                      Add Tag
+                    </button>
+                  </div>
+                </div>
                 <div className="form-section">
                   <h3>Photos</h3>
                   <div className="photo-upload-section">
