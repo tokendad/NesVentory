@@ -1221,3 +1221,41 @@ export async function getLogFiles(): Promise<LogFile[]> {
   return handleResponse<LogFile[]>(res);
 }
 
+export interface LogContentResponse {
+  file_name: string;
+  content: string;
+  truncated: boolean;
+  total_lines: number;
+  returned_lines: number;
+}
+
+export interface IssueReportData {
+  app_version: string;
+  database_type: string;
+  database_version: string;
+  log_level: string;
+  error_logs: string;
+  system_info: string;
+  github_issue_url: string;
+}
+
+export async function getLogContent(fileName: string, lines: number = 100): Promise<LogContentResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/logs/content/${encodeURIComponent(fileName)}?lines=${lines}`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<LogContentResponse>(res);
+}
+
+export async function getIssueReportData(): Promise<IssueReportData> {
+  const res = await fetch(`${API_BASE_URL}/api/logs/issue-report`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<IssueReportData>(res);
+}
+

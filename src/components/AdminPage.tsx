@@ -9,11 +9,14 @@ import {
   updateLogSettings,
   deleteLogFiles,
   rotateLogsNow,
+  getLogContent,
+  getIssueReportData,
   type User, 
   type Location, 
   type AdminUserCreate,
   type LogSettings,
-  type LogFile
+  type LogFile,
+  type IssueReportData
 } from "../lib/api";
 
 interface AdminPageProps {
@@ -68,6 +71,12 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
   const [logSuccess, setLogSuccess] = useState<string | null>(null);
   const [logSaving, setLogSaving] = useState(false);
   const [selectedLogFiles, setSelectedLogFiles] = useState<string[]>([]);
+  
+  // Issue report states
+  const [issueReportLoading, setIssueReportLoading] = useState(false);
+  const [viewingLogContent, setViewingLogContent] = useState<string | null>(null);
+  const [logContentData, setLogContentData] = useState<string>("");
+  const [logContentLoading, setLogContentLoading] = useState(false);
 
   async function loadUsers() {
     setLoading(true);
@@ -291,6 +300,42 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
     } else {
       setSelectedLogFiles(logFiles.map(f => f.name));
     }
+  }
+
+  // Issue report handlers
+  async function handleOpenGitHubIssue() {
+    setIssueReportLoading(true);
+    setLogError(null);
+    try {
+      const reportData = await getIssueReportData();
+      // Open GitHub issue in new tab
+      window.open(reportData.github_issue_url, '_blank', 'noopener,noreferrer');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to generate issue report";
+      setLogError(errorMessage);
+    } finally {
+      setIssueReportLoading(false);
+    }
+  }
+
+  async function handleViewLogContent(fileName: string) {
+    setLogContentLoading(true);
+    setLogError(null);
+    try {
+      const response = await getLogContent(fileName, 200);
+      setLogContentData(response.content);
+      setViewingLogContent(fileName);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to load log content";
+      setLogError(errorMessage);
+    } finally {
+      setLogContentLoading(false);
+    }
+  }
+
+  function handleCloseLogContent() {
+    setViewingLogContent(null);
+    setLogContentData("");
   }
 
   // Clear errors on tab change
@@ -863,6 +908,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
                       <th>Type</th>
                       <th>Size</th>
                       <th>Modified</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -892,6 +938,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
                         </td>
                         <td style={{ fontSize: "0.85rem" }}>{file.size_display}</td>
                         <td style={{ fontSize: "0.85rem" }}>{new Date(file.modified_at).toLocaleString()}</td>
+                        <td>
+                          <button
+                            className="btn-outline"
+                            onClick={() => handleViewLogContent(file.name)}
+                            style={{ fontSize: "0.75rem", padding: "0.2rem 0.5rem" }}
+                            disabled={logContentLoading}
+                          >
+                            👁️ View
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -917,6 +973,87 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
               </ul>
             </div>
           </div>
+
+          {/* Report Issue to GitHub */}
+          <div className="form-group" style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid var(--border-subtle)" }}>
+            <label>🐛 Report Issue to GitHub</label>
+            <small style={{ color: "var(--muted)", fontSize: "0.875rem", display: "block", marginBottom: "0.75rem" }}>
+              If you encounter errors or issues, you can quickly create a GitHub issue with system details and logs automatically included.
+            </small>
+            
+            <div style={{ 
+              backgroundColor: "var(--bg-elevated-softer)",
+              border: "1px solid var(--border-subtle)",
+              borderRadius: "0.5rem",
+              padding: "1rem"
+            }}>
+              <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.85rem" }}>
+                This will open a new GitHub issue on the NesVentory repository with:
+              </p>
+              <ul style={{ margin: "0 0 1rem 1rem", padding: 0, fontSize: "0.85rem" }}>
+                <li>System information (app version, database type, platform)</li>
+                <li>Current log settings configuration</li>
+                <li>Recent error logs (last 50 lines)</li>
+              </ul>
+              <button
+                className="btn-primary"
+                onClick={handleOpenGitHubIssue}
+                disabled={issueReportLoading}
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+              >
+                {issueReportLoading ? "Generating..." : "🐙 Open GitHub Issue"}
+              </button>
+            </div>
+          </div>
+
+          {/* Log Content Viewer Modal */}
+          {viewingLogContent && (
+            <div className="modal-overlay" style={{ zIndex: 1100 }}>
+              <div className="modal-content" style={{ maxWidth: "800px", maxHeight: "80vh" }}>
+                <div className="modal-header">
+                  <h2>📄 {viewingLogContent}</h2>
+                  <button className="modal-close" onClick={handleCloseLogContent}>×</button>
+                </div>
+                {logContentLoading ? (
+                  <p>Loading log content...</p>
+                ) : (
+                  <>
+                    <div style={{
+                      backgroundColor: "#0d1117",
+                      border: "1px solid var(--border-subtle)",
+                      borderRadius: "0.5rem",
+                      padding: "1rem",
+                      maxHeight: "400px",
+                      overflowY: "auto",
+                      fontFamily: "monospace",
+                      fontSize: "0.75rem",
+                      lineHeight: "1.5",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-all",
+                      color: "#c9d1d9"
+                    }}>
+                      {logContentData || "No content available"}
+                    </div>
+                    <div className="modal-actions">
+                      <button
+                        className="btn-outline"
+                        onClick={() => {
+                          navigator.clipboard.writeText(logContentData);
+                          setLogSuccess("Log content copied to clipboard!");
+                          setTimeout(() => setLogSuccess(null), 3000);
+                        }}
+                      >
+                        📋 Copy to Clipboard
+                      </button>
+                      <button className="btn-outline" onClick={handleCloseLogContent}>
+                        Close
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -64,6 +64,26 @@ class DeleteLogsResponse(BaseModel):
     message: str
 
 
+class LogContentResponse(BaseModel):
+    """Response model for log content."""
+    file_name: str
+    content: str
+    truncated: bool
+    total_lines: int
+    returned_lines: int
+
+
+class IssueReportData(BaseModel):
+    """Response model for issue report data."""
+    app_version: str
+    database_type: str
+    database_version: str
+    log_level: str
+    error_logs: str
+    system_info: str
+    github_issue_url: str
+
+
 def load_log_settings() -> LogSettings:
     """Load log settings from file or return defaults."""
     ensure_log_dir_exists()
@@ -265,3 +285,153 @@ async def list_log_files(
     """List all log files. Admin only."""
     check_admin(current_user)
     return get_log_files()
+
+
+@router.get("/content/{file_name}", response_model=LogContentResponse)
+async def get_log_content(
+    file_name: str,
+    lines: int = 100,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Get content of a specific log file. Admin only.
+    
+    Args:
+        file_name: Name of the log file to read
+        lines: Number of lines to return from the end of the file (default 100, max 1000)
+    """
+    check_admin(current_user)
+    
+    # Validate lines parameter
+    lines = min(max(1, lines), 1000)
+    
+    # Security: ensure filename is safe and within log directory
+    if ".." in file_name or "/" in file_name or "\\" in file_name:
+        raise HTTPException(status_code=400, detail="Invalid file name")
+    
+    filepath = LOG_DIR / file_name
+    
+    # Verify the file is within LOG_DIR (prevent path traversal)
+    try:
+        filepath.resolve().relative_to(LOG_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid file path")
+    
+    # Don't allow reading the settings file
+    if filepath.name == "log_settings.json":
+        raise HTTPException(status_code=400, detail="Cannot read settings file")
+    
+    if not filepath.exists() or not filepath.is_file():
+        raise HTTPException(status_code=404, detail="Log file not found")
+    
+    try:
+        with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+            all_lines = f.readlines()
+        
+        total_lines = len(all_lines)
+        truncated = total_lines > lines
+        returned_lines = all_lines[-lines:] if truncated else all_lines
+        
+        return LogContentResponse(
+            file_name=file_name,
+            content=''.join(returned_lines),
+            truncated=truncated,
+            total_lines=total_lines,
+            returned_lines=len(returned_lines)
+        )
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read log file: {str(e)}")
+
+
+@router.get("/issue-report", response_model=IssueReportData)
+async def get_issue_report_data(
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Get system information and error logs for creating a GitHub issue. Admin only."""
+    check_admin(current_user)
+    
+    from ..config import settings as app_settings
+    from ..database import SQLALCHEMY_DATABASE_URL
+    import platform
+    
+    # Get app version
+    app_version = app_settings.VERSION
+    
+    # Determine database type and version
+    is_sqlite = SQLALCHEMY_DATABASE_URL.startswith("sqlite")
+    database_type = "SQLite" if is_sqlite else "PostgreSQL"
+    database_version = "See system status"  # This would require DB connection
+    
+    # Get current log settings
+    log_settings = load_log_settings()
+    
+    # Get error logs (last 50 lines from current log file)
+    error_logs = ""
+    current_log = LOG_DIR / "nesventory.log"
+    if current_log.exists():
+        try:
+            with open(current_log, 'r', encoding='utf-8', errors='replace') as f:
+                all_lines = f.readlines()
+            # Get last 50 lines
+            error_logs = ''.join(all_lines[-50:])
+        except OSError:
+            error_logs = "Unable to read log file"
+    else:
+        error_logs = "No log file found"
+    
+    # Collect system info
+    system_info = f"""
+- Platform: {platform.system()} {platform.release()}
+- Python: {platform.python_version()}
+- Architecture: {platform.machine()}
+"""
+    
+    # Create GitHub issue URL with pre-filled content
+    # URL encode the content for the GitHub issue URL
+    import urllib.parse
+    
+    issue_title = urllib.parse.quote("Bug Report: [Brief description]")
+    issue_body = urllib.parse.quote(f"""## Description
+[Please describe the issue you encountered]
+
+## Steps to Reproduce
+1. [Step 1]
+2. [Step 2]
+3. [Step 3]
+
+## Expected Behavior
+[What did you expect to happen?]
+
+## Actual Behavior
+[What actually happened?]
+
+## System Information
+- NesVentory Version: {app_version}
+- Database Type: {database_type}
+- Log Level: {log_settings.log_level}
+{system_info}
+
+## Recent Logs
+<details>
+<summary>Click to expand log content</summary>
+
+```
+{error_logs[:2000]}
+```
+
+</details>
+
+## Additional Context
+[Add any other context about the problem here]
+""")
+    
+    github_issue_url = f"https://github.com/tokendad/NesVentory/issues/new?title={issue_title}&body={issue_body}"
+    
+    return IssueReportData(
+        app_version=app_version,
+        database_type=database_type,
+        database_version=database_version,
+        log_level=log_settings.log_level,
+        error_logs=error_logs[:2000],  # Limit error logs to 2000 chars
+        system_info=system_info,
+        github_issue_url=github_issue_url
+    )
