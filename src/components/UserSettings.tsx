@@ -1406,6 +1406,12 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
     </div>
   );
 
+  // Handle tab change - clear any errors when switching tabs
+  const handleTabChange = (tab: TabType) => {
+    setError(null);
+    setActiveTab(tab);
+  };
+
   return (
     <div className="modal-overlay">
       <div className="modal-content" style={{ maxWidth: "600px", maxHeight: "90vh", overflowY: "auto" }}>
@@ -1416,21 +1422,21 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
           <button
             type="button"
             className={`tab-button ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => setActiveTab('profile')}
+            onClick={() => handleTabChange('profile')}
           >
             👤 Profile
           </button>
           <button
             type="button"
             className={`tab-button ${activeTab === 'api' ? 'active' : ''}`}
-            onClick={() => setActiveTab('api')}
+            onClick={() => handleTabChange('api')}
           >
             🔌 API & Services
           </button>
           <button
             type="button"
             className={`tab-button ${activeTab === 'stats' ? 'active' : ''}`}
-            onClick={() => setActiveTab('stats')}
+            onClick={() => handleTabChange('stats')}
           >
             📊 Stats
           </button>
@@ -1448,11 +1454,13 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
           
           <div className="form-actions">
             <button type="button" className="btn-outline" onClick={onClose} disabled={loading}>
-              Cancel
+              {activeTab === 'profile' ? 'Cancel' : 'Close'}
             </button>
-            <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? "Saving..." : "Save Changes"}
-            </button>
+            {activeTab === 'profile' && (
+              <button type="submit" className="btn-primary" disabled={loading}>
+                {loading ? "Saving..." : "Save Profile"}
+              </button>
+            )}
           </div>
         </form>
       </div>
