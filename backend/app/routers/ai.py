@@ -953,10 +953,28 @@ async def lookup_barcode_multi(
         # Get first enabled database
         db_config = get_next_database(None, upc_databases)
         if db_config is None:
-            raise HTTPException(
-                status_code=400,
-                detail="No UPC databases are configured and available."
+            # Provide a more helpful error message by checking what's not configured
+            gemini_configured = bool(settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.strip())
+            upcdatabase_configured = any(
+                db.get("id") == "upcdatabase" and db.get("enabled", True) and db.get("api_key")
+                for db in upc_databases
             )
+            
+            if not gemini_configured and not upcdatabase_configured:
+                detail = (
+                    "No UPC databases are configured and available. "
+                    "Please configure an API key for UPC Database in User Settings > API & Services, "
+                    "or set GEMINI_API_KEY in your environment for AI-powered lookups."
+                )
+            elif not upcdatabase_configured:
+                detail = (
+                    "UPC Database lookup requires an API key. "
+                    "Please configure your API key in User Settings > API & Services > UPC Database Priority."
+                )
+            else:
+                detail = "No UPC databases are configured and available."
+            
+            raise HTTPException(status_code=400, detail=detail)
         current_db_id = db_config.get("id")
         api_key = db_config.get("api_key")
     
