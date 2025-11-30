@@ -7,6 +7,7 @@ import platform
 import urllib.parse
 from datetime import datetime
 from pathlib import Path
+import os
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -229,11 +230,12 @@ async def delete_log_files(
     
     for filename in request.file_names:
         # Security: ensure filename is safe and within log directory
-        # Prevent path traversal
-        if ".." in filename or "/" in filename or "\\" in filename:
+        # Normalize filename and prevent absolute paths
+        norm_filename = os.path.normpath(filename)
+        if os.path.isabs(norm_filename) or norm_filename.startswith("..") or os.path.sep in norm_filename and ("/" in norm_filename or "\\" in norm_filename):
             continue
         
-        filepath = LOG_DIR / filename
+        filepath = LOG_DIR / norm_filename
         
         # Verify the file is within LOG_DIR (prevent path traversal)
         try:
