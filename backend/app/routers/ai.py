@@ -161,6 +161,30 @@ class BarcodeScanResult(BaseModel):
     raw_response: Optional[str] = None
 
 
+class MultiBarcodeLookupRequest(BaseModel):
+    """Schema for multi-database barcode lookup request."""
+    upc: str
+    database_id: Optional[str] = None  # If None, uses first database in user's priority list
+
+
+class MultiBarcodeLookupResult(BaseModel):
+    """Schema for multi-database barcode lookup response."""
+    found: bool
+    source: str  # The database that returned this result
+    name: Optional[str] = None
+    description: Optional[str] = None
+    brand: Optional[str] = None
+    model_number: Optional[str] = None
+    estimated_value: Optional[float] = None
+    estimation_date: Optional[str] = None
+    category: Optional[str] = None
+    raw_response: Optional[str] = None
+    # Information about next database in priority
+    has_next_database: bool = False
+    next_database_id: Optional[str] = None
+    next_database_name: Optional[str] = None
+
+
 def parse_gemini_response(response_text: str) -> List[DetectedItem]:
     """
     Parse the Gemini response text into a list of DetectedItem objects.
@@ -864,6 +888,125 @@ If the UPC is not in your knowledge base or you cannot identify it, return found
             status_code=500,
             detail="Failed to look up barcode. Please try again."
         )
+
+
+@router.post("/barcode-lookup-multi", response_model=MultiBarcodeLookupResult)
+async def lookup_barcode_multi(
+    request: MultiBarcodeLookupRequest,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Look up product information using a barcode/UPC code from multiple databases.
+    
+    This endpoint supports the accept/reject flow:
+    1. If database_id is not provided, looks up from the first enabled database in user's priority list
+    2. If database_id is provided, looks up from that specific database
+    3. Returns information about the next database in priority (if any) so the client can continue
+    
+    The flow:
+    - Client calls with just UPC → gets result from first database
+    - If user rejects, client calls again with next_database_id → gets result from next database
+    - Continue until user accepts or no more databases
+    """
+    from ..upc_service import (
+        lookup_upc_from_database, 
+        get_next_database, 
+        get_default_upc_config,
+        get_available_databases
+    )
+    
+    # Validate UPC format
+    upc = request.upc.strip()
+    if not upc:
+        raise HTTPException(status_code=400, detail="UPC code is required.")
+    
+    upc_clean = re.sub(r'[\s\-]', '', upc)
+    if not upc_clean.isdigit() or len(upc_clean) < MIN_UPC_LENGTH or len(upc_clean) > MAX_UPC_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid UPC code format. UPC should be {MIN_UPC_LENGTH}-{MAX_UPC_LENGTH} digits."
+        )
+    
+    # Get user's UPC database configuration or use default
+    upc_databases = current_user.upc_databases
+    if upc_databases is None:
+        upc_databases = get_default_upc_config()
+    
+    # Determine which database to query
+    if request.database_id:
+        # User wants a specific database (reject flow)
+        db_config = next((db for db in upc_databases if db.get("id") == request.database_id), None)
+        if db_config is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Database '{request.database_id}' not found in user configuration."
+            )
+        if not db_config.get("enabled", True):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Database '{request.database_id}' is disabled."
+            )
+        current_db_id = request.database_id
+        api_key = db_config.get("api_key")
+    else:
+        # Get first enabled database
+        db_config = get_next_database(None, upc_databases)
+        if db_config is None:
+            raise HTTPException(
+                status_code=400,
+                detail="No UPC databases are configured and available."
+            )
+        current_db_id = db_config.get("id")
+        api_key = db_config.get("api_key")
+    
+    # Perform the lookup
+    result = lookup_upc_from_database(upc_clean, current_db_id, api_key)
+    
+    # Determine next database in priority
+    next_db_config = get_next_database(current_db_id, upc_databases)
+    has_next = next_db_config is not None
+    
+    # Get display name for next database
+    next_db_name = None
+    if has_next:
+        available_dbs = get_available_databases()
+        next_db_info = next((db for db in available_dbs if db.get("id") == next_db_config.get("id")), None)
+        next_db_name = next_db_info.get("name") if next_db_info else next_db_config.get("id")
+    
+    return MultiBarcodeLookupResult(
+        found=result.found,
+        source=result.source,
+        name=result.name,
+        description=result.description,
+        brand=result.brand,
+        model_number=result.model_number,
+        estimated_value=result.estimated_value,
+        estimation_date=result.estimation_date,
+        category=result.category,
+        raw_response=result.raw_response,
+        has_next_database=has_next,
+        next_database_id=next_db_config.get("id") if next_db_config else None,
+        next_database_name=next_db_name
+    )
+
+
+@router.get("/upc-databases", response_model=schemas.AvailableUPCDatabasesResponse)
+async def get_upc_databases(
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """
+    Get list of available UPC databases.
+    
+    Returns information about all supported UPC databases that can be configured
+    in user settings.
+    """
+    from ..upc_service import get_available_databases
+    
+    databases = get_available_databases()
+    return schemas.AvailableUPCDatabasesResponse(
+        databases=[schemas.AvailableUPCDatabase(**db) for db in databases]
+    )
 
 
 def parse_barcode_scan_response(response_text: str) -> BarcodeScanResult:

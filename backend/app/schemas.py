@@ -42,6 +42,8 @@ class User(UserBase):
     ai_schedule_enabled: bool = False
     ai_schedule_interval_days: int = 7
     ai_schedule_last_run: Optional[datetime] = None
+    # UPC Database Configuration
+    upc_databases: Optional[List[dict]] = None
 
     class Config:
         from_attributes = True
@@ -61,6 +63,8 @@ class UserRead(UserBase):
     ai_schedule_enabled: bool = False
     ai_schedule_interval_days: int = 7
     ai_schedule_last_run: Optional[datetime] = None
+    # UPC Database Configuration
+    upc_databases: Optional[List[dict]] = None
 
     class Config:
         from_attributes = True
@@ -94,6 +98,34 @@ class AIEnrichmentRunResponse(BaseModel):
     items_with_data_tags: int
     quota_exceeded: bool = False
     message: str
+
+
+# --- UPC Database Configuration Schemas ---
+
+class UPCDatabaseConfig(BaseModel):
+    """Configuration for a single UPC database."""
+    id: str  # Database identifier (e.g., 'gemini', 'upcdatabase')
+    enabled: bool = True
+    api_key: Optional[str] = None  # API key for external services (not needed for Gemini - uses global config)
+
+
+class UPCDatabaseConfigUpdate(BaseModel):
+    """Schema for updating UPC database configurations."""
+    upc_databases: List[UPCDatabaseConfig]
+
+
+class AvailableUPCDatabase(BaseModel):
+    """Information about an available UPC database."""
+    id: str
+    name: str
+    description: str
+    requires_api_key: bool
+    api_key_url: Optional[str] = None  # URL where user can get an API key
+
+
+class AvailableUPCDatabasesResponse(BaseModel):
+    """Response containing available UPC databases."""
+    databases: List[AvailableUPCDatabase]
 
 
 # --- Location Schemas ---
