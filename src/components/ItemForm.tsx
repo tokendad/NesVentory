@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, BarcodeScanResult, Warranty, MultiBarcodeLookupResult } from "../lib/api";
-import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode, scanBarcodeImage, lookupBarcodeMulti } from "../lib/api";
+import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, BarcodeScanResult, Warranty, MultiBarcodeLookupResult, Photo } from "../lib/api";
+import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode, scanBarcodeImage, lookupBarcodeMulti, getApiBaseUrl } from "../lib/api";
 import { formatPhotoType, getLocationPath } from "../lib/utils";
 import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES, LIVING_TAG_NAME, RELATIONSHIP_LABELS } from "../lib/constants";
 import type { PhotoUpload } from "../lib/types";
 
 // Tab type for the form
-type TabId = "basic" | "warranty" | "media";
+type TabId = "basic" | "tags" | "warranty" | "media";
 
 interface ItemFormProps {
   onSubmit: (item: ItemCreate, photos: PhotoUpload[]) => Promise<void>;
   onCancel: () => void;
   locations: Location[];
-  initialData?: Partial<ItemCreate> & { tags?: Tag[]; warranties?: Warranty[] };
+  initialData?: Partial<ItemCreate> & { tags?: Tag[]; warranties?: Warranty[]; photos?: Photo[]; name?: string };
   isEditing?: boolean;
   currentUserId?: string;
   currentUserName?: string;
@@ -94,6 +94,16 @@ const ItemForm: React.FC<ItemFormProps> = ({
   const [warranties, setWarranties] = useState<Warranty[]>(
     initialData?.warranties || []
   );
+
+  // Existing photos from the server (when editing)
+  const [existingPhotos, setExistingPhotos] = useState<Photo[]>(
+    initialData?.photos || []
+  );
+
+  // Get the primary photo from existing photos for header display
+  const primaryPhoto = useMemo(() => {
+    return existingPhotos.find(p => p.is_primary) || existingPhotos.find(p => p.photo_type === PHOTO_TYPES.DEFAULT) || null;
+  }, [existingPhotos]);
 
   // Memoize the Living tag ID to avoid recalculating on every render
   const livingTagId = useMemo(() => {
@@ -522,45 +532,6 @@ const ItemForm: React.FC<ItemFormProps> = ({
   // Render content for Tab 1: Basic Item Information
   const renderBasicInfoTab = () => (
     <div className="tab-content">
-      {/* Tags Section - Always visible */}
-      <div className="form-section">
-        <h3>Tags</h3>
-        <p className="help-text">Select "Living" tag for people, pets, plants, or other living things</p>
-        <div className="tags-selection">
-          {availableTags.map((tag) => (
-            <label key={tag.id} className="tag-checkbox">
-              <input
-                type="checkbox"
-                checked={(formData.tag_ids || []).includes(tag.id)}
-                onChange={() => handleTagToggle(tag.id)}
-                disabled={loading}
-              />
-              <span className={tag.is_predefined ? "tag-predefined" : "tag-custom"}>
-                {tag.name}
-              </span>
-            </label>
-          ))}
-        </div>
-        <div className="new-tag-input">
-          <input
-            type="text"
-            placeholder="Create new tag..."
-            value={newTagName}
-            onChange={(e) => setNewTagName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleCreateTag())}
-            disabled={loading}
-          />
-          <button
-            type="button"
-            onClick={handleCreateTag}
-            disabled={loading || !newTagName.trim()}
-            className="btn-outline"
-          >
-            Add Tag
-          </button>
-        </div>
-      </div>
-      
       {/* Name and Description - Always visible */}
       <div className="form-group">
         <label htmlFor="name">Name *</label>
@@ -982,22 +953,6 @@ const ItemForm: React.FC<ItemFormProps> = ({
               )}
             </div>
           </div>
-
-          {/* Primary Photo in Basic Tab */}
-          <div className="form-section">
-            <h3>Primary Photo</h3>
-            <div className="photo-type-upload">
-              <label htmlFor="photo-default">Default/Primary Photo</label>
-              <input
-                type="file"
-                id="photo-default"
-                accept="image/*"
-                onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DEFAULT)}
-                disabled={loading}
-              />
-              <span className="help-text">Primary photo for the item</span>
-            </div>
-          </div>
         </>
       )}
 
@@ -1018,6 +973,49 @@ const ItemForm: React.FC<ItemFormProps> = ({
             </option>
           ))}
         </select>
+      </div>
+    </div>
+  );
+
+  // Render content for Tags Tab
+  const renderTagsTab = () => (
+    <div className="tab-content">
+      <div className="form-section">
+        <h3>Tags</h3>
+        <p className="help-text">Select "Living" tag for people, pets, plants, or other living things</p>
+        <div className="tags-selection">
+          {availableTags.map((tag) => (
+            <label key={tag.id} className="tag-checkbox">
+              <input
+                type="checkbox"
+                checked={(formData.tag_ids || []).includes(tag.id)}
+                onChange={() => handleTagToggle(tag.id)}
+                disabled={loading}
+              />
+              <span className={tag.is_predefined ? "tag-predefined" : "tag-custom"}>
+                {tag.name}
+              </span>
+            </label>
+          ))}
+        </div>
+        <div className="new-tag-input">
+          <input
+            type="text"
+            placeholder="Create new tag..."
+            value={newTagName}
+            onChange={(e) => setNewTagName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleCreateTag())}
+            disabled={loading}
+          />
+          <button
+            type="button"
+            onClick={handleCreateTag}
+            disabled={loading || !newTagName.trim()}
+            className="btn-outline"
+          >
+            Add Tag
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1169,246 +1167,294 @@ const ItemForm: React.FC<ItemFormProps> = ({
   );
 
   // Render content for Tab 3: Media (All Photos)
-  const renderMediaTab = () => (
-    <div className="tab-content">
-      <div className="form-section">
-        <h3>Photos</h3>
-        
-        <div className="photo-upload-section">
-          {livingMode ? (
-            <>
-              <div className="photo-type-upload">
-                <label htmlFor="photo-profile-media">Profile Picture</label>
-                <input
-                  type="file"
-                  id="photo-profile-media"
-                  accept="image/*"
-                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.PROFILE)}
-                  disabled={loading}
-                />
-                <span className="help-text">Profile photo for this person, pet, or plant</span>
-              </div>
+  const renderMediaTab = () => {
+    // Helper function to get filename from path
+    const getFilenameFromPath = (path: string): string => {
+      return path.split('/').pop() || path;
+    };
 
-              <div className="photo-type-upload">
-                <label htmlFor="photo-optional-media">Additional Photos</label>
-                <input
-                  type="file"
-                  id="photo-optional-media"
-                  accept="image/*"
-                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
-                  disabled={loading}
-                  multiple
-                />
-                <span className="help-text">Any additional photos</span>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="photo-type-upload">
-                <label htmlFor="photo-default-media">Default/Primary Photo</label>
-                <input
-                  type="file"
-                  id="photo-default-media"
-                  accept="image/*"
-                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DEFAULT)}
-                  disabled={loading}
-                />
-                <span className="help-text">Primary photo for the item</span>
-              </div>
+    // Helper function to get photo type label
+    const getPhotoTypeLabel = (photo: Photo): string => {
+      if (photo.is_primary) return 'Primary';
+      if (photo.is_data_tag) return 'Data Tag';
+      return formatPhotoType(photo.photo_type || 'optional');
+    };
 
-              <div className="photo-type-upload">
-                <label htmlFor="photo-data-tag-media">Data Tag</label>
-                <div className="data-tag-controls">
-                  <input
-                    type="file"
-                    id="photo-data-tag-media"
-                    accept="image/*"
-                    onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DATA_TAG)}
-                    disabled={loading || scanningDataTag}
+    return (
+      <div className="tab-content">
+        {/* Existing Photos Section - Only show when editing and there are existing photos */}
+        {isEditing && existingPhotos.length > 0 && (
+          <div className="form-section">
+            <h3>Current Photos</h3>
+            <p className="help-text">View and manage existing photos for this item</p>
+            <div className="existing-photos-grid">
+              {existingPhotos.map((photo) => (
+                <div key={photo.id} className="existing-photo-item">
+                  <img 
+                    src={`${getApiBaseUrl()}${photo.path}`}
+                    alt={getFilenameFromPath(photo.path)}
+                    className="existing-photo-image"
                   />
-                  {aiStatus?.enabled && (
-                    <>
-                      <input
-                        type="file"
-                        ref={dataTagInputRef}
-                        accept="image/*"
-                        capture="environment"
-                        onChange={handleDataTagFileChange}
-                        disabled={loading || scanningDataTag}
-                        style={{ display: "none" }}
-                      />
-                      <button
-                        type="button"
-                        className="btn-outline btn-scan-data-tag"
-                        onClick={handleDataTagScan}
-                        disabled={loading || scanningDataTag}
-                        title="Take a photo of the data tag and auto-fill fields using AI"
-                      >
-                        {scanningDataTag ? "🔄 Scanning..." : "🤖 AI Scan"}
-                      </button>
-                    </>
-                  )}
-                </div>
-                <span className="help-text">
-                  Photo of serial number or data tag
-                  {aiStatus?.enabled && " — Use AI Scan to auto-fill manufacturer, model & serial number"}
-                </span>
-              </div>
-
-              {/* Data Tag Scan Results */}
-              {dataTagResult && (
-                <div className="data-tag-result">
-                  <h4>📋 Data Tag Scan Results</h4>
-                  <div className="data-tag-fields">
-                    {dataTagResult.manufacturer && (
-                      <div className="data-tag-field">
-                        <span className="field-label">Manufacturer:</span>
-                        <span className="field-value">{dataTagResult.manufacturer}</span>
-                      </div>
-                    )}
-                    {dataTagResult.brand && dataTagResult.brand !== dataTagResult.manufacturer && (
-                      <div className="data-tag-field">
-                        <span className="field-label">Brand:</span>
-                        <span className="field-value">{dataTagResult.brand}</span>
-                      </div>
-                    )}
-                    {dataTagResult.model_number && (
-                      <div className="data-tag-field">
-                        <span className="field-label">Model Number:</span>
-                        <span className="field-value">{dataTagResult.model_number}</span>
-                      </div>
-                    )}
-                    {dataTagResult.serial_number && (
-                      <div className="data-tag-field">
-                        <span className="field-label">Serial Number:</span>
-                        <span className="field-value">{dataTagResult.serial_number}</span>
-                      </div>
-                    )}
-                    {dataTagResult.production_date && (
-                      <div className="data-tag-field">
-                        <span className="field-label">Production Date:</span>
-                        <span className="field-value">{dataTagResult.production_date}</span>
-                      </div>
-                    )}
-                    {dataTagResult.estimated_value !== null && dataTagResult.estimated_value !== undefined && (
-                      <div className="data-tag-field">
-                        <span className="field-label">Estimated Value:</span>
-                        <span className="field-value">${dataTagResult.estimated_value.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {dataTagResult.additional_info && Object.keys(dataTagResult.additional_info).length > 0 && (
-                      <div className="data-tag-additional">
-                        <span className="field-label">Additional Info:</span>
-                        <div className="additional-fields">
-                          {Object.entries(dataTagResult.additional_info).map(([key, value]) => (
-                            <span key={key} className="additional-field">
-                              {key}: {String(value)}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {!dataTagResult.manufacturer && !dataTagResult.brand && !dataTagResult.model_number && 
-                     !dataTagResult.serial_number && !dataTagResult.production_date && !dataTagResult.estimated_value && (
-                      <p className="no-data-found">No data tag information could be extracted. Try a clearer image.</p>
-                    )}
-                  </div>
-                  <div className="data-tag-actions">
-                    <button
-                      type="button"
-                      className="btn-outline"
-                      onClick={dismissDataTagResult}
-                    >
-                      Dismiss
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-primary"
-                      onClick={() => applyDataTagInfo(dataTagResult)}
-                      disabled={!dataTagResult.brand && !dataTagResult.manufacturer && 
-                               !dataTagResult.model_number && !dataTagResult.serial_number && 
-                               !dataTagResult.estimated_value}
-                    >
-                      Apply to Form
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="photo-type-upload">
-                <label htmlFor="photo-receipt-media">Receipt</label>
-                <input
-                  type="file"
-                  id="photo-receipt-media"
-                  accept="image/*"
-                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.RECEIPT)}
-                  disabled={loading}
-                  multiple
-                />
-                <span className="help-text">Purchase receipt</span>
-              </div>
-
-              <div className="photo-type-upload">
-                <label htmlFor="photo-warranty-media">Warranty Information</label>
-                <input
-                  type="file"
-                  id="photo-warranty-media"
-                  accept="image/*"
-                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.WARRANTY)}
-                  disabled={loading}
-                  multiple
-                />
-                <span className="help-text">Warranty documents or cards</span>
-              </div>
-
-              <div className="photo-type-upload">
-                <label htmlFor="photo-optional-media">Additional Photos</label>
-                <input
-                  type="file"
-                  id="photo-optional-media"
-                  accept="image/*"
-                  onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
-                  disabled={loading}
-                  multiple
-                />
-                <span className="help-text">Any additional photos</span>
-              </div>
-            </>
-          )}
-        </div>
-
-        {photos.length > 0 && (
-          <div className="photo-previews">
-            <h4>All Selected Photos ({photos.length})</h4>
-            <div className="photo-preview-grid">
-              {photos.map((photo, index) => (
-                <div key={index} className="photo-preview-item">
-                  <img src={photo.preview} alt={`Preview ${index + 1}`} />
-                  <div className="photo-preview-info">
-                    <span className="photo-type-badge">{formatPhotoType(photo.type)}</span>
-                    <button
-                      type="button"
-                      className="remove-photo-btn"
-                      onClick={() => removePhoto(index)}
-                      disabled={loading}
-                    >
-                      ✕
-                    </button>
+                  <div className="existing-photo-info">
+                    <span className="photo-type-badge">{getPhotoTypeLabel(photo)}</span>
+                    <span className="photo-filename" title={getFilenameFromPath(photo.path)}>
+                      {getFilenameFromPath(photo.path)}
+                    </span>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         )}
+
+        <div className="form-section">
+          <h3>{isEditing && existingPhotos.length > 0 ? 'Add New Photos' : 'Photos'}</h3>
+          
+          <div className="photo-upload-section">
+            {livingMode ? (
+              <>
+                <div className="photo-type-upload">
+                  <label htmlFor="photo-profile-media">Profile Picture</label>
+                  <input
+                    type="file"
+                    id="photo-profile-media"
+                    accept="image/*"
+                    onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.PROFILE)}
+                    disabled={loading}
+                  />
+                  <span className="help-text">Profile photo for this person, pet, or plant</span>
+                </div>
+
+                <div className="photo-type-upload">
+                  <label htmlFor="photo-optional-media">Additional Photos</label>
+                  <input
+                    type="file"
+                    id="photo-optional-media"
+                    accept="image/*"
+                    onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
+                    disabled={loading}
+                    multiple
+                  />
+                  <span className="help-text">Any additional photos</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="photo-type-upload">
+                  <label htmlFor="photo-default-media">Default/Primary Photo</label>
+                  <input
+                    type="file"
+                    id="photo-default-media"
+                    accept="image/*"
+                    onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DEFAULT)}
+                    disabled={loading}
+                  />
+                  <span className="help-text">Primary photo for the item</span>
+                </div>
+
+                <div className="photo-type-upload">
+                  <label htmlFor="photo-data-tag-media">Data Tag</label>
+                  <div className="data-tag-controls">
+                    <input
+                      type="file"
+                      id="photo-data-tag-media"
+                      accept="image/*"
+                      onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DATA_TAG)}
+                      disabled={loading || scanningDataTag}
+                    />
+                    {aiStatus?.enabled && (
+                      <>
+                        <input
+                          type="file"
+                          ref={dataTagInputRef}
+                          accept="image/*"
+                          capture="environment"
+                          onChange={handleDataTagFileChange}
+                          disabled={loading || scanningDataTag}
+                          style={{ display: "none" }}
+                        />
+                        <button
+                          type="button"
+                          className="btn-outline btn-scan-data-tag"
+                          onClick={handleDataTagScan}
+                          disabled={loading || scanningDataTag}
+                          title="Take a photo of the data tag and auto-fill fields using AI"
+                        >
+                          {scanningDataTag ? "🔄 Scanning..." : "🤖 AI Scan"}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  <span className="help-text">
+                    Photo of serial number or data tag
+                    {aiStatus?.enabled && " — Use AI Scan to auto-fill manufacturer, model & serial number"}
+                  </span>
+                </div>
+
+                {/* Data Tag Scan Results */}
+                {dataTagResult && (
+                  <div className="data-tag-result">
+                    <h4>📋 Data Tag Scan Results</h4>
+                    <div className="data-tag-fields">
+                      {dataTagResult.manufacturer && (
+                        <div className="data-tag-field">
+                          <span className="field-label">Manufacturer:</span>
+                          <span className="field-value">{dataTagResult.manufacturer}</span>
+                        </div>
+                      )}
+                      {dataTagResult.brand && dataTagResult.brand !== dataTagResult.manufacturer && (
+                        <div className="data-tag-field">
+                          <span className="field-label">Brand:</span>
+                          <span className="field-value">{dataTagResult.brand}</span>
+                        </div>
+                      )}
+                      {dataTagResult.model_number && (
+                        <div className="data-tag-field">
+                          <span className="field-label">Model Number:</span>
+                          <span className="field-value">{dataTagResult.model_number}</span>
+                        </div>
+                      )}
+                      {dataTagResult.serial_number && (
+                        <div className="data-tag-field">
+                          <span className="field-label">Serial Number:</span>
+                          <span className="field-value">{dataTagResult.serial_number}</span>
+                        </div>
+                      )}
+                      {dataTagResult.production_date && (
+                        <div className="data-tag-field">
+                          <span className="field-label">Production Date:</span>
+                          <span className="field-value">{dataTagResult.production_date}</span>
+                        </div>
+                      )}
+                      {dataTagResult.estimated_value !== null && dataTagResult.estimated_value !== undefined && (
+                        <div className="data-tag-field">
+                          <span className="field-label">Estimated Value:</span>
+                          <span className="field-value">${dataTagResult.estimated_value.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {dataTagResult.additional_info && Object.keys(dataTagResult.additional_info).length > 0 && (
+                        <div className="data-tag-additional">
+                          <span className="field-label">Additional Info:</span>
+                          <div className="additional-fields">
+                            {Object.entries(dataTagResult.additional_info).map(([key, value]) => (
+                              <span key={key} className="additional-field">
+                                {key}: {String(value)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {!dataTagResult.manufacturer && !dataTagResult.brand && !dataTagResult.model_number && 
+                       !dataTagResult.serial_number && !dataTagResult.production_date && !dataTagResult.estimated_value && (
+                        <p className="no-data-found">No data tag information could be extracted. Try a clearer image.</p>
+                      )}
+                    </div>
+                    <div className="data-tag-actions">
+                      <button
+                        type="button"
+                        className="btn-outline"
+                        onClick={dismissDataTagResult}
+                      >
+                        Dismiss
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => applyDataTagInfo(dataTagResult)}
+                        disabled={!dataTagResult.brand && !dataTagResult.manufacturer && 
+                                 !dataTagResult.model_number && !dataTagResult.serial_number && 
+                                 !dataTagResult.estimated_value}
+                      >
+                        Apply to Form
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="photo-type-upload">
+                  <label htmlFor="photo-receipt-media">Receipt</label>
+                  <input
+                    type="file"
+                    id="photo-receipt-media"
+                    accept="image/*"
+                    onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.RECEIPT)}
+                    disabled={loading}
+                    multiple
+                  />
+                  <span className="help-text">Purchase receipt</span>
+                </div>
+
+                <div className="photo-type-upload">
+                  <label htmlFor="photo-warranty-media">Warranty Information</label>
+                  <input
+                    type="file"
+                    id="photo-warranty-media"
+                    accept="image/*"
+                    onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.WARRANTY)}
+                    disabled={loading}
+                    multiple
+                  />
+                  <span className="help-text">Warranty documents or cards</span>
+                </div>
+
+                <div className="photo-type-upload">
+                  <label htmlFor="photo-optional-media">Additional Photos</label>
+                  <input
+                    type="file"
+                    id="photo-optional-media"
+                    accept="image/*"
+                    onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
+                    disabled={loading}
+                    multiple
+                  />
+                  <span className="help-text">Any additional photos</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {photos.length > 0 && (
+            <div className="photo-previews">
+              <h4>New Photos to Upload ({photos.length})</h4>
+              <div className="photo-preview-grid">
+                {photos.map((photo, index) => (
+                  <div key={index} className="photo-preview-item">
+                    <img src={photo.preview} alt={`Preview ${index + 1}`} />
+                    <div className="photo-preview-info">
+                      <span className="photo-type-badge">{formatPhotoType(photo.type)}</span>
+                      <button
+                        type="button"
+                        className="remove-photo-btn"
+                        onClick={() => removePhoto(index)}
+                        disabled={loading}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal-content modal-content-wide" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{isEditing ? "Edit Item" : livingMode ? "Add Living Item" : "Add New Item"}</h2>
+        <div className="modal-header modal-header-with-photo">
+          <div className="modal-header-left">
+            {isEditing && primaryPhoto && (
+              <img 
+                src={`${getApiBaseUrl()}${primaryPhoto.path}`}
+                alt={initialData?.name || "Item"}
+                className="modal-header-photo"
+              />
+            )}
+            <h2>{isEditing ? (initialData?.name || "Edit Item") : livingMode ? "Add Living Item" : "Add New Item"}</h2>
+          </div>
           <button className="modal-close" onClick={onCancel}>
             ✕
           </button>
@@ -1425,6 +1471,13 @@ const ItemForm: React.FC<ItemFormProps> = ({
                 onClick={() => setActiveTab('basic')}
               >
                 📋 Basic Info
+              </button>
+              <button
+                type="button"
+                className={`tab-button ${activeTab === 'tags' ? 'active' : ''}`}
+                onClick={() => setActiveTab('tags')}
+              >
+                🏷️ Tags
               </button>
               <button
                 type="button"
@@ -1507,6 +1560,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
               // For non-living items, use tabbed interface
               <>
                 {activeTab === 'basic' && renderBasicInfoTab()}
+                {activeTab === 'tags' && renderTagsTab()}
                 {activeTab === 'warranty' && renderWarrantyTab()}
                 {activeTab === 'media' && renderMediaTab()}
               </>
