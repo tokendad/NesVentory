@@ -1268,6 +1268,21 @@ export interface ConfigStatusResponse {
   gemini_configured: boolean;
   gemini_api_key_masked: string | null;
   gemini_model: string | null;
+  gemini_from_env: boolean;
+  google_from_env: boolean;
+}
+
+export interface ApiKeysUpdate {
+  gemini_api_key?: string | null;
+  google_client_id?: string | null;
+  google_client_secret?: string | null;
+}
+
+export interface ApiKeysUpdateResponse {
+  success: boolean;
+  message: string;
+  gemini_configured: boolean;
+  google_oauth_configured: boolean;
 }
 
 export async function getConfigStatus(): Promise<ConfigStatusResponse> {
@@ -1278,5 +1293,18 @@ export async function getConfigStatus(): Promise<ConfigStatusResponse> {
     },
   });
   return handleResponse<ConfigStatusResponse>(res);
+}
+
+export async function updateApiKeys(apiKeys: ApiKeysUpdate): Promise<ApiKeysUpdateResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/config-status/api-keys`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(apiKeys),
+  });
+  return handleResponse<ApiKeysUpdateResponse>(res);
 }
 
