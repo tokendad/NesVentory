@@ -23,6 +23,7 @@ import {
   updateItem,
   deleteItem,
   uploadPhoto,
+  uploadDocument,
   getCurrentUser,
   bulkDeleteItems,
   bulkUpdateTags,
@@ -34,7 +35,7 @@ import {
   type Tag,
 } from "./lib/api";
 import { PHOTO_TYPES } from "./lib/constants";
-import type { PhotoUpload } from "./lib/types";
+import type { PhotoUpload, DocumentUpload } from "./lib/types";
 import { getLocationPath } from "./lib/utils";
 
 type View = "dashboard" | "items" | "locations" | "status" | "admin";
@@ -147,17 +148,19 @@ const App: React.FC = () => {
     setLocations([]);
   }
 
-  async function handleCreateItem(item: ItemCreate, photos: PhotoUpload[]) {
+  async function handleCreateItem(item: ItemCreate, photos: PhotoUpload[], documents: DocumentUpload[]) {
     const createdItem = await createItem(item);
     await uploadPhotosForItem(createdItem.id.toString(), photos);
+    await uploadDocumentsForItem(createdItem.id.toString(), documents);
     setShowItemForm(false);
     await loadItems();
   }
 
-  async function handleUpdateItem(item: ItemCreate, photos: PhotoUpload[]) {
+  async function handleUpdateItem(item: ItemCreate, photos: PhotoUpload[], documents: DocumentUpload[]) {
     if (!selectedItem) return;
     const updatedItem = await updateItem(selectedItem.id.toString(), item);
     await uploadPhotosForItem(updatedItem.id.toString(), photos);
+    await uploadDocumentsForItem(updatedItem.id.toString(), documents);
     setEditingItem(false);
     setSelectedItem(null);
     await loadItems();
@@ -174,6 +177,18 @@ const App: React.FC = () => {
           photo.type,
           isPrimary,
           isDataTag
+        );
+      }
+    }
+  }
+
+  async function uploadDocumentsForItem(itemId: string, documents: DocumentUpload[]) {
+    if (documents.length > 0) {
+      for (const doc of documents) {
+        await uploadDocument(
+          itemId,
+          doc.file,
+          doc.type
         );
       }
     }
