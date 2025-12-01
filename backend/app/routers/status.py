@@ -1,14 +1,48 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from pydantic import BaseModel
 from ..config import settings
 from ..deps import get_db
 from ..database import SQLALCHEMY_DATABASE_URL, db_path
+from .. import models, auth
 import httpx
 import os
 from typing import Dict, Any, Optional
 
 router = APIRouter()
+
+
+class ConfigStatusResponse(BaseModel):
+    """Response model for system configuration status."""
+    google_oauth_configured: bool
+    google_client_id: Optional[str] = None  # Expose client ID for frontend use
+    google_client_secret_masked: Optional[str] = None  # Masked secret for display
+    gemini_configured: bool
+    gemini_api_key_masked: Optional[str] = None  # Masked API key for display
+    gemini_model: Optional[str] = None
+
+
+def mask_secret(secret: Optional[str], visible_chars: int = 4) -> Optional[str]:
+    """
+    Mask a secret string, showing only the last few characters.
+    
+    Args:
+        secret: The secret string to mask
+        visible_chars: Number of characters to show at the end
+    
+    Returns:
+        Masked string like "••••••••abcd" or None if secret is empty
+    """
+    if not secret or not secret.strip():
+        return None
+    
+    secret = secret.strip()
+    if len(secret) <= visible_chars:
+        return "•" * len(secret)
+    
+    hidden_length = min(len(secret) - visible_chars, 12)  # Cap hidden part at 12 dots
+    return "•" * hidden_length + secret[-visible_chars:]
 
 
 def format_size_readable(size_bytes: int) -> str:
@@ -169,3 +203,35 @@ async def get_status(db: Session = Depends(get_db)):
             "is_version_current": is_version_current,
         }
     }
+
+
+@router.get("/config-status", response_model=ConfigStatusResponse)
+async def get_config_status(
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """
+    Get the current system configuration status.
+    
+    Returns whether Google OAuth and Gemini AI are configured via environment variables.
+    This endpoint requires authentication.
+    """
+    google_oauth_configured = bool(
+        settings.GOOGLE_CLIENT_ID and 
+        settings.GOOGLE_CLIENT_SECRET and 
+        settings.GOOGLE_CLIENT_ID.strip() and 
+        settings.GOOGLE_CLIENT_SECRET.strip()
+    )
+    
+    gemini_configured = bool(
+        settings.GEMINI_API_KEY and 
+        settings.GEMINI_API_KEY.strip()
+    )
+    
+    return ConfigStatusResponse(
+        google_oauth_configured=google_oauth_configured,
+        google_client_id=settings.GOOGLE_CLIENT_ID if google_oauth_configured else None,
+        google_client_secret_masked=mask_secret(settings.GOOGLE_CLIENT_SECRET) if google_oauth_configured else None,
+        gemini_configured=gemini_configured,
+        gemini_api_key_masked=mask_secret(settings.GEMINI_API_KEY) if gemini_configured else None,
+        gemini_model=settings.GEMINI_MODEL if gemini_configured else None
+    )
