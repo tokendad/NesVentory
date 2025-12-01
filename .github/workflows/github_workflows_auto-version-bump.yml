@@ -7,13 +7,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     if: |
       github.event.label.name == 'bug' || github.event.label.name == 'enhancement'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.ref }}
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -22,12 +23,24 @@ jobs:
 
       - name: Bump version
         run: |
-          python .github/scripts/bump_version.py ${{ github.event.label.name }}
+          python .github/scripts/bump_version.py "${{ github.event.label.name }}"
 
-      - name: Commit and push changes
+      - name: Commit version bump
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
-          git add VERSION
-          git commit -m "Auto-bump version for ${{ github.event.label.name }} issue"
-          git push
+          git add VERSION || true
+          git commit -m "Auto-bump version for ${{ github.event.label.name }} issue #${{ github.event.issue.number }}" || echo "No changes to commit"
+
+      - name: Create Pull Request targeting dev
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Auto-bump version for ${{ github.event.label.name }} issue #${{ github.event.issue.number }}"
+          branch: "auto/version-bump-${{ github.event.issue.number }}-${{ github.run_id }}"
+          title: "Auto-bump version for ${{ github.event.label.name }}"
+          body: |
+            Automated version bump for label: ${{ github.event.label.name }}
+            Issue: #${{ github.event.issue.number }}
+          base: dev
+          labels: auto-version-bump
