@@ -69,8 +69,11 @@ k8s/
 └── overlays/
     ├── development/         # Development-specific overrides
     │   └── kustomization.yaml
-    └── production/          # Production-specific overrides
-        └── kustomization.yaml
+    ├── production/          # Production-specific overrides
+    │   └── kustomization.yaml
+    └── aws/                 # AWS EKS-specific overrides
+        ├── kustomization.yaml
+        └── service-account.yaml  # IRSA service account
 ```
 
 ## Prerequisites
@@ -132,6 +135,31 @@ kubectl apply -k k8s/overlays/production
 # Watch deployment progress
 kubectl -n nesventory get pods -w
 ```
+
+#### AWS EKS Environment
+
+For AWS EKS deployment with RDS and S3, see the [Terraform AWS documentation](../terraform/aws/README.md) first.
+
+After deploying the infrastructure with Terraform:
+
+1. Update the AWS overlay configuration:
+   ```bash
+   # Edit k8s/overlays/aws/kustomization.yaml
+   # Update DB_HOST with your RDS endpoint
+   # Update S3_BUCKET_NAME with your bucket name
+   
+   # Edit k8s/overlays/aws/service-account.yaml
+   # Update the IAM role ARN from Terraform output
+   ```
+
+2. Apply the AWS configuration:
+   ```bash
+   # Apply AWS-specific configuration
+   kubectl apply -k k8s/overlays/aws
+   
+   # Watch deployment progress
+   kubectl -n nesventory get pods -w
+   ```
 
 ### 4. Verify Deployment
 

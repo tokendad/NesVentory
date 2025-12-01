@@ -2,21 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 from typing import Optional
 from uuid import UUID
-import shutil
 import logging
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from datetime import datetime
 from .. import models, schemas
 from ..deps import get_db
+from ..storage import get_storage
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/items", tags=["documents"])
-
-# Directory to store uploaded documents
-# Media files are stored in /app/data/media to ensure they persist with the database
-UPLOAD_DIR = Path("/app/data/media/documents")
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Allowed file types for document uploads (PDF and TXT)
 ALLOWED_DOCUMENT_TYPES = ["application/pdf", "text/plain"]
@@ -58,18 +53,12 @@ async def upload_document(
     if not safe_name:
         safe_name = "document"
     filename = f"{item_id}_{timestamp}_{safe_name}{file_extension}"
-    file_path = UPLOAD_DIR / filename
+    storage_path = f"documents/{filename}"
     
-    # Validate that file_path is inside UPLOAD_DIR after normalization
-    abs_upload_dir = UPLOAD_DIR.resolve()
-    abs_file_path = file_path.resolve()
-    if not str(abs_file_path).startswith(str(abs_upload_dir)):
-        raise HTTPException(status_code=400, detail="Unsafe file path.")
-    
-    # Save file
+    # Save file using storage backend
+    storage = get_storage()
     try:
-        with abs_file_path.open("wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        file_url = storage.save(file.file, storage_path, content_type=file.content_type)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
     
@@ -77,7 +66,7 @@ async def upload_document(
     document = models.Document(
         item_id=item_id,
         filename=file.filename or filename,
-        path=f"/uploads/documents/{filename}",
+        path=file_url,
         mime_type=file.content_type,
         document_type=document_type
     )
@@ -104,21 +93,26 @@ def delete_document(
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
     
-    # Delete file from filesystem
-    # Extract filename from the path (stored as /uploads/documents/filename)
-    # Use PurePosixPath to handle the stored path which uses forward slashes
-    from pathlib import PurePosixPath
-    stored_filename = PurePosixPath(document.path).name
-    file_path = UPLOAD_DIR / stored_filename
+    # Extract the storage path from the document path
+    storage = get_storage()
     
-    # Validate file path is within UPLOAD_DIR to prevent path traversal
-    abs_upload_dir = UPLOAD_DIR.resolve()
-    abs_file_path = file_path.resolve()
-    if str(abs_file_path).startswith(str(abs_upload_dir)) and file_path.exists():
-        try:
-            file_path.unlink()
-        except Exception as e:
-            logger.warning(f"Failed to delete file {file_path}: {e}")
+    # For local storage, extract the relative path
+    # For S3, extract the key from the URL
+    doc_path = document.path
+    if doc_path.startswith("/uploads/"):
+        # Local storage: extract relative path
+        storage_path = doc_path.replace("/uploads/", "")
+    elif "://" in doc_path:
+        # S3 URL: extract the key (everything after the bucket/domain)
+        from urllib.parse import urlparse
+        parsed = urlparse(doc_path)
+        storage_path = parsed.path.lstrip("/")
+    else:
+        # Fallback: extract filename from path
+        stored_filename = PurePosixPath(doc_path).name
+        storage_path = f"documents/{stored_filename}"
+    
+    storage.delete(storage_path)
     
     db.delete(document)
     db.commit()

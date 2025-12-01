@@ -1,0 +1,33 @@
+# NesVentory AWS Infrastructure
+# Example Terraform Variables File
+# Copy this file to terraform.tfvars and update with your values
+
+# Project Settings
+project_name = "nesventory"
+aws_region   = "us-east-1"
+environment  = "production"  # development, staging, or production
+
+# VPC Settings
+vpc_cidr = "10.0.0.0/16"
+
+# EKS Settings
+eks_cluster_version     = "1.28"
+eks_node_instance_types = ["t3.medium"]
+eks_desired_size        = 2
+eks_min_size            = 1
+eks_max_size            = 5
+eks_node_disk_size      = 50
+
+# RDS Settings
+db_instance_class          = "db.t3.micro"
+db_allocated_storage       = 20
+db_max_allocated_storage   = 100
+db_name                    = "nesventory"
+db_username                = "nesventory"
+db_password                = "CHANGE-ME-TO-A-STRONG-PASSWORD"  # Required: Set a strong password
+db_multi_az                = false  # Set to true for production
+db_backup_retention_period = 7
+
+# S3 Settings
+s3_force_destroy      = false  # Set to true to allow Terraform to delete the bucket
+s3_versioning_enabled = true

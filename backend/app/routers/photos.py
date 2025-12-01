@@ -2,21 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
-import shutil
 import logging
 from pathlib import Path
 from datetime import datetime
 from .. import models, schemas
 from ..deps import get_db
+from ..storage import get_storage
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/items", tags=["photos"])
-
-# Directory to store uploaded photos
-# Media files are stored in /app/data/media to ensure they persist with the database
-UPLOAD_DIR = Path("/app/data/media/photos")
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Allowed file types for photo uploads
 ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
@@ -55,18 +50,12 @@ async def upload_photo(
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     file_extension = MIME_TYPE_EXTENSION.get(file.content_type, ".jpg")
     filename = f"{item_id}_{timestamp}{file_extension}"
-    file_path = UPLOAD_DIR / filename
+    storage_path = f"photos/{filename}"
     
-    # Validate that file_path is inside UPLOAD_DIR after normalization
-    abs_upload_dir = UPLOAD_DIR.resolve()
-    abs_file_path = file_path.resolve()
-    if not str(abs_file_path).startswith(str(abs_upload_dir)):
-        raise HTTPException(status_code=400, detail="Unsafe file path.")
-    
-    # Save file
+    # Save file using storage backend
+    storage = get_storage()
     try:
-        with abs_file_path.open("wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        file_url = storage.save(file.file, storage_path, content_type=file.content_type)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
     
@@ -87,7 +76,7 @@ async def upload_photo(
     # Create photo record
     photo = models.Photo(
         item_id=item_id,
-        path=f"/uploads/photos/{filename}",
+        path=file_url,
         mime_type=file.content_type,
         is_primary=is_primary,
         is_data_tag=is_data_tag,
@@ -116,13 +105,25 @@ def delete_photo(
     if not photo:
         raise HTTPException(status_code=404, detail="Photo not found")
     
-    # Delete file from filesystem
-    file_path = UPLOAD_DIR / Path(photo.path).name
-    if file_path.exists():
-        try:
-            file_path.unlink()
-        except Exception as e:
-            logger.warning(f"Failed to delete file {file_path}: {e}")
+    # Extract the storage path from the photo path
+    # The path is stored as a URL (e.g., "/uploads/photos/filename" or S3 URL)
+    storage = get_storage()
+    
+    # For local storage, extract the relative path
+    # For S3, extract the key from the URL
+    photo_path = photo.path
+    if photo_path.startswith("/uploads/"):
+        # Local storage: extract relative path
+        storage_path = photo_path.replace("/uploads/", "")
+    elif "://" in photo_path:
+        # S3 URL: extract the key (everything after the bucket/domain)
+        from urllib.parse import urlparse
+        parsed = urlparse(photo_path)
+        storage_path = parsed.path.lstrip("/")
+    else:
+        storage_path = f"photos/{Path(photo_path).name}"
+    
+    storage.delete(storage_path)
     
     db.delete(photo)
     db.commit()
