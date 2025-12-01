@@ -1,29 +1,29 @@
 # Auto-labeler for PRs based on file paths (actions/labeler-compatible format)
-"frontend":
-  - "src/**"
-  - "index.html"
-  - "vite.config.ts"
-  - "package.json"
-  - "tsconfig.json"
+frontend:
+  - src/**
+  - index.html
+  - vite.config.ts
+  - package.json
+  - tsconfig.json
 
-"backend":
-  - "backend/**"
+backend:
+  - backend/**
 
-"documentation":
+documentation:
   - "*.md"
-  - "docs/**"
-  - "INSTALL.txt"
+  - docs/**
+  - INSTALL.txt
 
-"infrastructure":
-  - "Dockerfile"
-  - "docker-compose*.yml"
-  - "docker-entrypoint.sh"
-  - "k8s/**"
+infrastructure:
+  - Dockerfile
+  - docker-compose*.yml
+  - docker-entrypoint.sh
+  - k8s/**
 
-"ci/cd":
-  - ".github/**"
+ci/cd:
+  - .github/**
 
-"dependencies":
-  - "package.json"
-  - "package-lock.json"
-  - "backend/requirements.txt"
+dependencies:
+  - package.json
+  - package-lock.json
+  - backend/requirements.txt
