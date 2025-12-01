@@ -27,7 +27,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: tokendad/nesventory
+  IMAGE_NAME: neuman1812/nesventory
   DEFAULT_PUID: '1000'
   DEFAULT_PGID: '1000'
 
