@@ -15,6 +15,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# Minimal permissions for all jobs
+permissions:
+  contents: read
+
 jobs:
   validate:
     name: Validate PR
