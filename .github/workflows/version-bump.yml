@@ -72,9 +72,11 @@ jobs:
           PR_NUMBER="${{ github.event.pull_request.number }}"
           PR_AUTHOR="${{ github.event.pull_request.user.login }}"
           
-          # Determine the change type section
+          # Determine the change type section based on bump type
           BUMP_TYPE="${{ steps.bump-type.outputs.type }}"
-          if [[ "$BUMP_TYPE" == "enhancement" ]]; then
+          if [[ "$BUMP_TYPE" == "major" ]]; then
+            SECTION="### Changed"
+          elif [[ "$BUMP_TYPE" == "enhancement" ]]; then
             SECTION="### Added"
           else
             SECTION="### Fixed"

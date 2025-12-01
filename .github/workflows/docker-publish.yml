@@ -14,10 +14,22 @@ on:
         description: 'Custom tag for the image (optional)'
         required: false
         type: string
+      puid:
+        description: 'User ID for file ownership (default: 1000)'
+        required: false
+        default: '1000'
+        type: string
+      pgid:
+        description: 'Group ID for file ownership (default: 1000)'
+        required: false
+        default: '1000'
+        type: string
 
 env:
   REGISTRY: docker.io
   IMAGE_NAME: tokendad/nesventory
+  DEFAULT_PUID: '1000'
+  DEFAULT_PGID: '1000'
 
 jobs:
   build-and-push:
@@ -80,8 +92,8 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            PUID=1000
-            PGID=1000
+            PUID=${{ inputs.puid || env.DEFAULT_PUID }}
+            PGID=${{ inputs.pgid || env.DEFAULT_PGID }}
 
       - name: Update Docker Hub Description
         uses: peter-evans/dockerhub-description@v4

@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
 Bump version script for NesVentory.
-Updates the VERSION file based on the label type (bug, enhancement, major).
+Updates the VERSION file based on the label type:
+  - 'bug' for patch bump (x.y.Z)
+  - 'enhancement' for minor bump (x.Y.0)
+  - 'major' for major bump (X.0.0)
 """
 import sys
 import os
