@@ -73,7 +73,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick }) => 
       .then((status) => {
         setRegistrationEnabled(status.enabled);
       })
-      .catch(() => setRegistrationEnabled(true)); // Default to enabled if check fails
+      .catch(() => {
+        // Default to showing register button if check fails - backend still enforces the setting
+        // This prevents locking users out from seeing the option due to network issues
+        setRegistrationEnabled(true);
+      });
   }, []);
 
   // Initialize Google Sign-In when script is loaded and client_id is available

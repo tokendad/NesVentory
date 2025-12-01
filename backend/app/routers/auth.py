@@ -41,7 +41,15 @@ class RegistrationStatus(BaseModel):
 
 @router.get("/auth/registration/status", response_model=RegistrationStatus)
 async def registration_status():
-    """Check if user registration is enabled (DISABLE_SIGNUPS is not set)."""
+    """
+    Check if new user registration is enabled.
+    
+    Returns whether self-registration is allowed. This endpoint is public
+    (no authentication required) so the login page can determine whether
+    to show the registration option.
+    
+    Registration is disabled when DISABLE_SIGNUPS=true is set in environment.
+    """
     return {
         "enabled": not settings.DISABLE_SIGNUPS
     }
