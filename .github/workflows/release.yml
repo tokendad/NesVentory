@@ -1,0 +1,63 @@
+# Release Workflow
+# Creates a GitHub release when a PR is merged from main to stable
+# Generates release notes from CHANGELOG.md
+
+name: Create Release
+
+on:
+  pull_request:
+    branches:
+      - stable
+    types: [closed]
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(cat VERSION | tr -d '[:space:]')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Extract release notes from CHANGELOG
+        id: release-notes
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          # Extract the section for this version from CHANGELOG.md
+          # This gets everything between the current version header and the next version header
+          NOTES=$(awk "/^## \[$VERSION\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md)
+          
+          if [[ -z "$NOTES" ]]; then
+            NOTES="Release $VERSION"
+            echo "::warning ::No release notes found for version $VERSION in CHANGELOG.md. Please ensure CHANGELOG.md is updated."
+          fi
+          
+          # Write to file for multi-line support
+          echo "$NOTES" > /tmp/release_notes.md
+          
+          echo "Release notes:"
+          cat /tmp/release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.version }}
+          body_path: /tmp/release_notes.md
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
