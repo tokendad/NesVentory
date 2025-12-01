@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import type { Location } from "../lib/api";
 
 interface LocationsTreeProps {
@@ -38,17 +38,61 @@ function getLocationTypeLabel(locationType: string | null | undefined): string |
   return typeLabels[locationType] || locationType;
 }
 
-const LocationNode: React.FC<{ loc: Location }> = ({ loc }) => {
+interface LocationNodeProps {
+  loc: Location;
+  expandedIds: Set<string | number>;
+  onToggle: (id: string | number) => void;
+}
+
+const LocationNode: React.FC<LocationNodeProps> = ({ loc, expandedIds, onToggle }) => {
   const children = loc.children || [];
+  const hasChildren = children.length > 0;
+  const isExpanded = expandedIds.has(loc.id);
   const hasLandlord = loc.landlord_info && Object.keys(loc.landlord_info).length > 0;
   const hasTenant = loc.tenant_info && Object.keys(loc.tenant_info).length > 0;
   const isPrimary = loc.is_primary_location;
   const locationType = getLocationTypeLabel(loc.location_type);
   
+  const handleClick = () => {
+    if (hasChildren) {
+      onToggle(loc.id);
+    }
+  };
+  
   return (
     <li>
-      <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+      <span 
+        style={{ 
+          display: "flex", 
+          alignItems: "center", 
+          gap: "0.25rem",
+          cursor: hasChildren ? "pointer" : "default"
+        }}
+        onClick={handleClick}
+      >
+        {hasChildren && (
+          <span style={{ 
+            width: "1rem", 
+            textAlign: "center",
+            flexShrink: 0,
+            transition: "transform 0.2s ease"
+          }}>
+            {isExpanded ? "▼" : "▶"}
+          </span>
+        )}
+        {!hasChildren && (
+          <span style={{ width: "1rem", flexShrink: 0 }}></span>
+        )}
         {loc.friendly_name || loc.name}
+        {hasChildren && (
+          <span style={{ 
+            fontSize: "0.6rem", 
+            color: "var(--muted)", 
+            marginLeft: "0.25rem" 
+          }}>
+            ({children.length})
+          </span>
+        )}
         {isPrimary && (
           <span title="Primary Location" style={{ 
             fontSize: "0.625rem", 
@@ -98,10 +142,15 @@ const LocationNode: React.FC<{ loc: Location }> = ({ loc }) => {
           </span>
         )}
       </span>
-      {children.length > 0 && (
+      {hasChildren && isExpanded && (
         <ul>
           {children.map((child) => (
-            <LocationNode key={child.id} loc={child} />
+            <LocationNode 
+              key={child.id} 
+              loc={child} 
+              expandedIds={expandedIds}
+              onToggle={onToggle}
+            />
           ))}
         </ul>
       )}
@@ -114,6 +163,8 @@ const LocationsTree: React.FC<LocationsTreeProps> = ({
   loading,
   error,
 }) => {
+  const [expandedIds, setExpandedIds] = useState<Set<string | number>>(new Set());
+  
   let tree: Location[] = [];
   let parseError: string | null = null;
 
@@ -122,6 +173,18 @@ const LocationsTree: React.FC<LocationsTreeProps> = ({
   } catch (e) {
     parseError = `Failed to build location tree: ${e instanceof Error ? e.message : 'Unknown error'}`;
   }
+  
+  const handleToggle = (id: string | number) => {
+    setExpandedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
 
   return (
     <div className="locations-panel">
@@ -152,7 +215,12 @@ const LocationsTree: React.FC<LocationsTreeProps> = ({
       {!error && !parseError && tree.length > 0 && (
         <ul className="locations-tree">
           {tree.map((loc) => (
-            <LocationNode key={loc.id} loc={loc} />
+            <LocationNode 
+              key={loc.id} 
+              loc={loc} 
+              expandedIds={expandedIds}
+              onToggle={handleToggle}
+            />
           ))}
         </ul>
       )}
