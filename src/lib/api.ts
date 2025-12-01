@@ -643,6 +643,26 @@ export async function updateUser(userId: string, updates: Partial<{full_name: st
   return handleResponse<User>(res);
 }
 
+export async function deleteUser(userId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+    method: "DELETE",
+    headers: {
+      ...authHeaders(),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text;
+    try {
+      const data = JSON.parse(text);
+      message = (data.detail as string) || JSON.stringify(data);
+    } catch {
+      // ignore
+    }
+    throw new Error(message || `HTTP ${res.status}`);
+  }
+}
+
 export async function updateUserLocationAccess(userId: string, locationIds: string[]): Promise<User> {
   const res = await fetch(`${API_BASE_URL}/api/users/${userId}/locations`, {
     method: "PUT",
