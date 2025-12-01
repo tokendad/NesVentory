@@ -14,6 +14,8 @@ PGID=${PGID:-1000}
 if [ -d "/app/data" ]; then
     # Create media subdirectory for uploads if it doesn't exist
     mkdir -p /app/data/media/photos
+    # Create logs subdirectory for application logs
+    mkdir -p /app/data/logs
     # Fix ownership of the data directory using PUID/PGID
     # These match the nesventory user created in Dockerfile
     chown -R "${PUID}:${PGID}" /app/data 2>/dev/null || true

@@ -8,6 +8,10 @@ from sqlalchemy import text, inspect
 from .config import settings
 import re
 
+# 🔥 Setup logging FIRST before any other imports that might use logging
+from .logging_config import setup_logging
+setup_logging()
+
 # 🔥 IMPORTANT: Load all SQLAlchemy models so tables get created
 from . import models
 from .database import Base, engine, SessionLocal

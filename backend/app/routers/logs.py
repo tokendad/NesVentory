@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from .. import auth, models
 from ..config import settings as app_settings
 from ..database import SQLALCHEMY_DATABASE_URL
+from ..logging_config import reconfigure_logging_level
 
 
 router = APIRouter(prefix="/logs", tags=["logs"])
@@ -210,6 +211,9 @@ async def update_log_settings(
     
     # Save settings
     save_log_settings(settings)
+    
+    # Apply the new log level to Python logging immediately
+    reconfigure_logging_level(settings.log_level)
     
     # Return updated settings with log files
     log_files = get_log_files()
