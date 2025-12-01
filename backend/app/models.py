@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, date
+import enum
 
 from sqlalchemy import (
     Column,
@@ -54,7 +55,7 @@ class UUID(TypeDecorator):
 
 
 # Updated Enum for UserRole with proper string-based Enum
-class UserRole(str, Enum):
+class UserRole(str, enum.Enum):
     ADMIN = "admin"
     EDITOR = "editor"
     VIEWER = "viewer"
@@ -124,7 +125,7 @@ item_tags = Table(
 )
 
 
-class LocationType(str, Enum):
+class LocationType(str, enum.Enum):
     RESIDENTIAL = "residential"
     COMMERCIAL = "commercial"
     RETAIL = "retail"
@@ -313,7 +314,7 @@ class Document(Base):
     item = relationship("Item", back_populates="documents")
 
 
-class RecurrenceType(str, Enum):
+class RecurrenceType(str, enum.Enum):
     NONE = "none"
     MONTHLY = "monthly"
     YEARLY = "yearly"
