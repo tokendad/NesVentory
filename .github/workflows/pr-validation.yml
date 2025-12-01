@@ -68,7 +68,7 @@ jobs:
           COMMITS=$(git log --format='%s' origin/${{ github.base_ref }}..HEAD)
           
           # Conventional commit regex pattern
-          PATTERN='^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\(.+\))?!?:\s.+'
+          PATTERN='^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\(.+\))?!?:\s\S.+'
           
           echo "Checking commit messages..."
           FAILED=0
