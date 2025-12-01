@@ -9,12 +9,14 @@ on:
     branches:
       - stable
     types: [closed]
+  workflow_dispatch:  # <-- Manual trigger added
 
 jobs:
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true
+    # Only run automatically when a PR to stable is merged; always allow on manual
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
 
     permissions:
       contents: write
