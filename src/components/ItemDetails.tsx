@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import type { Item, Location } from "../lib/api";
 import { getApiBaseUrl } from "../lib/api";
 import { formatPhotoType, formatCurrency, formatDate, formatDateTime, getLocationPath } from "../lib/utils";
-import { RELATIONSHIP_LABELS, LIVING_TAG_NAME } from "../lib/constants";
+import { RELATIONSHIP_LABELS, LIVING_TAG_NAME, DOCUMENT_TYPES } from "../lib/constants";
 
 interface ItemDetailsProps {
   item: Item;
@@ -295,11 +295,34 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
             </div>
           )}
 
-          {item.documents && item.documents.length > 0 && (
+          {item.documents && item.documents.filter(doc => doc.document_type === DOCUMENT_TYPES.MANUAL).length > 0 && (
+            <div className="details-section">
+              <h3>Manuals</h3>
+              <div className="documents-list">
+                {item.documents.filter(doc => doc.document_type === DOCUMENT_TYPES.MANUAL).map((doc) => (
+                  <div key={doc.id} className="document-item">
+                    <a 
+                      href={`${getApiBaseUrl()}${doc.path}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="document-link"
+                    >
+                      {doc.mime_type === 'application/pdf' ? '📄' : '📝'} {doc.filename}
+                    </a>
+                    <span className="document-date">
+                      Uploaded: {formatDate(doc.uploaded_at)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {item.documents && item.documents.filter(doc => doc.document_type !== DOCUMENT_TYPES.MANUAL).length > 0 && (
             <div className="details-section">
               <h3>Attachments</h3>
               <div className="documents-list">
-                {item.documents.map((doc) => (
+                {item.documents.filter(doc => doc.document_type !== DOCUMENT_TYPES.MANUAL).map((doc) => (
                   <div key={doc.id} className="document-item">
                     <a 
                       href={`${getApiBaseUrl()}${doc.path}`} 

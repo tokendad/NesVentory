@@ -306,6 +306,7 @@ class Document(Base):
     filename = Column(String(255), nullable=False)
     mime_type = Column(String(128), nullable=True)
     path = Column(String(1024), nullable=False)
+    document_type = Column(String(64), nullable=True)  # 'manual', 'attachment', etc.
 
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
@@ -355,4 +356,25 @@ class Tag(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     items = relationship("Item", secondary=item_tags, back_populates="tags")
+
+
+class SystemSettings(Base):
+    """
+    System-wide settings that can be configured via the admin panel.
+    
+    These settings are only used when the corresponding environment variable is not set.
+    Environment variables always take priority over database settings.
+    """
+    __tablename__ = "system_settings"
+
+    id = Column(Integer, primary_key=True, default=1)  # Only one row
+    
+    # Google Gemini AI settings (only used if GEMINI_API_KEY env var is not set)
+    gemini_api_key = Column(String(255), nullable=True)
+    
+    # Google OAuth settings (only used if GOOGLE_CLIENT_ID/SECRET env vars are not set)
+    google_client_id = Column(String(255), nullable=True)
+    google_client_secret = Column(String(255), nullable=True)
+    
+    updated_at = Column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow(), nullable=False)
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { 
   fetchUsers, 
-  updateUser, 
+  updateUser,
+  deleteUser,
   fetchLocations, 
   updateUserLocationAccess, 
   adminCreateUser, 
@@ -26,6 +27,7 @@ import {
   getAvailableUPCDatabases,
   getUPCDatabaseSettings,
   updateUPCDatabaseSettings,
+  updateApiKeys,
   type User, 
   type Location, 
   type AdminUserCreate,
@@ -45,6 +47,7 @@ import {
 
 interface AdminPageProps {
   onClose: () => void;
+  currentUserId?: string;
 }
 
 // Type definition for Google Identity Services OAuth2 code client
@@ -75,7 +78,7 @@ interface GoogleWindow extends Window {
 type MainTabType = 'users' | 'logs' | 'server';
 type UserSubTabType = 'all' | 'pending' | 'create';
 
-const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
+const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
   // Main tab state
   const [mainTab, setMainTab] = useState<MainTabType>('users');
   
@@ -135,6 +138,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [serverSuccess, setServerSuccess] = useState<string | null>(null);
+  
+  // API Keys editing states
+  const [editingGeminiKey, setEditingGeminiKey] = useState(false);
+  const [geminiApiKeyInput, setGeminiApiKeyInput] = useState("");
+  const [editingGoogleOAuth, setEditingGoogleOAuth] = useState(false);
+  const [googleClientIdInput, setGoogleClientIdInput] = useState("");
+  const [googleSecretInput, setGoogleSecretInput] = useState("");
+  const [apiKeysSaving, setApiKeysSaving] = useState(false);
   
   // Google Drive states
   const [gdriveStatus, setGdriveStatus] = useState<GDriveStatus | null>(null);
@@ -324,6 +335,28 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
       setUpdateError(`Failed to update user: ${errorMessage}`);
+    }
+  }
+
+  async function handleDeleteUser(userId: string, userEmail: string) {
+    // Check if trying to delete own account
+    if (currentUserId && userId === currentUserId) {
+      setUpdateError("Cannot delete your own account");
+      return;
+    }
+    
+    // Confirm deletion
+    if (!window.confirm(`Are you sure you want to delete user "${userEmail}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    setUpdateError(null);
+    try {
+      await deleteUser(userId);
+      setUsers(users.filter(u => u.id !== userId));
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      setUpdateError(`Failed to delete user: ${errorMessage}`);
     }
   }
 
@@ -739,6 +772,58 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
     }
   }
 
+  // API Keys handlers
+  async function handleSaveGeminiApiKey() {
+    setApiKeysSaving(true);
+    setServerError(null);
+    try {
+      await updateApiKeys({ gemini_api_key: geminiApiKeyInput || null });
+      setServerSuccess("Gemini API key updated successfully!");
+      setEditingGeminiKey(false);
+      setGeminiApiKeyInput("");
+      await loadConfigStatus(); // Refresh status
+      setTimeout(() => setServerSuccess(null), 3000);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to update Gemini API key";
+      setServerError(errorMessage);
+    } finally {
+      setApiKeysSaving(false);
+    }
+  }
+
+  async function handleSaveGoogleOAuth() {
+    setApiKeysSaving(true);
+    setServerError(null);
+    try {
+      await updateApiKeys({ 
+        google_client_id: googleClientIdInput || null,
+        google_client_secret: googleSecretInput || null
+      });
+      setServerSuccess("Google OAuth settings updated successfully!");
+      setEditingGoogleOAuth(false);
+      setGoogleClientIdInput("");
+      setGoogleSecretInput("");
+      await loadConfigStatus(); // Refresh status
+      setTimeout(() => setServerSuccess(null), 3000);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to update Google OAuth settings";
+      setServerError(errorMessage);
+    } finally {
+      setApiKeysSaving(false);
+    }
+  }
+
+  function handleCancelGeminiEdit() {
+    setEditingGeminiKey(false);
+    setGeminiApiKeyInput("");
+  }
+
+  function handleCancelGoogleOAuthEdit() {
+    setEditingGoogleOAuth(false);
+    setGoogleClientIdInput("");
+    setGoogleSecretInput("");
+  }
+
   // Clear errors on tab change
   function handleMainTabChange(tab: MainTabType) {
     setError(null);
@@ -917,10 +1002,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
                         </button>
                         <button
                           className="btn-outline"
-                          onClick={() => handleRejectUser(user.id)}
+                          onClick={() => handleDeleteUser(user.id, user.email)}
                           style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem", color: "#ff6b6b", borderColor: "#ff6b6b" }}
                         >
-                          Reject
+                          Delete
                         </button>
                       </div>
                     </td>
@@ -1069,6 +1154,20 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
                         >
                           Edit Access
                         </button>
+                        {currentUserId !== user.id && (
+                          <button
+                            className="btn-outline"
+                            onClick={() => handleDeleteUser(user.id, user.email)}
+                            style={{ 
+                              fontSize: "0.875rem", 
+                              padding: "0.25rem 0.5rem", 
+                              color: "#ff6b6b", 
+                              borderColor: "#ff6b6b" 
+                            }}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     )}
                   </td>
@@ -1478,7 +1577,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
           <div className="form-group" style={{ paddingBottom: "1rem", marginBottom: "1rem", borderBottom: "1px solid var(--border-subtle)" }}>
             <label>☁️ Google OAuth / Drive Backup</label>
             <small style={{ color: "var(--muted)", fontSize: "0.875rem", display: "block", marginBottom: "0.75rem" }}>
-              Google OAuth enables "Sign in with Google" and Google Drive backup. Configure in your .env file or docker-compose.yml.
+              Google OAuth enables "Sign in with Google" and Google Drive backup.
+              {configStatus?.google_from_env ? " Configured via environment variables (read-only)." : " Configure below or in your .env file."}
             </small>
             
             {/* Status Indicator */}
@@ -1491,82 +1591,145 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
             }}>
               <strong style={{ color: configStatus?.google_oauth_configured ? "#2e7d32" : "#e65100" }}>
                 {configStatus?.google_oauth_configured ? "✓ Configured" : "⚠️ Not Configured"}
+                {configStatus?.google_from_env && " (via environment)"}
               </strong>
-              {!configStatus?.google_oauth_configured && (
+              {!configStatus?.google_oauth_configured && !configStatus?.google_from_env && (
                 <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.875rem", color: "#e65100" }}>
-                  Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment to enable.
+                  Configure below or set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment.
                 </p>
               )}
             </div>
             
-            {/* Google Client ID */}
-            <div style={{ marginBottom: "0.75rem" }}>
-              <label style={{ fontSize: "0.85rem", marginBottom: "0.25rem", display: "block" }}>
-                Google Client ID
-              </label>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <input
-                  type={showGoogleClientId ? "text" : "password"}
-                  value={configStatus?.google_client_id || "Not configured"}
-                  readOnly
-                  style={{ 
-                    flex: 1, 
-                    backgroundColor: "var(--bg-elevated-softer)", 
-                    color: "var(--text-primary)", 
-                    fontFamily: "monospace",
-                    cursor: "not-allowed"
-                  }}
-                />
-                {configStatus?.google_client_id && (
+            {/* Editing mode for Google OAuth */}
+            {editingGoogleOAuth && !configStatus?.google_from_env ? (
+              <div style={{ marginBottom: "1rem", padding: "1rem", backgroundColor: "var(--bg-elevated-softer)", borderRadius: "0.5rem" }}>
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={{ fontSize: "0.85rem", marginBottom: "0.25rem", display: "block" }}>
+                    Google Client ID
+                  </label>
+                  <input
+                    type="text"
+                    value={googleClientIdInput}
+                    onChange={(e) => setGoogleClientIdInput(e.target.value)}
+                    placeholder="Enter Google Client ID"
+                    style={{ width: "100%", fontFamily: "monospace" }}
+                  />
+                </div>
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={{ fontSize: "0.85rem", marginBottom: "0.25rem", display: "block" }}>
+                    Google Client Secret
+                  </label>
+                  <input
+                    type="password"
+                    value={googleSecretInput}
+                    onChange={(e) => setGoogleSecretInput(e.target.value)}
+                    placeholder="Enter Google Client Secret"
+                    style={{ width: "100%", fontFamily: "monospace" }}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={handleSaveGoogleOAuth}
+                    disabled={apiKeysSaving}
+                  >
+                    {apiKeysSaving ? "Saving..." : "Save"}
+                  </button>
                   <button
                     type="button"
                     className="btn-outline"
-                    onClick={() => setShowGoogleClientId(!showGoogleClientId)}
-                    style={{ padding: "0.5rem", minWidth: "60px" }}
-                    aria-label={showGoogleClientId ? "Hide Client ID" : "Show Client ID"}
-                    title={showGoogleClientId ? "Hide" : "Show"}
+                    onClick={handleCancelGoogleOAuthEdit}
+                    disabled={apiKeysSaving}
                   >
-                    {showGoogleClientId ? "👁️" : "👁️‍🗨️"}
+                    Cancel
                   </button>
-                )}
+                </div>
               </div>
-            </div>
-            
-            {/* Google Client Secret */}
-            <div style={{ marginBottom: "0.75rem" }}>
-              <label style={{ fontSize: "0.85rem", marginBottom: "0.25rem", display: "block" }}>
-                Google Client Secret
-              </label>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <input
-                  type="password"
-                  value={showGoogleSecret ? (configStatus?.google_client_secret_masked || "Not configured") : (configStatus?.google_client_secret_masked ? "••••••••••••" : "Not configured")}
-                  readOnly
-                  style={{ 
-                    flex: 1, 
-                    backgroundColor: "var(--bg-elevated-softer)", 
-                    color: "var(--text-primary)", 
-                    fontFamily: "monospace",
-                    cursor: "not-allowed"
-                  }}
-                />
-                {configStatus?.google_client_secret_masked && (
+            ) : (
+              <>
+                {/* Google Client ID Display */}
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={{ fontSize: "0.85rem", marginBottom: "0.25rem", display: "block" }}>
+                    Google Client ID
+                  </label>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <input
+                      type={showGoogleClientId ? "text" : "password"}
+                      value={configStatus?.google_client_id || "Not configured"}
+                      readOnly
+                      style={{ 
+                        flex: 1, 
+                        backgroundColor: "var(--bg-elevated-softer)", 
+                        color: "var(--text-primary)", 
+                        fontFamily: "monospace",
+                        cursor: "not-allowed"
+                      }}
+                    />
+                    {configStatus?.google_client_id && (
+                      <button
+                        type="button"
+                        className="btn-outline"
+                        onClick={() => setShowGoogleClientId(!showGoogleClientId)}
+                        style={{ padding: "0.5rem", minWidth: "60px" }}
+                        aria-label={showGoogleClientId ? "Hide Client ID" : "Show Client ID"}
+                        title={showGoogleClientId ? "Hide" : "Show"}
+                      >
+                        {showGoogleClientId ? "👁️" : "👁️‍🗨️"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Google Client Secret Display */}
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={{ fontSize: "0.85rem", marginBottom: "0.25rem", display: "block" }}>
+                    Google Client Secret
+                  </label>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <input
+                      type="password"
+                      value={showGoogleSecret ? (configStatus?.google_client_secret_masked || "Not configured") : (configStatus?.google_client_secret_masked ? "••••••••••••" : "Not configured")}
+                      readOnly
+                      style={{ 
+                        flex: 1, 
+                        backgroundColor: "var(--bg-elevated-softer)", 
+                        color: "var(--text-primary)", 
+                        fontFamily: "monospace",
+                        cursor: "not-allowed"
+                      }}
+                    />
+                    {configStatus?.google_client_secret_masked && (
+                      <button
+                        type="button"
+                        className="btn-outline"
+                        onClick={() => setShowGoogleSecret(!showGoogleSecret)}
+                        style={{ padding: "0.5rem", minWidth: "60px" }}
+                        aria-label={showGoogleSecret ? "Hide Client Secret" : "Show Client Secret"}
+                        title={showGoogleSecret ? "Hide" : "Show"}
+                      >
+                        {showGoogleSecret ? "👁️" : "👁️‍🗨️"}
+                      </button>
+                    )}
+                  </div>
+                  <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block", marginTop: "0.25rem" }}>
+                    Secret is partially masked for security
+                  </small>
+                </div>
+                
+                {/* Edit button - only show if not from env */}
+                {!configStatus?.google_from_env && (
                   <button
                     type="button"
                     className="btn-outline"
-                    onClick={() => setShowGoogleSecret(!showGoogleSecret)}
-                    style={{ padding: "0.5rem", minWidth: "60px" }}
-                    aria-label={showGoogleSecret ? "Hide Client Secret" : "Show Client Secret"}
-                    title={showGoogleSecret ? "Hide" : "Show"}
+                    onClick={() => setEditingGoogleOAuth(true)}
+                    style={{ marginBottom: "0.75rem" }}
                   >
-                    {showGoogleSecret ? "👁️" : "👁️‍🗨️"}
+                    ✏️ {configStatus?.google_oauth_configured ? "Edit" : "Configure"} Google OAuth
                   </button>
                 )}
-              </div>
-              <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block", marginTop: "0.25rem" }}>
-                Secret is partially masked for security
-              </small>
-            </div>
+              </>
+            )}
             
             <div style={{
               padding: "0.75rem",
@@ -1581,7 +1744,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
                 <li>Create OAuth 2.0 Client ID (Web application)</li>
                 <li>Add your domain to Authorized JavaScript origins</li>
                 <li>Enable the Google Drive API</li>
-                <li>Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env</li>
+                <li>Enter the credentials above or set them in .env</li>
               </ol>
             </div>
           </div>
@@ -1590,7 +1753,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
           <div className="form-group">
             <label>🤖 Google Gemini AI</label>
             <small style={{ color: "var(--muted)", fontSize: "0.875rem", display: "block", marginBottom: "0.75rem" }}>
-              Gemini AI powers item detection from photos, barcode lookup, and AI valuation. Configure in your .env file or docker-compose.yml.
+              Gemini AI powers item detection from photos, barcode lookup, and AI valuation.
+              {configStatus?.gemini_from_env ? " Configured via environment variable (read-only)." : " Configure below or in your .env file."}
             </small>
             
             {/* Status Indicator */}
@@ -1603,54 +1767,105 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
             }}>
               <strong style={{ color: configStatus?.gemini_configured ? "#2e7d32" : "#e65100" }}>
                 {configStatus?.gemini_configured ? "✓ Configured" : "⚠️ Not Configured"}
+                {configStatus?.gemini_from_env && " (via environment)"}
               </strong>
               {configStatus?.gemini_configured && configStatus?.gemini_model && (
                 <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.875rem", color: "#2e7d32" }}>
                   Model: {configStatus.gemini_model}
                 </p>
               )}
-              {!configStatus?.gemini_configured && (
+              {!configStatus?.gemini_configured && !configStatus?.gemini_from_env && (
                 <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.875rem", color: "#e65100" }}>
-                  Set GEMINI_API_KEY in your environment to enable AI features.
+                  Configure below or set GEMINI_API_KEY in your environment.
                 </p>
               )}
             </div>
             
-            {/* Gemini API Key */}
-            <div style={{ marginBottom: "0.75rem" }}>
-              <label style={{ fontSize: "0.85rem", marginBottom: "0.25rem", display: "block" }}>
-                Gemini API Key
-              </label>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <input
-                  type="password"
-                  value={showGeminiKey ? (configStatus?.gemini_api_key_masked || "Not configured") : (configStatus?.gemini_api_key_masked ? "••••••••••••" : "Not configured")}
-                  readOnly
-                  style={{ 
-                    flex: 1, 
-                    backgroundColor: "var(--bg-elevated-softer)", 
-                    color: "var(--text-primary)", 
-                    fontFamily: "monospace",
-                    cursor: "not-allowed"
-                  }}
-                />
-                {configStatus?.gemini_api_key_masked && (
+            {/* Editing mode for Gemini */}
+            {editingGeminiKey && !configStatus?.gemini_from_env ? (
+              <div style={{ marginBottom: "1rem", padding: "1rem", backgroundColor: "var(--bg-elevated-softer)", borderRadius: "0.5rem" }}>
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={{ fontSize: "0.85rem", marginBottom: "0.25rem", display: "block" }}>
+                    Gemini API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={geminiApiKeyInput}
+                    onChange={(e) => setGeminiApiKeyInput(e.target.value)}
+                    placeholder="Enter Gemini API Key"
+                    style={{ width: "100%", fontFamily: "monospace" }}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={handleSaveGeminiApiKey}
+                    disabled={apiKeysSaving}
+                  >
+                    {apiKeysSaving ? "Saving..." : "Save"}
+                  </button>
                   <button
                     type="button"
                     className="btn-outline"
-                    onClick={() => setShowGeminiKey(!showGeminiKey)}
-                    style={{ padding: "0.5rem", minWidth: "60px" }}
-                    aria-label={showGeminiKey ? "Hide API Key" : "Show API Key"}
-                    title={showGeminiKey ? "Hide" : "Show"}
+                    onClick={handleCancelGeminiEdit}
+                    disabled={apiKeysSaving}
                   >
-                    {showGeminiKey ? "👁️" : "👁️‍🗨️"}
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Gemini API Key Display */}
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={{ fontSize: "0.85rem", marginBottom: "0.25rem", display: "block" }}>
+                    Gemini API Key
+                  </label>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <input
+                      type="password"
+                      value={showGeminiKey ? (configStatus?.gemini_api_key_masked || "Not configured") : (configStatus?.gemini_api_key_masked ? "••••••••••••" : "Not configured")}
+                      readOnly
+                      style={{ 
+                        flex: 1, 
+                        backgroundColor: "var(--bg-elevated-softer)", 
+                        color: "var(--text-primary)", 
+                        fontFamily: "monospace",
+                        cursor: "not-allowed"
+                      }}
+                    />
+                    {configStatus?.gemini_api_key_masked && (
+                      <button
+                        type="button"
+                        className="btn-outline"
+                        onClick={() => setShowGeminiKey(!showGeminiKey)}
+                        style={{ padding: "0.5rem", minWidth: "60px" }}
+                        aria-label={showGeminiKey ? "Hide API Key" : "Show API Key"}
+                        title={showGeminiKey ? "Hide" : "Show"}
+                      >
+                        {showGeminiKey ? "👁️" : "👁️‍🗨️"}
+                      </button>
+                    )}
+                  </div>
+                  <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block", marginTop: "0.25rem" }}>
+                    API key is partially masked for security
+                  </small>
+                </div>
+                
+                {/* Edit button - only show if not from env */}
+                {!configStatus?.gemini_from_env && (
+                  <button
+                    type="button"
+                    className="btn-outline"
+                    onClick={() => setEditingGeminiKey(true)}
+                    style={{ marginBottom: "0.75rem" }}
+                  >
+                    ✏️ {configStatus?.gemini_configured ? "Edit" : "Configure"} Gemini API Key
                   </button>
                 )}
-              </div>
-              <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block", marginTop: "0.25rem" }}>
-                API key is partially masked for security
-              </small>
-            </div>
+              </>
+            )}
             
             {/* Gemini Model */}
             {configStatus?.gemini_configured && configStatus?.gemini_model && (
@@ -1686,7 +1901,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
               <ol style={{ margin: "0.5rem 0 0 1rem", padding: 0 }}>
                 <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>Google AI Studio</a></li>
                 <li>Create an API key</li>
-                <li>Set GEMINI_API_KEY in your .env file</li>
+                <li>Enter the key above or set GEMINI_API_KEY in your .env file</li>
                 <li>Optionally set GEMINI_MODEL (default: gemini-2.0-flash)</li>
               </ol>
             </div>

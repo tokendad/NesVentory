@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, BarcodeScanResult, Warranty, MultiBarcodeLookupResult, Photo } from "../lib/api";
+import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, BarcodeScanResult, Warranty, MultiBarcodeLookupResult, Photo, Document } from "../lib/api";
 import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode, scanBarcodeImage, lookupBarcodeMulti, getApiBaseUrl } from "../lib/api";
 import { formatPhotoType, getLocationPath } from "../lib/utils";
-import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES, LIVING_TAG_NAME, RELATIONSHIP_LABELS } from "../lib/constants";
-import type { PhotoUpload } from "../lib/types";
+import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES, ALLOWED_DOCUMENT_MIME_TYPES, DOCUMENT_TYPES, LIVING_TAG_NAME, RELATIONSHIP_LABELS } from "../lib/constants";
+import type { PhotoUpload, DocumentUpload } from "../lib/types";
 
 // Tab type for the form
-type TabId = "basic" | "tags" | "warranty" | "media";
+type TabId = "basic" | "tags" | "warranty" | "media" | "manuals";
 
 interface ItemFormProps {
-  onSubmit: (item: ItemCreate, photos: PhotoUpload[]) => Promise<void>;
+  onSubmit: (item: ItemCreate, photos: PhotoUpload[], documents: DocumentUpload[]) => Promise<void>;
   onCancel: () => void;
   locations: Location[];
-  initialData?: Partial<ItemCreate> & { tags?: Tag[]; warranties?: Warranty[]; photos?: Photo[]; name?: string };
+  initialData?: Partial<ItemCreate> & { tags?: Tag[]; warranties?: Warranty[]; photos?: Photo[]; documents?: Document[]; name?: string };
   isEditing?: boolean;
   currentUserId?: string;
   currentUserName?: string;
@@ -69,6 +69,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [photos, setPhotos] = useState<PhotoUpload[]>([]);
+  const [documents, setDocuments] = useState<DocumentUpload[]>([]);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [newTagName, setNewTagName] = useState("");
   
@@ -98,6 +99,11 @@ const ItemForm: React.FC<ItemFormProps> = ({
   // Existing photos from the server (when editing)
   const [existingPhotos, setExistingPhotos] = useState<Photo[]>(
     initialData?.photos || []
+  );
+
+  // Existing documents from the server (when editing)
+  const [existingDocuments, setExistingDocuments] = useState<Document[]>(
+    initialData?.documents || []
   );
 
   // Get the primary photo from existing photos for header display
@@ -241,7 +247,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
         associated_user_id: formData.associated_user_id === '' ? null : formData.associated_user_id,
         warranties: warranties.length > 0 ? warranties : undefined,
       };
-      await onSubmit(sanitizedData, photos);
+      await onSubmit(sanitizedData, photos, documents);
     } catch (err: any) {
       setError(err.message || "Failed to save item");
     } finally {
@@ -524,6 +530,33 @@ const ItemForm: React.FC<ItemFormProps> = ({
     setWarranties(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  // Document handlers
+  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newDocuments: DocumentUpload[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      // Validate file type
+      if (ALLOWED_DOCUMENT_MIME_TYPES.includes(file.type)) {
+        newDocuments.push({ file, type });
+      } else {
+        setError(`Invalid file type: ${file.name}. Allowed types: PDF, TXT`);
+      }
+    }
+
+    setDocuments((prev) => [...prev, ...newDocuments]);
+  };
+
+  const removeDocument = (index: number) => {
+    setDocuments((prev) => {
+      const updated = [...prev];
+      updated.splice(index, 1);
       return updated;
     });
   };
@@ -1443,6 +1476,139 @@ const ItemForm: React.FC<ItemFormProps> = ({
     );
   };
 
+  // Render content for Manuals Tab
+  const renderManualsTab = () => {
+    // Helper function to format file size
+    const formatFileSize = (bytes: number): string => {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    // Helper function to get document type label
+    const getDocumentTypeLabel = (docType: string | null | undefined): string => {
+      if (docType === DOCUMENT_TYPES.MANUAL) return 'Manual';
+      if (docType === DOCUMENT_TYPES.ATTACHMENT) return 'Attachment';
+      return 'Document';
+    };
+
+    // Filter existing documents by type
+    const existingManuals = existingDocuments.filter(d => d.document_type === DOCUMENT_TYPES.MANUAL);
+    const existingAttachments = existingDocuments.filter(d => d.document_type !== DOCUMENT_TYPES.MANUAL);
+
+    return (
+      <div className="tab-content">
+        {/* Existing Documents Section - Only show when editing and there are existing documents */}
+        {isEditing && existingDocuments.length > 0 && (
+          <div className="form-section">
+            <h3>Current Documents</h3>
+            <p className="help-text">View existing manuals and attachments for this item</p>
+            
+            {existingManuals.length > 0 && (
+              <div className="documents-subsection">
+                <h4>📖 Manuals ({existingManuals.length})</h4>
+                <div className="documents-list">
+                  {existingManuals.map((doc) => (
+                    <div key={doc.id} className="document-item">
+                      <a 
+                        href={`${getApiBaseUrl()}${doc.path}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="document-link"
+                      >
+                        {doc.mime_type === 'application/pdf' ? '📄' : '📝'} {doc.filename}
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {existingAttachments.length > 0 && (
+              <div className="documents-subsection">
+                <h4>📎 Attachments ({existingAttachments.length})</h4>
+                <div className="documents-list">
+                  {existingAttachments.map((doc) => (
+                    <div key={doc.id} className="document-item">
+                      <a 
+                        href={`${getApiBaseUrl()}${doc.path}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="document-link"
+                      >
+                        {doc.mime_type === 'application/pdf' ? '📄' : '📝'} {doc.filename}
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="form-section">
+          <h3>{isEditing && existingDocuments.length > 0 ? 'Add New Documents' : 'Documents'}</h3>
+          
+          <div className="document-upload-section">
+            <div className="document-type-upload">
+              <label htmlFor="doc-manual">User Guides & Service Manuals</label>
+              <input
+                type="file"
+                id="doc-manual"
+                accept=".pdf,.txt,application/pdf,text/plain"
+                onChange={(e) => handleDocumentChange(e, DOCUMENT_TYPES.MANUAL)}
+                disabled={loading}
+                multiple
+              />
+              <span className="help-text">Upload PDF or TXT files (user guides, service manuals, instructions)</span>
+            </div>
+
+            <div className="document-type-upload">
+              <label htmlFor="doc-attachment">Other Attachments</label>
+              <input
+                type="file"
+                id="doc-attachment"
+                accept=".pdf,.txt,application/pdf,text/plain"
+                onChange={(e) => handleDocumentChange(e, DOCUMENT_TYPES.ATTACHMENT)}
+                disabled={loading}
+                multiple
+              />
+              <span className="help-text">Upload other PDF or TXT documents</span>
+            </div>
+          </div>
+
+          {documents.length > 0 && (
+            <div className="document-previews">
+              <h4>New Documents to Upload ({documents.length})</h4>
+              <div className="document-preview-list">
+                {documents.map((doc, index) => (
+                  <div key={index} className="document-preview-item">
+                    <div className="document-preview-info">
+                      <span className="document-icon">
+                        {doc.file.type === 'application/pdf' ? '📄' : '📝'}
+                      </span>
+                      <span className="document-name">{doc.file.name}</span>
+                      <span className="document-size">{formatFileSize(doc.file.size)}</span>
+                      <span className="document-type-badge">{getDocumentTypeLabel(doc.type)}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="remove-document-btn"
+                      onClick={() => removeDocument(index)}
+                      disabled={loading}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal-content modal-content-wide" onClick={(e) => e.stopPropagation()}>
@@ -1494,6 +1660,13 @@ const ItemForm: React.FC<ItemFormProps> = ({
                 onClick={() => setActiveTab('media')}
               >
                 📷 Media
+              </button>
+              <button
+                type="button"
+                className={`tab-button ${activeTab === 'manuals' ? 'active' : ''}`}
+                onClick={() => setActiveTab('manuals')}
+              >
+                📖 Manuals
               </button>
             </div>
           )}
@@ -1603,6 +1776,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                 {activeTab === 'tags' && renderTagsTab()}
                 {activeTab === 'warranty' && renderWarrantyTab()}
                 {activeTab === 'media' && renderMediaTab()}
+                {activeTab === 'manuals' && renderManualsTab()}
               </>
             )}
           </div>

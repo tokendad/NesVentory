@@ -6,7 +6,9 @@ import secrets
 
 from ..deps import get_db
 from .. import models, schemas, auth
+from ..config import get_settings
 
+settings = get_settings()
 router = APIRouter()
 
 # API key length constant: 32 bytes = 64 hex characters
@@ -44,7 +46,15 @@ def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
     New users are NOT approved by default and must be approved by an admin.
     Note: The User model default is ADMIN for backwards compatibility with seeding,
     but registration explicitly sets VIEWER for new user registrations.
+    
+    This endpoint is disabled when DISABLE_SIGNUPS=true is set in the environment.
     """
+    if settings.DISABLE_SIGNUPS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="New user registration is disabled"
+        )
+    
     existing = db.query(models.User).filter(models.User.email == user_in.email).first()
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
@@ -155,6 +165,41 @@ def update_user(
     db.commit()
     db.refresh(user)
     return get_user_with_locations(user)
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(
+    user_id: uuid.UUID,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a user (admin-only). Admins cannot delete themselves.
+    """
+    if current_user.role != models.UserRole.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+    # Prevent self-deletion
+    if str(current_user.id) == str(user_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete your own account"
+        )
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Clear any living items associated with this user using bulk update
+    db.query(models.Item).filter(
+        models.Item.associated_user_id == user_id
+    ).update({models.Item.associated_user_id: None})
+    
+    # Clear the user's allowed locations relationship before deletion
+    user.allowed_locations = []
+    db.delete(user)
+    db.commit()
+    return None
 
 
 @router.put("/users/{user_id}/locations", response_model=schemas.UserRead)

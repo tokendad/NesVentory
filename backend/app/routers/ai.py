@@ -20,6 +20,7 @@ import time
 from ..config import settings
 from ..deps import get_db
 from .. import models, schemas, auth
+from ..settings_service import get_effective_gemini_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -425,11 +426,13 @@ def parse_data_tag_response(response_text: str) -> DataTagInfo:
 
 
 @router.get("/status", response_model=AIStatusResponse)
-def get_ai_status():
+def get_ai_status(db: Session = Depends(get_db)):
     """
     Check if AI detection feature is enabled and configured.
+    Checks both environment variables and database settings.
     """
-    is_enabled = bool(settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.strip())
+    gemini_api_key = get_effective_gemini_api_key(db)
+    is_enabled = bool(gemini_api_key)
     return AIStatusResponse(
         enabled=is_enabled,
         model=settings.GEMINI_MODEL if is_enabled else None
@@ -447,11 +450,12 @@ async def detect_items(
     Returns a list of detected items with names, descriptions, and estimated values.
     These can be used to create inventory items.
     """
-    # Check if Gemini API is configured
-    if not settings.GEMINI_API_KEY or not settings.GEMINI_API_KEY.strip():
+    # Check if Gemini API is configured (env or database)
+    gemini_api_key = get_effective_gemini_api_key(db)
+    if not gemini_api_key:
         raise HTTPException(
             status_code=503,
-            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment."
+            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment or configure it in the admin panel."
         )
     
     # Validate file type
@@ -465,8 +469,8 @@ async def detect_items(
         # Import Gemini SDK
         import google.generativeai as genai
         
-        # Configure the API
-        genai.configure(api_key=settings.GEMINI_API_KEY)
+        # Configure the API with effective key
+        genai.configure(api_key=gemini_api_key)
         
         # Read and encode the image
         image_data = await file.read()
@@ -551,11 +555,12 @@ async def parse_data_tag(
     Extracts manufacturer, serial number, model number, and production date
     from product data tags, labels, or identification plates.
     """
-    # Check if Gemini API is configured
-    if not settings.GEMINI_API_KEY or not settings.GEMINI_API_KEY.strip():
+    # Check if Gemini API is configured (env or database)
+    gemini_api_key = get_effective_gemini_api_key(db)
+    if not gemini_api_key:
         raise HTTPException(
             status_code=503,
-            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment."
+            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment or configure it in the admin panel."
         )
     
     # Validate file type
@@ -569,8 +574,8 @@ async def parse_data_tag(
         # Import Gemini SDK
         import google.generativeai as genai
         
-        # Configure the API
-        genai.configure(api_key=settings.GEMINI_API_KEY)
+        # Configure the API with effective key
+        genai.configure(api_key=gemini_api_key)
         
         # Read and encode the image
         image_data = await file.read()
@@ -769,11 +774,12 @@ async def lookup_barcode(
     Note: This uses AI to look up products based on UPC codes. Results
     may vary in accuracy as the AI uses its training data to identify products.
     """
-    # Check if Gemini API is configured
-    if not settings.GEMINI_API_KEY or not settings.GEMINI_API_KEY.strip():
+    # Check if Gemini API is configured (env or database)
+    gemini_api_key = get_effective_gemini_api_key(db)
+    if not gemini_api_key:
         raise HTTPException(
             status_code=503,
-            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment."
+            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment or configure it in the admin panel."
         )
     
     # Validate UPC format (basic validation)
@@ -805,8 +811,8 @@ async def lookup_barcode(
         # Throttle requests to avoid rate limits
         throttle_ai_request()
         
-        # Configure the API
-        genai.configure(api_key=settings.GEMINI_API_KEY)
+        # Configure the API with effective key
+        genai.configure(api_key=gemini_api_key)
         
         # Create the model
         model = genai.GenerativeModel(settings.GEMINI_MODEL)
@@ -1100,11 +1106,12 @@ async def scan_barcode_image(
     - EAN-13 (13 digits)
     - GTIN-14 (14 digits)
     """
-    # Check if Gemini API is configured
-    if not settings.GEMINI_API_KEY or not settings.GEMINI_API_KEY.strip():
+    # Check if Gemini API is configured (env or database)
+    gemini_api_key = get_effective_gemini_api_key(db)
+    if not gemini_api_key:
         raise HTTPException(
             status_code=503,
-            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment."
+            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment or configure it in the admin panel."
         )
     
     # Validate file type
@@ -1121,8 +1128,8 @@ async def scan_barcode_image(
         # Throttle requests to avoid rate limits
         throttle_ai_request()
         
-        # Configure the API
-        genai.configure(api_key=settings.GEMINI_API_KEY)
+        # Configure the API with effective key
+        genai.configure(api_key=gemini_api_key)
         
         # Read and encode the image
         image_data = await file.read()
@@ -1203,13 +1210,17 @@ Important:
         )
 
 
-def estimate_item_value_with_ai(item: models.Item) -> Optional[float]:
+def estimate_item_value_with_ai(item: models.Item, gemini_api_key: str) -> Optional[float]:
     """
     Use AI to estimate the value of a single item based on its details.
     Returns the estimated value in USD, or None if estimation fails.
     
     Includes request throttling to avoid rate limits on free tier.
     Raises QuotaExceededError if Gemini API quota is exceeded.
+    
+    Args:
+        item: The item to estimate value for
+        gemini_api_key: The Gemini API key to use
     """
     try:
         import google.generativeai as genai
@@ -1217,8 +1228,8 @@ def estimate_item_value_with_ai(item: models.Item) -> Optional[float]:
         # Throttle requests to avoid rate limits
         throttle_ai_request()
         
-        # Configure the API
-        genai.configure(api_key=settings.GEMINI_API_KEY)
+        # Configure the API with provided key
+        genai.configure(api_key=gemini_api_key)
         
         # Create the model
         model = genai.GenerativeModel(settings.GEMINI_MODEL)
@@ -1329,11 +1340,12 @@ async def run_ai_valuation(
     Note: Be mindful of Gemini API rate limits based on your tier level.
     See: https://ai.google.dev/gemini-api/docs/rate-limits
     """
-    # Check if Gemini API is configured
-    if not settings.GEMINI_API_KEY or not settings.GEMINI_API_KEY.strip():
+    # Check if Gemini API is configured (env or database)
+    gemini_api_key = get_effective_gemini_api_key(db)
+    if not gemini_api_key:
         raise HTTPException(
             status_code=503,
-            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment."
+            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment or configure it in the admin panel."
         )
     
     # Get all items from the database
@@ -1354,7 +1366,7 @@ async def run_ai_valuation(
         
         # Try to estimate the value using AI
         try:
-            estimated_value = estimate_item_value_with_ai(item)
+            estimated_value = estimate_item_value_with_ai(item, gemini_api_key)
             
             if estimated_value is not None:
                 item.estimated_value = estimated_value
@@ -1396,7 +1408,8 @@ async def run_ai_valuation(
 
 def enrich_item_from_data_tag_photo(
     item: models.Item, 
-    photo_path: str
+    photo_path: str,
+    gemini_api_key: str
 ) -> Tuple[bool, Optional[str], Optional[str], Optional[str], Optional[float]]:
     """
     Use AI to analyze a data tag photo and extract item details.
@@ -1404,6 +1417,11 @@ def enrich_item_from_data_tag_photo(
     Includes request throttling to avoid rate limits on free tier.
     Returns a tuple of (success, brand, model_number, serial_number, estimated_value).
     Raises QuotaExceededError if Gemini API quota is exceeded.
+    
+    Args:
+        item: The item to enrich
+        photo_path: Path to the data tag photo
+        gemini_api_key: The Gemini API key to use
     """
     try:
         import google.generativeai as genai
@@ -1423,8 +1441,8 @@ def enrich_item_from_data_tag_photo(
         # Throttle requests to avoid rate limits
         throttle_ai_request()
         
-        # Configure the API
-        genai.configure(api_key=settings.GEMINI_API_KEY)
+        # Configure the API with provided key
+        genai.configure(api_key=gemini_api_key)
         
         # Create the model
         model = genai.GenerativeModel(settings.GEMINI_MODEL)
@@ -1533,11 +1551,12 @@ async def enrich_items_from_data_tags(
     Note: Be mindful of Gemini API rate limits based on your tier level.
     See: https://ai.google.dev/gemini-api/docs/rate-limits
     """
-    # Check if Gemini API is configured
-    if not settings.GEMINI_API_KEY or not settings.GEMINI_API_KEY.strip():
+    # Check if Gemini API is configured (env or database)
+    gemini_api_key = get_effective_gemini_api_key(db)
+    if not gemini_api_key:
         raise HTTPException(
             status_code=503,
-            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment."
+            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment or configure it in the admin panel."
         )
     
     # Get all items with data tag photos
@@ -1578,7 +1597,7 @@ async def enrich_items_from_data_tags(
         for photo in data_tag_photos:
             try:
                 success, brand, model_number, serial_number, estimated_value = enrich_item_from_data_tag_photo(
-                    item, photo.path
+                    item, photo.path, gemini_api_key
                 )
                 
                 if success:

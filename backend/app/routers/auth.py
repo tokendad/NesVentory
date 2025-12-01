@@ -10,6 +10,7 @@ from ..auth import authenticate_user, create_access_token, verify_google_token, 
 from ..config import get_settings
 from ..schemas import Token
 from .. import models
+from ..settings_service import get_effective_google_oauth
 
 settings = get_settings()
 
@@ -34,12 +35,35 @@ class GoogleOAuthStatus(BaseModel):
     client_id: Optional[str] = None
 
 
-@router.get("/auth/google/status", response_model=GoogleOAuthStatus)
-async def google_oauth_status():
-    """Check if Google OAuth is enabled (GOOGLE_CLIENT_ID is configured)."""
+class RegistrationStatus(BaseModel):
+    """Response model for registration status."""
+    enabled: bool
+
+
+@router.get("/auth/registration/status", response_model=RegistrationStatus)
+async def registration_status():
+    """
+    Check if new user registration is enabled.
+    
+    Returns whether self-registration is allowed. This endpoint is public
+    (no authentication required) so the login page can determine whether
+    to show the registration option.
+    
+    Registration is disabled when DISABLE_SIGNUPS=true is set in environment.
+    """
     return {
-        "enabled": settings.GOOGLE_CLIENT_ID is not None,
-        "client_id": settings.GOOGLE_CLIENT_ID
+        "enabled": not settings.DISABLE_SIGNUPS
+    }
+
+
+@router.get("/auth/google/status", response_model=GoogleOAuthStatus)
+async def google_oauth_status(db: Session = Depends(get_db)):
+    """Check if Google OAuth is enabled (configured via env or database)."""
+    client_id, client_secret = get_effective_google_oauth(db)
+    is_enabled = bool(client_id and client_secret)
+    return {
+        "enabled": is_enabled,
+        "client_id": client_id if is_enabled else None
     }
 
 
@@ -55,10 +79,11 @@ async def google_auth(
     If the email exists but is not linked to Google, links the accounts.
     If the email doesn't exist, creates a new user with Google OAuth.
     """
-    if not settings.GOOGLE_CLIENT_ID:
+    client_id, client_secret = get_effective_google_oauth(db)
+    if not client_id or not client_secret:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Google OAuth is not configured"
+            detail="Google OAuth is not configured. Configure it via environment variables or the admin panel."
         )
     
     # Verify the Google token
@@ -102,6 +127,12 @@ async def google_auth(
             db.commit()
             db.refresh(user)
         else:
+            # Check if new user registration is disabled
+            if settings.DISABLE_SIGNUPS:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="New user registration is disabled"
+                )
             # Create a new user with Google OAuth
             is_new_user = True
             user = models.User(

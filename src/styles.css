@@ -1504,6 +1504,119 @@ tbody tr:hover {
   cursor: not-allowed;
 }
 
+/* Document Upload Styles */
+.document-upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.document-type-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.document-type-upload label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.document-type-upload input[type="file"] {
+  font-size: 0.8rem;
+}
+
+.document-previews {
+  margin-top: 1rem;
+}
+
+.document-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.document-preview-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-panel);
+}
+
+.document-preview-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.document-icon {
+  font-size: 1.2rem;
+}
+
+.document-name {
+  font-size: 0.85rem;
+  color: var(--text);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-size {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.document-type-badge {
+  background: var(--accent);
+  color: var(--bg);
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.remove-document-btn {
+  background: rgba(239, 68, 68, 0.9);
+  border: none;
+  color: #fff;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  transition: background 0.12s ease;
+}
+
+.remove-document-btn:hover {
+  background: rgba(220, 38, 38, 1);
+}
+
+.remove-document-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.documents-subsection {
+  margin-bottom: 1rem;
+}
+
+.documents-subsection h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text);
+}
+
 /* Success banner */
 .success-banner {
   margin: 0.25rem 0 0.6rem;

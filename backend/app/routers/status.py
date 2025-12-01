@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from ..config import settings
 from ..deps import get_db
 from ..database import SQLALCHEMY_DATABASE_URL, db_path
 from .. import models, auth
 import httpx
 import os
+import re
 from typing import Dict, Any, Optional
 
 router = APIRouter()
@@ -21,6 +22,45 @@ class ConfigStatusResponse(BaseModel):
     gemini_configured: bool
     gemini_api_key_masked: Optional[str] = None  # Masked API key for display
     gemini_model: Optional[str] = None
+    # Indicate if keys are from environment (read-only) or database (editable)
+    gemini_from_env: bool = False
+    google_from_env: bool = False
+
+
+class ApiKeysUpdate(BaseModel):
+    """Request model for updating API keys via the admin panel."""
+    gemini_api_key: Optional[str] = None
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+    
+    @field_validator('gemini_api_key', 'google_client_id', 'google_client_secret', mode='before')
+    @classmethod
+    def sanitize_api_key(cls, v):
+        """Sanitize API key input to prevent injection attacks."""
+        if v is None:
+            return None
+        if not isinstance(v, str):
+            raise ValueError('API key must be a string')
+        # Remove any leading/trailing whitespace
+        v = v.strip()
+        if not v:
+            return None
+        # Validate format - API keys can contain alphanumeric chars, dashes, underscores, dots, and forward slashes
+        # Google API keys may contain various special characters
+        if not re.match(r'^[\w\-\.\/\+\=]+$', v):
+            raise ValueError('API key contains invalid characters')
+        # Limit length to prevent abuse
+        if len(v) > 500:
+            raise ValueError('API key is too long')
+        return v
+
+
+class ApiKeysUpdateResponse(BaseModel):
+    """Response model for API keys update."""
+    success: bool
+    message: str
+    gemini_configured: bool
+    google_oauth_configured: bool
 
 
 def mask_secret(secret: Optional[str], visible_chars: int = 4) -> Optional[str]:
@@ -207,31 +247,127 @@ async def get_status(db: Session = Depends(get_db)):
 
 @router.get("/config-status", response_model=ConfigStatusResponse)
 async def get_config_status(
-    current_user: models.User = Depends(auth.get_current_user)
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Get the current system configuration status.
     
-    Returns whether Google OAuth and Gemini AI are configured via environment variables.
+    Returns whether Google OAuth and Gemini AI are configured.
+    Checks both environment variables (priority) and database settings.
+    Also indicates whether the settings are from environment (read-only) or database (editable).
     This endpoint requires authentication.
     """
-    google_oauth_configured = bool(
+    # Check if environment variables are set
+    gemini_from_env = bool(settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.strip())
+    google_from_env = bool(
         settings.GOOGLE_CLIENT_ID and 
         settings.GOOGLE_CLIENT_SECRET and 
         settings.GOOGLE_CLIENT_ID.strip() and 
         settings.GOOGLE_CLIENT_SECRET.strip()
     )
     
-    gemini_configured = bool(
-        settings.GEMINI_API_KEY and 
-        settings.GEMINI_API_KEY.strip()
+    # Get database settings if env vars are not set
+    db_settings = db.query(models.SystemSettings).first()
+    
+    # Determine final values (env vars take priority)
+    gemini_api_key = settings.GEMINI_API_KEY if gemini_from_env else (db_settings.gemini_api_key if db_settings else None)
+    google_client_id = settings.GOOGLE_CLIENT_ID if google_from_env else (db_settings.google_client_id if db_settings else None)
+    google_client_secret = settings.GOOGLE_CLIENT_SECRET if google_from_env else (db_settings.google_client_secret if db_settings else None)
+    
+    gemini_configured = bool(gemini_api_key and gemini_api_key.strip())
+    google_oauth_configured = bool(
+        google_client_id and 
+        google_client_secret and 
+        google_client_id.strip() and 
+        google_client_secret.strip()
     )
     
     return ConfigStatusResponse(
         google_oauth_configured=google_oauth_configured,
-        google_client_id=settings.GOOGLE_CLIENT_ID if google_oauth_configured else None,
-        google_client_secret_masked=mask_secret(settings.GOOGLE_CLIENT_SECRET) if google_oauth_configured else None,
+        google_client_id=google_client_id if google_oauth_configured else None,
+        google_client_secret_masked=mask_secret(google_client_secret) if google_oauth_configured else None,
         gemini_configured=gemini_configured,
-        gemini_api_key_masked=mask_secret(settings.GEMINI_API_KEY) if gemini_configured else None,
-        gemini_model=settings.GEMINI_MODEL if gemini_configured else None
+        gemini_api_key_masked=mask_secret(gemini_api_key) if gemini_configured else None,
+        gemini_model=settings.GEMINI_MODEL if gemini_configured else None,
+        gemini_from_env=gemini_from_env,
+        google_from_env=google_from_env
+    )
+
+
+@router.put("/config-status/api-keys", response_model=ApiKeysUpdateResponse)
+async def update_api_keys(
+    api_keys: ApiKeysUpdate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update API keys for Gemini and Google OAuth.
+    
+    Only admins can update API keys.
+    Keys can only be updated if they are NOT set via environment variables.
+    Environment variables always take priority - this is a security feature.
+    """
+    # Only admins can update API keys
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Only administrators can update API keys")
+    
+    # Check if environment variables are set
+    gemini_from_env = bool(settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.strip())
+    google_from_env = bool(
+        settings.GOOGLE_CLIENT_ID and 
+        settings.GOOGLE_CLIENT_SECRET and 
+        settings.GOOGLE_CLIENT_ID.strip() and 
+        settings.GOOGLE_CLIENT_SECRET.strip()
+    )
+    
+    # Don't allow updating if env vars are set
+    if api_keys.gemini_api_key is not None and gemini_from_env:
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot update Gemini API key - it is set via environment variable"
+        )
+    
+    if (api_keys.google_client_id is not None or api_keys.google_client_secret is not None) and google_from_env:
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot update Google OAuth settings - they are set via environment variables"
+        )
+    
+    # Get or create system settings
+    db_settings = db.query(models.SystemSettings).first()
+    if not db_settings:
+        db_settings = models.SystemSettings(id=1)
+        db.add(db_settings)
+    
+    # Update the settings
+    if api_keys.gemini_api_key is not None:
+        db_settings.gemini_api_key = api_keys.gemini_api_key if api_keys.gemini_api_key else None
+    
+    if api_keys.google_client_id is not None:
+        db_settings.google_client_id = api_keys.google_client_id if api_keys.google_client_id else None
+    
+    if api_keys.google_client_secret is not None:
+        db_settings.google_client_secret = api_keys.google_client_secret if api_keys.google_client_secret else None
+    
+    db.commit()
+    
+    # Get current configuration status
+    gemini_api_key = settings.GEMINI_API_KEY if gemini_from_env else db_settings.gemini_api_key
+    google_client_id = settings.GOOGLE_CLIENT_ID if google_from_env else db_settings.google_client_id
+    google_client_secret = settings.GOOGLE_CLIENT_SECRET if google_from_env else db_settings.google_client_secret
+    
+    gemini_configured = bool(gemini_api_key and gemini_api_key.strip())
+    google_oauth_configured = bool(
+        google_client_id and 
+        google_client_secret and 
+        google_client_id.strip() and 
+        google_client_secret.strip()
+    )
+    
+    return ApiKeysUpdateResponse(
+        success=True,
+        message="API keys updated successfully",
+        gemini_configured=gemini_configured,
+        google_oauth_configured=google_oauth_configured
     )

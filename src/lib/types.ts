@@ -7,3 +7,8 @@ export interface PhotoUpload {
   preview: string;
   type: string;
 }
+
+export interface DocumentUpload {
+  file: File;
+  type: string;
+}
