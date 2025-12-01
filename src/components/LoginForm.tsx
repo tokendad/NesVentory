@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { login, getGoogleOAuthStatus, googleAuth } from "../lib/api";
+import { login, getGoogleOAuthStatus, googleAuth, getRegistrationStatus } from "../lib/api";
 
 interface LoginFormProps {
   onSuccess: (token: string, email: string) => void;
@@ -15,6 +15,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick }) => 
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
   const [googleScriptLoaded, setGoogleScriptLoaded] = useState(false);
+  const [registrationEnabled, setRegistrationEnabled] = useState(true);
 
   // Callback for Google Sign-In response
   const handleGoogleCallback = useCallback(async (response: any) => {
@@ -66,6 +67,17 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick }) => 
         }
       })
       .catch(() => setGoogleEnabled(false));
+    
+    // Check if registration is enabled
+    getRegistrationStatus()
+      .then((status) => {
+        setRegistrationEnabled(status.enabled);
+      })
+      .catch(() => {
+        // Default to showing register button if check fails - backend still enforces the setting
+        // This prevents locking users out from seeing the option due to network issues
+        setRegistrationEnabled(true);
+      });
   }, []);
 
   // Initialize Google Sign-In when script is loaded and client_id is available
@@ -174,7 +186,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick }) => 
               </button>
             </>
           )}
-          {onRegisterClick && (
+          {onRegisterClick && registrationEnabled && (
             <button
               type="button"
               className="btn-outline"

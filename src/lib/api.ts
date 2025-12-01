@@ -1010,6 +1010,19 @@ export interface GoogleAuthResponse {
   is_new_user: boolean;
 }
 
+export interface RegistrationStatus {
+  enabled: boolean;
+}
+
+export async function getRegistrationStatus(): Promise<RegistrationStatus> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/registration/status`, {
+    headers: {
+      "Accept": "application/json",
+    },
+  });
+  return handleResponse<RegistrationStatus>(res);
+}
+
 export async function getGoogleOAuthStatus(): Promise<GoogleOAuthStatus> {
   const res = await fetch(`${API_BASE_URL}/api/auth/google/status`, {
     headers: {
