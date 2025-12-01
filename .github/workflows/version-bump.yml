@@ -37,48 +37,78 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Determine bump type from labels
-        id: bump-type
-        run: |
-          LABELS='${{ toJSON(github.event.pull_request.labels.*.name) }}'
-          echo "PR Labels: $LABELS"
-          
-          if echo "$LABELS" | grep -qi "breaking"; then
-            echo "type=major" >> $GITHUB_OUTPUT
-          elif echo "$LABELS" | grep -qi "enhancement\|feature"; then
-            echo "type=enhancement" >> $GITHUB_OUTPUT
-          elif echo "$LABELS" | grep -qi "bug\|fix"; then
-            echo "type=bug" >> $GITHUB_OUTPUT
-          else
-            echo "type=none" >> $GITHUB_OUTPUT
-          fi
+      - name: Get PR labels reliably
+        id: get_pr_labels
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Try to get the PR number from context first
+            let pr_number = context.issue.number || undefined;
+
+            // If context.issue.number is undefined (common on reruns), find PR by commit SHA
+            if (!pr_number) {
+              const resp = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner,
+                repo,
+                commit_sha: process.env.GITHUB_SHA
+              });
+              if (resp.data && resp.data.length > 0) {
+                pr_number = resp.data[0].number;
+              }
+            }
+
+            if (!pr_number) {
+              core.setFailed('Could not determine pull request number for this run.');
+              return;
+            }
+
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: pr_number });
+
+            const labelNames = (pr.labels || []).map(l => l.name || '').filter(Boolean);
+            core.info(`PR #${pr_number} labels: ${labelNames.join(', ')}`);
+
+            // Determine bump type
+            let bump = 'none';
+            if (labelNames.some(l => /breaking/i.test(l))) bump = 'major';
+            else if (labelNames.some(l => /(enhancement|feature)/i.test(l))) bump = 'enhancement';
+            else if (labelNames.some(l => /(bug|fix)/i.test(l))) bump = 'bug';
+
+            core.setOutput('labels', labelNames.join(','));
+            core.setOutput('type', bump);
+            core.setOutput('pr_title', pr.title || '');
+            core.setOutput('pr_number', String(pr_number));
+            core.setOutput('pr_author', pr.user && pr.user.login ? pr.user.login : '');
 
       - name: Fail if no recognized label found
-        if: steps.bump-type.outputs.type == 'none'
+        if: steps.get_pr_labels.outputs.type == 'none'
         run: |
           echo "ERROR: No recognized version bump label found on the PR. Please add one of: breaking, enhancement, feature, bug, or fix."
           exit 1
+
       - name: Bump VERSION file
-        if: steps.bump-type.outputs.type != 'none'
+        if: steps.get_pr_labels.outputs.type != 'none'
         run: |
-          python .github/scripts/bump_version.py ${{ steps.bump-type.outputs.type }}
+          python .github/scripts/bump_version.py ${{ steps.get_pr_labels.outputs.type }}
 
       - name: Bump package.json version
-        if: steps.bump-type.outputs.type != 'none'
+        if: steps.get_pr_labels.outputs.type != 'none'
         run: |
-          python .github/scripts/github_scripts_bump_package_json.py ${{ steps.bump-type.outputs.type }}
+          python .github/scripts/github_scripts_bump_package_json.py ${{ steps.get_pr_labels.outputs.type }}
 
       - name: Update CHANGELOG.md
-        if: steps.bump-type.outputs.type != 'none'
+        if: steps.get_pr_labels.outputs.type != 'none'
         run: |
           NEW_VERSION=$(cat VERSION | tr -d '[:space:]')
           DATE=$(date +%Y-%m-%d)
-          PR_TITLE=$(printf '%s' "${{ github.event.pull_request.title }}")
-          PR_NUMBER="${{ github.event.pull_request.number }}"
-          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
-          
+          PR_TITLE="${{ steps.get_pr_labels.outputs.pr_title }}"
+          PR_NUMBER="${{ steps.get_pr_labels.outputs.pr_number }}"
+          PR_AUTHOR="${{ steps.get_pr_labels.outputs.pr_author }}"
+
           # Determine the change type section based on bump type
-          BUMP_TYPE="${{ steps.bump-type.outputs.type }}"
+          BUMP_TYPE="${{ steps.get_pr_labels.outputs.type }}"
           if [[ "$BUMP_TYPE" == "major" ]]; then
             SECTION="### Changed"
           elif [[ "$BUMP_TYPE" == "enhancement" ]]; then
@@ -86,7 +116,7 @@ jobs:
           else
             SECTION="### Fixed"
           fi
-          
+
           # Create temporary file with new entry
           cat > /tmp/changelog_entry.md << EOF
           ## [$NEW_VERSION] - $DATE
@@ -94,19 +124,19 @@ jobs:
           - $PR_TITLE (#$PR_NUMBER) - @$PR_AUTHOR
 
           EOF
-          
+
           # Insert after the header line
           awk 'NR==1{print; next} /^# Changelog/{print; print ""; while((getline line < "/tmp/changelog_entry.md") > 0) print line; next} {print}' CHANGELOG.md > /tmp/CHANGELOG.md && mv /tmp/CHANGELOG.md CHANGELOG.md
-          
+
           # Also update README version badge if present
           sed -i "s/\*\*Version: [0-9.]*\*\*/\*\*Version: $NEW_VERSION\*\*/" README.md
 
       - name: Commit and push version bump
-        if: steps.bump-type.outputs.type != 'none'
+        if: steps.get_pr_labels.outputs.type != 'none'
         run: |
           NEW_VERSION=$(cat VERSION | tr -d '[:space:]')
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add VERSION package.json CHANGELOG.md README.md
-          git commit -m "chore: bump version to $NEW_VERSION [skip ci]"
-          git push
+          git commit -m "chore: bump version to $NEW_VERSION [skip ci]" || echo "No changes to commit"
+          git push || echo "Push failed"
