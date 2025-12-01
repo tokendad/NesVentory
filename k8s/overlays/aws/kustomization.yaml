@@ -85,8 +85,10 @@ configMapGenerator:
       # Storage configuration
       - STORAGE_TYPE=s3
       # S3 settings will be provided via secrets or environment
-      # DB settings for RDS (update with your RDS endpoint)
-      - DB_HOST=nesventory-db.xxx.us-east-1.rds.amazonaws.com
+      # DB settings for RDS
+      # IMPORTANT: Replace <your-rds-endpoint> with actual value from Terraform output:
+      #   terraform output rds_address
+      - DB_HOST=<your-rds-endpoint>.us-east-1.rds.amazonaws.com
       - DB_PORT=5432
       - DB_NAME=nesventory
       - DB_USER=nesventory
@@ -96,8 +98,10 @@ secretGenerator:
   - name: nesventory-secrets
     behavior: merge
     literals:
-      # S3 bucket name (update with your bucket name)
-      - S3_BUCKET_NAME=nesventory-media-123456789012
+      # S3 bucket name
+      # IMPORTANT: Replace <your-s3-bucket> with actual value from Terraform output:
+      #   terraform output s3_bucket_name
+      - S3_BUCKET_NAME=<your-s3-bucket>
       - S3_REGION=us-east-1
       # AWS credentials are provided via IRSA (IAM Role for Service Accounts)
       # so we don't need to set S3_ACCESS_KEY_ID or S3_SECRET_ACCESS_KEY

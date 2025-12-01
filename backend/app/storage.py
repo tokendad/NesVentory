@@ -265,6 +265,9 @@ def get_storage() -> StorageBackend:
 
     Returns:
         The configured storage backend instance
+    
+    Raises:
+        ValueError: If S3 storage is configured but S3_BUCKET_NAME is not set
     """
     global _storage_instance
 
@@ -276,8 +279,14 @@ def get_storage() -> StorageBackend:
     storage_type = getattr(settings, "STORAGE_TYPE", "local").lower()
 
     if storage_type == "s3":
+        bucket_name = getattr(settings, "S3_BUCKET_NAME", None)
+        if not bucket_name:
+            raise ValueError(
+                "S3_BUCKET_NAME is required when STORAGE_TYPE is 's3'. "
+                "Please set the S3_BUCKET_NAME environment variable."
+            )
         _storage_instance = S3StorageBackend(
-            bucket_name=settings.S3_BUCKET_NAME,
+            bucket_name=bucket_name,
             region=getattr(settings, "S3_REGION", "us-east-1"),
             access_key_id=getattr(settings, "S3_ACCESS_KEY_ID", None),
             secret_access_key=getattr(settings, "S3_SECRET_ACCESS_KEY", None),

@@ -11,7 +11,7 @@ environment  = "production"  # development, staging, or production
 vpc_cidr = "10.0.0.0/16"
 
 # EKS Settings
-eks_cluster_version     = "1.28"
+eks_cluster_version     = "1.29"
 eks_node_instance_types = ["t3.medium"]
 eks_desired_size        = 2
 eks_min_size            = 1
