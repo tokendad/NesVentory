@@ -31,6 +31,9 @@ elif label_type == "major":
     major += 1
     minor = 0
     patch = 0
+else:
+    print(f"Error: Unrecognized label_type '{label_type}'. Must be one of 'bug', 'enhancement', 'major'.", file=sys.stderr)
+    sys.exit(1)
 
 new_version = f"{major}.{minor}.{patch}{suffix}"
 data["version"] = new_version
