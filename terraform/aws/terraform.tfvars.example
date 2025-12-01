@@ -29,5 +29,8 @@ db_multi_az                = false  # Set to true for production
 db_backup_retention_period = 7
 
 # S3 Settings
-s3_force_destroy      = false  # Set to true to allow Terraform to delete the bucket
-s3_versioning_enabled = true
+s3_force_destroy        = false  # Set to true to allow Terraform to delete the bucket
+s3_versioning_enabled   = true
+# For production, restrict CORS to your specific domain:
+# s3_cors_allowed_origins = ["https://nesventory.example.com"]
+s3_cors_allowed_origins = ["*"]

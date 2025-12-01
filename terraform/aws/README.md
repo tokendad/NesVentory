@@ -97,12 +97,26 @@ After the deployment, configure kubectl to access the cluster:
 aws eks update-kubeconfig --name nesventory-cluster --region <your-region>
 ```
 
-### 6. Deploy the Application
+### 6. Configure and Deploy the Application
 
-Apply the Kubernetes manifests:
+Use the helper script to automatically configure Kubernetes manifests with Terraform outputs:
 
 ```bash
-kubectl apply -k ../k8s/overlays/production
+# Run the configuration helper script
+./configure-k8s.sh
+```
+
+This script will:
+- Extract values from Terraform outputs (RDS endpoint, S3 bucket, IAM role ARN)
+- Optionally update the Kubernetes manifests automatically
+- Provide instructions for manual configuration if preferred
+
+Alternatively, manually apply the Kubernetes manifests:
+
+```bash
+# First, update k8s/overlays/aws/kustomization.yaml and service-account.yaml
+# with values from terraform output
+kubectl apply -k ../k8s/overlays/aws
 ```
 
 ## Components

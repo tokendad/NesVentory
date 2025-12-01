@@ -82,10 +82,9 @@ resource "aws_s3_bucket_cors_configuration" "media" {
   cors_rule {
     allowed_headers = ["*"]
     allowed_methods = ["GET", "PUT", "POST", "DELETE", "HEAD"]
-    # Note: Update allowed_origins to specific domains in production
-    # Example: ["https://nesventory.example.com"]
-    # Using wildcard for development flexibility - restrict in production deployments
-    allowed_origins = ["*"]
+    # Configurable allowed origins - restrict to specific domains in production
+    # Example for production: ["https://nesventory.example.com"]
+    allowed_origins = var.s3_cors_allowed_origins
     expose_headers  = ["ETag"]
     max_age_seconds = 3600
   }

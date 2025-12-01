@@ -129,3 +129,9 @@ variable "s3_versioning_enabled" {
   type        = bool
   default     = true
 }
+
+variable "s3_cors_allowed_origins" {
+  description = "List of allowed origins for CORS. Use ['*'] for development, specific domains for production."
+  type        = list(string)
+  default     = ["*"]
+}
