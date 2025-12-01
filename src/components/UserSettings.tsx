@@ -300,6 +300,8 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
                 className="btn-outline"
                 onClick={() => setShowApiKey(!showApiKey)}
                 style={{ padding: "0.5rem" }}
+                aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                title={showApiKey ? "Hide" : "Show"}
               >
                 {showApiKey ? "👁️" : "👁️‍🗨️"}
               </button>

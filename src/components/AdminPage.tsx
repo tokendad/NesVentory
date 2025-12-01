@@ -1523,6 +1523,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
                     className="btn-outline"
                     onClick={() => setShowGoogleClientId(!showGoogleClientId)}
                     style={{ padding: "0.5rem", minWidth: "60px" }}
+                    aria-label={showGoogleClientId ? "Hide Client ID" : "Show Client ID"}
                     title={showGoogleClientId ? "Hide" : "Show"}
                   >
                     {showGoogleClientId ? "👁️" : "👁️‍🗨️"}
@@ -1555,6 +1556,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
                     className="btn-outline"
                     onClick={() => setShowGoogleSecret(!showGoogleSecret)}
                     style={{ padding: "0.5rem", minWidth: "60px" }}
+                    aria-label={showGoogleSecret ? "Hide Client Secret" : "Show Client Secret"}
                     title={showGoogleSecret ? "Hide" : "Show"}
                   >
                     {showGoogleSecret ? "👁️" : "👁️‍🗨️"}
@@ -1566,7 +1568,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
               </small>
             </div>
             
-            <div style={{ 
+            <div style={{
               padding: "0.75rem",
               backgroundColor: "var(--bg-elevated-softer)",
               borderRadius: "0.5rem",
@@ -1638,6 +1640,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
                     className="btn-outline"
                     onClick={() => setShowGeminiKey(!showGeminiKey)}
                     style={{ padding: "0.5rem", minWidth: "60px" }}
+                    aria-label={showGeminiKey ? "Hide API Key" : "Show API Key"}
                     title={showGeminiKey ? "Hide" : "Show"}
                   >
                     {showGeminiKey ? "👁️" : "👁️‍🗨️"}
