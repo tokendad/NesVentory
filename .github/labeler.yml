@@ -20,7 +20,7 @@
   - "docker-entrypoint.sh"
   - "k8s/**"
 
-"ci/cd":
+"ci-cd":
   - ".github/**"
 
 "dependencies":
