@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [4.5.0] - 2025-12-01
+### Fixed
+- **Docker Container Stability** - Fixed container freeze after database initialization
+  - Changed Python base image from `python:3.14-slim` (alpha) to `python:3.12-slim` (stable)
+  - Fixed enum class inheritance in models.py to use Python's `enum.Enum` instead of SQLAlchemy's `Enum`
+  - Corrected `UserRole`, `LocationType`, and `RecurrenceType` enum definitions
+
+### Changed
+- **GitHub Actions Labeler** - Fixed labeler.yml configuration
+  - Moved labeler configuration to correct location at `.github/labeler.yml`
+  - Removed duplicate workflow file
+- Bumped project version to 4.5.0
+
 ## [4.4.0] - 2025-11-29
 ### Added
 - **Tabbed Edit Item Interface** - Reorganized item form with tabs for better UX on web browsers
