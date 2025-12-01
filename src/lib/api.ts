@@ -34,6 +34,7 @@ export interface Document {
   filename: string;
   mime_type?: string | null;
   path: string;
+  document_type?: string | null;
   uploaded_at: string;
 }
 
@@ -469,6 +470,47 @@ export async function uploadPhoto(
 
 export async function deletePhoto(itemId: string, photoId: string): Promise<void> {
   const res = await fetch(`${API_BASE_URL}/api/items/${itemId}/photos/${photoId}`, {
+    method: "DELETE",
+    headers: {
+      ...authHeaders(),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text;
+    try {
+      const data = JSON.parse(text);
+      message = (data.detail as string) || JSON.stringify(data);
+    } catch {
+      // ignore
+    }
+    throw new Error(message || `HTTP ${res.status}`);
+  }
+}
+
+export async function uploadDocument(
+  itemId: string,
+  file: File,
+  documentType?: string
+): Promise<Document> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (documentType) {
+    formData.append("document_type", documentType);
+  }
+
+  const res = await fetch(`${API_BASE_URL}/api/items/${itemId}/documents`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+    },
+    body: formData,
+  });
+  return handleResponse<Document>(res);
+}
+
+export async function deleteDocument(itemId: string, documentId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/items/${itemId}/documents/${documentId}`, {
     method: "DELETE",
     headers: {
       ...authHeaders(),
@@ -968,6 +1010,19 @@ export interface GoogleAuthResponse {
   is_new_user: boolean;
 }
 
+export interface RegistrationStatus {
+  enabled: boolean;
+}
+
+export async function getRegistrationStatus(): Promise<RegistrationStatus> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/registration/status`, {
+    headers: {
+      "Accept": "application/json",
+    },
+  });
+  return handleResponse<RegistrationStatus>(res);
+}
+
 export async function getGoogleOAuthStatus(): Promise<GoogleOAuthStatus> {
   const res = await fetch(`${API_BASE_URL}/api/auth/google/status`, {
     headers: {
@@ -1268,6 +1323,21 @@ export interface ConfigStatusResponse {
   gemini_configured: boolean;
   gemini_api_key_masked: string | null;
   gemini_model: string | null;
+  gemini_from_env: boolean;
+  google_from_env: boolean;
+}
+
+export interface ApiKeysUpdate {
+  gemini_api_key?: string | null;
+  google_client_id?: string | null;
+  google_client_secret?: string | null;
+}
+
+export interface ApiKeysUpdateResponse {
+  success: boolean;
+  message: string;
+  gemini_configured: boolean;
+  google_oauth_configured: boolean;
 }
 
 export async function getConfigStatus(): Promise<ConfigStatusResponse> {
@@ -1278,5 +1348,18 @@ export async function getConfigStatus(): Promise<ConfigStatusResponse> {
     },
   });
   return handleResponse<ConfigStatusResponse>(res);
+}
+
+export async function updateApiKeys(apiKeys: ApiKeysUpdate): Promise<ApiKeysUpdateResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/config-status/api-keys`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(apiKeys),
+  });
+  return handleResponse<ApiKeysUpdateResponse>(res);
 }
 
