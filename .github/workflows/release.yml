@@ -41,6 +41,7 @@ jobs:
           
           if [[ -z "$NOTES" ]]; then
             NOTES="Release $VERSION"
+            echo "::warning ::No release notes found for version $VERSION in CHANGELOG.md. Please ensure CHANGELOG.md is updated."
           fi
           
           # Write to file for multi-line support
