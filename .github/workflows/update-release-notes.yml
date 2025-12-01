@@ -162,6 +162,7 @@ jobs:
         if: steps.commit_push.outputs.CHANGED == 'true'
         uses: peter-evans/create-pull-request@v5
         with:
+          base: main
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ steps.commit_push.outputs.branch }}
           title: "docs: Update RELEASE_NOTES.md for v${{ steps.version.outputs.version }}"
