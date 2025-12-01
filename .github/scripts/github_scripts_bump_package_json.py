@@ -14,6 +14,7 @@ if len(parts) < 3:
     raise ValueError("package.json version must be MAJOR.MINOR.PATCH-style")
 
 major, minor_patch = parts[0], parts[1:]
+major = int(major)
 minor = int(minor_patch[0])
 patch_alpha = minor_patch[1].split("-")
 patch = int(patch_alpha[0])
@@ -25,6 +26,10 @@ if label_type == "bug":
     patch += 1
 elif label_type == "enhancement":
     minor += 1
+    patch = 0
+elif label_type == "major":
+    major += 1
+    minor = 0
     patch = 0
 
 new_version = f"{major}.{minor}.{patch}{suffix}"

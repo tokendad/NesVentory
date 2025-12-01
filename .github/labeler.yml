@@ -1,0 +1,64 @@
+# Auto-labeler for PRs based on file paths
+# Labels PRs automatically based on which files are changed
+
+version: 1
+
+labels:
+  # Frontend changes
+  - label: "frontend"
+    sync: true
+    matcher:
+      files:
+        any:
+          - "src/**/*"
+          - "index.html"
+          - "vite.config.ts"
+          - "package.json"
+          - "tsconfig.json"
+
+  # Backend changes
+  - label: "backend"
+    sync: true
+    matcher:
+      files:
+        any:
+          - "backend/**/*"
+
+  # Documentation changes
+  - label: "documentation"
+    sync: true
+    matcher:
+      files:
+        any:
+          - "*.md"
+          - "docs/**/*"
+          - "INSTALL.txt"
+
+  # Docker/Infrastructure changes
+  - label: "infrastructure"
+    sync: true
+    matcher:
+      files:
+        any:
+          - "Dockerfile"
+          - "docker-compose*.yml"
+          - "docker-entrypoint.sh"
+          - "k8s/**/*"
+
+  # CI/CD changes
+  - label: "ci/cd"
+    sync: true
+    matcher:
+      files:
+        any:
+          - ".github/**/*"
+
+  # Dependencies
+  - label: "dependencies"
+    sync: true
+    matcher:
+      files:
+        any:
+          - "package.json"
+          - "package-lock.json"
+          - "backend/requirements.txt"

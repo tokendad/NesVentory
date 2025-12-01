@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
 Bump version script for NesVentory.
-Updates the VERSION file based on the label type (bug, enhancement).
+Updates the VERSION file based on the label type:
+  - 'bug' for patch bump (x.y.Z)
+  - 'enhancement' for minor bump (x.Y.0)
+  - 'major' for major bump (X.0.0)
 """
 import sys
 import os
@@ -9,7 +12,7 @@ import os
 def main():
     if len(sys.argv) < 2:
         print("Usage: bump_version.py <label_type>")
-        print("  label_type: 'bug' for patch bump, 'enhancement' for minor bump")
+        print("  label_type: 'bug' for patch bump, 'enhancement' for minor bump, 'major' for major bump")
         sys.exit(1)
 
     label_type = sys.argv[1]
@@ -46,6 +49,10 @@ def main():
         patch += 1
     elif label_type == 'enhancement':
         minor += 1
+        patch = 0
+    elif label_type == 'major':
+        major += 1
+        minor = 0
         patch = 0
     else:
         print(f"Unknown label type: {label_type}")
