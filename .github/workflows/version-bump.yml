@@ -53,6 +53,11 @@ jobs:
             echo "type=none" >> $GITHUB_OUTPUT
           fi
 
+      - name: Fail if no recognized label found
+        if: steps.bump-type.outputs.type == 'none'
+        run: |
+          echo "ERROR: No recognized version bump label found on the PR. Please add one of: breaking, enhancement, feature, bug, or fix."
+          exit 1
       - name: Bump VERSION file
         if: steps.bump-type.outputs.type != 'none'
         run: |
