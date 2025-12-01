@@ -149,7 +149,17 @@ This project is open source. See the [LICENSE](LICENSE) file for details.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit issues and pull requests.
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+
+### Branching Strategy
+
+We use a **dev → main → stable** workflow:
+
+| Branch | Purpose |
+|--------|---------|
+| `dev` | Active development |
+| `main` | Integration and testing |
+| `stable` | Production releases (Docker Hub) |
 
 ### Commit Message Guidelines
 
@@ -164,6 +174,12 @@ Please use one of the following prefixes for your commit messages:
 - `BREAKING CHANGE:` - A breaking API change (can also be indicated with `!` after the type, e.g., `feat!: remove legacy API`)
 
 Other valid prefixes include: `style:`, `refactor:`, `perf:`, `test:`, `build:`, `ci:`, `revert:`
+
+### Release Process
+
+When PRs are merged:
+- **To `main`**: Version is automatically bumped based on PR labels
+- **To `stable`**: GitHub Release is created and Docker image is pushed to Docker Hub
 
 ## 📞 Support
 
