@@ -34,6 +34,19 @@ class GoogleOAuthStatus(BaseModel):
     client_id: Optional[str] = None
 
 
+class RegistrationStatus(BaseModel):
+    """Response model for registration status."""
+    enabled: bool
+
+
+@router.get("/auth/registration/status", response_model=RegistrationStatus)
+async def registration_status():
+    """Check if user registration is enabled (DISABLE_SIGNUPS is not set)."""
+    return {
+        "enabled": not settings.DISABLE_SIGNUPS
+    }
+
+
 @router.get("/auth/google/status", response_model=GoogleOAuthStatus)
 async def google_oauth_status():
     """Check if Google OAuth is enabled (GOOGLE_CLIENT_ID is configured)."""
@@ -102,6 +115,12 @@ async def google_auth(
             db.commit()
             db.refresh(user)
         else:
+            # Check if new user registration is disabled
+            if settings.DISABLE_SIGNUPS:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="New user registration is disabled"
+                )
             # Create a new user with Google OAuth
             is_new_user = True
             user = models.User(
