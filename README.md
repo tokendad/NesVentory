@@ -1,6 +1,6 @@
 # NesVentory - Home Inventory Management System
 
-**Version: 4.4.0**
+**Version: 4.6.0**
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
