@@ -1,28 +1,27 @@
-frontend:
-  - "src/**"
-  - "index.html"
-  - "vite.config.ts"
-  - "package.json"
-  - "tsconfig.json"
+# Auto-labeler Workflow
+# Automatically applies labels to PRs based on file paths
 
-backend:
-  - "backend/**"
+name: Auto Label PRs
 
-documentation:
-  - "*.md"
-  - "docs/**"
-  - "INSTALL.txt"
+on:
+  pull_request:
+    types: [opened, synchronize]
 
-infrastructure:
-  - "Dockerfile"
-  - "docker-compose*.yml"
-  - "docker-entrypoint.sh"
-  - "k8s/**"
+permissions:
+  contents: read
+  pull-requests: write
 
-"ci/cd":
-  - ".github/**"
+jobs:
+  label:
+    name: Apply Labels
+    runs-on: ubuntu-latest
 
-dependencies:
-  - "package.json"
-  - "package-lock.json"
-  - "backend/requirements.txt"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Apply labels based on changed files
+        uses: actions/labeler@v5
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          configuration-path: .github/labeler.yml
