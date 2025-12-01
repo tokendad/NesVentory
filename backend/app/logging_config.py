@@ -13,12 +13,19 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 
 # Default log directory and files
 LOG_DIR = Path("/app/data/logs")
 LOG_SETTINGS_FILE = LOG_DIR / "log_settings.json"
 CURRENT_LOG_FILE = LOG_DIR / "nesventory.log"
+
+# Minimum log file size in bytes to consider for rotation (to avoid rotating empty files)
+MIN_LOG_FILE_SIZE_FOR_ROTATION = 10
+
+# Third-party loggers to configure (to avoid duplication)
+THIRD_PARTY_LOGGERS = ['uvicorn', 'uvicorn.access', 'uvicorn.error', 'sqlalchemy.engine']
 
 
 def ensure_log_dir_exists() -> None:
@@ -56,7 +63,7 @@ def get_python_log_level(log_level_setting: str) -> int:
         return logging.WARNING
 
 
-def rotate_current_log_on_startup() -> str | None:
+def rotate_current_log_on_startup() -> Optional[str]:
     """
     Rotate the current log file on startup if it exists.
     
@@ -68,9 +75,9 @@ def rotate_current_log_on_startup() -> str | None:
     if not CURRENT_LOG_FILE.exists():
         return None
     
-    # Check if the file is empty or very small (less than 10 bytes)
+    # Check if the file is empty or very small
     try:
-        if CURRENT_LOG_FILE.stat().st_size < 10:
+        if CURRENT_LOG_FILE.stat().st_size < MIN_LOG_FILE_SIZE_FOR_ROTATION:
             # Don't rotate empty or near-empty files
             return None
     except OSError:
@@ -157,8 +164,8 @@ def setup_logging() -> None:
     console_handler.setFormatter(simple_formatter)
     root_logger.addHandler(console_handler)
     
-    # Configure uvicorn and other third-party loggers
-    for logger_name in ['uvicorn', 'uvicorn.access', 'uvicorn.error', 'sqlalchemy.engine']:
+    # Configure third-party loggers
+    for logger_name in THIRD_PARTY_LOGGERS:
         third_party_logger = logging.getLogger(logger_name)
         third_party_logger.setLevel(python_log_level)
     
@@ -191,7 +198,7 @@ def reconfigure_logging_level(log_level_setting: str) -> None:
             handler.setLevel(python_log_level)
     
     # Update third-party loggers
-    for logger_name in ['uvicorn', 'uvicorn.access', 'uvicorn.error', 'sqlalchemy.engine']:
+    for logger_name in THIRD_PARTY_LOGGERS:
         logging.getLogger(logger_name).setLevel(python_log_level)
     
     logger = logging.getLogger(__name__)
