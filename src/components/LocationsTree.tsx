@@ -74,16 +74,14 @@ const LocationNode: React.FC<LocationNodeProps> = ({ loc, expandedIds, onToggle 
           <span style={{ 
             width: "1rem", 
             textAlign: "center",
-            flexShrink: 0,
-            transition: "transform 0.2s ease"
+            flexShrink: 0
           }}>
             {isExpanded ? "▼" : "▶"}
           </span>
         )}
-        {!hasChildren && (
-          <span style={{ width: "1rem", flexShrink: 0 }}></span>
-        )}
-        {loc.friendly_name || loc.name}
+        <span style={{ marginLeft: hasChildren ? 0 : "1rem" }}>
+          {loc.friendly_name || loc.name}
+        </span>
         {hasChildren && (
           <span style={{ 
             fontSize: "0.6rem", 
