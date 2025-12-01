@@ -34,6 +34,7 @@ export interface Document {
   filename: string;
   mime_type?: string | null;
   path: string;
+  document_type?: string | null;
   uploaded_at: string;
 }
 
@@ -469,6 +470,47 @@ export async function uploadPhoto(
 
 export async function deletePhoto(itemId: string, photoId: string): Promise<void> {
   const res = await fetch(`${API_BASE_URL}/api/items/${itemId}/photos/${photoId}`, {
+    method: "DELETE",
+    headers: {
+      ...authHeaders(),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text;
+    try {
+      const data = JSON.parse(text);
+      message = (data.detail as string) || JSON.stringify(data);
+    } catch {
+      // ignore
+    }
+    throw new Error(message || `HTTP ${res.status}`);
+  }
+}
+
+export async function uploadDocument(
+  itemId: string,
+  file: File,
+  documentType?: string
+): Promise<Document> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (documentType) {
+    formData.append("document_type", documentType);
+  }
+
+  const res = await fetch(`${API_BASE_URL}/api/items/${itemId}/documents`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+    },
+    body: formData,
+  });
+  return handleResponse<Document>(res);
+}
+
+export async function deleteDocument(itemId: string, documentId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/items/${itemId}/documents/${documentId}`, {
     method: "DELETE",
     headers: {
       ...authHeaders(),

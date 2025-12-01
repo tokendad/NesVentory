@@ -208,6 +208,7 @@ class DocumentBase(BaseModel):
     filename: str
     mime_type: Optional[str] = None
     path: str
+    document_type: Optional[str] = None
 
 
 class DocumentCreate(DocumentBase):

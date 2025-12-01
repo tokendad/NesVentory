@@ -306,6 +306,7 @@ class Document(Base):
     filename = Column(String(255), nullable=False)
     mime_type = Column(String(128), nullable=True)
     path = Column(String(1024), nullable=False)
+    document_type = Column(String(64), nullable=True)  # 'manual', 'attachment', etc.
 
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

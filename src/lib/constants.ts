@@ -11,6 +11,11 @@ export const PHOTO_TYPES = {
   PROFILE: "profile",
 } as const;
 
+export const DOCUMENT_TYPES = {
+  MANUAL: "manual",
+  ATTACHMENT: "attachment",
+} as const;
+
 export const ALLOWED_PHOTO_MIME_TYPES = [
   "image/jpeg",
   "image/png",
@@ -18,7 +23,14 @@ export const ALLOWED_PHOTO_MIME_TYPES = [
   "image/webp",
 ];
 
+export const ALLOWED_DOCUMENT_MIME_TYPES = [
+  "application/pdf",
+  "text/plain",
+];
+
 export const ALLOWED_PHOTO_EXTENSIONS = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+
+export const ALLOWED_DOCUMENT_EXTENSIONS = [".pdf", ".txt"];
 
 // Relationship types for Living items
 export const RELATIONSHIP_TYPES = {
