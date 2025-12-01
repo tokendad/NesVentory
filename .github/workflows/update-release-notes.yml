@@ -138,7 +138,8 @@ jobs:
           
           echo "Release notes generated for v${version}"
 
-      - name: Commit and push release notes
+      - name: Commit and push release notes to a new branch
+        id: commit_push
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
@@ -146,8 +147,25 @@ jobs:
           # Check if RELEASE_NOTES.md has changes
           if git diff --quiet RELEASE_NOTES.md; then
             echo "No changes to RELEASE_NOTES.md"
+            echo "CHANGED=false" >> $GITHUB_OUTPUT
           else
+            BRANCH_NAME="update-release-notes-v${{ steps.version.outputs.version }}-$(date +%s)"
+            git checkout -b "$BRANCH_NAME"
             git add RELEASE_NOTES.md
             git commit -m "docs: update RELEASE_NOTES.md for v${{ steps.version.outputs.version }}"
-            git push
+            git push --set-upstream origin "$BRANCH_NAME"
+            echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+            echo "CHANGED=true" >> $GITHUB_OUTPUT
           fi
+
+      - name: Create pull request for release notes
+        if: steps.commit_push.outputs.CHANGED == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ steps.commit_push.outputs.branch }}
+          title: "docs: Update RELEASE_NOTES.md for v${{ steps.version.outputs.version }}"
+          body: |
+            Automated release notes update for v${{ steps.version.outputs.version }}
+
+            This PR was created by the Update Release Notes workflow.
