@@ -1,64 +1,29 @@
-# Auto-labeler for PRs based on file paths
-# Labels PRs automatically based on which files are changed
+# Auto-labeler for PRs based on file paths (actions/labeler-compatible format)
+frontend:
+  - "src/**"
+  - "index.html"
+  - "vite.config.ts"
+  - "package.json"
+  - "tsconfig.json"
 
-version: 1
+backend:
+  - "backend/**"
 
-labels:
-  # Frontend changes
-  - label: "frontend"
-    sync: true
-    matcher:
-      files:
-        any:
-          - "src/**/*"
-          - "index.html"
-          - "vite.config.ts"
-          - "package.json"
-          - "tsconfig.json"
+documentation:
+  - "*.md"
+  - "docs/**"
+  - "INSTALL.txt"
 
-  # Backend changes
-  - label: "backend"
-    sync: true
-    matcher:
-      files:
-        any:
-          - "backend/**/*"
+infrastructure:
+  - "Dockerfile"
+  - "docker-compose*.yml"
+  - "docker-entrypoint.sh"
+  - "k8s/**"
 
-  # Documentation changes
-  - label: "documentation"
-    sync: true
-    matcher:
-      files:
-        any:
-          - "*.md"
-          - "docs/**/*"
-          - "INSTALL.txt"
+ci/cd:
+  - ".github/**"
 
-  # Docker/Infrastructure changes
-  - label: "infrastructure"
-    sync: true
-    matcher:
-      files:
-        any:
-          - "Dockerfile"
-          - "docker-compose*.yml"
-          - "docker-entrypoint.sh"
-          - "k8s/**/*"
-
-  # CI/CD changes
-  - label: "ci/cd"
-    sync: true
-    matcher:
-      files:
-        any:
-          - ".github/**/*"
-
-  # Dependencies
-  - label: "dependencies"
-    sync: true
-    matcher:
-      files:
-        any:
-          - "package.json"
-          - "package-lock.json"
-          - "backend/requirements.txt"
+dependencies:
+  - "package.json"
+  - "package-lock.json"
+  - "backend/requirements.txt"
