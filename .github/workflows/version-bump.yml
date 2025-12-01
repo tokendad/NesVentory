@@ -91,7 +91,7 @@ jobs:
           EOF
           
           # Insert after the header line
-          sed -i '/^# Changelog/r /tmp/changelog_entry.md' CHANGELOG.md
+          awk 'NR==1{print; next} /^# Changelog/{print; print ""; while((getline line < "/tmp/changelog_entry.md") > 0) print line; next} {print}' CHANGELOG.md > /tmp/CHANGELOG.md && mv /tmp/CHANGELOG.md CHANGELOG.md
           
           # Also update README version badge if present
           sed -i "s/\*\*Version: [0-9.]*\*\*/\*\*Version: $NEW_VERSION\*\*/" README.md
