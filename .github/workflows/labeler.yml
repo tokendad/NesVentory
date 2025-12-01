@@ -17,8 +17,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repository (fetch all refs so we can read main)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "Debug: show .github/labeler.yml (before override)"
+        run: |
+          echo "---- labeler.yml (workspace) ----"
+          if [ -f .github/labeler.yml ]; then
+            sed -n '1,200p' .github/labeler.yml || true
+            echo "---- hexdump ----"
+            hexdump -C .github/labeler.yml | sed -n '1,200p' || true
+          else
+            echo "No .github/labeler.yml in workspace"
+          fi
+
+      - name: "Optionally load canonical labeler.yml from main (prevents branch-local bad config)"
+        run: |
+          # Fetch main and overwrite config with the version from origin/main
+          git fetch origin main
+          if git ls-tree --name-only origin/main:.github | grep -q labeler.yml; then
+            git checkout origin/main -- .github/labeler.yml || true
+            echo "Loaded .github/labeler.yml from origin/main"
+            sed -n '1,200p' .github/labeler.yml || true
+            echo "Hexdump of canonical file:"
+            hexdump -C .github/labeler.yml | sed -n '1,200p' || true
+          else
+            echo "No labeler.yml found on origin/main; using workspace copy"
+          fi
 
       - name: Apply labels based on changed files
         uses: actions/labeler@v5
