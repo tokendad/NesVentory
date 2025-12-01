@@ -180,9 +180,10 @@ def delete_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # Clear any living items associated with this user
-    for item in user.living_items:
-        item.associated_user_id = None
+    # Clear any living items associated with this user using bulk update
+    db.query(models.Item).filter(
+        models.Item.associated_user_id == user_id
+    ).update({models.Item.associated_user_id: None})
     
     # Clear the user's allowed locations relationship before deletion
     user.allowed_locations = []
