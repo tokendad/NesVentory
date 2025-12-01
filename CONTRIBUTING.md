@@ -113,17 +113,17 @@ We use [Conventional Commits](https://www.conventionalcommits.org/) for all comm
 | Type | Description | Version Impact |
 |------|-------------|----------------|
 | `feat` | New feature | Minor |
-| `fix` | Bug fix | Patch |
+| `fix` | Bug fix or performance improvement | Patch |
 | `docs` | Documentation only | None |
 | `style` | Code style (formatting, etc.) | None |
 | `refactor` | Code refactoring | None |
-| `perf` | Performance improvement | Patch |
 | `test` | Adding/updating tests | None |
 | `chore` | Maintenance tasks | None |
 | `ci` | CI/CD changes | None |
 | `build` | Build system changes | None |
 | `revert` | Revert previous commit | Varies |
 
+> **Note:** For performance improvements, use the `fix` label to trigger a patch version bump.
 ### Examples
 
 ```bash
