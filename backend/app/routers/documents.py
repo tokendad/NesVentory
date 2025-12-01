@@ -53,8 +53,10 @@ async def upload_document(
     file_extension = MIME_TYPE_EXTENSION.get(file.content_type, ".pdf")
     # Use original filename as base, with timestamp for uniqueness
     original_name = Path(file.filename).stem if file.filename else "document"
-    # Sanitize the original name to avoid path traversal
-    safe_name = "".join(c for c in original_name if c.isalnum() or c in ('_', '-', '.'))[:100]
+    # Sanitize the original name to avoid path traversal - only allow alphanumeric, underscore, and hyphen
+    safe_name = "".join(c for c in original_name if c.isalnum() or c in ('_', '-'))[:100]
+    if not safe_name:
+        safe_name = "document"
     filename = f"{item_id}_{timestamp}_{safe_name}{file_extension}"
     file_path = UPLOAD_DIR / filename
     
@@ -103,8 +105,16 @@ def delete_document(
         raise HTTPException(status_code=404, detail="Document not found")
     
     # Delete file from filesystem
-    file_path = UPLOAD_DIR / Path(document.path).name
-    if file_path.exists():
+    # Extract filename from the path (stored as /uploads/documents/filename)
+    # Use PurePosixPath to handle the stored path which uses forward slashes
+    from pathlib import PurePosixPath
+    stored_filename = PurePosixPath(document.path).name
+    file_path = UPLOAD_DIR / stored_filename
+    
+    # Validate file path is within UPLOAD_DIR to prevent path traversal
+    abs_upload_dir = UPLOAD_DIR.resolve()
+    abs_file_path = file_path.resolve()
+    if str(abs_file_path).startswith(str(abs_upload_dir)) and file_path.exists():
         try:
             file_path.unlink()
         except Exception as e:
