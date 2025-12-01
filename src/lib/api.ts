@@ -1259,3 +1259,24 @@ export async function getIssueReportData(): Promise<IssueReportData> {
   return handleResponse<IssueReportData>(res);
 }
 
+// --- Config Status APIs ---
+
+export interface ConfigStatusResponse {
+  google_oauth_configured: boolean;
+  google_client_id: string | null;
+  google_client_secret_masked: string | null;
+  gemini_configured: boolean;
+  gemini_api_key_masked: string | null;
+  gemini_model: string | null;
+}
+
+export async function getConfigStatus(): Promise<ConfigStatusResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/config-status`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<ConfigStatusResponse>(res);
+}
+
