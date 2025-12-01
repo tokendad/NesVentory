@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { 
   fetchUsers, 
-  updateUser, 
+  updateUser,
+  deleteUser,
   fetchLocations, 
   updateUserLocationAccess, 
   adminCreateUser, 
@@ -45,6 +46,7 @@ import {
 
 interface AdminPageProps {
   onClose: () => void;
+  currentUserId?: string;
 }
 
 // Type definition for Google Identity Services OAuth2 code client
@@ -75,7 +77,7 @@ interface GoogleWindow extends Window {
 type MainTabType = 'users' | 'logs' | 'server';
 type UserSubTabType = 'all' | 'pending' | 'create';
 
-const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
+const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
   // Main tab state
   const [mainTab, setMainTab] = useState<MainTabType>('users');
   
@@ -324,6 +326,28 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
       setUpdateError(`Failed to update user: ${errorMessage}`);
+    }
+  }
+
+  async function handleDeleteUser(userId: string, userEmail: string) {
+    // Check if trying to delete own account
+    if (currentUserId && userId === currentUserId) {
+      setUpdateError("Cannot delete your own account");
+      return;
+    }
+    
+    // Confirm deletion
+    if (!window.confirm(`Are you sure you want to delete user "${userEmail}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    setUpdateError(null);
+    try {
+      await deleteUser(userId);
+      setUsers(users.filter(u => u.id !== userId));
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      setUpdateError(`Failed to delete user: ${errorMessage}`);
     }
   }
 
@@ -917,10 +941,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
                         </button>
                         <button
                           className="btn-outline"
-                          onClick={() => handleRejectUser(user.id)}
+                          onClick={() => handleDeleteUser(user.id, user.email)}
                           style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem", color: "#ff6b6b", borderColor: "#ff6b6b" }}
                         >
-                          Reject
+                          Delete
                         </button>
                       </div>
                     </td>
@@ -1069,6 +1093,20 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose }) => {
                         >
                           Edit Access
                         </button>
+                        {currentUserId !== user.id && (
+                          <button
+                            className="btn-outline"
+                            onClick={() => handleDeleteUser(user.id, user.email)}
+                            style={{ 
+                              fontSize: "0.875rem", 
+                              padding: "0.25rem 0.5rem", 
+                              color: "#ff6b6b", 
+                              borderColor: "#ff6b6b" 
+                            }}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     )}
                   </td>

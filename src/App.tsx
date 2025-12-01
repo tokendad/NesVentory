@@ -489,7 +489,7 @@ const App: React.FC = () => {
           />
         )}
         {showAdminPage && currentUser?.role === "admin" && (
-          <AdminPage onClose={() => setShowAdminPage(false)} />
+          <AdminPage onClose={() => setShowAdminPage(false)} currentUserId={currentUser?.id} />
         )}
         {showEncircleImport && (
           <EncircleImport
