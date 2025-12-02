@@ -29,11 +29,12 @@ interface UserSettingsProps {
   user: User;
   onClose: () => void;
   onUpdate: (updatedUser: User) => void;
+  embedded?: boolean;
 }
 
 type TabType = 'profile' | 'api' | 'stats' | 'appearance';
 
-const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) => {
+const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, embedded = true }) => {
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   
@@ -709,65 +710,84 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate }) 
     setActiveTab(tab);
   };
 
-  return (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: "600px", maxHeight: "90vh", overflowY: "auto" }}>
-        <h2>User Settings</h2>
-        
-        {/* Tab Navigation */}
-        <div className="tab-navigation">
-          <button
-            type="button"
-            className={`tab-button ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => handleTabChange('profile')}
-          >
-            👤 Profile
-          </button>
-          <button
-            type="button"
-            className={`tab-button ${activeTab === 'api' ? 'active' : ''}`}
-            onClick={() => handleTabChange('api')}
-          >
-            🔌 API & Services
-          </button>
-          <button
-            type="button"
-            className={`tab-button ${activeTab === 'stats' ? 'active' : ''}`}
-            onClick={() => handleTabChange('stats')}
-          >
-            📊 Stats
-          </button>
-          <button
-            type="button"
-            className={`tab-button ${activeTab === 'appearance' ? 'active' : ''}`}
-            onClick={() => handleTabChange('appearance')}
-          >
-            🎨 Appearance
-          </button>
+  const content = (
+    <>
+      {!embedded && <h2>User Settings</h2>}
+      {embedded && (
+        <section className="panel">
+          <div className="panel-header">
+            <h2>User Settings</h2>
+          </div>
+        </section>
+      )}
+      
+      {/* Tab Navigation */}
+      <div className="tab-navigation" style={embedded ? { marginTop: "1rem" } : undefined}>
+        <button
+          type="button"
+          className={`tab-button ${activeTab === 'profile' ? 'active' : ''}`}
+          onClick={() => handleTabChange('profile')}
+        >
+          👤 Profile
+        </button>
+        <button
+          type="button"
+          className={`tab-button ${activeTab === 'api' ? 'active' : ''}`}
+          onClick={() => handleTabChange('api')}
+        >
+          🔌 API & Services
+        </button>
+        <button
+          type="button"
+          className={`tab-button ${activeTab === 'stats' ? 'active' : ''}`}
+          onClick={() => handleTabChange('stats')}
+        >
+          📊 Stats
+        </button>
+        <button
+          type="button"
+          className={`tab-button ${activeTab === 'appearance' ? 'active' : ''}`}
+          onClick={() => handleTabChange('appearance')}
+        >
+          🎨 Appearance
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="form-vertical">
+        {/* Tab Panels */}
+        <div className="tab-panels">
+          {activeTab === 'profile' && renderProfileTab()}
+          {activeTab === 'api' && renderApiTab()}
+          {activeTab === 'stats' && renderStatsTab()}
+          {activeTab === 'appearance' && renderAppearanceTab()}
         </div>
 
-        <form onSubmit={handleSubmit} className="form-vertical">
-          {/* Tab Panels */}
-          <div className="tab-panels">
-            {activeTab === 'profile' && renderProfileTab()}
-            {activeTab === 'api' && renderApiTab()}
-            {activeTab === 'stats' && renderStatsTab()}
-            {activeTab === 'appearance' && renderAppearanceTab()}
-          </div>
-
-          {error && <p className="error-message">{error}</p>}
-          
-          <div className="form-actions">
+        {error && <p className="error-message">{error}</p>}
+        
+        <div className="form-actions">
+          {!embedded && (
             <button type="button" className="btn-outline" onClick={onClose} disabled={loading}>
               {activeTab === 'profile' ? 'Cancel' : 'Close'}
             </button>
-            {activeTab === 'profile' && (
-              <button type="submit" className="btn-primary" disabled={loading}>
-                {loading ? "Saving..." : "Save Profile"}
-              </button>
-            )}
-          </div>
-        </form>
+          )}
+          {activeTab === 'profile' && (
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? "Saving..." : "Save Profile"}
+            </button>
+          )}
+        </div>
+      </form>
+    </>
+  );
+
+  if (embedded) {
+    return <div>{content}</div>;
+  }
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: "600px", maxHeight: "90vh", overflowY: "auto" }}>
+        {content}
       </div>
     </div>
   );
