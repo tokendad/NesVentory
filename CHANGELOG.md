@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+
+## [.1.0] - 2025-12-02
+### Added
+- Added AWS,  fixed docker stall
 ## [4.5.0] - 2025-12-01
 ### Fixed
 - **Docker Container Stability** - Fixed container freeze after database initialization
