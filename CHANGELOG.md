@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 
 
 
+## [5.0.0] - 2025-12-02
+### Major UI Redesign
+This is a major release with a complete redesign of the user interface.
+
+#### Added
+- **New Unified Inventory Page** - Merged Dashboard, Items, and Locations into a single comprehensive view
+  - Stats section showing Total Items, Locations, and System Status
+  - Interactive Locations browser with dynamic location selection
+  - Settings icon on location bubbles for quick editing
+  - Items list filtered by selected location
+  - Configurable item display count (10, 25, 50, 100, All)
+  - Customizable column selection for items table
+  - Items now clickable to view details (preview removed)
+
+- **Redesigned Sidebar Navigation**
+  - 📦 Inventory - New unified inventory page (replaces Dashboard, Items, Locations)
+  - 👤 User Settings - Dedicated user settings page
+  - 📅 Maintenance Calendar - Monthly calendar view (settings coming in future release)
+  - ⚙️ System Settings - Consolidated Theme, Locale & Currency, and Service Status
+  - 🔐 Admin - Admin section (shown only for admin users)
+  - Logout button moved to bottom of sidebar
+  - Removed locations tree from sidebar
+
+- **Enhanced Header**
+  - NesVentory logo and name prominently displayed
+  - Global search functionality for items
+  - Cleaner, more streamlined design
+
+- **Footer**
+  - Version display on all pages
+  - Link to GitHub repository
+
+- **New Components**
+  - Calendar component for maintenance scheduling
+  - SystemSettings component with tabbed interface
+  - InventoryPage component for unified inventory view
+
+#### Changed
+- Updated navigation structure with emoji icons for better visual clarity
+- Moved Theme and Locale settings to System Settings page
+- Removed theme/locale icons from header
+- Enhanced mobile responsiveness across all new views
+- Updated version to 5.0.0
+
+#### Removed
+- Separate Dashboard, Items, and Locations pages (merged into Inventory)
+- Separate Status page (moved to System Settings)
+- Locations tree from sidebar
+- Theme and Locale buttons from header
 
 ## [4.8.0] - 2025-12-02
 ### Added

@@ -4,9 +4,10 @@ import { THEME_MODES, COLOR_PALETTES, type ThemeMode, type ColorPalette } from "
 
 interface ThemeSettingsProps {
   onClose: () => void;
+  embedded?: boolean;
 }
 
-const ThemeSettings: React.FC<ThemeSettingsProps> = ({ onClose }) => {
+const ThemeSettings: React.FC<ThemeSettingsProps> = ({ onClose, embedded = false }) => {
   const { config, setMode, setColorPalette } = useTheme();
 
   const handleModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -17,17 +18,26 @@ const ThemeSettings: React.FC<ThemeSettingsProps> = ({ onClose }) => {
     setColorPalette(palette);
   };
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+  const content = (
+    <>
+      {!embedded && (
         <div className="modal-header">
           <h2>Theme Settings</h2>
           <button className="modal-close" onClick={onClose}>
             ✕
           </button>
         </div>
+      )}
 
-        <div className="settings-form">
+      {embedded && (
+        <section className="panel">
+          <div className="panel-header">
+            <h3>Theme Settings</h3>
+          </div>
+        </section>
+      )}
+
+      <div className="settings-form" style={embedded ? { padding: "1rem" } : undefined}>
           <div className="form-group">
             <label htmlFor="theme-mode">Theme Mode</label>
             <select
@@ -94,13 +104,26 @@ const ThemeSettings: React.FC<ThemeSettingsProps> = ({ onClose }) => {
           </div>
         </div>
 
-        <div className="modal-actions">
-          <div style={{ marginLeft: "auto" }}>
-            <button className="btn-primary" onClick={onClose}>
-              Done
-            </button>
+        {!embedded && (
+          <div className="modal-actions">
+            <div style={{ marginLeft: "auto" }}>
+              <button className="btn-primary" onClick={onClose}>
+                Done
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+      </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        {content}
       </div>
     </div>
   );

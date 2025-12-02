@@ -4,6 +4,37 @@
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
+## 🚀 What's New in Version 5.0.0
+
+This is a major release featuring a complete redesign of the user interface for improved usability and efficiency.
+
+### ✨ Key Features in v5.0
+
+🎯 **Unified Inventory Page**
+- All-in-one view combining stats, locations, and items
+- Interactive location browser with dynamic filtering
+- Quick location settings access via gear icon
+- Customizable item display (10-100+ items)
+- Configurable table columns
+- Streamlined item interaction
+
+📱 **Redesigned Navigation**
+- 📦 Inventory - Your complete inventory at a glance
+- 👤 User Settings - Manage your profile
+- 📅 Maintenance Calendar - Track maintenance schedules
+- ⚙️ System Settings - Theme, Locale, and Service Status
+- 🔐 Admin - Administrative functions (admin only)
+
+🔍 **Enhanced Header**
+- Global search across all items
+- Logo and branding prominently displayed
+- Cleaner, more intuitive layout
+
+📊 **System Settings Hub**
+- Tabbed interface for Theme, Locale & Currency, and Service Status
+- All system configuration in one place
+- Better organization and discoverability
+
 ## 🚀 What's New in Version 4.4.0
 
 This release introduces a tabbed Edit Item interface for better organization and adds warranty management capabilities.
