@@ -125,6 +125,23 @@ This is a major release preparing NesVentory for public release with comprehensi
 
 **For complete installation instructions, see [INSTALL.txt](INSTALL.txt)**
 
+### Quick Start with Docker Compose
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/tokendad/NesVentory.git
+   cd NesVentory
+   ```
+
+2. Edit `docker-compose.yml` to set secure keys and configure volumes
+
+3. Start the application:
+   ```bash
+   docker compose up -d
+   ```
+
+4. Access at: http://localhost:8001
+
 ### 🔑 Default Login Credentials
 
 The application comes with pre-seeded test users:
@@ -139,6 +156,7 @@ The application comes with pre-seeded test users:
 
 ## 📚 Documentation
 
+- **[docker-compose.yml](docker-compose.yml)** - Example Docker Compose configuration file
 - **[INSTALL.txt](INSTALL.txt)** - Comprehensive installation guide with Docker Compose and CLI commands
 - **[SEEDING.md](SEEDING.md)** - Details about pre-seeded test data and how to customize it
 - **[INTERNATIONALIZATION.md](INTERNATIONALIZATION.md)** - Guide to international format support for dates and currencies
