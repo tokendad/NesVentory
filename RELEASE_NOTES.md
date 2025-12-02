@@ -1,12 +1,12 @@
-# NesVentory v4.7.2 - Bug
+# NesVentory v4.8.0 - Updates 
 
 ## Overview
 
-Version 4.7.2 release.
+Version 4.8.0 release.
 
 ## New Features
 
-Fixed hanging docker build
+Upgraded dependencies,  added docker compose
 
 ---
 

@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 
 
 
+
+## [4.8.0] - 2025-12-02
+### Added
+- Upgraded dependencies,  added docker compose
 ## [4.7.2] - 2025-12-02
 ### Fixed
 - Fixed hanging docker build
