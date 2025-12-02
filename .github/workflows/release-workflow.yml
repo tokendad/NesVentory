@@ -146,9 +146,9 @@ jobs:
           CHANGELOG_NOTES=""
 
           if [[ "$PR_LIST" != "[]" && -n "$PR_LIST" ]]; then
-            # Parse and format PRs
-            PR_NOTES=$(echo "$PR_LIST" | jq -r '.[] | "- **PR #\(.number)**: \(.title)"' | head -20)
-            CHANGELOG_NOTES=$(echo "$PR_LIST" | jq -r '.[] | "- \(.title) (#\(.number))"' | head -20)
+            # Parse and format PRs (all fetched PRs up to the limit)
+            PR_NOTES=$(echo "$PR_LIST" | jq -r '.[] | "- **PR #\(.number)**: \(.title)"')
+            CHANGELOG_NOTES=$(echo "$PR_LIST" | jq -r '.[] | "- \(.title) (#\(.number))"')
           fi
 
           # Save to output (escape for multiline)
