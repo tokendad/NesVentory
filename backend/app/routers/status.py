@@ -45,9 +45,9 @@ class ApiKeysUpdate(BaseModel):
         v = v.strip()
         if not v:
             return None
-        # Validate format - API keys can contain alphanumeric chars, dashes, underscores, dots, and forward slashes
+        # Validate format - API keys can contain alphanumeric chars, dashes, underscores, dots, plus, and equals signs
         # Google API keys may contain various special characters
-        if not re.match(r'^[\w\-\.\/\+\=]+$', v):
+        if not re.match(r'^[\w\-\.\\+\=]+$', v):
             raise ValueError('API key contains invalid characters')
         # Limit length to prevent abuse
         if len(v) > 500:
