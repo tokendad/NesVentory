@@ -2,12 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 from typing import Optional
 from uuid import UUID
+import io
 
 import logging
 from pathlib import Path
 from datetime import datetime
 from .. import models, schemas
 from ..deps import get_db
+from ..storage import get_storage
+import httpx
 
 
 logger = logging.getLogger(__name__)
@@ -55,7 +58,12 @@ async def upload_document(
     if not safe_name:
         safe_name = "document"
     filename = f"{item_id}_{timestamp}_{safe_name}{file_extension}"
-
+    storage_path = f"documents/{filename}"
+    
+    # Save file using storage backend
+    storage = get_storage()
+    try:
+        file_url = storage.save(file.file, storage_path, content_type=file.content_type)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
     
@@ -63,7 +71,7 @@ async def upload_document(
     document = models.Document(
         item_id=item_id,
         filename=file.filename or filename,
-
+        path=file_url,
         mime_type=file.content_type,
         document_type=document_type
     )
@@ -90,8 +98,94 @@ def delete_document(
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
     
-
+    # Delete file from storage
+    storage = get_storage()
+    from ..storage import extract_storage_path
+    try:
+        storage_path = extract_storage_path(document.path, "documents")
+        storage.delete(storage_path)
+    except Exception as e:
+        logger.warning(f"Failed to delete document file: {e}")
     
     db.delete(document)
     db.commit()
     return None
+
+
+@router.post("/{item_id}/documents/from-url", response_model=schemas.Document, status_code=status.HTTP_201_CREATED)
+async def upload_document_from_url(
+    item_id: UUID,
+    url: str = Form(...),
+    document_type: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    """Upload a document (PDF or TXT) from a URL for an item."""
+    # Verify item exists
+    item = db.query(models.Item).filter(models.Item.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
+    # Download file from URL
+    try:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            
+            # Get content type from response
+            content_type = response.headers.get("content-type", "").split(";")[0].strip()
+            
+            # Validate file type
+            if content_type not in ALLOWED_DOCUMENT_TYPES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid file type: {content_type}. Allowed types: PDF, TXT"
+                )
+            
+            # Get filename from URL or use default
+            url_path = Path(url.split("?")[0])  # Remove query parameters
+            original_name = url_path.stem if url_path.stem else "document"
+            
+            # Sanitize the original name to avoid path traversal
+            safe_name = "".join(c for c in original_name if c.isalnum() or c in ('_', '-'))[:100]
+            if not safe_name:
+                safe_name = "document"
+            
+            # Generate unique filename
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            file_extension = MIME_TYPE_EXTENSION.get(content_type, ".pdf")
+            filename = f"{item_id}_{timestamp}_{safe_name}{file_extension}"
+            storage_path = f"documents/{filename}"
+            
+            # Save file using storage backend
+            storage = get_storage()
+            file_data = io.BytesIO(response.content)
+            file_url = storage.save(file_data, storage_path, content_type=content_type)
+            
+            # Create document record
+            document = models.Document(
+                item_id=item_id,
+                filename=f"{safe_name}{file_extension}",
+                path=file_url,
+                mime_type=content_type,
+                document_type=document_type
+            )
+            
+            db.add(document)
+            db.commit()
+            db.refresh(document)
+            
+            return document
+            
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to download file from URL: HTTP {e.response.status_code}"
+        )
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to download file from URL: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Failed to upload document from URL: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")

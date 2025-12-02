@@ -9,6 +9,7 @@ export interface PhotoUpload {
 }
 
 export interface DocumentUpload {
-  file: File;
+  file?: File;
+  url?: string;
   type: string;
 }

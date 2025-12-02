@@ -24,6 +24,7 @@ import {
   deleteItem,
   uploadPhoto,
   uploadDocument,
+  uploadDocumentFromUrl,
   getCurrentUser,
   bulkDeleteItems,
   bulkUpdateTags,
@@ -185,11 +186,21 @@ const App: React.FC = () => {
   async function uploadDocumentsForItem(itemId: string, documents: DocumentUpload[]) {
     if (documents.length > 0) {
       for (const doc of documents) {
-        await uploadDocument(
-          itemId,
-          doc.file,
-          doc.type
-        );
+        if (doc.file) {
+          // Upload from file
+          await uploadDocument(
+            itemId,
+            doc.file,
+            doc.type
+          );
+        } else if (doc.url) {
+          // Upload from URL
+          await uploadDocumentFromUrl(
+            itemId,
+            doc.url,
+            doc.type
+          );
+        }
       }
     }
   }
