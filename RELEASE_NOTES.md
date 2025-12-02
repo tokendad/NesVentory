@@ -1,12 +1,12 @@
-# NesVentory v.1.0 - New features and bug fixes.
+# NesVentory v4.7.1 - Bug fix
 
 ## Overview
 
-Version .1.0 release.
+Version 4.7.1 release.
 
 ## New Features
 
-Added AWS,  fixed docker stall
+Woops wrong version
 
 ---
 

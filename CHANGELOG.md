@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 
 
+
+## [4.7.1] - 2025-12-02
+### Fixed
+- Woops wrong version
 ## [.1.0] - 2025-12-02
 ### Added
 - Added AWS,  fixed docker stall
