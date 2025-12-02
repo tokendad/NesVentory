@@ -61,7 +61,7 @@ Edit this file and configure your settings:
 IMPORTANT: Update the following in docker-compose.yml:
   - SECRET_KEY - Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
   - JWT_SECRET_KEY - Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
-  - Volume path: /path/to/nesventory_data (change to your desired location)
+  - Volume path: ./nesventory-data (default, or change to your desired location)
   - PUID/PGID: Set to match your user (find with: id -u && id -g)
   - TZ: Set to your timezone
 

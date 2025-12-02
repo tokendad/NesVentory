@@ -32,14 +32,13 @@ services:
       # ======================================================================
       # REQUIRED SECURITY SETTINGS
       # ======================================================================
-      # SECURITY WARNING: The example values below are NOT secure!
+      # SECURITY WARNING: You MUST change these values before deployment!
       # Generate secure random keys for production use with:
       # python -c "import secrets; print(secrets.token_urlsafe(32))"
       # 
-      # IMPORTANT: You MUST change these before deploying to production!
-      # Using the example values will make your installation vulnerable.
-      SECRET_KEY: your-super-secret-key-change-this-in-production
-      JWT_SECRET_KEY: your-jwt-secret-key-change-this-in-production
+      # DO NOT deploy with these placeholder values - they are NOT secure!
+      SECRET_KEY: CHANGE_ME_generate_secure_key_see_instructions_above
+      JWT_SECRET_KEY: CHANGE_ME_generate_secure_key_see_instructions_above
       
       # ======================================================================
       # DOCKER USER CONFIGURATION
