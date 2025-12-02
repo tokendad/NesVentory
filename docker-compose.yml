@@ -32,9 +32,12 @@ services:
       # ======================================================================
       # REQUIRED SECURITY SETTINGS
       # ======================================================================
-      # IMPORTANT: Generate secure random keys for production use!
-      # Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
-      # DO NOT use the example values below in production!
+      # SECURITY WARNING: The example values below are NOT secure!
+      # Generate secure random keys for production use with:
+      # python -c "import secrets; print(secrets.token_urlsafe(32))"
+      # 
+      # IMPORTANT: You MUST change these before deploying to production!
+      # Using the example values will make your installation vulnerable.
       SECRET_KEY: your-super-secret-key-change-this-in-production
       JWT_SECRET_KEY: your-jwt-secret-key-change-this-in-production
       
@@ -118,8 +121,11 @@ services:
       #   - media/photos/ (uploaded item photos)
       #   - media/documents/ (uploaded warranty documents)
       #   - logs/ (application logs)
-      # Change /path/to/nesventory_data to your preferred location
-      - /path/to/nesventory_data:/app/data
+      # 
+      # IMPORTANT: Change this path to your desired location!
+      # Example: ./nesventory-data:/app/data (relative path in current directory)
+      # Example: /home/user/nesventory-data:/app/data (absolute path)
+      - ./nesventory-data:/app/data
       
       # OPTIONAL: Sync container timezone with host system
       # Alternative to setting TZ environment variable
@@ -127,8 +133,9 @@ services:
       # - /etc/localtime:/etc/localtime:ro
     
     # Health check to monitor container status
+    # Uses Python and HTTP library since curl/wget are not available in the container
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -139,10 +146,11 @@ services:
 # ============================================================================
 # 
 # 1. BEFORE STARTING:
-#    - Update the volume path: /path/to/nesventory_data
-#    - Generate secure keys for SECRET_KEY and JWT_SECRET_KEY
-#    - Set PUID/PGID to match your user (run: id -u && id -g)
-#    - Adjust TZ to your timezone
+#    - IMPORTANT: Generate and set secure SECRET_KEY and JWT_SECRET_KEY
+#      Run: python -c "import secrets; print(secrets.token_urlsafe(32))"
+#    - Optional: Update the volume path (default: ./nesventory-data)
+#    - Optional: Set PUID/PGID to match your user (run: id -u && id -g)
+#    - Optional: Adjust TZ to your timezone
 #
 # 2. START THE APPLICATION:
 #    docker compose up -d
