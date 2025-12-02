@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, BarcodeScanResult, Warranty, MultiBarcodeLookupResult, Photo, Document } from "../lib/api";
 import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode, scanBarcodeImage, lookupBarcodeMulti, getApiBaseUrl } from "../lib/api";
-import { formatPhotoType, getLocationPath } from "../lib/utils";
+import { formatPhotoType, getLocationPath, getFilenameFromUrl } from "../lib/utils";
 import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES, ALLOWED_DOCUMENT_MIME_TYPES, DOCUMENT_TYPES, LIVING_TAG_NAME, RELATIONSHIP_LABELS } from "../lib/constants";
 import type { PhotoUpload, DocumentUpload } from "../lib/types";
 
@@ -1658,18 +1658,8 @@ const ItemForm: React.FC<ItemFormProps> = ({
               <h4>New Documents to Upload ({documents.length})</h4>
               <div className="document-preview-list">
                 {documents.map((doc, index) => {
-                  // Extract filename from URL safely
-                  let displayName = 'Unknown';
-                  if (doc.file) {
-                    displayName = doc.file.name;
-                  } else if (doc.url) {
-                    try {
-                      const urlObj = new URL(doc.url);
-                      displayName = urlObj.pathname.split('/').pop() || 'Document from URL';
-                    } catch {
-                      displayName = 'Document from URL';
-                    }
-                  }
+                  // Extract filename safely using utility function
+                  const displayName = doc.file ? doc.file.name : (doc.url ? getFilenameFromUrl(doc.url) : 'Unknown');
                   
                   return (
                     <div key={index} className="document-preview-item">

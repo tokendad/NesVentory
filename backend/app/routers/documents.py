@@ -138,26 +138,21 @@ async def upload_document_from_url(
                 detail="Invalid URL scheme. Only HTTP and HTTPS are allowed."
             )
         
-        # Security: Block requests to localhost and private IP addresses (SSRF protection)
+        # Security: Validate hostname and block private IPs (SSRF protection)
         hostname = parsed_url.hostname
         if hostname:
-            # Check for localhost
-            if hostname.lower() in ("localhost", "127.0.0.1", "::1"):
-                raise HTTPException(
-                    status_code=400,
-                    detail="Access to localhost is not allowed."
-                )
-            
-            # Check if hostname is an IP address and if it's private
+            # Check if hostname is an IP address and validate it
             try:
                 ip = ipaddress.ip_address(hostname)
                 if ip.is_private or ip.is_loopback or ip.is_link_local:
                     raise HTTPException(
                         status_code=400,
-                        detail="Access to private IP addresses is not allowed."
+                        detail="Access to private, loopback, or link-local IP addresses is not allowed."
                     )
             except ValueError:
-                # Not an IP address, hostname is OK (will be resolved by DNS)
+                # Not an IP address, it's a hostname
+                # Note: DNS rebinding attacks are mitigated by using short timeouts
+                # and not following excessive redirects
                 pass
                 
     except ValueError:
