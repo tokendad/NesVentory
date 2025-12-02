@@ -1210,7 +1210,7 @@ export interface LogSettings {
   rotation_type: string;  // "schedule" or "size"
   rotation_schedule_hours: number;  // Default 24 hours
   rotation_size_mb: number;  // Default 10 MB
-  log_level: string;  // "warn_error", "debug", or "trace"
+  log_level: string;  // "info", "warn_error", "debug", or "trace"
   retention_days: number;  // Days to keep rotated logs
   auto_delete_enabled: boolean;  // Whether to auto-delete old logs
 }
