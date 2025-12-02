@@ -63,9 +63,12 @@ services:
       APP_PORT: 8001
       
       # JWT token expiration in minutes
-      # Default: 1440 (24 hours)
-      # For production, consider shorter duration (e.g., 30-60 minutes)
-      ACCESS_TOKEN_EXPIRE_MINUTES: 1440
+      # Recommended: 30-60 minutes for better security
+      # Default in config.py is 1440 (24 hours) if not set
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+      
+      # JWT algorithm (recommended: HS256)
+      JWT_ALGORITHM: HS256
       
       # ======================================================================
       # OPTIONAL: AI PHOTO DETECTION SETTINGS
@@ -104,6 +107,7 @@ services:
       # Set to true to disable new user self-registration
       # When enabled, only admins can create accounts via the Admin panel
       # Useful for private/family installations
+      # Default: false (registration is enabled)
       # DISABLE_SIGNUPS: false
     
     # Volume mounts for persistent data storage
