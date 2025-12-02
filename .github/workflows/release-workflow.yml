@@ -104,81 +104,65 @@ jobs:
           echo "$NEW_VERSION" > VERSION
 
       - name: Update package.json version
+        env:
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
         run: |
-          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
-          # Update package.json version using Node.js
           node -e "
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            pkg.version = '$NEW_VERSION';
+            pkg.version = process.env.NEW_VERSION;
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-            console.log('Updated package.json version to $NEW_VERSION');
+            console.log('Updated package.json version to ' + process.env.NEW_VERSION);
           "
 
       - name: Generate release documentation
         id: generate_docs
+        env:
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
+          RELEASE_TITLE: ${{ inputs.release_title }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          BREAKING_CHANGES: ${{ inputs.breaking_changes }}
+          UPGRADE_NOTES: ${{ inputs.upgrade_notes }}
+          REPO: ${{ github.repository }}
         run: |
-          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
-          DATE=$(date +%Y-%m-%d)
-          RELEASE_TITLE="${{ inputs.release_title }}"
-          RELEASE_NOTES="${{ inputs.release_notes }}"
-          BREAKING_CHANGES="${{ inputs.breaking_changes }}"
-          UPGRADE_NOTES="${{ inputs.upgrade_notes }}"
-          
-          # Create release notes file in docs/releases
           RELEASE_FILE="docs/releases/RELEASE_NOTES_v${NEW_VERSION}.md"
           
-          cat > "$RELEASE_FILE" << 'RELEASE_EOF'
-          # NesVentory v$NEW_VERSION
-          
-          Release tag: https://github.com/${{ github.repository }}/releases/tag/v$NEW_VERSION
-          
-          ## Summary
-          $RELEASE_TITLE
-          
-          RELEASE_EOF
-          
-          # Use heredoc with variable substitution
-          cat > "$RELEASE_FILE" << EOF
-          # NesVentory v${NEW_VERSION}
-          
-          Release tag: https://github.com/${{ github.repository }}/releases/tag/v${NEW_VERSION}
-          
-          ## Summary
-          ${RELEASE_TITLE}
-          
-          ## New Features
-          ${RELEASE_NOTES}
-          
-          EOF
-          
-          # Add Breaking Changes section if provided
-          if [[ -n "$BREAKING_CHANGES" ]]; then
-            cat >> "$RELEASE_FILE" << EOF
-          ## Breaking Changes
-          ${BREAKING_CHANGES}
-          
-          EOF
-          fi
-          
-          # Add Upgrade Notes section if provided
-          if [[ -n "$UPGRADE_NOTES" ]]; then
-            cat >> "$RELEASE_FILE" << EOF
-          ## Upgrade Notes
-          ${UPGRADE_NOTES}
-          
-          EOF
-          fi
+          # Create release file content
+          {
+            echo "# NesVentory v${NEW_VERSION}"
+            echo ""
+            echo "Release tag: https://github.com/${REPO}/releases/tag/v${NEW_VERSION}"
+            echo ""
+            echo "## Summary"
+            echo "${RELEASE_TITLE}"
+            echo ""
+            echo "## New Features"
+            echo "${RELEASE_NOTES}"
+            echo ""
+            
+            if [[ -n "$BREAKING_CHANGES" ]]; then
+              echo "## Breaking Changes"
+              echo "${BREAKING_CHANGES}"
+              echo ""
+            fi
+            
+            if [[ -n "$UPGRADE_NOTES" ]]; then
+              echo "## Upgrade Notes"
+              echo "${UPGRADE_NOTES}"
+              echo ""
+            fi
+          } > "$RELEASE_FILE"
           
           echo "Created release notes at $RELEASE_FILE"
 
       - name: Update CHANGELOG.md
+        env:
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          BREAKING_CHANGES: ${{ inputs.breaking_changes }}
+          BUMP_TYPE: ${{ inputs.bump_type }}
         run: |
-          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
           DATE=$(date +%Y-%m-%d)
-          RELEASE_NOTES="${{ inputs.release_notes }}"
-          BREAKING_CHANGES="${{ inputs.breaking_changes }}"
-          BUMP_TYPE="${{ inputs.bump_type }}"
           
           # Determine section based on bump type
           if [[ "$BUMP_TYPE" == "major" ]]; then
@@ -190,25 +174,21 @@ jobs:
           fi
           
           # Create temporary file with new entry
-          cat > /tmp/changelog_entry.md << EOF
-          
-          ## [$NEW_VERSION] - $DATE
-          $SECTION
-          - $RELEASE_NOTES
-          EOF
-          
-          # Add breaking changes if provided
-          if [[ -n "$BREAKING_CHANGES" ]]; then
-            cat >> /tmp/changelog_entry.md << EOF
-          
-          ### Breaking Changes
-          - $BREAKING_CHANGES
-          EOF
-          fi
+          {
+            echo ""
+            echo "## [$NEW_VERSION] - $DATE"
+            echo "$SECTION"
+            echo "- $RELEASE_NOTES"
+            
+            if [[ -n "$BREAKING_CHANGES" ]]; then
+              echo ""
+              echo "### Breaking Changes"
+              echo "- $BREAKING_CHANGES"
+            fi
+          } > /tmp/changelog_entry.md
           
           # Insert after the header line in CHANGELOG.md
           if [[ -f "CHANGELOG.md" ]]; then
-            # Find the first ## line and insert before it
             awk '
               /^## \[/ && !inserted {
                 while ((getline line < "/tmp/changelog_entry.md") > 0) print line
@@ -221,61 +201,51 @@ jobs:
           echo "Updated CHANGELOG.md"
 
       - name: Update RELEASE_NOTES.md
+        env:
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
+          RELEASE_TITLE: ${{ inputs.release_title }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          BREAKING_CHANGES: ${{ inputs.breaking_changes }}
+          UPGRADE_NOTES: ${{ inputs.upgrade_notes }}
+          REPO: ${{ github.repository }}
         run: |
-          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
-          DATE=$(date +%Y-%m-%d)
-          RELEASE_TITLE="${{ inputs.release_title }}"
-          RELEASE_NOTES="${{ inputs.release_notes }}"
-          BREAKING_CHANGES="${{ inputs.breaking_changes }}"
-          UPGRADE_NOTES="${{ inputs.upgrade_notes }}"
-          
-          # Create new RELEASE_NOTES.md content
-          cat > RELEASE_NOTES.md << EOF
-          # NesVentory v${NEW_VERSION} - ${RELEASE_TITLE}
-          
-          ## Overview
-          
-          Version ${NEW_VERSION} release.
-          
-          ## New Features
-          
-          ${RELEASE_NOTES}
-          
-          EOF
-          
-          # Add Breaking Changes section if provided
-          if [[ -n "$BREAKING_CHANGES" ]]; then
-            cat >> RELEASE_NOTES.md << EOF
-          ## Breaking Changes
-          
-          ${BREAKING_CHANGES}
-          
-          EOF
-          fi
-          
-          # Add Upgrade Notes section if provided
-          if [[ -n "$UPGRADE_NOTES" ]]; then
-            cat >> RELEASE_NOTES.md << EOF
-          ## Upgrade Notes
-          
-          ${UPGRADE_NOTES}
-          
-          EOF
-          fi
-          
-          cat >> RELEASE_NOTES.md << EOF
-          ---
-          
-          See complete PRs: https://github.com/${{ github.repository }}/pulls?state=closed&sort=updated&direction=desc
-          EOF
+          {
+            echo "# NesVentory v${NEW_VERSION} - ${RELEASE_TITLE}"
+            echo ""
+            echo "## Overview"
+            echo ""
+            echo "Version ${NEW_VERSION} release."
+            echo ""
+            echo "## New Features"
+            echo ""
+            echo "${RELEASE_NOTES}"
+            echo ""
+            
+            if [[ -n "$BREAKING_CHANGES" ]]; then
+              echo "## Breaking Changes"
+              echo ""
+              echo "${BREAKING_CHANGES}"
+              echo ""
+            fi
+            
+            if [[ -n "$UPGRADE_NOTES" ]]; then
+              echo "## Upgrade Notes"
+              echo ""
+              echo "${UPGRADE_NOTES}"
+              echo ""
+            fi
+            
+            echo "---"
+            echo ""
+            echo "See complete PRs: https://github.com/${REPO}/pulls?state=closed&sort=updated&direction=desc"
+          } > RELEASE_NOTES.md
           
           echo "Updated RELEASE_NOTES.md"
 
       - name: Update README.md version badge
+        env:
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
         run: |
-          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
-          
-          # Update version badge if present
           if grep -q "\*\*Version:" README.md; then
             sed -i "s/\*\*Version: [0-9.]*\*\*/\*\*Version: $NEW_VERSION\*\*/" README.md
             echo "Updated README.md version badge to $NEW_VERSION"
@@ -284,8 +254,9 @@ jobs:
           fi
 
       - name: Commit version bump and documentation
+        env:
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
         run: |
-          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add VERSION package.json CHANGELOG.md README.md RELEASE_NOTES.md docs/releases/
