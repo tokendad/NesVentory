@@ -2,7 +2,7 @@
 # NesVentory AWS Kubernetes Configuration Helper
 # This script helps configure the Kubernetes manifests with values from Terraform outputs
 
-set -e
+set -euo pipefail
 
 # Check if we're in the terraform/aws directory or navigate there
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -38,8 +38,6 @@ S3_ROLE_ARN=$(terraform -chdir="${TERRAFORM_DIR}" output -raw nesventory_s3_role
     echo "Error: Could not get S3 role ARN. Make sure 'terraform apply' has been run."
     exit 1
 }
-
-AWS_REGION=$(terraform -chdir="${TERRAFORM_DIR}" output -raw 2>/dev/null | grep -A1 "aws_region" | tail -1 || echo "us-east-1")
 
 echo ""
 echo "=== Terraform Output Values ==="

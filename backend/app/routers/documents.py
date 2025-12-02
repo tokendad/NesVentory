@@ -3,11 +3,11 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from uuid import UUID
 import logging
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from datetime import datetime
 from .. import models, schemas
 from ..deps import get_db
-from ..storage import get_storage
+from ..storage import get_storage, extract_storage_path
 
 logger = logging.getLogger(__name__)
 
@@ -95,23 +95,7 @@ def delete_document(
     
     # Extract the storage path from the document path
     storage = get_storage()
-    
-    # For local storage, extract the relative path
-    # For S3, extract the key from the URL
-    doc_path = document.path
-    if doc_path.startswith("/uploads/"):
-        # Local storage: extract relative path
-        storage_path = doc_path.replace("/uploads/", "")
-    elif "://" in doc_path:
-        # S3 URL: extract the key (everything after the bucket/domain)
-        from urllib.parse import urlparse
-        parsed = urlparse(doc_path)
-        storage_path = parsed.path.lstrip("/")
-    else:
-        # Fallback: extract filename from path
-        stored_filename = PurePosixPath(doc_path).name
-        storage_path = f"documents/{stored_filename}"
-    
+    storage_path = extract_storage_path(document.path, "documents")
     storage.delete(storage_path)
     
     db.delete(document)

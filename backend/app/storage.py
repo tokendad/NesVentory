@@ -305,3 +305,51 @@ def reset_storage() -> None:
     """Reset the storage instance. Useful for testing."""
     global _storage_instance
     _storage_instance = None
+
+
+def extract_storage_path(url_or_path: str, file_type: str = "photos") -> str:
+    """
+    Extract the storage path from a URL or path.
+    
+    This utility handles different URL formats:
+    - Local storage paths: /uploads/photos/filename.jpg
+    - S3 URLs: https://bucket.s3.region.amazonaws.com/photos/filename.jpg
+    - S3 path-style URLs: https://s3.region.amazonaws.com/bucket/photos/filename.jpg
+    - Custom domain URLs: https://cdn.example.com/photos/filename.jpg
+    - Presigned URLs: https://bucket.s3.region.amazonaws.com/photos/filename.jpg?X-Amz-...
+    
+    Args:
+        url_or_path: The URL or path from which to extract the storage path
+        file_type: The file type (photos or documents) for fallback path construction
+    
+    Returns:
+        The storage path suitable for use with the storage backend
+    """
+    from pathlib import PurePosixPath
+    from urllib.parse import urlparse, unquote
+    
+    if url_or_path.startswith("/uploads/"):
+        # Local storage: extract relative path
+        return url_or_path.replace("/uploads/", "")
+    elif "://" in url_or_path:
+        # URL format: extract the path component
+        parsed = urlparse(url_or_path)
+        path = unquote(parsed.path).lstrip("/")
+        
+        # For S3 path-style URLs, the bucket name is the first path segment
+        # We need to skip it if present
+        parts = path.split("/")
+        
+        # Check if the path starts with the file type directory
+        if len(parts) > 0 and parts[0] in ("photos", "documents"):
+            return path
+        elif len(parts) > 1 and parts[1] in ("photos", "documents"):
+            # Skip bucket name (first segment)
+            return "/".join(parts[1:])
+        else:
+            # Fallback: use the full path
+            return path
+    else:
+        # Fallback: assume it's just a filename
+        filename = PurePosixPath(url_or_path).name
+        return f"{file_type}/{filename}"

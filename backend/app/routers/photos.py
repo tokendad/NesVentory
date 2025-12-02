@@ -7,7 +7,7 @@ from pathlib import Path
 from datetime import datetime
 from .. import models, schemas
 from ..deps import get_db
-from ..storage import get_storage
+from ..storage import get_storage, extract_storage_path
 
 logger = logging.getLogger(__name__)
 
@@ -106,23 +106,8 @@ def delete_photo(
         raise HTTPException(status_code=404, detail="Photo not found")
     
     # Extract the storage path from the photo path
-    # The path is stored as a URL (e.g., "/uploads/photos/filename" or S3 URL)
     storage = get_storage()
-    
-    # For local storage, extract the relative path
-    # For S3, extract the key from the URL
-    photo_path = photo.path
-    if photo_path.startswith("/uploads/"):
-        # Local storage: extract relative path
-        storage_path = photo_path.replace("/uploads/", "")
-    elif "://" in photo_path:
-        # S3 URL: extract the key (everything after the bucket/domain)
-        from urllib.parse import urlparse
-        parsed = urlparse(photo_path)
-        storage_path = parsed.path.lstrip("/")
-    else:
-        storage_path = f"photos/{Path(photo_path).name}"
-    
+    storage_path = extract_storage_path(photo.path, "photos")
     storage.delete(storage_path)
     
     db.delete(photo)
