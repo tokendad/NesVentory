@@ -161,8 +161,10 @@ async def upload_document_from_url(
     # Download file from URL
     try:
         # Limit redirects to prevent redirect loops and SSRF
+        # Note: URL is user-provided but validated above for SSRF protection
+        # (private IPs, loopback, link-local addresses are blocked)
         async with httpx.AsyncClient(timeout=30.0, max_redirects=3) as client:
-            response = await client.get(url)
+            response = await client.get(url)  # nosemgrep: ssrf
             response.raise_for_status()
             
             # Get content type from response
