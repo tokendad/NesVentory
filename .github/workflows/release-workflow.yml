@@ -132,7 +132,14 @@ jobs:
           echo "Previous tag/commit: $PREV_TAG"
 
           # Get list of merged PRs since the last tag
-          PR_LIST=$(gh pr list --state merged --limit 100 --json number,title,body,labels,mergedAt --search "merged:>=$(git log -1 --format=%aI $PREV_TAG)" 2>/dev/null || echo "[]")
+          # Use tag creation date for more accurate filtering
+          if git rev-parse "$PREV_TAG" >/dev/null 2>&1; then
+            TAG_DATE=$(git for-each-ref --format='%(creatordate:iso8601)' "refs/tags/$PREV_TAG" 2>/dev/null || git log -1 --format=%aI "$PREV_TAG")
+          else
+            TAG_DATE=$(git log -1 --format=%aI "$PREV_TAG")
+          fi
+
+          PR_LIST=$(gh pr list --state merged --limit 100 --json number,title,body,labels,mergedAt --search "merged:>=$TAG_DATE" 2>/dev/null || echo "[]")
 
           # Format PR information
           PR_NOTES=""
@@ -179,7 +186,7 @@ jobs:
             echo "Release tag: https://github.com/${REPO}/releases/tag/v${NEW_VERSION}"
             echo ""
             echo "## Summary"
-            echo "${RELEASE_TITLE}"
+            echo "${RELEASE_TITLE:-Release}"
             echo ""
 
             if [[ -n "$RELEASE_NOTES" ]]; then
