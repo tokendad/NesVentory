@@ -28,3 +28,8 @@ data:
 
   # CORS settings (update with your domain)
   CORS_ORIGINS: ""
+
+  # Storage settings
+  # Options: "local" or "s3"
+  # For S3, also set S3_BUCKET_NAME, S3_REGION in secrets
+  STORAGE_TYPE: "local"
