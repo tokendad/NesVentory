@@ -13,7 +13,10 @@ from .. import models, schemas
 from ..deps import get_db
 from ..storage import get_storage
 import httpx
+import socket
 
+# ALLOWED_HOSTS defines what hostnames can be used for document URLs. Add your trusted domains here.
+ALLOWED_HOSTS = {"example.com"}  # TODO: Replace with your allowed host(s), e.g. {"files.example.com"}
 
 logger = logging.getLogger(__name__)
 
@@ -138,23 +141,36 @@ async def upload_document_from_url(
                 detail="Invalid URL scheme. Only HTTP and HTTPS are allowed."
             )
         
-        # Security: Validate hostname and block private IPs (SSRF protection)
         hostname = parsed_url.hostname
-        if hostname:
-            # Check if hostname is an IP address and validate it
+        if not hostname:
+            raise HTTPException(status_code=400, detail="URL must include a hostname.")
+
+        # Restrict to allow-listed hosts only
+        if hostname.lower() not in ALLOWED_HOSTS:
+            raise HTTPException(
+                status_code=400,
+                detail="Host is not allowed. Only specific hosts are permitted."
+            )
+
+        # Resolve hostname to prevent DNS rebinding/bypass
+        try:
+            addr_info = socket.getaddrinfo(hostname, None)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Unable to resolve host.")
+        ip_addresses = set()
+        for entry in addr_info:
+            ip = entry[4][0]
             try:
-                ip = ipaddress.ip_address(hostname)
-                if ip.is_private or ip.is_loopback or ip.is_link_local:
+                ip_obj = ipaddress.ip_address(ip)
+                if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local:
                     raise HTTPException(
                         status_code=400,
-                        detail="Access to private, loopback, or link-local IP addresses is not allowed."
+                        detail="Host resolves to a private, loopback, or link-local IP address. Not allowed."
+                ip_addresses.add(ip)
                     )
             except ValueError:
-                # Not an IP address, it's a hostname
-                # Note: DNS rebinding attacks are mitigated by using short timeouts
-                # and not following excessive redirects
-                pass
-                
+                continue  # skip invalid IP addresses
+
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid URL format")
     
