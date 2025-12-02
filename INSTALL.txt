@@ -53,16 +53,20 @@ Step 1: Clone the Repository
 git clone https://github.com/tokendad/NesVentory.git
 cd NesVentory
 
-Step 2: Configure Environment Variables
-----------------------------------------
-Copy the example environment file and configure your settings:
+Step 2: Configure docker-compose.yml
+-------------------------------------
+An example docker-compose.yml file is provided in the repository root.
+Edit this file and configure your settings:
 
-  cp .env.example .env
-
-IMPORTANT: Edit the .env file and set secure values for:
+IMPORTANT: Update the following in docker-compose.yml:
   - SECRET_KEY - Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
   - JWT_SECRET_KEY - Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
-  - DB_PASSWORD - Use a strong, unique password
+  - Volume path: /path/to/nesventory_data (change to your desired location)
+  - PUID/PGID: Set to match your user (find with: id -u && id -g)
+  - TZ: Set to your timezone
+
+Alternatively, copy the example environment file:
+  cp .env.example .env
 
 Step 3: Build and Start Services
 ---------------------------------
@@ -323,9 +327,9 @@ If you see foreign key or type mismatch errors:
 
 Port Already in Use:
 --------------------
-If port 8001 or 5173 is already in use:
-  - Change BACKEND_PORT or FRONTEND_PORT in .env
-  - Update docker-compose.yml ports section
+If port 8001 is already in use:
+  - Change the host port in docker-compose.yml ports section
+  - Update APP_PORT environment variable to match
   - Restart services
 
 Frontend Cannot Connect to Backend:
