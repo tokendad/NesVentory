@@ -113,7 +113,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
     rotation_type: "schedule",
     rotation_schedule_hours: 24,
     rotation_size_mb: 10,
-    log_level: "warn_error",
+    log_level: "info",
     retention_days: 30,
     auto_delete_enabled: false
   });
@@ -1270,11 +1270,21 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
                 <input
                   type="radio"
                   name="log_level"
+                  value="info"
+                  checked={logSettings.log_level === "info"}
+                  onChange={() => setLogSettings({ ...logSettings, log_level: "info" })}
+                />
+                <span><strong>Info</strong> - Normal operations and above (recommended default)</span>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <input
+                  type="radio"
+                  name="log_level"
                   value="warn_error"
                   checked={logSettings.log_level === "warn_error"}
                   onChange={() => setLogSettings({ ...logSettings, log_level: "warn_error" })}
                 />
-                <span><strong>Warn/Error</strong> - Warnings and errors only (recommended for production)</span>
+                <span><strong>Warn/Error</strong> - Warnings and errors only</span>
               </label>
               <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <input

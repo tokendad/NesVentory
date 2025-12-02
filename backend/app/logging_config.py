@@ -47,7 +47,7 @@ def load_log_settings() -> dict:
         "rotation_type": "schedule",
         "rotation_schedule_hours": 24,
         "rotation_size_mb": 10,
-        "log_level": "warn_error",
+        "log_level": "info",
         "retention_days": 30,
         "auto_delete_enabled": False
     }
@@ -59,6 +59,8 @@ def get_python_log_level(log_level_setting: str) -> int:
         return logging.DEBUG  # Python doesn't have TRACE, use DEBUG
     elif log_level_setting == "debug":
         return logging.DEBUG
+    elif log_level_setting == "info":
+        return logging.INFO
     else:  # "warn_error" or default
         return logging.WARNING
 
@@ -158,9 +160,9 @@ def setup_logging() -> None:
     except OSError as e:
         print(f"Warning: Could not create file handler: {e}", file=sys.stderr)
     
-    # Console handler (always at WARNING level for production)
+    # Console handler - use same log level as file handler for docker logs visibility
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.WARNING)
+    console_handler.setLevel(python_log_level)
     console_handler.setFormatter(simple_formatter)
     root_logger.addHandler(console_handler)
     
@@ -192,9 +194,9 @@ def reconfigure_logging_level(log_level_setting: str) -> None:
     root_logger = logging.getLogger()
     root_logger.setLevel(python_log_level)
     
-    # Update file handlers
+    # Update file handlers and console handlers
     for handler in root_logger.handlers:
-        if isinstance(handler, logging.FileHandler):
+        if isinstance(handler, (logging.FileHandler, logging.StreamHandler)):
             handler.setLevel(python_log_level)
     
     # Update third-party loggers

@@ -41,7 +41,7 @@ class LogSettings(BaseModel):
     rotation_size_mb: int = 10  # Default 10 MB for size-based rotation
     
     # Log level settings
-    log_level: str = "warn_error"  # "warn_error", "debug", or "trace"
+    log_level: str = "info"  # "info", "warn_error", "debug", or "trace"
     
     # Log retention settings
     retention_days: int = 30  # Days to keep rotated logs before deletion
@@ -197,8 +197,8 @@ async def update_log_settings(
     if settings.rotation_type not in ["schedule", "size"]:
         raise HTTPException(status_code=400, detail="Invalid rotation type. Must be 'schedule' or 'size'")
     
-    if settings.log_level not in ["warn_error", "debug", "trace"]:
-        raise HTTPException(status_code=400, detail="Invalid log level. Must be 'warn_error', 'debug', or 'trace'")
+    if settings.log_level not in ["info", "warn_error", "debug", "trace"]:
+        raise HTTPException(status_code=400, detail="Invalid log level. Must be 'info', 'warn_error', 'debug', or 'trace'")
     
     if settings.rotation_schedule_hours < 1:
         raise HTTPException(status_code=400, detail="Rotation schedule must be at least 1 hour")
