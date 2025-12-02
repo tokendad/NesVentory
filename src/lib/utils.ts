@@ -178,3 +178,18 @@ export function getLocationPath(
   
   return pathParts.join(separator);
 }
+
+/**
+ * Extract filename from a URL string safely
+ * @param url - The URL to extract filename from
+ * @returns The extracted filename or a fallback string
+ */
+export function getFilenameFromUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    const filename = urlObj.pathname.split('/').pop();
+    return filename || 'Document from URL';
+  } catch {
+    return 'Document from URL';
+  }
+}

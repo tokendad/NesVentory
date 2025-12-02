@@ -8,7 +8,6 @@ export interface PhotoUpload {
   type: string;
 }
 
-export interface DocumentUpload {
-  file: File;
-  type: string;
-}
+export type DocumentUpload = 
+  | { file: File; url?: never; type: string }
+  | { file?: never; url: string; type: string };

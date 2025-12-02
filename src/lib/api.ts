@@ -509,6 +509,27 @@ export async function uploadDocument(
   return handleResponse<Document>(res);
 }
 
+export async function uploadDocumentFromUrl(
+  itemId: string,
+  url: string,
+  documentType?: string
+): Promise<Document> {
+  const formData = new FormData();
+  formData.append("url", url);
+  if (documentType) {
+    formData.append("document_type", documentType);
+  }
+
+  const res = await fetch(`${API_BASE_URL}/api/items/${itemId}/documents/from-url`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+    },
+    body: formData,
+  });
+  return handleResponse<Document>(res);
+}
+
 export async function deleteDocument(itemId: string, documentId: string): Promise<void> {
   const res = await fetch(`${API_BASE_URL}/api/items/${itemId}/documents/${documentId}`, {
     method: "DELETE",

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, BarcodeScanResult, Warranty, MultiBarcodeLookupResult, Photo, Document } from "../lib/api";
 import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode, scanBarcodeImage, lookupBarcodeMulti, getApiBaseUrl } from "../lib/api";
-import { formatPhotoType, getLocationPath } from "../lib/utils";
+import { formatPhotoType, getLocationPath, getFilenameFromUrl } from "../lib/utils";
 import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES, ALLOWED_DOCUMENT_MIME_TYPES, DOCUMENT_TYPES, LIVING_TAG_NAME, RELATIONSHIP_LABELS } from "../lib/constants";
 import type { PhotoUpload, DocumentUpload } from "../lib/types";
 
@@ -72,6 +72,10 @@ const ItemForm: React.FC<ItemFormProps> = ({
   const [documents, setDocuments] = useState<DocumentUpload[]>([]);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [newTagName, setNewTagName] = useState("");
+  
+  // Document URL state
+  const [documentUrlManual, setDocumentUrlManual] = useState("");
+  const [documentUrlAttachment, setDocumentUrlAttachment] = useState("");
   
   // AI Data Tag scanning state
   const [aiStatus, setAIStatus] = useState<AIStatusResponse | null>(null);
@@ -551,6 +555,34 @@ const ItemForm: React.FC<ItemFormProps> = ({
     }
 
     setDocuments((prev) => [...prev, ...newDocuments]);
+  };
+
+  const handleDocumentUrlAdd = (type: string) => {
+    const url = type === DOCUMENT_TYPES.MANUAL ? documentUrlManual : documentUrlAttachment;
+    
+    if (!url.trim()) {
+      setError("Please enter a URL");
+      return;
+    }
+
+    // Basic URL validation
+    try {
+      new URL(url);
+    } catch (e) {
+      setError("Please enter a valid URL");
+      return;
+    }
+
+    // Add URL-based document
+    setDocuments((prev) => [...prev, { url, type }]);
+    
+    // Clear the input
+    if (type === DOCUMENT_TYPES.MANUAL) {
+      setDocumentUrlManual("");
+    } else {
+      setDocumentUrlAttachment("");
+    }
+    setError(null);
   };
 
   const removeDocument = (index: number) => {
@@ -1561,6 +1593,28 @@ const ItemForm: React.FC<ItemFormProps> = ({
                 multiple
               />
               <span className="help-text">Upload PDF or TXT files (user guides, service manuals, instructions)</span>
+              
+              <div className="document-url-input">
+                <label htmlFor="doc-manual-url">Or add from URL:</label>
+                <div className="url-input-group">
+                  <input
+                    type="text"
+                    id="doc-manual-url"
+                    placeholder="https://example.com/manual.pdf"
+                    value={documentUrlManual}
+                    onChange={(e) => setDocumentUrlManual(e.target.value)}
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleDocumentUrlAdd(DOCUMENT_TYPES.MANUAL)}
+                    disabled={loading || !documentUrlManual.trim()}
+                    className="add-url-btn"
+                  >
+                    Add URL
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="document-type-upload">
@@ -1574,6 +1628,28 @@ const ItemForm: React.FC<ItemFormProps> = ({
                 multiple
               />
               <span className="help-text">Upload other PDF or TXT documents</span>
+              
+              <div className="document-url-input">
+                <label htmlFor="doc-attachment-url">Or add from URL:</label>
+                <div className="url-input-group">
+                  <input
+                    type="text"
+                    id="doc-attachment-url"
+                    placeholder="https://example.com/document.pdf"
+                    value={documentUrlAttachment}
+                    onChange={(e) => setDocumentUrlAttachment(e.target.value)}
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleDocumentUrlAdd(DOCUMENT_TYPES.ATTACHMENT)}
+                    disabled={loading || !documentUrlAttachment.trim()}
+                    className="add-url-btn"
+                  >
+                    Add URL
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1581,26 +1657,32 @@ const ItemForm: React.FC<ItemFormProps> = ({
             <div className="document-previews">
               <h4>New Documents to Upload ({documents.length})</h4>
               <div className="document-preview-list">
-                {documents.map((doc, index) => (
-                  <div key={index} className="document-preview-item">
-                    <div className="document-preview-info">
-                      <span className="document-icon">
-                        {doc.file.type === 'application/pdf' ? '📄' : '📝'}
-                      </span>
-                      <span className="document-name">{doc.file.name}</span>
-                      <span className="document-size">{formatFileSize(doc.file.size)}</span>
-                      <span className="document-type-badge">{getDocumentTypeLabel(doc.type)}</span>
+                {documents.map((doc, index) => {
+                  // Extract filename safely using utility function
+                  const displayName = doc.file ? doc.file.name : (doc.url ? getFilenameFromUrl(doc.url) : 'Unknown');
+                  
+                  return (
+                    <div key={index} className="document-preview-item">
+                      <div className="document-preview-info">
+                        <span className="document-icon">
+                          {doc.file ? (doc.file.type === 'application/pdf' ? '📄' : '📝') : '🔗'}
+                        </span>
+                        <span className="document-name">{displayName}</span>
+                        {doc.file && <span className="document-size">{formatFileSize(doc.file.size)}</span>}
+                        {doc.url && <span className="document-source">From URL</span>}
+                        <span className="document-type-badge">{getDocumentTypeLabel(doc.type)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="remove-document-btn"
+                        onClick={() => removeDocument(index)}
+                        disabled={loading}
+                      >
+                        ✕
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      className="remove-document-btn"
-                      onClick={() => removeDocument(index)}
-                      disabled={loading}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
