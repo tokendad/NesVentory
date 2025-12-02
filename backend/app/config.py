@@ -53,16 +53,6 @@ class Settings(BaseSettings):
     # Registration settings
     DISABLE_SIGNUPS: bool = False
 
-    # Storage settings
-    STORAGE_TYPE: str = "local"  # "local" or "s3"
-    
-    # S3 Storage settings (required when STORAGE_TYPE is "s3")
-    S3_BUCKET_NAME: Optional[str] = None
-    S3_REGION: str = "us-east-1"
-    S3_ACCESS_KEY_ID: Optional[str] = None
-    S3_SECRET_ACCESS_KEY: Optional[str] = None
-    S3_ENDPOINT_URL: Optional[str] = None  # For S3-compatible services like MinIO
-    S3_PUBLIC_URL: Optional[str] = None  # Custom public URL (e.g., CloudFront)
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
