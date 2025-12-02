@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from uuid import UUID
 from urllib.parse import urlparse
+import ipaddress
 import io
 
 import logging
@@ -130,31 +131,35 @@ async def upload_document_from_url(
     try:
         parsed_url = urlparse(url)
         
-        # Security: Block requests to localhost, private IPs, and non-HTTP(S) schemes
+        # Security: Only allow HTTP and HTTPS schemes
         if parsed_url.scheme not in ("http", "https"):
             raise HTTPException(
                 status_code=400,
                 detail="Invalid URL scheme. Only HTTP and HTTPS are allowed."
             )
         
+        # Security: Block requests to localhost and private IP addresses (SSRF protection)
         hostname = parsed_url.hostname
-        if hostname and (
-            hostname.lower() in ("localhost", "127.0.0.1", "::1") or
-            hostname.startswith("192.168.") or
-            hostname.startswith("10.") or
-            hostname.startswith("172.16.") or
-            hostname.startswith("172.17.") or
-            hostname.startswith("172.18.") or
-            hostname.startswith("172.19.") or
-            hostname.startswith("172.2") or
-            hostname.startswith("172.30.") or
-            hostname.startswith("172.31.") or
-            hostname.startswith("169.254.")
-        ):
-            raise HTTPException(
-                status_code=400,
-                detail="Access to private IP addresses is not allowed."
-            )
+        if hostname:
+            # Check for localhost
+            if hostname.lower() in ("localhost", "127.0.0.1", "::1"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Access to localhost is not allowed."
+                )
+            
+            # Check if hostname is an IP address and if it's private
+            try:
+                ip = ipaddress.ip_address(hostname)
+                if ip.is_private or ip.is_loopback or ip.is_link_local:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Access to private IP addresses is not allowed."
+                    )
+            except ValueError:
+                # Not an IP address, hostname is OK (will be resolved by DNS)
+                pass
+                
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid URL format")
     
