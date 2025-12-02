@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     # Registration settings
     DISABLE_SIGNUPS: bool = False
 
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v):
