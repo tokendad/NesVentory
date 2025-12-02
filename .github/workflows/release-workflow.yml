@@ -1,5 +1,6 @@
 # Release Workflow
 # Manually triggered workflow to bump version, update documentation, and publish release
+# Automatically includes PR descriptions/fixes/changes from merged PRs since last release
 # Uses standard commit words for version bumping: Add, Merge, Fix, Remove, Update, Upgrade, Feat, etc.
 
 name: Release Workflow
@@ -17,12 +18,12 @@ on:
           - major
         default: 'patch'
       release_title:
-        description: 'Release title (e.g., "New Feature Release", "Bug Fix Release")'
-        required: true
+        description: 'Release title (e.g., "New Feature Release", "Bug Fix Release") - Optional, PRs will be auto-included'
+        required: false
         type: string
       release_notes:
-        description: 'Release notes (describe changes, features, fixes)'
-        required: true
+        description: 'Release notes (describe changes, features, fixes) - Optional, PRs will be auto-included'
+        required: false
         type: string
       breaking_changes:
         description: 'Breaking changes (leave empty if none)'
@@ -67,10 +68,10 @@ jobs:
         run: |
           CURRENT_VERSION=$(cat VERSION | tr -d '[:space:]')
           BUMP_TYPE="${{ inputs.bump_type }}"
-          
+
           # Parse version parts
           IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
-          
+
           # Handle suffix if present
           if [[ "$PATCH" == *"-"* ]]; then
             PATCH_NUM="${PATCH%%-*}"
@@ -79,7 +80,7 @@ jobs:
             PATCH_NUM="$PATCH"
             SUFFIX=""
           fi
-          
+
           # Bump version based on type
           case "$BUMP_TYPE" in
             major)
@@ -95,11 +96,11 @@ jobs:
               PATCH_NUM=$((PATCH_NUM + 1))
               ;;
           esac
-          
+
           NEW_VERSION="${MAJOR}.${MINOR}.${PATCH_NUM}${SUFFIX}"
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "Bumped version: $CURRENT_VERSION -> $NEW_VERSION"
-          
+
           # Update VERSION file
           echo "$NEW_VERSION" > VERSION
 
@@ -115,6 +116,56 @@ jobs:
             console.log('Updated package.json version to ' + process.env.NEW_VERSION);
           "
 
+      - name: Get merged PRs since last release
+        id: get_prs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get the previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [[ -z "$PREV_TAG" ]]; then
+            echo "No previous tag found, collecting all merged PRs"
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+
+          echo "Previous tag/commit: $PREV_TAG"
+
+          # Get list of merged PRs since the last tag
+          # Use tag creation date for more accurate filtering
+          if git rev-parse "$PREV_TAG" >/dev/null 2>&1; then
+            TAG_DATE=$(git for-each-ref --format='%(creatordate:iso8601)' "refs/tags/$PREV_TAG" 2>/dev/null || git log -1 --format=%aI "$PREV_TAG")
+          else
+            TAG_DATE=$(git log -1 --format=%aI "$PREV_TAG")
+          fi
+
+          PR_LIST=$(gh pr list --state merged --limit 100 --json number,title,body,labels,mergedAt --search "merged:>=$TAG_DATE" 2>/dev/null || echo "[]")
+
+          # Format PR information
+          PR_NOTES=""
+          CHANGELOG_NOTES=""
+
+          if [[ "$PR_LIST" != "[]" && -n "$PR_LIST" ]]; then
+            # Parse and format PRs (all fetched PRs up to the limit)
+            PR_NOTES=$(echo "$PR_LIST" | jq -r '.[] | "- **PR #\(.number)**: \(.title)"')
+            CHANGELOG_NOTES=$(echo "$PR_LIST" | jq -r '.[] | "- \(.title) (#\(.number))"')
+          fi
+
+          # Save to output (escape for multiline)
+          {
+            echo "pr_notes<<EOF"
+            echo "$PR_NOTES"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+          {
+            echo "changelog_notes<<EOF"
+            echo "$CHANGELOG_NOTES"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+          echo "Found PRs for release notes"
+
       - name: Generate release documentation
         id: generate_docs
         env:
@@ -124,9 +175,10 @@ jobs:
           BREAKING_CHANGES: ${{ inputs.breaking_changes }}
           UPGRADE_NOTES: ${{ inputs.upgrade_notes }}
           REPO: ${{ github.repository }}
+          PR_NOTES: ${{ steps.get_prs.outputs.pr_notes }}
         run: |
           RELEASE_FILE="docs/releases/RELEASE_NOTES_v${NEW_VERSION}.md"
-          
+
           # Create release file content
           {
             echo "# NesVentory v${NEW_VERSION}"
@@ -134,25 +186,34 @@ jobs:
             echo "Release tag: https://github.com/${REPO}/releases/tag/v${NEW_VERSION}"
             echo ""
             echo "## Summary"
-            echo "${RELEASE_TITLE}"
+            echo "${RELEASE_TITLE:-Release}"
             echo ""
-            echo "## New Features"
-            echo "${RELEASE_NOTES}"
-            echo ""
-            
+
+            if [[ -n "$RELEASE_NOTES" ]]; then
+              echo "## New Features"
+              echo "${RELEASE_NOTES}"
+              echo ""
+            fi
+
+            if [[ -n "$PR_NOTES" ]]; then
+              echo "## Merged Pull Requests"
+              echo "${PR_NOTES}"
+              echo ""
+            fi
+
             if [[ -n "$BREAKING_CHANGES" ]]; then
               echo "## Breaking Changes"
               echo "${BREAKING_CHANGES}"
               echo ""
             fi
-            
+
             if [[ -n "$UPGRADE_NOTES" ]]; then
               echo "## Upgrade Notes"
               echo "${UPGRADE_NOTES}"
               echo ""
             fi
           } > "$RELEASE_FILE"
-          
+
           echo "Created release notes at $RELEASE_FILE"
 
       - name: Update CHANGELOG.md
@@ -161,9 +222,10 @@ jobs:
           RELEASE_NOTES: ${{ inputs.release_notes }}
           BREAKING_CHANGES: ${{ inputs.breaking_changes }}
           BUMP_TYPE: ${{ inputs.bump_type }}
+          CHANGELOG_NOTES: ${{ steps.get_prs.outputs.changelog_notes }}
         run: |
           DATE=$(date +%Y-%m-%d)
-          
+
           # Determine section based on bump type
           if [[ "$BUMP_TYPE" == "major" ]]; then
             SECTION="### Changed"
@@ -172,21 +234,30 @@ jobs:
           else
             SECTION="### Fixed"
           fi
-          
+
           # Create temporary file with new entry
           {
             echo ""
             echo "## [$NEW_VERSION] - $DATE"
             echo "$SECTION"
-            echo "- $RELEASE_NOTES"
-            
+
+            # Add manual release notes if provided
+            if [[ -n "$RELEASE_NOTES" ]]; then
+              echo "- $RELEASE_NOTES"
+            fi
+
+            # Add PR notes if available
+            if [[ -n "$CHANGELOG_NOTES" ]]; then
+              echo "$CHANGELOG_NOTES"
+            fi
+
             if [[ -n "$BREAKING_CHANGES" ]]; then
               echo ""
               echo "### Breaking Changes"
               echo "- $BREAKING_CHANGES"
             fi
           } > /tmp/changelog_entry.md
-          
+
           # Insert after the header line in CHANGELOG.md
           if [[ -f "CHANGELOG.md" ]]; then
             awk '
@@ -197,7 +268,7 @@ jobs:
               {print}
             ' CHANGELOG.md > /tmp/CHANGELOG.md && mv /tmp/CHANGELOG.md CHANGELOG.md
           fi
-          
+
           echo "Updated CHANGELOG.md"
 
       - name: Update RELEASE_NOTES.md
@@ -208,38 +279,49 @@ jobs:
           BREAKING_CHANGES: ${{ inputs.breaking_changes }}
           UPGRADE_NOTES: ${{ inputs.upgrade_notes }}
           REPO: ${{ github.repository }}
+          PR_NOTES: ${{ steps.get_prs.outputs.pr_notes }}
         run: |
           {
-            echo "# NesVentory v${NEW_VERSION} - ${RELEASE_TITLE}"
+            echo "# NesVentory v${NEW_VERSION} - ${RELEASE_TITLE:-Release}"
             echo ""
             echo "## Overview"
             echo ""
             echo "Version ${NEW_VERSION} release."
             echo ""
-            echo "## New Features"
-            echo ""
-            echo "${RELEASE_NOTES}"
-            echo ""
-            
+
+            if [[ -n "$RELEASE_NOTES" ]]; then
+              echo "## New Features"
+              echo ""
+              echo "${RELEASE_NOTES}"
+              echo ""
+            fi
+
+            if [[ -n "$PR_NOTES" ]]; then
+              echo "## Merged Pull Requests"
+              echo ""
+              echo "${PR_NOTES}"
+              echo ""
+            fi
+
             if [[ -n "$BREAKING_CHANGES" ]]; then
               echo "## Breaking Changes"
               echo ""
               echo "${BREAKING_CHANGES}"
               echo ""
             fi
-            
+
             if [[ -n "$UPGRADE_NOTES" ]]; then
               echo "## Upgrade Notes"
               echo ""
               echo "${UPGRADE_NOTES}"
               echo ""
             fi
-            
+
             echo "---"
             echo ""
             echo "See complete PRs: https://github.com/${REPO}/pulls?state=closed&sort=updated&direction=desc"
           } > RELEASE_NOTES.md
-          
+
           echo "Updated RELEASE_NOTES.md"
 
       - name: Update README.md version badge
@@ -261,13 +343,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add VERSION package.json CHANGELOG.md README.md RELEASE_NOTES.md docs/releases/
-          
+
           if git diff --staged --quiet; then
             echo "No changes to commit"
             echo "has_changes=false" >> $GITHUB_OUTPUT
             exit 1
           fi
-          
+
           git commit -m "chore: release v$NEW_VERSION [skip ci]"
           git push
           echo "has_changes=true" >> $GITHUB_OUTPUT
@@ -279,19 +361,18 @@ jobs:
           tag_name: v${{ steps.bump_version.outputs.new_version }}
           name: Release ${{ steps.bump_version.outputs.new_version }}
           body: |
-            # ${{ inputs.release_title }}
-            
-            ## New Features
-            ${{ inputs.release_notes }}
-            
+            # ${{ inputs.release_title || 'Release' }}
+
+            ${{ inputs.release_notes != '' && format('## New Features\n{0}\n', inputs.release_notes) || '' }}
+            ${{ steps.get_prs.outputs.pr_notes != '' && format('## Merged Pull Requests\n{0}\n', steps.get_prs.outputs.pr_notes) || '' }}
             ${{ inputs.breaking_changes != '' && format('## Breaking Changes\n{0}\n', inputs.breaking_changes) || '' }}
             ${{ inputs.upgrade_notes != '' && format('## Upgrade Notes\n{0}\n', inputs.upgrade_notes) || '' }}
-            
+
             ---
-            
+
             See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for full history.
           draft: false
           prerelease: false
-          generate_release_notes: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
