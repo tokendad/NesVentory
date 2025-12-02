@@ -1657,29 +1657,42 @@ const ItemForm: React.FC<ItemFormProps> = ({
             <div className="document-previews">
               <h4>New Documents to Upload ({documents.length})</h4>
               <div className="document-preview-list">
-                {documents.map((doc, index) => (
-                  <div key={index} className="document-preview-item">
-                    <div className="document-preview-info">
-                      <span className="document-icon">
-                        {doc.file ? (doc.file.type === 'application/pdf' ? '📄' : '📝') : '🔗'}
-                      </span>
-                      <span className="document-name">
-                        {doc.file ? doc.file.name : (doc.url ? new URL(doc.url).pathname.split('/').pop() || 'Document from URL' : 'Unknown')}
-                      </span>
-                      {doc.file && <span className="document-size">{formatFileSize(doc.file.size)}</span>}
-                      {doc.url && <span className="document-source">From URL</span>}
-                      <span className="document-type-badge">{getDocumentTypeLabel(doc.type)}</span>
+                {documents.map((doc, index) => {
+                  // Extract filename from URL safely
+                  let displayName = 'Unknown';
+                  if (doc.file) {
+                    displayName = doc.file.name;
+                  } else if (doc.url) {
+                    try {
+                      const urlObj = new URL(doc.url);
+                      displayName = urlObj.pathname.split('/').pop() || 'Document from URL';
+                    } catch {
+                      displayName = 'Document from URL';
+                    }
+                  }
+                  
+                  return (
+                    <div key={index} className="document-preview-item">
+                      <div className="document-preview-info">
+                        <span className="document-icon">
+                          {doc.file ? (doc.file.type === 'application/pdf' ? '📄' : '📝') : '🔗'}
+                        </span>
+                        <span className="document-name">{displayName}</span>
+                        {doc.file && <span className="document-size">{formatFileSize(doc.file.size)}</span>}
+                        {doc.url && <span className="document-source">From URL</span>}
+                        <span className="document-type-badge">{getDocumentTypeLabel(doc.type)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="remove-document-btn"
+                        onClick={() => removeDocument(index)}
+                        disabled={loading}
+                      >
+                        ✕
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      className="remove-document-btn"
-                      onClick={() => removeDocument(index)}
-                      disabled={loading}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

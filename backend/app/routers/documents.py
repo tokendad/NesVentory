@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 from typing import Optional
 from uuid import UUID
+from urllib.parse import urlparse
 import io
 
 import logging
@@ -125,9 +126,42 @@ async def upload_document_from_url(
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     
+    # Validate and parse URL
+    try:
+        parsed_url = urlparse(url)
+        
+        # Security: Block requests to localhost, private IPs, and non-HTTP(S) schemes
+        if parsed_url.scheme not in ("http", "https"):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid URL scheme. Only HTTP and HTTPS are allowed."
+            )
+        
+        hostname = parsed_url.hostname
+        if hostname and (
+            hostname.lower() in ("localhost", "127.0.0.1", "::1") or
+            hostname.startswith("192.168.") or
+            hostname.startswith("10.") or
+            hostname.startswith("172.16.") or
+            hostname.startswith("172.17.") or
+            hostname.startswith("172.18.") or
+            hostname.startswith("172.19.") or
+            hostname.startswith("172.2") or
+            hostname.startswith("172.30.") or
+            hostname.startswith("172.31.") or
+            hostname.startswith("169.254.")
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Access to private IP addresses is not allowed."
+            )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid URL format")
+    
     # Download file from URL
     try:
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        # Limit redirects to prevent redirect loops and SSRF
+        async with httpx.AsyncClient(timeout=30.0, max_redirects=3) as client:
             response = await client.get(url)
             response.raise_for_status()
             
@@ -141,8 +175,8 @@ async def upload_document_from_url(
                     detail=f"Invalid file type: {content_type}. Allowed types: PDF, TXT"
                 )
             
-            # Get filename from URL or use default
-            url_path = Path(url.split("?")[0])  # Remove query parameters
+            # Get filename from URL using proper URL parsing
+            url_path = Path(parsed_url.path)
             original_name = url_path.stem if url_path.stem else "document"
             
             # Sanitize the original name to avoid path traversal
