@@ -1,0 +1,316 @@
+# Release Workflow
+# Manually triggered workflow to bump version, update documentation, and publish release
+# Uses standard commit words for version bumping: Add, Merge, Fix, Remove, Update, Upgrade, Feat, etc.
+
+name: Release Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: 'patch'
+      release_title:
+        description: 'Release title (e.g., "New Feature Release", "Bug Fix Release")'
+        required: true
+        type: string
+      release_notes:
+        description: 'Release notes (describe changes, features, fixes)'
+        required: true
+        type: string
+      breaking_changes:
+        description: 'Breaking changes (leave empty if none)'
+        required: false
+        type: string
+      upgrade_notes:
+        description: 'Upgrade notes (leave empty if none)'
+        required: false
+        type: string
+
+env:
+  IMAGE_NAME: neuman1812/nesventory
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Get current version
+        id: current_version
+        run: |
+          VERSION=$(cat VERSION | tr -d '[:space:]')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+
+      - name: Bump version
+        id: bump_version
+        run: |
+          CURRENT_VERSION=$(cat VERSION | tr -d '[:space:]')
+          BUMP_TYPE="${{ inputs.bump_type }}"
+          
+          # Parse version parts
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          
+          # Handle suffix if present
+          if [[ "$PATCH" == *"-"* ]]; then
+            PATCH_NUM="${PATCH%%-*}"
+            SUFFIX="-${PATCH#*-}"
+          else
+            PATCH_NUM="$PATCH"
+            SUFFIX=""
+          fi
+          
+          # Bump version based on type
+          case "$BUMP_TYPE" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH_NUM=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH_NUM=0
+              ;;
+            patch)
+              PATCH_NUM=$((PATCH_NUM + 1))
+              ;;
+          esac
+          
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH_NUM}${SUFFIX}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Bumped version: $CURRENT_VERSION -> $NEW_VERSION"
+          
+          # Update VERSION file
+          echo "$NEW_VERSION" > VERSION
+
+      - name: Update package.json version
+        run: |
+          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
+          # Update package.json version using Node.js
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '$NEW_VERSION';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            console.log('Updated package.json version to $NEW_VERSION');
+          "
+
+      - name: Generate release documentation
+        id: generate_docs
+        run: |
+          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
+          DATE=$(date +%Y-%m-%d)
+          RELEASE_TITLE="${{ inputs.release_title }}"
+          RELEASE_NOTES="${{ inputs.release_notes }}"
+          BREAKING_CHANGES="${{ inputs.breaking_changes }}"
+          UPGRADE_NOTES="${{ inputs.upgrade_notes }}"
+          
+          # Create release notes file in docs/releases
+          RELEASE_FILE="docs/releases/RELEASE_NOTES_v${NEW_VERSION}.md"
+          
+          cat > "$RELEASE_FILE" << 'RELEASE_EOF'
+          # NesVentory v$NEW_VERSION
+          
+          Release tag: https://github.com/${{ github.repository }}/releases/tag/v$NEW_VERSION
+          
+          ## Summary
+          $RELEASE_TITLE
+          
+          RELEASE_EOF
+          
+          # Use heredoc with variable substitution
+          cat > "$RELEASE_FILE" << EOF
+          # NesVentory v${NEW_VERSION}
+          
+          Release tag: https://github.com/${{ github.repository }}/releases/tag/v${NEW_VERSION}
+          
+          ## Summary
+          ${RELEASE_TITLE}
+          
+          ## New Features
+          ${RELEASE_NOTES}
+          
+          EOF
+          
+          # Add Breaking Changes section if provided
+          if [[ -n "$BREAKING_CHANGES" ]]; then
+            cat >> "$RELEASE_FILE" << EOF
+          ## Breaking Changes
+          ${BREAKING_CHANGES}
+          
+          EOF
+          fi
+          
+          # Add Upgrade Notes section if provided
+          if [[ -n "$UPGRADE_NOTES" ]]; then
+            cat >> "$RELEASE_FILE" << EOF
+          ## Upgrade Notes
+          ${UPGRADE_NOTES}
+          
+          EOF
+          fi
+          
+          echo "Created release notes at $RELEASE_FILE"
+
+      - name: Update CHANGELOG.md
+        run: |
+          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
+          DATE=$(date +%Y-%m-%d)
+          RELEASE_NOTES="${{ inputs.release_notes }}"
+          BREAKING_CHANGES="${{ inputs.breaking_changes }}"
+          BUMP_TYPE="${{ inputs.bump_type }}"
+          
+          # Determine section based on bump type
+          if [[ "$BUMP_TYPE" == "major" ]]; then
+            SECTION="### Changed"
+          elif [[ "$BUMP_TYPE" == "minor" ]]; then
+            SECTION="### Added"
+          else
+            SECTION="### Fixed"
+          fi
+          
+          # Create temporary file with new entry
+          cat > /tmp/changelog_entry.md << EOF
+          
+          ## [$NEW_VERSION] - $DATE
+          $SECTION
+          - $RELEASE_NOTES
+          EOF
+          
+          # Add breaking changes if provided
+          if [[ -n "$BREAKING_CHANGES" ]]; then
+            cat >> /tmp/changelog_entry.md << EOF
+          
+          ### Breaking Changes
+          - $BREAKING_CHANGES
+          EOF
+          fi
+          
+          # Insert after the header line in CHANGELOG.md
+          if [[ -f "CHANGELOG.md" ]]; then
+            # Find the first ## line and insert before it
+            awk '
+              /^## \[/ && !inserted {
+                while ((getline line < "/tmp/changelog_entry.md") > 0) print line
+                inserted=1
+              }
+              {print}
+            ' CHANGELOG.md > /tmp/CHANGELOG.md && mv /tmp/CHANGELOG.md CHANGELOG.md
+          fi
+          
+          echo "Updated CHANGELOG.md"
+
+      - name: Update RELEASE_NOTES.md
+        run: |
+          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
+          DATE=$(date +%Y-%m-%d)
+          RELEASE_TITLE="${{ inputs.release_title }}"
+          RELEASE_NOTES="${{ inputs.release_notes }}"
+          BREAKING_CHANGES="${{ inputs.breaking_changes }}"
+          UPGRADE_NOTES="${{ inputs.upgrade_notes }}"
+          
+          # Create new RELEASE_NOTES.md content
+          cat > RELEASE_NOTES.md << EOF
+          # NesVentory v${NEW_VERSION} - ${RELEASE_TITLE}
+          
+          ## Overview
+          
+          Version ${NEW_VERSION} release.
+          
+          ## New Features
+          
+          ${RELEASE_NOTES}
+          
+          EOF
+          
+          # Add Breaking Changes section if provided
+          if [[ -n "$BREAKING_CHANGES" ]]; then
+            cat >> RELEASE_NOTES.md << EOF
+          ## Breaking Changes
+          
+          ${BREAKING_CHANGES}
+          
+          EOF
+          fi
+          
+          # Add Upgrade Notes section if provided
+          if [[ -n "$UPGRADE_NOTES" ]]; then
+            cat >> RELEASE_NOTES.md << EOF
+          ## Upgrade Notes
+          
+          ${UPGRADE_NOTES}
+          
+          EOF
+          fi
+          
+          cat >> RELEASE_NOTES.md << EOF
+          ---
+          
+          See complete PRs: https://github.com/${{ github.repository }}/pulls?state=closed&sort=updated&direction=desc
+          EOF
+          
+          echo "Updated RELEASE_NOTES.md"
+
+      - name: Update README.md version badge
+        run: |
+          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
+          
+          # Update version badge if present
+          if grep -q "\*\*Version:" README.md; then
+            sed -i "s/\*\*Version: [0-9.]*\*\*/\*\*Version: $NEW_VERSION\*\*/" README.md
+            echo "Updated README.md version badge to $NEW_VERSION"
+          else
+            echo "No version badge found in README.md, skipping"
+          fi
+
+      - name: Commit version bump and documentation
+        run: |
+          NEW_VERSION="${{ steps.bump_version.outputs.new_version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION package.json CHANGELOG.md README.md RELEASE_NOTES.md docs/releases/
+          git commit -m "chore: release v$NEW_VERSION [skip ci]" || echo "No changes to commit"
+          git push
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.bump_version.outputs.new_version }}
+          name: Release ${{ steps.bump_version.outputs.new_version }}
+          body: |
+            # ${{ inputs.release_title }}
+            
+            ## New Features
+            ${{ inputs.release_notes }}
+            
+            ${{ inputs.breaking_changes != '' && format('## Breaking Changes\n{0}\n', inputs.breaking_changes) || '' }}
+            ${{ inputs.upgrade_notes != '' && format('## Upgrade Notes\n{0}\n', inputs.upgrade_notes) || '' }}
+            
+            ---
+            
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for full history.
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

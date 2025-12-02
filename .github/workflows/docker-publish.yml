@@ -1,13 +1,10 @@
 # Docker Hub Publish Workflow
-# Builds and pushes Docker image to Docker Hub when stable branch is updated
+# Builds and pushes Docker image to Docker Hub
 # Tags: latest, version number, major.minor
 
 name: Publish to Docker Hub
 
 on:
-  push:
-    branches:
-      - stable
   workflow_dispatch:
     inputs:
       tag:
