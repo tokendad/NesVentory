@@ -11,7 +11,7 @@ import shutil
 from abc import ABC, abstractmethod
 from io import BytesIO
 from pathlib import Path
-from typing import BinaryIO, Optional, Protocol
+from typing import BinaryIO, Optional
 
 logger = logging.getLogger(__name__)
 
