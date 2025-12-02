@@ -65,7 +65,7 @@ COPY --from=frontend-builder --chown=nesventory:nesventory /frontend/dist /app/s
 # Create necessary directories
 # Media files are stored in /app/data/media to persist with the database
 # Logs are stored in /app/data/logs for log persistence across restarts
-RUN mkdir -p /app/data/media/photos /app/data/logs && \
+RUN mkdir -p /app/data/media/photos /app/data/media/documents /app/data/logs && \
     chown -R nesventory:nesventory /app/data
 
 # Copy entrypoint script

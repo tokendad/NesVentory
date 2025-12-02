@@ -12,8 +12,9 @@ PGID=${PGID:-1000}
 # Ensure data directory exists and has correct ownership
 # This is critical for bind mounts where Docker creates directories as root
 if [ -d "/app/data" ]; then
-    # Create media subdirectory for uploads if it doesn't exist
+    # Create media subdirectories for uploads if they don't exist
     mkdir -p /app/data/media/photos
+    mkdir -p /app/data/media/documents
     # Create logs subdirectory for application logs
     mkdir -p /app/data/logs
     # Fix ownership of the data directory using PUID/PGID
