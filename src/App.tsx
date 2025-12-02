@@ -1,3 +1,13 @@
+/**
+ * NesVentory v5.0.0 - Main Application Component
+ * 
+ * Legacy components that can be removed in future cleanup:
+ * - DashboardCards.tsx (functionality merged into InventoryPage)
+ * - ItemsTable.tsx (functionality merged into InventoryPage)
+ * - LocationsPage.tsx (functionality merged into InventoryPage)
+ * - LocationsTree.tsx (removed from sidebar navigation)
+ */
+
 import React, { useEffect, useState } from "react";
 import LoginForm from "./components/LoginForm";
 import RegisterForm from "./components/RegisterForm";
@@ -64,8 +74,6 @@ const App: React.FC = () => {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [editingItem, setEditingItem] = useState(false);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
-  const [showUserSettings, setShowUserSettings] = useState(false);
-  const [showAdminPage, setShowAdminPage] = useState(false);
   const [showEncircleImport, setShowEncircleImport] = useState(false);
   const [showAIDetection, setShowAIDetection] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
@@ -407,12 +415,17 @@ const App: React.FC = () => {
             user={currentUser}
             onClose={() => setView("inventory")}
             onUpdate={handleUserSettingsUpdate}
+            embedded={true}
           />
         )}
         {view === "calendar" && <Calendar />}
         {view === "system-settings" && <SystemSettings />}
         {view === "admin" && currentUser?.role === "admin" && (
-          <AdminPage onClose={() => setView("inventory")} currentUserId={currentUser?.id} />
+          <AdminPage 
+            onClose={() => setView("inventory")} 
+            currentUserId={currentUser?.id}
+            embedded={true}
+          />
         )}
         
         {/* Footer with version */}

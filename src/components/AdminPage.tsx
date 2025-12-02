@@ -79,7 +79,7 @@ interface GoogleWindow extends Window {
 type MainTabType = 'users' | 'logs' | 'server';
 type UserSubTabType = 'all' | 'pending' | 'create';
 
-const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded = true }) => {
+const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded = false }) => {
   // Main tab state
   const [mainTab, setMainTab] = useState<MainTabType>('users');
   

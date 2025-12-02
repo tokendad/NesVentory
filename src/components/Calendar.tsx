@@ -87,16 +87,7 @@ const Calendar: React.FC = () => {
         <div className="calendar-grid">
           {renderCalendar()}
         </div>
-        <div style={{ 
-          marginTop: "1rem", 
-          padding: "1rem", 
-          background: "rgba(78, 205, 196, 0.1)", 
-          borderRadius: "0.5rem",
-          fontSize: "0.875rem",
-          color: "var(--muted)"
-        }}>
-          <strong>Note:</strong> Calendar settings and maintenance scheduling will be available in a future update.
-        </div>
+        {/* TODO: Calendar settings and maintenance scheduling will be available in a future update */}
       </div>
     </section>
   );

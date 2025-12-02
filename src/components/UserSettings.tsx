@@ -34,7 +34,7 @@ interface UserSettingsProps {
 
 type TabType = 'profile' | 'api' | 'stats' | 'appearance';
 
-const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, embedded = true }) => {
+const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, embedded = false }) => {
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   
