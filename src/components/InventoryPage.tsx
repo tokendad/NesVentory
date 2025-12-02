@@ -37,7 +37,7 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: "tags", label: "Tags", enabled: false },
 ];
 
-const SHOW_ALL_ITEMS = Number.MAX_SAFE_INTEGER;
+const SHOW_ALL_ITEMS = -1; // Special value to indicate showing all items
 
 const InventoryPage: React.FC<InventoryPageProps> = ({
   items,
@@ -113,7 +113,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
     });
 
     // Return all items if limit is set to show all, otherwise slice to limit
-    return itemLimit >= SHOW_ALL_ITEMS ? sorted : sorted.slice(0, itemLimit);
+    return itemLimit === SHOW_ALL_ITEMS ? sorted : sorted.slice(0, itemLimit);
   }, [items, selectedLocation, getItemsAtLocation, itemLimit]);
 
   // Toggle column visibility

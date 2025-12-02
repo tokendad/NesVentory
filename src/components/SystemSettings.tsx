@@ -3,6 +3,9 @@ import ThemeSettings from "./ThemeSettings";
 import LocaleSettings from "./LocaleSettings";
 import Status from "./Status";
 
+// No-op function for embedded components that don't need close handlers
+const noop = () => {};
+
 const SystemSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"theme" | "locale" | "status">("theme");
 
@@ -36,13 +39,13 @@ const SystemSettings: React.FC = () => {
 
       {activeTab === "theme" && (
         <div style={{ marginTop: "1rem" }}>
-          <ThemeSettings onClose={() => {}} embedded={true} />
+          <ThemeSettings onClose={noop} embedded={true} />
         </div>
       )}
 
       {activeTab === "locale" && (
         <div style={{ marginTop: "1rem" }}>
-          <LocaleSettings onClose={() => {}} embedded={true} />
+          <LocaleSettings onClose={noop} embedded={true} />
         </div>
       )}
 
