@@ -495,46 +495,49 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                   </td>
                 </tr>
               )}
-              {filteredItems.map((item) => (
-                <tr
-                  key={item.id}
-                  style={{ cursor: "pointer" }}
-                >
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={selectedItemIds.has(item.id.toString())}
-                      onChange={(e) => handleSelectItem(item.id.toString(), e.target.checked)}
-                    />
-                  </td>
-                  {enabledColumns.map(col => {
-                    const handleClick = () => onItemClick(item);
-                    if (col.key === "name") return <td key={col.key} onClick={handleClick}>{item.name}</td>;
-                    if (col.key === "brand") return <td key={col.key} onClick={handleClick}>{item.brand || "—"}</td>;
-                    if (col.key === "model_number") return <td key={col.key} onClick={handleClick}>{item.model_number || "—"}</td>;
-                    if (col.key === "serial_number") return <td key={col.key} onClick={handleClick}>{item.serial_number || "—"}</td>;
-                    if (col.key === "location") return <td key={col.key} onClick={handleClick}>{getLocationPath(item.location_id, locations)}</td>;
-                    if (col.key === "purchase_price") return (
-                      <td key={col.key} onClick={handleClick}>
-                        {item.purchase_price != null ? `$${item.purchase_price.toLocaleString()}` : "—"}
-                      </td>
-                    );
-                    if (col.key === "estimated_value") return (
-                      <td key={col.key} onClick={handleClick}>
-                        {item.estimated_value != null ? `$${item.estimated_value.toLocaleString()}` : "—"}
-                      </td>
-                    );
-                    if (col.key === "tags") return (
-                      <td key={col.key} onClick={handleClick}>
-                        {item.tags && item.tags.length > 0 
-                          ? item.tags.map(t => t.name).join(", ")
-                          : "—"}
-                      </td>
-                    );
-                    return <td key={col.key} onClick={handleClick}>—</td>;
-                  })}
-                </tr>
-              ))}
+              {filteredItems.map((item) => {
+                const itemIdStr = item.id.toString();
+                return (
+                  <tr
+                    key={item.id}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => onItemClick(item)}
+                  >
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedItemIds.has(itemIdStr)}
+                        onChange={(e) => handleSelectItem(itemIdStr, e.target.checked)}
+                      />
+                    </td>
+                    {enabledColumns.map(col => {
+                      if (col.key === "name") return <td key={col.key}>{item.name}</td>;
+                      if (col.key === "brand") return <td key={col.key}>{item.brand || "—"}</td>;
+                      if (col.key === "model_number") return <td key={col.key}>{item.model_number || "—"}</td>;
+                      if (col.key === "serial_number") return <td key={col.key}>{item.serial_number || "—"}</td>;
+                      if (col.key === "location") return <td key={col.key}>{getLocationPath(item.location_id, locations)}</td>;
+                      if (col.key === "purchase_price") return (
+                        <td key={col.key}>
+                          {item.purchase_price != null ? `$${item.purchase_price.toLocaleString()}` : "—"}
+                        </td>
+                      );
+                      if (col.key === "estimated_value") return (
+                        <td key={col.key}>
+                          {item.estimated_value != null ? `$${item.estimated_value.toLocaleString()}` : "—"}
+                        </td>
+                      );
+                      if (col.key === "tags") return (
+                        <td key={col.key}>
+                          {item.tags && item.tags.length > 0 
+                            ? item.tags.map(t => t.name).join(", ")
+                            : "—"}
+                        </td>
+                      );
+                      return <td key={col.key}>—</td>;
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

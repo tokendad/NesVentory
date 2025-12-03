@@ -503,10 +503,7 @@ const App: React.FC = () => {
               items={items}
               loading={locationsLoading}
               error={locationsError}
-              onRefresh={() => {
-                loadLocations();
-                setShowLocationForm(false);
-              }}
+              onRefresh={loadLocations}
               onItemClick={handleItemClick}
             />
             <button
