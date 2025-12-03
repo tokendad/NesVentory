@@ -23,7 +23,7 @@ COPY index.html tsconfig.json vite.config.ts ./
 RUN npm run build
 
 # Stage 2: Build the backend runtime
-FROM python:3.14-slim
+FROM python:3.13-slim
 
 # Environment variables
 ARG PUID=1000
