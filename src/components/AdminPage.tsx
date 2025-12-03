@@ -501,6 +501,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
     setGithubIssueUrl(null);
     setPopupBlocked(false);
     
+    const POPUP_BLOCKED_MESSAGE = "Popup blocked by browser. Please use the link below to open the GitHub issue.";
+    
     // Open a new window immediately to avoid popup blockers
     const newWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
     
@@ -528,13 +530,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
         } catch (navError) {
           // Firefox might block the navigation even if window was opened
           setPopupBlocked(true);
-          setLogError("Popup blocked by browser. Please use the link below to open the GitHub issue.");
+          setLogError(POPUP_BLOCKED_MESSAGE);
           newWindow.close();
         }
       } else {
         // Popup was blocked (window.open returned null)
         setPopupBlocked(true);
-        setLogError("Popup blocked by browser. Please use the link below to open the GitHub issue.");
+        setLogError(POPUP_BLOCKED_MESSAGE);
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Failed to generate issue report";
@@ -1560,7 +1562,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
                 {issueReportLoading ? "Generating..." : "🐙 Open GitHub Issue"}
               </button>
               
-              {/* Display clickable link if popup was blocked */}
+              {/* Fallback link shown when browser popup blocker prevents automatic window opening */}
               {githubIssueUrl && popupBlocked && (
                 <div style={{ 
                   marginTop: "0.75rem", 
