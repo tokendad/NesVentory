@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import type { Location, LocationCreate, Item } from "../lib/api";
 import { createLocation, updateLocation, deleteLocation } from "../lib/api";
 import QRLabelPrint, { PRINT_MODE_OPTIONS, type PrintMode } from "./QRLabelPrint";
@@ -11,6 +11,7 @@ interface LocationsPageProps {
   error?: string | null;
   onRefresh: () => void;
   onItemClick?: (item: Item) => void;
+  openFormOnMount?: boolean;
 }
 
 const LOCATION_TYPES = [
@@ -31,6 +32,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
   error,
   onRefresh,
   onItemClick,
+  openFormOnMount = false,
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
@@ -113,7 +115,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
     }
   };
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setFormData({
       name: "",
       parent_id: null,
@@ -132,12 +134,19 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
     });
     setFormError(null);
     setEditingLocation(null);
-  };
+  }, []);
 
-  const handleOpenCreate = () => {
+  const handleOpenCreate = useCallback(() => {
     resetForm();
     setShowForm(true);
-  };
+  }, [resetForm]);
+
+  // Auto-open the form when openFormOnMount is true
+  useEffect(() => {
+    if (openFormOnMount) {
+      handleOpenCreate();
+    }
+  }, [openFormOnMount, handleOpenCreate]);
 
   const handleOpenEdit = (location: Location) => {
     setEditingLocation(location);

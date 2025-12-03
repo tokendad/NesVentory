@@ -21,7 +21,6 @@ import ItemForm from "./components/ItemForm";
 import ItemDetails from "./components/ItemDetails";
 import EncircleImport from "./components/EncircleImport";
 import AIDetection from "./components/AIDetection";
-import LocationsPage from "./components/LocationsPage";
 import {
   fetchItems,
   fetchLocations,
@@ -77,7 +76,6 @@ const App: React.FC = () => {
   const [showRegisterForm, setShowRegisterForm] = useState(false);
   const [showEncircleImport, setShowEncircleImport] = useState(false);
   const [showAIDetection, setShowAIDetection] = useState(false);
-  const [showLocationForm, setShowLocationForm] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -408,7 +406,6 @@ const App: React.FC = () => {
             onAddItem={() => setShowItemForm(true)}
             onImport={() => setShowEncircleImport(true)}
             onAIScan={() => setShowAIDetection(true)}
-            onAddLocation={() => setShowLocationForm(true)}
             onBulkDelete={handleBulkDelete}
             onBulkUpdateTags={handleBulkUpdateTags}
             onBulkUpdateLocation={handleBulkUpdateLocation}
@@ -487,43 +484,6 @@ const App: React.FC = () => {
             onAddItems={handleAIAddItems}
             locations={locations}
           />
-        )}
-        {showLocationForm && (
-          <div style={{ 
-            position: "fixed", 
-            top: 0, 
-            left: 0, 
-            right: 0, 
-            bottom: 0, 
-            zIndex: 1000,
-            background: "rgba(0,0,0,0.5)"
-          }}>
-            <LocationsPage
-              locations={locations}
-              items={items}
-              loading={locationsLoading}
-              error={locationsError}
-              onRefresh={loadLocations}
-              onItemClick={handleItemClick}
-            />
-            <button
-              onClick={() => setShowLocationForm(false)}
-              style={{
-                position: "fixed",
-                top: "1rem",
-                right: "1rem",
-                padding: "0.5rem 1rem",
-                background: "var(--danger)",
-                color: "white",
-                border: "none",
-                borderRadius: "0.25rem",
-                cursor: "pointer",
-                zIndex: 1001
-              }}
-            >
-              Close Locations Manager
-            </button>
-          </div>
         )}
       </Layout>
     </div>
