@@ -41,6 +41,17 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: "tags", label: "Tags", enabled: false },
 ];
 
+const LOCATION_TYPES = [
+  { value: "residential", label: "Residential" },
+  { value: "commercial", label: "Commercial" },
+  { value: "retail", label: "Retail" },
+  { value: "industrial", label: "Industrial" },
+  { value: "apartment_complex", label: "Apartment Complex" },
+  { value: "condo", label: "Condo" },
+  { value: "multi_family", label: "Multi-Family" },
+  { value: "other", label: "Other" },
+];
+
 const SHOW_ALL_ITEMS = -1; // Special value to indicate showing all items
 
 const InventoryPage: React.FC<InventoryPageProps> = ({
@@ -259,8 +270,14 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
               setEditFormData({
                 name: loc.name,
                 friendly_name: loc.friendly_name || "",
+                location_type: loc.location_type || "",
+                parent_id: loc.parent_id?.toString() || "",
+                is_primary_location: loc.is_primary_location || false,
+                is_container: loc.is_container || false,
                 description: loc.description || "",
                 address: loc.address || "",
+                estimated_property_value: loc.estimated_property_value ?? "",
+                estimated_value_with_items: loc.estimated_value_with_items ?? "",
               });
             }}
             title="Location Settings"
@@ -555,33 +572,95 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
             </div>
             <form onSubmit={handleLocationUpdate} className="item-form">
               <div className="form-group">
-                <label htmlFor="name">Name</label>
+                <label htmlFor="name">Name *</label>
                 <input
                   type="text"
                   id="name"
                   value={editFormData?.name || ""}
                   onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
                   required
+                  placeholder="e.g., Living Room, Main House, Unit 101"
                 />
               </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="friendly_name">Friendly Name</label>
+                  <input
+                    type="text"
+                    id="friendly_name"
+                    value={editFormData?.friendly_name || ""}
+                    onChange={(e) => setEditFormData({ ...editFormData, friendly_name: e.target.value })}
+                    placeholder="e.g., Our Home, Beach House"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="location_type">Location Type</label>
+                  <select
+                    id="location_type"
+                    value={editFormData?.location_type || ""}
+                    onChange={(e) => setEditFormData({ ...editFormData, location_type: e.target.value })}
+                  >
+                    <option value="">-- Select Type --</option>
+                    {LOCATION_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="parent_id">Parent Location</label>
+                  <select
+                    id="parent_id"
+                    value={editFormData?.parent_id || ""}
+                    onChange={(e) => setEditFormData({ ...editFormData, parent_id: e.target.value })}
+                  >
+                    <option value="">-- No Parent (Top Level) --</option>
+                    {locations
+                      .filter(loc => loc.is_primary_location || !loc.parent_id)
+                      .filter(loc => !showLocationSettings || loc.id.toString() !== showLocationSettings.id.toString())
+                      .map((loc) => (
+                        <option key={loc.id} value={loc.id.toString()}>
+                          {loc.friendly_name || loc.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="checkbox-label" style={{ marginTop: "1.5rem" }}>
+                    <input
+                      type="checkbox"
+                      name="is_primary_location"
+                      checked={editFormData?.is_primary_location || false}
+                      onChange={(e) => setEditFormData({ ...editFormData, is_primary_location: e.target.checked })}
+                    />
+                    <span>Primary Location (Home)</span>
+                  </label>
+                </div>
+              </div>
+
               <div className="form-group">
-                <label htmlFor="friendly_name">Friendly Name</label>
-                <input
-                  type="text"
-                  id="friendly_name"
-                  value={editFormData?.friendly_name || ""}
-                  onChange={(e) => setEditFormData({ ...editFormData, friendly_name: e.target.value })}
-                />
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    name="is_container"
+                    checked={editFormData?.is_container || false}
+                    onChange={(e) => setEditFormData({ ...editFormData, is_container: e.target.checked })}
+                  />
+                  <span>📦 Container (Box/Bin/Case with multiple items)</span>
+                </label>
+                <span className="help-text">
+                  Mark this location as a container for storing multiple items. 
+                  A QR code can be printed and affixed to the box.
+                </span>
               </div>
-              <div className="form-group">
-                <label htmlFor="description">Description</label>
-                <textarea
-                  id="description"
-                  value={editFormData?.description || ""}
-                  onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                  rows={3}
-                />
-              </div>
+
               <div className="form-group">
                 <label htmlFor="address">Address</label>
                 <input
@@ -589,8 +668,47 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                   id="address"
                   value={editFormData?.address || ""}
                   onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                  placeholder="Full street address"
                 />
               </div>
+
+              <div className="form-group">
+                <label htmlFor="description">Description</label>
+                <textarea
+                  id="description"
+                  value={editFormData?.description || ""}
+                  onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                  rows={3}
+                  placeholder="Description of the location"
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="estimated_property_value">Estimated Property Value</label>
+                  <input
+                    type="number"
+                    id="estimated_property_value"
+                    value={editFormData?.estimated_property_value ?? ""}
+                    onChange={(e) => setEditFormData({ ...editFormData, estimated_property_value: e.target.value })}
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="estimated_value_with_items">Value with Items</label>
+                  <input
+                    type="number"
+                    id="estimated_value_with_items"
+                    value={editFormData?.estimated_value_with_items ?? ""}
+                    onChange={(e) => setEditFormData({ ...editFormData, estimated_value_with_items: e.target.value })}
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+              </div>
+
               <div className="form-actions">
                 <button
                   type="button"
