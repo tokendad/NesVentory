@@ -37,7 +37,6 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
   // Track the selected location path (breadcrumb navigation)
   const [selectedPath, setSelectedPath] = useState<Location[]>([]);
   // QR Label printing
@@ -113,26 +112,6 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
       setSelectedPath(selectedPath.slice(0, index + 1));
     }
   };
-
-  // Filter locations by search query
-  const filteredLocations = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return locations;
-    }
-    const query = searchQuery.toLowerCase().trim();
-    return locations.filter((loc) => {
-      const searchableFields = [
-        loc.name,
-        loc.friendly_name,
-        loc.description,
-        loc.address,
-        loc.location_type,
-      ];
-      return searchableFields.some(
-        (field) => field && field.toLowerCase().includes(query)
-      );
-    });
-  }, [locations, searchQuery]);
 
   const resetForm = () => {
     setFormData({
@@ -259,7 +238,17 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
       <section className="panel" style={{ marginBottom: "1rem" }}>
         <div className="panel-header">
           <h2>Browse Locations</h2>
+          <div style={{ display: "flex", gap: "0.75rem" }}>
+            <button className="btn-outline" onClick={onRefresh} disabled={loading}>
+              {loading ? "Refreshing..." : "Refresh"}
+            </button>
+            <button className="btn-primary" onClick={handleOpenCreate}>
+              Add Location
+            </button>
+          </div>
         </div>
+        {error && <div className="error-banner">{error}</div>}
+        {formError && !showForm && <div className="error-banner">{formError}</div>}
         
         {/* Breadcrumb navigation */}
         <div className="location-breadcrumb">
@@ -425,132 +414,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
         )}
       </section>
 
-      {/* Location Management Panel */}
-      <section className="panel">
-        <div className="panel-header panel-header-left">
-          <div style={{ display: "flex", gap: "0.75rem" }}>
-            <button className="btn-outline" onClick={onRefresh} disabled={loading}>
-              {loading ? "Refreshing..." : "Refresh"}
-            </button>
-            <button className="btn-primary" onClick={handleOpenCreate}>
-              Add Location
-            </button>
-          </div>
-          <h2>Manage Locations</h2>
-        </div>
-        <div className="search-bar">
-          <input
-            type="text"
-            placeholder="Search locations by name, description, address..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="search-input"
-          />
-          {searchQuery && (
-            <button
-              className="search-clear"
-              onClick={() => setSearchQuery("")}
-              title="Clear search"
-            >
-              ×
-            </button>
-          )}
-        </div>
-        {error && <div className="error-banner">{error}</div>}
-        {formError && !showForm && <div className="error-banner">{formError}</div>}
-        <div className="table-wrapper">
-          <table className="items-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Friendly Name</th>
-                <th>Type</th>
-                <th>Parent</th>
-                <th>Primary</th>
-                <th>Address</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {locations.length === 0 && !loading && (
-                <tr>
-                  <td colSpan={7} className="empty-row">
-                    No locations found. Click "Add Location" to create your first location.
-                  </td>
-                </tr>
-              )}
-              {locations.length > 0 && filteredLocations.length === 0 && searchQuery.trim() && !loading && (
-                <tr>
-                  <td colSpan={7} className="empty-row">
-                    No locations match your search.
-                  </td>
-                </tr>
-              )}
-              {filteredLocations.map((loc) => (
-                <tr key={loc.id}>
-                  <td>{getLocationPath(loc.id, locations)}</td>
-                  <td>{loc.friendly_name || "—"}</td>
-                  <td>{getLocationTypeLabel(loc.location_type)}</td>
-                  <td>{getParentName(loc.parent_id)}</td>
-                  <td>
-                    {loc.is_primary_location ? (
-                      <span style={{ 
-                        padding: "0.25rem 0.5rem",
-                        borderRadius: "4px",
-                        backgroundColor: "#4ecdc4",
-                        color: "#fff",
-                        fontSize: "0.75rem",
-                        fontWeight: "500"
-                      }}>
-                        HOME
-                      </span>
-                    ) : "—"}
-                  </td>
-                  <td>{loc.address || "—"}</td>
-                  <td>
-                    <div style={{ display: "flex", gap: "0.5rem" }}>
-                      <button
-                        className="btn-outline"
-                        onClick={() => handleOpenEdit(loc)}
-                        style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem" }}
-                      >
-                        Edit
-                      </button>
-                      {deleteConfirm === loc.id.toString() ? (
-                        <>
-                          <button
-                            className="btn-danger"
-                            onClick={() => handleDelete(loc.id.toString())}
-                            disabled={formLoading}
-                            style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem" }}
-                          >
-                            Confirm
-                          </button>
-                          <button
-                            className="btn-outline"
-                            onClick={() => setDeleteConfirm(null)}
-                            style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem" }}
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          className="btn-outline"
-                          onClick={() => setDeleteConfirm(loc.id.toString())}
-                          style={{ fontSize: "0.875rem", padding: "0.25rem 0.5rem", color: "#dc3545" }}
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+
 
       {/* Location Form Modal */}
       {showForm && (
