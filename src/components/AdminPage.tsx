@@ -517,18 +517,29 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
       
       // Navigate the opened window to the GitHub issue URL
       if (newWindow) {
-        newWindow.location.assign(reportData.github_issue_url);
+        try {
+          newWindow.location.assign(reportData.github_issue_url);
+        } catch (navError) {
+          // Firefox might block the navigation even if window was opened
+          setPopupBlocked(true);
+          setLogError("Popup blocked by browser. Please use the link below to open the GitHub issue.");
+          newWindow.close();
+        }
       } else {
-        // Popup was blocked
+        // Popup was blocked (window.open returned null)
         setPopupBlocked(true);
-        setLogError("Popup blocked. Please use the link below to open the GitHub issue.");
+        setLogError("Popup blocked by browser. Please use the link below to open the GitHub issue.");
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Failed to generate issue report";
       setLogError(errorMessage);
       // Close the blank window if we opened one
-      if (newWindow) {
-        newWindow.close();
+      if (newWindow && !newWindow.closed) {
+        try {
+          newWindow.close();
+        } catch {
+          // Ignore errors when closing window
+        }
       }
     } finally {
       setIssueReportLoading(false);
