@@ -54,8 +54,6 @@ const Layout: React.FC<LayoutProps> = ({
             </button>
           )}
           <img src="/logo.png" alt="NesVentory" className="app-logo" />
-        </div>
-        <div className="app-header-right">
           {onSearchChange && (
             <div className="header-search">
               <input
@@ -66,6 +64,8 @@ const Layout: React.FC<LayoutProps> = ({
               />
             </div>
           )}
+        </div>
+        <div className="app-header-right">
           {!isMobile && (userName || userEmail) && (
             <span 
               className="user-email" 
