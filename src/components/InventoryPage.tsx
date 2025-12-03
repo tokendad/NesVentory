@@ -138,7 +138,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
     const isSelected = selectedLocation?.id === loc.id;
 
     return (
-      <div style={{ marginLeft: `${level * 1}rem` }}>
+      <div style={{ display: "inline-block" }}>
         <div
           className={`location-bubble ${isSelected ? 'selected' : ''}`}
           style={{
@@ -193,9 +193,13 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
             ⚙️
           </button>
         </div>
-        {hasChildren && loc.children.map(child => (
-          <LocationNode key={child.id} loc={child} level={level + 1} />
-        ))}
+        {hasChildren && (
+          <div style={{ display: "inline-block", marginLeft: "0.5rem" }}>
+            {loc.children.map(child => (
+              <LocationNode key={child.id} loc={child} level={level + 1} />
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -261,7 +265,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
           <p className="muted">No locations yet.</p>
         )}
         {!locationsLoading && locationTree.length > 0 && (
-          <div style={{ padding: "1rem" }}>
+          <div style={{ padding: "1rem", display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
             {locationTree.map(loc => (
               <LocationNode key={loc.id} loc={loc} level={0} />
             ))}

@@ -3,16 +3,10 @@ import {
   updateUser, 
   generateApiKey, 
   revokeApiKey, 
-  getAIStatus, 
-  getGDriveStatus,
   fetchItems,
   getUserLocationAccess,
-  getConfigStatus,
   type User,
-  type AIStatusResponse,
-  type GDriveStatus,
   type Location,
-  type ConfigStatusResponse
 } from "../lib/api";
 import { useTheme } from "./ThemeContext";
 import { THEME_MODES, COLOR_PALETTES, type ThemeMode, type ColorPalette } from "../lib/theme";
@@ -51,12 +45,6 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
   const [currentApiKey, setCurrentApiKey] = useState(user.api_key || null);
   const [copySuccess, setCopySuccess] = useState(false);
   
-  // Service status states (read-only)
-  const [aiStatus, setAIStatus] = useState<AIStatusResponse | null>(null);
-  const [gdriveStatus, setGdriveStatus] = useState<GDriveStatus | null>(null);
-  const [configStatus, setConfigStatus] = useState<ConfigStatusResponse | null>(null);
-  const [statusLoading, setStatusLoading] = useState(true);
-  
   // User stats states
   const [itemCount, setItemCount] = useState<number>(0);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -66,27 +54,6 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
   const { config: themeConfig, setMode, setColorPalette } = useTheme();
   const [localeConfig, setLocaleConfig] = useState<LocaleConfig>(getLocaleConfig());
   const [localeSaved, setLocaleSaved] = useState(false);
-
-  // Load service status on mount
-  useEffect(() => {
-    async function loadStatus() {
-      try {
-        const [aiStatusResult, gdriveStatusResult, configStatusResult] = await Promise.all([
-          getAIStatus().catch(() => ({ enabled: false })),
-          getGDriveStatus().catch(() => null),
-          getConfigStatus().catch(() => null)
-        ]);
-        setAIStatus(aiStatusResult as AIStatusResponse);
-        setGdriveStatus(gdriveStatusResult);
-        setConfigStatus(configStatusResult);
-      } catch {
-        // Silently fail
-      } finally {
-        setStatusLoading(false);
-      }
-    }
-    loadStatus();
-  }, []);
   
   // Load user stats on mount
   useEffect(() => {
@@ -272,11 +239,11 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
     </div>
   );
 
-  // Render the API & Services Tab content (simplified - only API key)
+  // Render the API Key Tab content
   const renderApiTab = () => (
     <div className="tab-content">
       {/* Personal API Key Section */}
-      <div className="form-group" style={{ paddingBottom: "1rem", marginBottom: "1rem", borderBottom: "1px solid #e0e0e0" }}>
+      <div className="form-group">
         <label>🔑 Personal API Key</label>
         <small style={{ color: "#666", fontSize: "0.875rem", display: "block", marginBottom: "0.5rem" }}>
           Use this API key to connect mobile apps or external integrations. Keep it secret!
@@ -347,85 +314,6 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
             {apiKeyLoading ? "Generating..." : "Generate API Key"}
           </button>
         )}
-      </div>
-      
-      {/* Service Status Section (Read-only) */}
-      <div className="form-group">
-        <label>📡 Service Status</label>
-        <small style={{ color: "#666", fontSize: "0.875rem", display: "block", marginBottom: "0.75rem" }}>
-          System-wide services configured by your administrator.
-        </small>
-        
-        {statusLoading ? (
-          <p style={{ color: "var(--muted)" }}>Loading service status...</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            {/* AI Status */}
-            <div style={{ 
-              display: "flex", 
-              justifyContent: "space-between", 
-              alignItems: "center",
-              padding: "0.75rem",
-              backgroundColor: "var(--bg-elevated-softer)",
-              borderRadius: "0.5rem"
-            }}>
-              <div>
-                <strong>🤖 AI Features</strong>
-                <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.8rem", color: "var(--muted)" }}>
-                  Item detection, barcode lookup, valuation
-                </p>
-              </div>
-              <span style={{ 
-                padding: "0.25rem 0.75rem",
-                borderRadius: "999px",
-                backgroundColor: aiStatus?.enabled ? "#e8f5e9" : "#fff3e0",
-                color: aiStatus?.enabled ? "#2e7d32" : "#e65100",
-                fontSize: "0.8rem",
-                fontWeight: 600
-              }}>
-                {aiStatus?.enabled ? "✓ Enabled" : "Not Configured"}
-              </span>
-            </div>
-            
-            {/* Google Drive Status */}
-            <div style={{ 
-              display: "flex", 
-              justifyContent: "space-between", 
-              alignItems: "center",
-              padding: "0.75rem",
-              backgroundColor: "var(--bg-elevated-softer)",
-              borderRadius: "0.5rem"
-            }}>
-              <div>
-                <strong>☁️ Google Drive Backup</strong>
-                <p style={{ margin: "0.25rem 0 0 0", fontSize: "0.8rem", color: "var(--muted)" }}>
-                  Cloud backup of inventory data
-                </p>
-              </div>
-              <span style={{ 
-                padding: "0.25rem 0.75rem",
-                borderRadius: "999px",
-                backgroundColor: gdriveStatus?.enabled ? (gdriveStatus?.connected ? "#e8f5e9" : "#e3f2fd") : "#fff3e0",
-                color: gdriveStatus?.enabled ? (gdriveStatus?.connected ? "#2e7d32" : "#1565c0") : "#e65100",
-                fontSize: "0.8rem",
-                fontWeight: 600
-              }}>
-                {gdriveStatus?.enabled 
-                  ? (gdriveStatus?.connected ? "✓ Connected" : "Available") 
-                  : "Not Configured"}
-              </span>
-            </div>
-          </div>
-        )}
-        
-        <p style={{ 
-          marginTop: "1rem", 
-          fontSize: "0.8rem", 
-          color: "var(--muted)",
-          fontStyle: "italic"
-        }}>
-          Contact your administrator to configure or modify these system-wide settings.
-        </p>
       </div>
     </div>
   );
@@ -735,7 +623,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
           className={`tab-button ${activeTab === 'api' ? 'active' : ''}`}
           onClick={() => handleTabChange('api')}
         >
-          🔌 API & Services
+          🔌 API Key
         </button>
         <button
           type="button"

@@ -2711,6 +2711,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* Calendar Styles */
 .calendar-container {
   padding: 1rem;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .calendar-header {
@@ -2729,7 +2731,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .calendar-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 0.5rem;
+  gap: 0.25rem;
   margin-bottom: 0.5rem;
   text-align: center;
   font-weight: 600;
@@ -2740,11 +2742,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 0.5rem;
+  gap: 0.25rem;
+  width: 100%;
 }
 
 .calendar-day {
   aspect-ratio: 1;
+  min-height: 60px;
+  max-height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2858,8 +2863,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex: 1;
-  max-width: 400px;
+  flex: 0 1 400px;
+  margin-left: 1rem;
 }
 
 .header-search input {
