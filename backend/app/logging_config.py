@@ -215,4 +215,5 @@ def reconfigure_logging_level(log_level_setting: str) -> None:
         logging.getLogger(logger_name).setLevel(python_log_level)
     
     logger = logging.getLogger(__name__)
-    logger.info(f"Logging level changed to: {log_level_setting}")
+    # Use WARNING level to ensure the message is logged even when level is set to warn_error
+    logger.warning(f"Logging level changed to: {log_level_setting}")
