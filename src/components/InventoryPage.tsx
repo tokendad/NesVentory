@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import type { Item, Location, Tag } from "../lib/api";
 import { getLocationPath } from "../lib/utils";
-import { updateLocation } from "../lib/api";
+import { updateLocation, createLocation } from "../lib/api";
 
 interface InventoryPageProps {
   items: Item[];
@@ -15,7 +15,6 @@ interface InventoryPageProps {
   onAddItem?: () => void;
   onImport?: () => void;
   onAIScan?: () => void;
-  onAddLocation?: () => void;
   onBulkDelete?: (itemIds: string[]) => Promise<void>;
   onBulkUpdateTags?: (itemIds: string[], tagIds: string[], mode: "replace" | "add" | "remove") => Promise<void>;
   onBulkUpdateLocation?: (itemIds: string[], locationId: string | null) => Promise<void>;
@@ -66,7 +65,6 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
   onAddItem,
   onImport,
   onAIScan,
-  onAddLocation,
   onBulkDelete,
   onBulkUpdateTags,
   onBulkUpdateLocation,
@@ -82,7 +80,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
     }
   );
   const [showColumnSelector, setShowColumnSelector] = useState(false);
-  const [showLocationSettings, setShowLocationSettings] = useState<Location | null>(null);
+  const [showLocationSettings, setShowLocationSettings] = useState<Location | "create" | null>(null);
   const [editFormData, setEditFormData] = useState<any>(null);
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState<"delete" | "updateTags" | "updateLocation" | null>(null);
@@ -314,20 +312,34 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
       const propertyValue = editFormData.estimated_property_value === "" ? null : parseFloat(editFormData.estimated_property_value);
       const valueWithItems = editFormData.estimated_value_with_items === "" ? null : parseFloat(editFormData.estimated_value_with_items);
       
-      const updateData = {
-        ...editFormData,
-        parent_id: editFormData.parent_id === "" ? null : editFormData.parent_id,
+      const locationData = {
+        name: editFormData.name,
+        friendly_name: editFormData.friendly_name || null,
         location_type: editFormData.location_type === "" ? null : editFormData.location_type,
+        parent_id: editFormData.parent_id === "" ? null : editFormData.parent_id,
+        is_primary_location: editFormData.is_primary_location || false,
+        is_container: editFormData.is_container || false,
+        description: editFormData.description || null,
+        address: editFormData.address || null,
         estimated_property_value: propertyValue !== null && !isNaN(propertyValue) ? propertyValue : null,
         estimated_value_with_items: valueWithItems !== null && !isNaN(valueWithItems) ? valueWithItems : null,
+        owner_info: null,
+        landlord_info: null,
+        tenant_info: null,
+        insurance_info: null,
       };
       
-      await updateLocation(showLocationSettings.id.toString(), updateData);
+      if (showLocationSettings === "create") {
+        await createLocation(locationData);
+      } else {
+        await updateLocation(showLocationSettings.id.toString(), locationData);
+      }
+      
       setShowLocationSettings(null);
       setEditFormData(null);
       onRefreshLocations();
     } catch (err: any) {
-      alert(`Failed to update location: ${err.message}`);
+      alert(`Failed to ${showLocationSettings === "create" ? "create" : "update"} location: ${err.message}`);
     }
   };
 
@@ -371,14 +383,26 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
             >
               {locationsLoading ? "Refreshing..." : "Refresh"}
             </button>
-            {onAddLocation && (
-              <button
-                className="btn-primary"
-                onClick={onAddLocation}
-              >
-                Add Location
-              </button>
-            )}
+            <button
+              className="btn-primary"
+              onClick={() => {
+                setShowLocationSettings("create");
+                setEditFormData({
+                  name: "",
+                  friendly_name: "",
+                  location_type: "",
+                  parent_id: "",
+                  is_primary_location: false,
+                  is_container: false,
+                  description: "",
+                  address: "",
+                  estimated_property_value: "",
+                  estimated_value_with_items: "",
+                });
+              }}
+            >
+              Add Location
+            </button>
           </div>
         </div>
         {locationsLoading && <p className="muted">Loading locations...</p>}
@@ -577,7 +601,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
         <div className="modal-overlay" onClick={() => setShowLocationSettings(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Location Settings</h2>
+              <h2>{showLocationSettings === "create" ? "Add New Location" : "Location Settings"}</h2>
               <button className="modal-close" onClick={() => setShowLocationSettings(null)}>
                 ✕
               </button>
@@ -635,7 +659,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                     <option value="">-- No Parent (Top Level) --</option>
                     {locations
                       .filter(loc => loc.is_primary_location || !loc.parent_id)
-                      .filter(loc => !showLocationSettings || loc.id.toString() !== showLocationSettings.id.toString())
+                      .filter(loc => showLocationSettings === "create" || (typeof showLocationSettings === "object" && loc.id.toString() !== showLocationSettings.id.toString()))
                       .map((loc) => (
                         <option key={loc.id} value={loc.id.toString()}>
                           {loc.friendly_name || loc.name}
@@ -736,7 +760,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                   Cancel
                 </button>
                 <button type="submit" className="btn-primary">
-                  Save
+                  {showLocationSettings === "create" ? "Create" : "Save"}
                 </button>
               </div>
             </form>
