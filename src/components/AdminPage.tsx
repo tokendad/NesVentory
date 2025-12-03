@@ -506,12 +506,18 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
     
     try {
       const reportData = await getIssueReportData();
+      
+      // Validate that the URL is a GitHub URL to prevent XSS
+      if (!reportData.github_issue_url.startsWith('https://github.com/')) {
+        throw new Error('Invalid GitHub URL received from server');
+      }
+      
       // Store the URL in case popup is blocked
       setGithubIssueUrl(reportData.github_issue_url);
       
       // Navigate the opened window to the GitHub issue URL
       if (newWindow) {
-        newWindow.location.href = reportData.github_issue_url;
+        newWindow.location.assign(reportData.github_issue_url);
       } else {
         // Popup was blocked
         setPopupBlocked(true);
