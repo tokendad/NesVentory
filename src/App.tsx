@@ -505,6 +505,7 @@ const App: React.FC = () => {
               error={locationsError}
               onRefresh={loadLocations}
               onItemClick={handleItemClick}
+              openFormOnMount={true}
             />
             <button
               onClick={() => setShowLocationForm(false)}
