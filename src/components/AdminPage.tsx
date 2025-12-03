@@ -126,6 +126,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
   
   // Issue report states
   const [issueReportLoading, setIssueReportLoading] = useState(false);
+  const [githubIssueUrl, setGithubIssueUrl] = useState<string | null>(null);
   const [viewingLogContent, setViewingLogContent] = useState<string | null>(null);
   const [logContentData, setLogContentData] = useState<string>("");
   const [logContentLoading, setLogContentLoading] = useState(false);
@@ -496,19 +497,22 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
   async function handleOpenGitHubIssue() {
     setIssueReportLoading(true);
     setLogError(null);
+    setGithubIssueUrl(null);
     
     // Open a new window immediately to avoid popup blockers
     const newWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
     
     try {
       const reportData = await getIssueReportData();
+      // Store the URL in case popup is blocked
+      setGithubIssueUrl(reportData.github_issue_url);
+      
       // Navigate the opened window to the GitHub issue URL
       if (newWindow) {
         newWindow.location.href = reportData.github_issue_url;
       } else {
         // Fallback: if popup was blocked, show error with clickable link
-        setLogError("Popup blocked. Please allow popups for this site or click the link below to open the issue.");
-        console.log("GitHub issue URL:", reportData.github_issue_url);
+        setLogError("Popup blocked. Please allow popups for this site or use the link below to open the issue.");
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Failed to generate issue report";
@@ -1529,6 +1533,31 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
               >
                 {issueReportLoading ? "Generating..." : "🐙 Open GitHub Issue"}
               </button>
+              
+              {/* Display clickable link if popup was blocked */}
+              {githubIssueUrl && logError && (
+                <div style={{ 
+                  marginTop: "0.75rem", 
+                  padding: "0.75rem", 
+                  backgroundColor: "#fff3e0",
+                  border: "1px solid #ffb74d",
+                  borderRadius: "0.5rem"
+                }}>
+                  <a 
+                    href={githubIssueUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ 
+                      color: "#e65100",
+                      textDecoration: "underline",
+                      fontSize: "0.875rem",
+                      fontWeight: "500"
+                    }}
+                  >
+                    Click here to open the GitHub issue
+                  </a>
+                </div>
+              )}
             </div>
           </div>
 
