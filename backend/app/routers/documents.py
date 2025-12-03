@@ -166,8 +166,8 @@ async def upload_document_from_url(
                     raise HTTPException(
                         status_code=400,
                         detail="Host resolves to a private, loopback, or link-local IP address. Not allowed."
-                ip_addresses.add(ip)
                     )
+                ip_addresses.add(ip)
             except ValueError:
                 continue  # skip invalid IP addresses
 
