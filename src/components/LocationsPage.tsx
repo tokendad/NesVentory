@@ -115,7 +115,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
     }
   };
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setFormData({
       name: "",
       parent_id: null,
@@ -134,19 +134,19 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
     });
     setFormError(null);
     setEditingLocation(null);
-  };
+  }, []);
+
+  const handleOpenCreate = useCallback(() => {
+    resetForm();
+    setShowForm(true);
+  }, [resetForm]);
 
   // Auto-open the form when openFormOnMount is true
   useEffect(() => {
     if (openFormOnMount) {
       handleOpenCreate();
     }
-  }, [openFormOnMount]);
-
-  const handleOpenCreate = () => {
-    resetForm();
-    setShowForm(true);
-  };
+  }, [openFormOnMount, handleOpenCreate]);
 
   const handleOpenEdit = (location: Location) => {
     setEditingLocation(location);
