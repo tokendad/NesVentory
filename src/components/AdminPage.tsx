@@ -127,6 +127,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
   // Issue report states
   const [issueReportLoading, setIssueReportLoading] = useState(false);
   const [githubIssueUrl, setGithubIssueUrl] = useState<string | null>(null);
+  const [popupBlocked, setPopupBlocked] = useState(false);
   const [viewingLogContent, setViewingLogContent] = useState<string | null>(null);
   const [logContentData, setLogContentData] = useState<string>("");
   const [logContentLoading, setLogContentLoading] = useState(false);
@@ -498,6 +499,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
     setIssueReportLoading(true);
     setLogError(null);
     setGithubIssueUrl(null);
+    setPopupBlocked(false);
     
     // Open a new window immediately to avoid popup blockers
     const newWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
@@ -511,8 +513,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
       if (newWindow) {
         newWindow.location.href = reportData.github_issue_url;
       } else {
-        // Fallback: if popup was blocked, show error with clickable link
-        setLogError("Popup blocked. Please allow popups for this site or use the link below to open the issue.");
+        // Popup was blocked
+        setPopupBlocked(true);
+        setLogError("Popup blocked. Please use the link below to open the GitHub issue.");
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Failed to generate issue report";
@@ -1535,7 +1538,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
               </button>
               
               {/* Display clickable link if popup was blocked */}
-              {githubIssueUrl && logError && (
+              {githubIssueUrl && popupBlocked && (
                 <div style={{ 
                   marginTop: "0.75rem", 
                   padding: "0.75rem", 
