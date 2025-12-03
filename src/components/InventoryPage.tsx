@@ -276,8 +276,8 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                 is_container: loc.is_container || false,
                 description: loc.description || "",
                 address: loc.address || "",
-                estimated_property_value: loc.estimated_property_value ?? "",
-                estimated_value_with_items: loc.estimated_value_with_items ?? "",
+                estimated_property_value: loc.estimated_property_value?.toString() ?? "",
+                estimated_value_with_items: loc.estimated_value_with_items?.toString() ?? "",
               });
             }}
             title="Location Settings"
@@ -310,7 +310,19 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
     if (!showLocationSettings) return;
 
     try {
-      await updateLocation(showLocationSettings.id.toString(), editFormData);
+      // Convert string values to proper types for API
+      const propertyValue = editFormData.estimated_property_value === "" ? null : parseFloat(editFormData.estimated_property_value);
+      const valueWithItems = editFormData.estimated_value_with_items === "" ? null : parseFloat(editFormData.estimated_value_with_items);
+      
+      const updateData = {
+        ...editFormData,
+        parent_id: editFormData.parent_id === "" ? null : editFormData.parent_id,
+        location_type: editFormData.location_type === "" ? null : editFormData.location_type,
+        estimated_property_value: propertyValue !== null && !isNaN(propertyValue) ? propertyValue : null,
+        estimated_value_with_items: valueWithItems !== null && !isNaN(valueWithItems) ? valueWithItems : null,
+      };
+      
+      await updateLocation(showLocationSettings.id.toString(), updateData);
       setShowLocationSettings(null);
       setEditFormData(null);
       onRefreshLocations();
@@ -690,7 +702,10 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                     type="number"
                     id="estimated_property_value"
                     value={editFormData?.estimated_property_value ?? ""}
-                    onChange={(e) => setEditFormData({ ...editFormData, estimated_property_value: e.target.value })}
+                    onChange={(e) => setEditFormData({ 
+                      ...editFormData, 
+                      estimated_property_value: e.target.value 
+                    })}
                     step="0.01"
                     min="0"
                   />
@@ -702,7 +717,10 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                     type="number"
                     id="estimated_value_with_items"
                     value={editFormData?.estimated_value_with_items ?? ""}
-                    onChange={(e) => setEditFormData({ ...editFormData, estimated_value_with_items: e.target.value })}
+                    onChange={(e) => setEditFormData({ 
+                      ...editFormData, 
+                      estimated_value_with_items: e.target.value 
+                    })}
                     step="0.01"
                     min="0"
                   />
