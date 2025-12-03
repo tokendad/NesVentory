@@ -12,6 +12,10 @@ interface InventoryPageProps {
   onRefresh: () => void;
   onRefreshLocations: () => void;
   onItemClick: (item: Item) => void;
+  onAddItem?: () => void;
+  onImport?: () => void;
+  onAIScan?: () => void;
+  onAddLocation?: () => void;
   onBulkDelete?: (itemIds: string[]) => Promise<void>;
   onBulkUpdateTags?: (itemIds: string[], tagIds: string[], mode: "replace" | "add" | "remove") => Promise<void>;
   onBulkUpdateLocation?: (itemIds: string[], locationId: string | null) => Promise<void>;
@@ -48,6 +52,13 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
   onRefresh,
   onRefreshLocations,
   onItemClick,
+  onAddItem,
+  onImport,
+  onAIScan,
+  onAddLocation,
+  onBulkDelete,
+  onBulkUpdateTags,
+  onBulkUpdateLocation,
   tags = [],
   isMobile = false,
 }) => {
@@ -62,6 +73,12 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [showLocationSettings, setShowLocationSettings] = useState<Location | null>(null);
   const [editFormData, setEditFormData] = useState<any>(null);
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<"delete" | "updateTags" | "updateLocation" | null>(null);
+  const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set());
+  const [tagUpdateMode, setTagUpdateMode] = useState<"replace" | "add" | "remove">("add");
+  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   // Build location tree
   const locationTree = useMemo(() => {
@@ -127,6 +144,73 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
 
   // Get enabled columns
   const enabledColumns = columns.filter(col => col.enabled);
+
+  // Bulk operation handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedItemIds(new Set(filteredItems.map(item => item.id.toString())));
+    } else {
+      setSelectedItemIds(new Set());
+    }
+  };
+
+  const handleSelectItem = (itemId: string, checked: boolean) => {
+    const newSelected = new Set(selectedItemIds);
+    if (checked) {
+      newSelected.add(itemId);
+    } else {
+      newSelected.delete(itemId);
+    }
+    setSelectedItemIds(newSelected);
+  };
+
+  const visibleSelectedIds = useMemo(() => {
+    const filteredIds = new Set(filteredItems.map(item => item.id.toString()));
+    return new Set(Array.from(selectedItemIds).filter(id => filteredIds.has(id)));
+  }, [filteredItems, selectedItemIds]);
+
+  const isAllSelected = filteredItems.length > 0 && filteredItems.every(item => selectedItemIds.has(item.id.toString()));
+  const isSomeSelected = visibleSelectedIds.size > 0;
+
+  const handleBulkActionConfirm = async () => {
+    if (!bulkAction || visibleSelectedIds.size === 0) return;
+    
+    setBulkActionLoading(true);
+    try {
+      const itemIds = Array.from(visibleSelectedIds);
+      
+      if (bulkAction === "delete" && onBulkDelete) {
+        await onBulkDelete(itemIds);
+      } else if (bulkAction === "updateTags" && onBulkUpdateTags) {
+        await onBulkUpdateTags(itemIds, Array.from(selectedTagIds), tagUpdateMode);
+      } else if (bulkAction === "updateLocation" && onBulkUpdateLocation) {
+        await onBulkUpdateLocation(itemIds, selectedLocationId);
+      }
+      
+      setSelectedItemIds(new Set());
+      setBulkAction(null);
+      setSelectedTagIds(new Set());
+      setSelectedLocationId(null);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleCancelBulkAction = () => {
+    setBulkAction(null);
+    setSelectedTagIds(new Set());
+    setSelectedLocationId(null);
+  };
+
+  const handleTagToggle = (tagId: string) => {
+    const newSelected = new Set(selectedTagIds);
+    if (newSelected.has(tagId)) {
+      newSelected.delete(tagId);
+    } else {
+      newSelected.add(tagId);
+    }
+    setSelectedTagIds(newSelected);
+  };
 
   // Location node component
   const LocationNode: React.FC<{ 
@@ -258,6 +342,14 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
             >
               {locationsLoading ? "Refreshing..." : "Refresh"}
             </button>
+            {onAddLocation && (
+              <button
+                className="btn-primary"
+                onClick={onAddLocation}
+              >
+                Add Location
+              </button>
+            )}
           </div>
         </div>
         {locationsLoading && <p className="muted">Loading locations...</p>}
@@ -275,12 +367,34 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
 
       {/* Items Section */}
       <section className="panel" style={{ marginTop: "1rem" }}>
-        <div className="panel-header">
-          <h2>
-            Items
-            {selectedLocation && ` in ${selectedLocation.friendly_name || selectedLocation.name}`}
-          </h2>
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+        <div className="panel-header panel-header-left">
+          <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
+            {isSomeSelected && (
+              <>
+                <button 
+                  className="btn-danger" 
+                  onClick={() => setBulkAction("delete")}
+                  disabled={itemsLoading}
+                >
+                  Delete ({visibleSelectedIds.size})
+                </button>
+                <button 
+                  className="btn-outline" 
+                  onClick={() => setBulkAction("updateTags")}
+                  disabled={itemsLoading}
+                >
+                  Update Tags ({visibleSelectedIds.size})
+                </button>
+                <button 
+                  className="btn-outline" 
+                  onClick={() => setBulkAction("updateLocation")}
+                  disabled={itemsLoading}
+                >
+                  Update Location ({visibleSelectedIds.size})
+                </button>
+                <div style={{ width: "1px", height: "1.5rem", background: "var(--border-subtle)", margin: "0 0.25rem" }} />
+              </>
+            )}
             <label style={{ fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
               Show:
               <select
@@ -308,7 +422,26 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
             >
               {itemsLoading ? "Refreshing..." : "Refresh"}
             </button>
+            {onAIScan && (
+              <button className="btn-outline" onClick={onAIScan}>
+                📷 AI Scan
+              </button>
+            )}
+            {onImport && (
+              <button className="btn-outline" onClick={onImport}>
+                Import from Encircle
+              </button>
+            )}
+            {onAddItem && (
+              <button className="btn-primary" onClick={onAddItem}>
+                Add Item
+              </button>
+            )}
           </div>
+          <h2>
+            Items
+            {selectedLocation && ` in ${selectedLocation.friendly_name || selectedLocation.name}`}
+          </h2>
         </div>
 
         {/* Column Selector */}
@@ -339,6 +472,14 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
           <table className="items-table">
             <thead>
               <tr>
+                <th style={{ width: "2.5rem" }}>
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    disabled={filteredItems.length === 0}
+                  />
+                </th>
                 {enabledColumns.map(col => (
                   <th key={col.key}>{col.label}</th>
                 ))}
@@ -347,46 +488,56 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
             <tbody>
               {filteredItems.length === 0 && !itemsLoading && (
                 <tr>
-                  <td colSpan={enabledColumns.length} className="empty-row">
+                  <td colSpan={enabledColumns.length + 1} className="empty-row">
                     {selectedLocation 
                       ? "No items in this location."
                       : "No items yet."}
                   </td>
                 </tr>
               )}
-              {filteredItems.map((item) => (
-                <tr
-                  key={item.id}
-                  onClick={() => onItemClick(item)}
-                  style={{ cursor: "pointer" }}
-                >
-                  {enabledColumns.map(col => {
-                    if (col.key === "name") return <td key={col.key}>{item.name}</td>;
-                    if (col.key === "brand") return <td key={col.key}>{item.brand || "—"}</td>;
-                    if (col.key === "model_number") return <td key={col.key}>{item.model_number || "—"}</td>;
-                    if (col.key === "serial_number") return <td key={col.key}>{item.serial_number || "—"}</td>;
-                    if (col.key === "location") return <td key={col.key}>{getLocationPath(item.location_id, locations)}</td>;
-                    if (col.key === "purchase_price") return (
-                      <td key={col.key}>
-                        {item.purchase_price != null ? `$${item.purchase_price.toLocaleString()}` : "—"}
-                      </td>
-                    );
-                    if (col.key === "estimated_value") return (
-                      <td key={col.key}>
-                        {item.estimated_value != null ? `$${item.estimated_value.toLocaleString()}` : "—"}
-                      </td>
-                    );
-                    if (col.key === "tags") return (
-                      <td key={col.key}>
-                        {item.tags && item.tags.length > 0 
-                          ? item.tags.map(t => t.name).join(", ")
-                          : "—"}
-                      </td>
-                    );
-                    return <td key={col.key}>—</td>;
-                  })}
-                </tr>
-              ))}
+              {filteredItems.map((item) => {
+                const itemIdStr = item.id.toString();
+                return (
+                  <tr
+                    key={item.id}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => onItemClick(item)}
+                  >
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedItemIds.has(itemIdStr)}
+                        onChange={(e) => handleSelectItem(itemIdStr, e.target.checked)}
+                      />
+                    </td>
+                    {enabledColumns.map(col => {
+                      if (col.key === "name") return <td key={col.key}>{item.name}</td>;
+                      if (col.key === "brand") return <td key={col.key}>{item.brand || "—"}</td>;
+                      if (col.key === "model_number") return <td key={col.key}>{item.model_number || "—"}</td>;
+                      if (col.key === "serial_number") return <td key={col.key}>{item.serial_number || "—"}</td>;
+                      if (col.key === "location") return <td key={col.key}>{getLocationPath(item.location_id, locations)}</td>;
+                      if (col.key === "purchase_price") return (
+                        <td key={col.key}>
+                          {item.purchase_price != null ? `$${item.purchase_price.toLocaleString()}` : "—"}
+                        </td>
+                      );
+                      if (col.key === "estimated_value") return (
+                        <td key={col.key}>
+                          {item.estimated_value != null ? `$${item.estimated_value.toLocaleString()}` : "—"}
+                        </td>
+                      );
+                      if (col.key === "tags") return (
+                        <td key={col.key}>
+                          {item.tags && item.tags.length > 0 
+                            ? item.tags.map(t => t.name).join(", ")
+                            : "—"}
+                        </td>
+                      );
+                      return <td key={col.key}>—</td>;
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -453,6 +604,123 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {bulkAction === "delete" && (
+        <div className="modal-overlay" onClick={handleCancelBulkAction}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Confirm Bulk Delete</h2>
+              <button className="modal-close" onClick={handleCancelBulkAction}>✕</button>
+            </div>
+            <div style={{ padding: "1.5rem" }}>
+              <p>Are you sure you want to delete {visibleSelectedIds.size} item{visibleSelectedIds.size !== 1 ? 's' : ''}?</p>
+              <p style={{ color: "var(--danger)", marginTop: "0.5rem" }}>This action cannot be undone.</p>
+            </div>
+            <div className="form-actions">
+              <button className="btn-outline" onClick={handleCancelBulkAction} disabled={bulkActionLoading}>
+                Cancel
+              </button>
+              <button className="btn-danger" onClick={handleBulkActionConfirm} disabled={bulkActionLoading}>
+                {bulkActionLoading ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Update Tags Modal */}
+      {bulkAction === "updateTags" && (
+        <div className="modal-overlay" onClick={handleCancelBulkAction}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Update Tags for {visibleSelectedIds.size} Item{visibleSelectedIds.size !== 1 ? 's' : ''}</h2>
+              <button className="modal-close" onClick={handleCancelBulkAction}>✕</button>
+            </div>
+            <div style={{ padding: "1.5rem" }}>
+              <div className="form-group">
+                <label>Mode</label>
+                <select
+                  value={tagUpdateMode}
+                  onChange={(e) => setTagUpdateMode(e.target.value as "replace" | "add" | "remove")}
+                  style={{ width: "100%", padding: "0.5rem" }}
+                >
+                  <option value="add">Add Tags</option>
+                  <option value="remove">Remove Tags</option>
+                  <option value="replace">Replace Tags</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Select Tags</label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.5rem" }}>
+                  {tags.map(tag => (
+                    <label key={tag.id} style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedTagIds.has(tag.id.toString())}
+                        onChange={() => handleTagToggle(tag.id.toString())}
+                      />
+                      <span>{tag.name}</span>
+                    </label>
+                  ))}
+                  {tags.length === 0 && (
+                    <p style={{ color: "var(--muted)" }}>No tags available</p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="form-actions">
+              <button className="btn-outline" onClick={handleCancelBulkAction} disabled={bulkActionLoading}>
+                Cancel
+              </button>
+              <button 
+                className="btn-primary" 
+                onClick={handleBulkActionConfirm} 
+                disabled={bulkActionLoading || selectedTagIds.size === 0}
+              >
+                {bulkActionLoading ? "Updating..." : "Update"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Update Location Modal */}
+      {bulkAction === "updateLocation" && (
+        <div className="modal-overlay" onClick={handleCancelBulkAction}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Update Location for {visibleSelectedIds.size} Item{visibleSelectedIds.size !== 1 ? 's' : ''}</h2>
+              <button className="modal-close" onClick={handleCancelBulkAction}>✕</button>
+            </div>
+            <div style={{ padding: "1.5rem" }}>
+              <div className="form-group">
+                <label>Select Location</label>
+                <select
+                  value={selectedLocationId || ""}
+                  onChange={(e) => setSelectedLocationId(e.target.value || null)}
+                  style={{ width: "100%", padding: "0.5rem" }}
+                >
+                  <option value="">No Location</option>
+                  {locations.map(loc => (
+                    <option key={loc.id} value={loc.id.toString()}>
+                      {getLocationPath(loc.id, locations)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="form-actions">
+              <button className="btn-outline" onClick={handleCancelBulkAction} disabled={bulkActionLoading}>
+                Cancel
+              </button>
+              <button className="btn-primary" onClick={handleBulkActionConfirm} disabled={bulkActionLoading}>
+                {bulkActionLoading ? "Updating..." : "Update"}
+              </button>
+            </div>
           </div>
         </div>
       )}
