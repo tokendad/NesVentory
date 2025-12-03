@@ -496,13 +496,27 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
   async function handleOpenGitHubIssue() {
     setIssueReportLoading(true);
     setLogError(null);
+    
+    // Open a new window immediately to avoid popup blockers
+    const newWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
+    
     try {
       const reportData = await getIssueReportData();
-      // Open GitHub issue in new tab
-      window.open(reportData.github_issue_url, '_blank', 'noopener,noreferrer');
+      // Navigate the opened window to the GitHub issue URL
+      if (newWindow) {
+        newWindow.location.href = reportData.github_issue_url;
+      } else {
+        // Fallback: if popup was blocked, show error with clickable link
+        setLogError("Popup blocked. Please allow popups for this site or click the link below to open the issue.");
+        console.log("GitHub issue URL:", reportData.github_issue_url);
+      }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Failed to generate issue report";
       setLogError(errorMessage);
+      // Close the blank window if we opened one
+      if (newWindow) {
+        newWindow.close();
+      }
     } finally {
       setIssueReportLoading(false);
     }
