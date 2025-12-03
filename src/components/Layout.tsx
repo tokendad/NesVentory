@@ -8,11 +8,22 @@ interface LayoutProps {
   userEmail?: string;
   userName?: string;
   onUserClick?: () => void;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
 }
 
 export { useIsMobile };
 
-const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail, userName, onUserClick }) => {
+const Layout: React.FC<LayoutProps> = ({ 
+  sidebar, 
+  children, 
+  onLogout, 
+  userEmail, 
+  userName, 
+  onUserClick,
+  searchQuery = "",
+  onSearchChange,
+}) => {
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -45,6 +56,16 @@ const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail,
           <img src="/logo.png" alt="NesVentory" className="app-logo" />
         </div>
         <div className="app-header-right">
+          {onSearchChange && (
+            <div className="header-search">
+              <input
+                type="text"
+                placeholder="🔍 Search items..."
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+              />
+            </div>
+          )}
           {!isMobile && (userName || userEmail) && (
             <span 
               className="user-email" 
@@ -54,11 +75,6 @@ const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail,
             >
               {userName || userEmail}
             </span>
-          )}
-          {!isMobile && (
-            <button className="btn-outline" onClick={onLogout}>
-              Logout
-            </button>
           )}
         </div>
       </header>

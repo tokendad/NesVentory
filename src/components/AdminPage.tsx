@@ -48,6 +48,7 @@ import {
 interface AdminPageProps {
   onClose: () => void;
   currentUserId?: string;
+  embedded?: boolean;
 }
 
 // Type definition for Google Identity Services OAuth2 code client
@@ -78,7 +79,7 @@ interface GoogleWindow extends Window {
 type MainTabType = 'users' | 'logs' | 'server';
 type UserSubTabType = 'all' | 'pending' | 'create';
 
-const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
+const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded = false }) => {
   // Main tab state
   const [mainTab, setMainTab] = useState<MainTabType>('users');
   
@@ -2357,47 +2358,66 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
     </div>
   );
 
-  return (
-    <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: "1100px", maxHeight: "90vh", overflowY: "auto" }}>
+  const content = (
+    <>
+      {!embedded && (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
           <h2>Admin Panel</h2>
           <button className="btn-outline" onClick={onClose}>
             Close
           </button>
         </div>
-        
-        {/* Main Tab Navigation */}
-        <div className="tab-navigation">
-          <button
-            type="button"
-            className={`tab-button ${mainTab === 'users' ? 'active' : ''}`}
-            onClick={() => handleMainTabChange('users')}
-          >
-            👥 User Admin
-          </button>
-          <button
-            type="button"
-            className={`tab-button ${mainTab === 'logs' ? 'active' : ''}`}
-            onClick={() => handleMainTabChange('logs')}
-          >
-            📋 Log Settings
-          </button>
-          <button
-            type="button"
-            className={`tab-button ${mainTab === 'server' ? 'active' : ''}`}
-            onClick={() => handleMainTabChange('server')}
-          >
-            ⚙️ Server Settings
-          </button>
-        </div>
+      )}
+      {embedded && (
+        <section className="panel">
+          <div className="panel-header">
+            <h2>Admin Panel</h2>
+          </div>
+        </section>
+      )}
+      
+      {/* Main Tab Navigation */}
+      <div className="tab-navigation" style={embedded ? { marginTop: "1rem" } : undefined}>
+        <button
+          type="button"
+          className={`tab-button ${mainTab === 'users' ? 'active' : ''}`}
+          onClick={() => handleMainTabChange('users')}
+        >
+          👥 User Admin
+        </button>
+        <button
+          type="button"
+          className={`tab-button ${mainTab === 'logs' ? 'active' : ''}`}
+          onClick={() => handleMainTabChange('logs')}
+        >
+          📋 Log Settings
+        </button>
+        <button
+          type="button"
+          className={`tab-button ${mainTab === 'server' ? 'active' : ''}`}
+          onClick={() => handleMainTabChange('server')}
+        >
+          ⚙️ Server Settings
+        </button>
+      </div>
 
-        {/* Tab Content */}
-        <div className="tab-panels">
-          {mainTab === 'users' && renderUserAdminTab()}
-          {mainTab === 'logs' && renderLogSettingsTab()}
-          {mainTab === 'server' && renderServerSettingsTab()}
-        </div>
+      {/* Tab Content */}
+      <div className="tab-panels">
+        {mainTab === 'users' && renderUserAdminTab()}
+        {mainTab === 'logs' && renderLogSettingsTab()}
+        {mainTab === 'server' && renderServerSettingsTab()}
+      </div>
+    </>
+  );
+
+  if (embedded) {
+    return <div>{content}</div>;
+  }
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: "1100px", maxHeight: "90vh", overflowY: "auto" }}>
+        {content}
       </div>
     </div>
   );
