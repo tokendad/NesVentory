@@ -54,15 +54,6 @@ const Layout: React.FC<LayoutProps> = ({
             </button>
           )}
           <img src="/logo.png" alt="NesVentory" className="app-logo" />
-          <h1 style={{ 
-            fontSize: "1.25rem", 
-            fontWeight: "600", 
-            color: "var(--accent)",
-            margin: 0,
-            marginLeft: "0.5rem"
-          }}>
-            NesVentory
-          </h1>
         </div>
         <div className="app-header-right">
           {onSearchChange && (
