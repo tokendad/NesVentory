@@ -15,8 +15,9 @@ services:
     ports:
       - "5151:5151"
     environment:
-      SECRET_KEY: CHANGE_ME_
-      JWT_SECRET_KEY: CHANGE_ME
+      # IMPORTANT: Generate secure, random keys for these values before deploying!
+      SECRET_KEY: CHANGE_ME_GENERATE_SECURE_KEY_HERE
+      JWT_SECRET_KEY: CHANGE_ME_GENERATE_SECURE_KEY_HERE
       PUID: 1000
       PGID: 1000
       UMASK: 002

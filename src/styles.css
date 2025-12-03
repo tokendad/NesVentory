@@ -2690,6 +2690,24 @@ tbody tr:hover {
   }
 }
 
+/* Responsive date input styles - ensure calendar fits on screen */
+input[type="date"] {
+  max-width: 100%;
+  position: relative;
+}
+
+/* Ensure date picker calendar is responsive and doesn't overflow */
+@media (max-width: 768px) {
+  input[type="date"] {
+    font-size: 16px; /* Prevents zoom on mobile */
+  }
+}
+
+/* Calendar widget should fit within viewport */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
 /* Calendar Styles */
 .calendar-container {
   padding: 1rem;
@@ -2924,5 +2942,4 @@ tbody tr:hover {
     padding: 0.75rem;
   }
 }
-
 

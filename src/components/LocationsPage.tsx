@@ -282,11 +282,10 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
           ))}
         </div>
 
-        {/* Location Cards Grid */}
-        <div className="location-cards-grid">
+        {/* Location List - Vertical */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1rem" }}>
           {currentPanelLocations.length === 0 && !loading && (
             <div style={{ 
-              gridColumn: "1 / -1", 
               textAlign: "center", 
               padding: "2rem",
               color: "var(--muted)",
