@@ -68,8 +68,6 @@ const App: React.FC = () => {
   const [editingItem, setEditingItem] = useState(false);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
   const [showUserSettings, setShowUserSettings] = useState(false);
-  const [showLocaleSettings, setShowLocaleSettings] = useState(false);
-  const [showThemeSettings, setShowThemeSettings] = useState(false);
   const [showAdminPage, setShowAdminPage] = useState(false);
   const [showEncircleImport, setShowEncircleImport] = useState(false);
   const [showAIDetection, setShowAIDetection] = useState(false);
@@ -369,8 +367,6 @@ const App: React.FC = () => {
         userEmail={userEmail}
         userName={currentUser?.full_name || undefined}
         onUserClick={() => setShowUserSettings(true)}
-        onLocaleClick={() => setShowLocaleSettings(true)}
-        onThemeClick={() => setShowThemeSettings(true)}
       >
         {view === "dashboard" && (
           <>
@@ -502,16 +498,6 @@ const App: React.FC = () => {
             user={currentUser}
             onClose={() => setShowUserSettings(false)}
             onUpdate={handleUserSettingsUpdate}
-          />
-        )}
-        {showLocaleSettings && (
-          <LocaleSettings
-            onClose={() => setShowLocaleSettings(false)}
-          />
-        )}
-        {showThemeSettings && (
-          <ThemeSettings
-            onClose={() => setShowThemeSettings(false)}
           />
         )}
         {showAdminPage && currentUser?.role === "admin" && (
