@@ -323,6 +323,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
         address: editFormData.address || null,
         estimated_property_value: propertyValue !== null && !isNaN(propertyValue) ? propertyValue : null,
         estimated_value_with_items: valueWithItems !== null && !isNaN(valueWithItems) ? valueWithItems : null,
+        // These fields are required by the API but not yet supported in the form UI
         owner_info: null,
         landlord_info: null,
         tenant_info: null,
@@ -659,7 +660,11 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                     <option value="">-- No Parent (Top Level) --</option>
                     {locations
                       .filter(loc => loc.is_primary_location || !loc.parent_id)
-                      .filter(loc => showLocationSettings === "create" || (typeof showLocationSettings === "object" && loc.id.toString() !== showLocationSettings.id.toString()))
+                      .filter(loc => {
+                        // In create mode, show all locations. In edit mode, exclude the location being edited
+                        if (showLocationSettings === "create") return true;
+                        return loc.id.toString() !== showLocationSettings.id.toString();
+                      })
                       .map((loc) => (
                         <option key={loc.id} value={loc.id.toString()}>
                           {loc.friendly_name || loc.name}
