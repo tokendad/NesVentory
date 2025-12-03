@@ -126,6 +126,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
   
   // Issue report states
   const [issueReportLoading, setIssueReportLoading] = useState(false);
+  const [githubIssueUrl, setGithubIssueUrl] = useState<string | null>(null);
+  const [popupBlocked, setPopupBlocked] = useState(false);
   const [viewingLogContent, setViewingLogContent] = useState<string | null>(null);
   const [logContentData, setLogContentData] = useState<string>("");
   const [logContentLoading, setLogContentLoading] = useState(false);
@@ -496,13 +498,57 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
   async function handleOpenGitHubIssue() {
     setIssueReportLoading(true);
     setLogError(null);
+    setGithubIssueUrl(null);
+    setPopupBlocked(false);
+    
+    const POPUP_BLOCKED_MESSAGE = "Popup blocked by browser. Please use the link below to open the GitHub issue.";
+    
+    // Open a new window immediately to avoid popup blockers
+    const newWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
+    
     try {
       const reportData = await getIssueReportData();
-      // Open GitHub issue in new tab
-      window.open(reportData.github_issue_url, '_blank', 'noopener,noreferrer');
+      
+      // Validate that the URL is properly formatted and is a GitHub URL to prevent XSS
+      let validatedUrl: URL;
+      try {
+        validatedUrl = new URL(reportData.github_issue_url);
+        if (!validatedUrl.href.startsWith('https://github.com/')) {
+          throw new Error('URL must be a GitHub URL');
+        }
+      } catch {
+        throw new Error('Invalid GitHub URL received from server');
+      }
+      
+      // Store the URL in case popup is blocked
+      setGithubIssueUrl(validatedUrl.href);
+      
+      // Navigate the opened window to the GitHub issue URL
+      if (newWindow) {
+        try {
+          newWindow.location.assign(validatedUrl.href);
+        } catch (navError) {
+          // Firefox might block the navigation even if window was opened
+          setPopupBlocked(true);
+          setLogError(POPUP_BLOCKED_MESSAGE);
+          newWindow.close();
+        }
+      } else {
+        // Popup was blocked (window.open returned null)
+        setPopupBlocked(true);
+        setLogError(POPUP_BLOCKED_MESSAGE);
+      }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Failed to generate issue report";
       setLogError(errorMessage);
+      // Close the blank window if we opened one
+      if (newWindow && !newWindow.closed) {
+        try {
+          newWindow.close();
+        } catch {
+          // Ignore errors when closing window
+        }
+      }
     } finally {
       setIssueReportLoading(false);
     }
@@ -1515,6 +1561,31 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId }) => {
               >
                 {issueReportLoading ? "Generating..." : "🐙 Open GitHub Issue"}
               </button>
+              
+              {/* Fallback link shown when browser popup blocker prevents automatic window opening */}
+              {githubIssueUrl && popupBlocked && (
+                <div style={{ 
+                  marginTop: "0.75rem", 
+                  padding: "0.75rem", 
+                  backgroundColor: "#fff3e0",
+                  border: "1px solid #ffb74d",
+                  borderRadius: "0.5rem"
+                }}>
+                  <a 
+                    href={githubIssueUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ 
+                      color: "#e65100",
+                      textDecoration: "underline",
+                      fontSize: "0.875rem",
+                      fontWeight: "500"
+                    }}
+                  >
+                    Click here to open the GitHub issue
+                  </a>
+                </div>
+              )}
             </div>
           </div>
 
