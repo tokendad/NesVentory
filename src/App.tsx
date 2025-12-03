@@ -1,18 +1,24 @@
+/**
+ * NesVentory v5.0.0 - Main Application Component
+ * 
+ * Legacy components that can be removed in future cleanup:
+ * - DashboardCards.tsx (functionality merged into InventoryPage)
+ * - ItemsTable.tsx (functionality merged into InventoryPage)
+ * - LocationsPage.tsx (functionality merged into InventoryPage)
+ * - LocationsTree.tsx (removed from sidebar navigation)
+ */
+
 import React, { useEffect, useState } from "react";
 import LoginForm from "./components/LoginForm";
 import RegisterForm from "./components/RegisterForm";
 import UserSettings from "./components/UserSettings";
-import LocaleSettings from "./components/LocaleSettings";
-import ThemeSettings from "./components/ThemeSettings";
+import SystemSettings from "./components/SystemSettings";
+import Calendar from "./components/Calendar";
 import AdminPage from "./components/AdminPage";
 import Layout, { useIsMobile } from "./components/Layout";
-import DashboardCards from "./components/DashboardCards";
-import ItemsTable from "./components/ItemsTable";
-import LocationsTree from "./components/LocationsTree";
-import LocationsPage from "./components/LocationsPage";
+import InventoryPage from "./components/InventoryPage";
 import ItemForm from "./components/ItemForm";
 import ItemDetails from "./components/ItemDetails";
-import Status from "./components/Status";
 import EncircleImport from "./components/EncircleImport";
 import AIDetection from "./components/AIDetection";
 import {
@@ -37,9 +43,10 @@ import {
 } from "./lib/api";
 import { PHOTO_TYPES } from "./lib/constants";
 import type { PhotoUpload, DocumentUpload } from "./lib/types";
-import { getLocationPath } from "./lib/utils";
 
-type View = "dashboard" | "items" | "locations" | "status" | "admin";
+type View = "inventory" | "user-settings" | "calendar" | "system-settings" | "admin";
+
+const APP_VERSION = "5.0.0";
 
 const App: React.FC = () => {
   const isMobile = useIsMobile();
@@ -62,18 +69,15 @@ const App: React.FC = () => {
   const [locationsLoading, setLocationsLoading] = useState(false);
   const [itemsError, setItemsError] = useState<string | null>(null);
   const [locationsError, setLocationsError] = useState<string | null>(null);
-  const [view, setView] = useState<View>("dashboard");
+  const [view, setView] = useState<View>("inventory");
   const [showItemForm, setShowItemForm] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [editingItem, setEditingItem] = useState(false);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
-  const [showUserSettings, setShowUserSettings] = useState(false);
-  const [showLocaleSettings, setShowLocaleSettings] = useState(false);
-  const [showThemeSettings, setShowThemeSettings] = useState(false);
-  const [showAdminPage, setShowAdminPage] = useState(false);
   const [showEncircleImport, setShowEncircleImport] = useState(false);
   const [showAIDetection, setShowAIDetection] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   async function loadItems() {
     setItemsLoading(true);
@@ -243,10 +247,6 @@ const App: React.FC = () => {
     setEditingItem(true);
   }
 
-  function getLocationName(locationId: number | string | null | undefined): string {
-    return getLocationPath(locationId, locations);
-  }
-
   function handleUserSettingsUpdate(updatedUser: User) {
     setCurrentUser(updatedUser);
     // Persist only NON-SENSITIVE user fields to localStorage.
@@ -271,6 +271,29 @@ const App: React.FC = () => {
     // You may optionally add a runtime assertion or warning if sensitive keys are present
     localStorage.setItem("NesVentory_currentUser", JSON.stringify(safeUser));
   }
+
+  // Filter items based on search query
+  const filteredItems = searchQuery.trim()
+    ? items.filter((item) => {
+        const query = searchQuery.toLowerCase().trim();
+        const searchableFields = [
+          item.name,
+          item.description,
+          item.brand,
+          item.model_number,
+          item.serial_number,
+          item.retailer,
+          item.upc,
+        ];
+        const fieldMatch = searchableFields.some(
+          (field) => field && field.toLowerCase().includes(query)
+        );
+        const tagMatch = item.tags?.some(
+          (tag) => tag.name.toLowerCase().includes(query)
+        );
+        return fieldMatch || tagMatch;
+      })
+    : items;
 
   if (!token) {
     return (
@@ -321,43 +344,41 @@ const App: React.FC = () => {
   const sidebar = (
     <nav className="sidebar-nav">
       <button
-        className={view === "dashboard" ? "nav-link active" : "nav-link"}
-        onClick={() => setView("dashboard")}
+        className={view === "inventory" ? "nav-link active" : "nav-link"}
+        onClick={() => setView("inventory")}
       >
-        Dashboard
+        📦 Inventory
       </button>
       <button
-        className={view === "items" ? "nav-link active" : "nav-link"}
-        onClick={() => setView("items")}
+        className={view === "user-settings" ? "nav-link active" : "nav-link"}
+        onClick={() => setView("user-settings")}
       >
-        Items
+        👤 User Settings
       </button>
       <button
-        className={view === "locations" ? "nav-link active" : "nav-link"}
-        onClick={() => setView("locations")}
+        className={view === "calendar" ? "nav-link active" : "nav-link"}
+        onClick={() => setView("calendar")}
       >
-        Locations
+        📅 Maintenance Calendar
       </button>
       <button
-        className={view === "status" ? "nav-link active" : "nav-link"}
-        onClick={() => setView("status")}
+        className={view === "system-settings" ? "nav-link active" : "nav-link"}
+        onClick={() => setView("system-settings")}
       >
-        Status
+        ⚙️ System Settings
       </button>
       {currentUser?.role === "admin" && (
         <button
           className={view === "admin" ? "nav-link active" : "nav-link"}
-          onClick={() => setShowAdminPage(true)}
+          onClick={() => setView("admin")}
         >
-          Admin
+          🔐 Admin
         </button>
       )}
-      <hr />
-      <LocationsTree
-        locations={locations}
-        loading={locationsLoading}
-        error={locationsError}
-      />
+      <div style={{ flex: 1 }} />
+      <button className="btn-outline" onClick={handleLogout} style={{ marginTop: "auto" }}>
+        Logout
+      </button>
     </nav>
   );
 
@@ -368,103 +389,51 @@ const App: React.FC = () => {
         onLogout={handleLogout} 
         userEmail={userEmail}
         userName={currentUser?.full_name || undefined}
-        onUserClick={() => setShowUserSettings(true)}
-        onLocaleClick={() => setShowLocaleSettings(true)}
-        onThemeClick={() => setShowThemeSettings(true)}
+        onUserClick={() => setView("user-settings")}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
       >
-        {view === "dashboard" && (
-          <>
-            <DashboardCards
-              totalItems={items.length}
-              totalLocations={locations.length}
-              isMobile={isMobile}
-              userName={currentUser?.full_name || undefined}
-              userEmail={userEmail}
-              onUserClick={() => setShowUserSettings(true)}
-              onLogout={handleLogout}
-            />
-            <section className="panel">
-              <div className="panel-header">
-                <h2>Recent Items</h2>
-                <button
-                  className="btn-outline"
-                  onClick={loadItems}
-                  disabled={itemsLoading}
-                >
-                  {itemsLoading ? "Refreshing..." : "Refresh"}
-                </button>
-              </div>
-              <div className="table-wrapper">
-                <table className="items-table compact">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Brand</th>
-                      <th>Location</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items
-                      .slice()
-                      .sort((a, b) => {
-                        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-                        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-                        return dateB - dateA;
-                      })
-                      .slice(0, 10)
-                      .map((item) => (
-                        <tr
-                          key={item.id}
-                          onClick={() => handleItemClick(item)}
-                          style={{ cursor: "pointer" }}
-                        >
-                          <td>{item.name}</td>
-                          <td>{item.brand || "—"}</td>
-                          <td>{getLocationName(item.location_id)}</td>
-                        </tr>
-                      ))}
-                    {items.length === 0 && !itemsLoading && (
-                      <tr>
-                        <td colSpan={3} className="empty-row">
-                          No items yet. Your dashboard will come to life after your
-                          first import.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </>
-        )}
-        {view === "items" && (
-          <ItemsTable
-            items={items}
-            loading={itemsLoading}
-            error={itemsError}
+        {view === "inventory" && (
+          <InventoryPage
+            items={filteredItems}
+            locations={locations}
+            loading={itemsLoading || locationsLoading}
+            itemsLoading={itemsLoading}
+            locationsLoading={locationsLoading}
             onRefresh={loadItems}
-            onAddItem={() => setShowItemForm(true)}
+            onRefreshLocations={loadLocations}
             onItemClick={handleItemClick}
-            onImport={() => setShowEncircleImport(true)}
-            onAIScan={() => setShowAIDetection(true)}
             onBulkDelete={handleBulkDelete}
             onBulkUpdateTags={handleBulkUpdateTags}
             onBulkUpdateLocation={handleBulkUpdateLocation}
             tags={tags}
-            locations={locations}
+            isMobile={isMobile}
           />
         )}
-        {view === "locations" && (
-          <LocationsPage
-            locations={locations}
-            items={items}
-            loading={locationsLoading}
-            error={locationsError}
-            onRefresh={loadLocations}
-            onItemClick={handleItemClick}
+        {view === "user-settings" && currentUser && (
+          <UserSettings
+            user={currentUser}
+            onClose={() => setView("inventory")}
+            onUpdate={handleUserSettingsUpdate}
+            embedded={true}
           />
         )}
-        {view === "status" && <Status />}
+        {view === "calendar" && <Calendar />}
+        {view === "system-settings" && <SystemSettings />}
+        {view === "admin" && currentUser?.role === "admin" && (
+          <AdminPage 
+            onClose={() => setView("inventory")} 
+            currentUserId={currentUser?.id}
+            embedded={true}
+          />
+        )}
+        
+        {/* Footer with version */}
+        <footer className="app-footer">
+          NesVentory v{APP_VERSION} | <a href="https://github.com/tokendad/NesVentory" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </footer>
+
+        {/* Modals */}
         {showItemForm && (
           <ItemForm
             onSubmit={handleCreateItem}
@@ -496,26 +465,6 @@ const App: React.FC = () => {
             currentUserId={currentUser?.id}
             currentUserName={currentUser?.full_name || currentUser?.email}
           />
-        )}
-        {showUserSettings && currentUser && (
-          <UserSettings
-            user={currentUser}
-            onClose={() => setShowUserSettings(false)}
-            onUpdate={handleUserSettingsUpdate}
-          />
-        )}
-        {showLocaleSettings && (
-          <LocaleSettings
-            onClose={() => setShowLocaleSettings(false)}
-          />
-        )}
-        {showThemeSettings && (
-          <ThemeSettings
-            onClose={() => setShowThemeSettings(false)}
-          />
-        )}
-        {showAdminPage && currentUser?.role === "admin" && (
-          <AdminPage onClose={() => setShowAdminPage(false)} currentUserId={currentUser?.id} />
         )}
         {showEncircleImport && (
           <EncircleImport
