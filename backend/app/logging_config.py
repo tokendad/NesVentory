@@ -159,7 +159,7 @@ def setup_logging() -> None:
         file_handler.setFormatter(detailed_formatter)
         root_logger.addHandler(file_handler)
         file_handler_created = True
-    except (OSError, IOError, ValueError) as e:
+    except (OSError, IOError) as e:
         print(f"❌ ERROR: Could not create file handler: {e}", file=sys.stderr)
         print(f"   Log file path: {CURRENT_LOG_FILE}", file=sys.stderr)
         print(f"   Logging will continue to console only", file=sys.stderr)
@@ -215,5 +215,6 @@ def reconfigure_logging_level(log_level_setting: str) -> None:
         logging.getLogger(logger_name).setLevel(python_log_level)
     
     logger = logging.getLogger(__name__)
-    # Use WARNING level to ensure the message is logged even when level is set to warn_error
+    # Use WARNING level to ensure this message is always logged, even when level is set to warn_error.
+    # This is intentional as log level changes are important operational events that should be tracked.
     logger.warning(f"Logging level changed to: {log_level_setting}")
