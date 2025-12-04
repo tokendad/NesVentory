@@ -1,12 +1,12 @@
-# NesVentory v4.8.0 - Updates 
+# NesVentory v4.8.1 - Upgrades to packages
 
 ## Overview
 
-Version 4.8.0 release.
+Version 4.8.1 release.
 
 ## New Features
 
-Upgraded dependencies,  added docker compose
+Upgrades to packages
 
 ---
 

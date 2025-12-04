@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 
 
 
+
+## [4.8.1] - 2025-12-04
+### Fixed
+- Upgrades to packages
 ## [4.8.0] - 2025-12-02
 ### Added
 - Upgraded dependencies,  added docker compose
