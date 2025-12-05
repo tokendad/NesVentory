@@ -3,6 +3,7 @@ import type { Item, Location } from "../lib/api";
 import { getApiBaseUrl } from "../lib/api";
 import { formatPhotoType, formatCurrency, formatDate, formatDateTime, getLocationPath } from "../lib/utils";
 import { RELATIONSHIP_LABELS, LIVING_TAG_NAME, DOCUMENT_TYPES } from "../lib/constants";
+import MaintenanceTab from "./MaintenanceTab";
 
 interface ItemDetailsProps {
   item: Item;
@@ -11,6 +12,8 @@ interface ItemDetailsProps {
   onDelete: () => Promise<void>;
   onClose: () => void;
 }
+
+type TabType = 'details' | 'maintenance';
 
 const ItemDetails: React.FC<ItemDetailsProps> = ({
   item,
@@ -21,6 +24,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
 }) => {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>('details');
 
   const location = locations.find(
     (loc) => loc.id.toString() === item.location_id?.toString()
@@ -61,6 +65,22 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
       
       {deleteError && <div className="error-banner">{deleteError}</div>}
       
+      <div className="item-details-tabs">
+        <button
+          className={`tab-button ${activeTab === 'details' ? 'active' : ''}`}
+          onClick={() => setActiveTab('details')}
+        >
+          Details
+        </button>
+        <button
+          className={`tab-button ${activeTab === 'maintenance' ? 'active' : ''}`}
+          onClick={() => setActiveTab('maintenance')}
+        >
+          Maintenance
+        </button>
+      </div>
+
+      {activeTab === 'details' && (
       <div className="item-details">
           <div className="details-section">
             <h3>Basic Information</h3>
@@ -341,6 +361,13 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {activeTab === 'maintenance' && (
+        <div className="item-details">
+          <MaintenanceTab itemId={item.id.toString()} />
+        </div>
+      )}
 
       <div className="panel-actions">
         <button
