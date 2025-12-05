@@ -114,6 +114,7 @@ This is a major release preparing NesVentory for public release with comprehensi
 - 📦 **Inventory Management** - Track all your household items with detailed information
 - 📷 **AI Photo Detection** - Scan rooms with AI to detect and add items automatically
 - 🤖 **AI Data Tag Parsing** - Extract product info from data tag photos
+- 🧩 **Custom LLM Plugins** - Integrate specialized AI models for enhanced scanning accuracy
 - 📍 **Location Hierarchy** - Organize items by rooms and sub-locations
 - 📱 **QR Code Labels** - Print QR labels for locations and containers
 - 📦 **Container Support** - Mark locations as boxes/bins for seasonal storage
@@ -191,6 +192,7 @@ The application comes with pre-seeded test users:
 - **[INSTALL.txt](INSTALL.txt)** - Comprehensive installation guide with Docker Compose and CLI commands
 - **[SEEDING.md](SEEDING.md)** - Details about pre-seeded test data and how to customize it
 - **[INTERNATIONALIZATION.md](INTERNATIONALIZATION.md)** - Guide to international format support for dates and currencies
+- **[PLUGINS.md](PLUGINS.md)** - Guide for creating and configuring custom LLM plugins
 
 ## 📄 License
 
