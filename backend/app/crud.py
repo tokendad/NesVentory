@@ -93,3 +93,41 @@ def get_maintenance_tasks_for_item(
         .filter(models.MaintenanceTask.item_id == item_id)
         .all()
     )
+
+
+def get_all_maintenance_tasks(db: Session) -> List[models.MaintenanceTask]:
+    """Get all maintenance tasks across all items."""
+    return db.query(models.MaintenanceTask).all()
+
+
+def get_maintenance_task(db: Session, task_id) -> Optional[models.MaintenanceTask]:
+    """Get a specific maintenance task by ID."""
+    return db.query(models.MaintenanceTask).filter(models.MaintenanceTask.id == task_id).first()
+
+
+def update_maintenance_task(
+    db: Session, task_id, task_update: schemas.MaintenanceTaskCreate
+) -> Optional[models.MaintenanceTask]:
+    """Update a maintenance task."""
+    db_task = get_maintenance_task(db, task_id)
+    if not db_task:
+        return None
+    
+    update_data = task_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_task, field, value)
+    
+    db.commit()
+    db.refresh(db_task)
+    return db_task
+
+
+def delete_maintenance_task(db: Session, task_id) -> bool:
+    """Delete a maintenance task."""
+    db_task = get_maintenance_task(db, task_id)
+    if not db_task:
+        return False
+    
+    db.delete(db_task)
+    db.commit()
+    return True

@@ -316,7 +316,11 @@ class Document(Base):
 
 class RecurrenceType(str, enum.Enum):
     NONE = "none"
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    BI_WEEKLY = "bi_weekly"
     MONTHLY = "monthly"
+    BI_MONTHLY = "bi_monthly"
     YEARLY = "yearly"
     CUSTOM_DAYS = "custom_days"
 
@@ -332,11 +336,14 @@ class MaintenanceTask(Base):
 
     next_due_date = Column(Date, nullable=True)
     recurrence_type = Column(
-        Enum(RecurrenceType.NONE, RecurrenceType.MONTHLY, RecurrenceType.YEARLY, RecurrenceType.CUSTOM_DAYS, name="recurrence_type"),
+        Enum(RecurrenceType.NONE, RecurrenceType.DAILY, RecurrenceType.WEEKLY, 
+             RecurrenceType.BI_WEEKLY, RecurrenceType.MONTHLY, RecurrenceType.BI_MONTHLY,
+             RecurrenceType.YEARLY, RecurrenceType.CUSTOM_DAYS, name="recurrence_type"),
         nullable=False,
         default=RecurrenceType.NONE
     )
     recurrence_interval = Column(Integer, nullable=True)  # e.g. every 90 days for custom_days
+    color = Column(String(7), nullable=True, default="#3b82f6")  # Hex color code
 
     last_completed = Column(Date, nullable=True)
 
