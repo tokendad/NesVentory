@@ -3765,6 +3765,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   /* Yearly View Print */
   .yearly-grid {
     display: grid;
+    /* Use 3 columns for better print layout on standard paper sizes */
     grid-template-columns: repeat(3, 1fr);
     gap: 1rem;
   }

@@ -12,6 +12,7 @@ const Calendar: React.FC = () => {
   const [viewMode, setViewMode] = useState<CalendarView>("monthly");
 
   const MAX_YEARLY_TASKS_DISPLAYED = 5;
+  const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -321,7 +322,7 @@ const Calendar: React.FC = () => {
       <div className="weekly-view">
         <div className="weekly-grid">
           {weekTasks.map(({ date, tasks }, index) => {
-            const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][index];
+            const dayName = DAY_NAMES[index];
             const isCurrentDay = date.toDateString() === new Date().toDateString();
             
             return (
