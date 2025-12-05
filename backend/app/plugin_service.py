@@ -14,15 +14,15 @@ from . import models
 logger = logging.getLogger(__name__)
 
 
-async def get_enabled_ai_scan_plugins(db: Session) -> List[models.Plugin]:
+def get_enabled_ai_scan_plugins(db: Session) -> List[models.Plugin]:
     """
     Get all enabled plugins that are configured for AI scan operations.
     
     Returns plugins ordered by priority (lower priority number = higher priority).
     """
     plugins = db.query(models.Plugin).filter(
-        models.Plugin.enabled == True,
-        models.Plugin.use_for_ai_scan == True
+        models.Plugin.enabled.is_(True),
+        models.Plugin.use_for_ai_scan.is_(True)
     ).order_by(models.Plugin.priority).all()
     
     return plugins

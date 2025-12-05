@@ -428,7 +428,7 @@ def parse_data_tag_response(response_text: str) -> DataTagInfo:
 
 
 @router.get("/status", response_model=AIStatusResponse)
-async def get_ai_status(db: Session = Depends(get_db)):
+def get_ai_status(db: Session = Depends(get_db)):
     """
     Check if AI detection feature is enabled and configured.
     Checks both environment variables and database settings, as well as custom LLM plugins.
@@ -438,7 +438,7 @@ async def get_ai_status(db: Session = Depends(get_db)):
     
     # Check for enabled plugins
     from ..plugin_service import get_enabled_ai_scan_plugins
-    plugins = await get_enabled_ai_scan_plugins(db)
+    plugins = get_enabled_ai_scan_plugins(db)
     
     return AIStatusResponse(
         enabled=is_enabled or len(plugins) > 0,  # Enabled if Gemini OR plugins are configured
@@ -572,7 +572,7 @@ async def parse_data_tag(
     if use_plugin:
         from ..plugin_service import get_enabled_ai_scan_plugins, parse_data_tag_with_plugin
         
-        plugins = await get_enabled_ai_scan_plugins(db)
+        plugins = get_enabled_ai_scan_plugins(db)
         
         if plugins:
             # Read the image data once
@@ -840,7 +840,7 @@ async def lookup_barcode(
     if use_plugin:
         from ..plugin_service import get_enabled_ai_scan_plugins, lookup_barcode_with_plugin
         
-        plugins = await get_enabled_ai_scan_plugins(db)
+        plugins = get_enabled_ai_scan_plugins(db)
         
         if plugins:
             # Try each plugin in priority order

@@ -2497,7 +2497,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
               <input
                 type="number"
                 value={pluginFormData.priority || 100}
-                onChange={(e) => setPluginFormData({ ...pluginFormData, priority: parseInt(e.target.value) || 100 })}
+                onChange={(e) => setPluginFormData({ ...pluginFormData, priority: parseInt(e.target.value, 10) || 100 })}
                 min={1}
               />
             </div>
@@ -2671,7 +2671,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                       <input
                         type="number"
                         value={pluginFormData.priority !== undefined ? pluginFormData.priority : plugin.priority}
-                        onChange={(e) => setPluginFormData({ ...pluginFormData, priority: parseInt(e.target.value) || 100 })}
+                        onChange={(e) => setPluginFormData({ ...pluginFormData, priority: parseInt(e.target.value, 10) || 100 })}
                         min={1}
                       />
                     </div>
