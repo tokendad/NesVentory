@@ -11,6 +11,8 @@ const Calendar: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<CalendarView>("monthly");
 
+  const MAX_YEARLY_TASKS_DISPLAYED = 5;
+
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
@@ -188,37 +190,43 @@ const Calendar: React.FC = () => {
     weekStart.setDate(currentDate.getDate() - currentDate.getDay());
     const tasksInWeek: { date: Date; tasks: MaintenanceTask[] }[] = [];
     
+    // Pre-compute all date strings for the week
+    const weekDates: string[] = [];
     for (let i = 0; i < 7; i++) {
       const date = new Date(weekStart);
       date.setDate(weekStart.getDate() + i);
+      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      weekDates.push(dateStr);
       tasksInWeek.push({
         date,
-        tasks: getTasksForDate(date)
+        tasks: tasksByDate[dateStr] || []
       });
     }
     
     return tasksInWeek;
-  }, [currentDate, getTasksForDate]);
+  }, [currentDate, tasksByDate]);
 
   const getTasksForYear = useCallback(() => {
     const year = currentDate.getFullYear();
     const monthlyTasks: { month: number; tasks: MaintenanceTask[] }[] = [];
     
+    // Filter tasks for the current year only once
+    const yearTasks = tasks.filter(task => {
+      if (!task.next_due_date) return false;
+      return task.next_due_date.startsWith(`${year}-`);
+    });
+    
+    // Group tasks by month
     for (let month = 0; month < 12; month++) {
-      const monthTasks: MaintenanceTask[] = [];
-      const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
-      
-      for (let day = 1; day <= daysInCurrentMonth; day++) {
-        const date = new Date(year, month, day);
-        const dayTasks = getTasksForDate(date);
-        monthTasks.push(...dayTasks);
-      }
-      
+      const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}-`;
+      const monthTasks = yearTasks.filter(task => 
+        task.next_due_date?.startsWith(monthPrefix)
+      );
       monthlyTasks.push({ month, tasks: monthTasks });
     }
     
     return monthlyTasks;
-  }, [currentDate, getTasksForDate]);
+  }, [currentDate, tasks]);
 
   const renderCalendar = () => {
     const days = [];
@@ -361,13 +369,13 @@ const Calendar: React.FC = () => {
                 )}
                 {tasks.length > 0 && (
                   <div className="yearly-task-list">
-                    {tasks.slice(0, 5).map((task) => (
+                    {tasks.slice(0, MAX_YEARLY_TASKS_DISPLAYED).map((task) => (
                       <div key={task.id} className="yearly-task" style={{ borderLeftColor: task.color || '#3b82f6' }}>
                         <div className="yearly-task-name">{task.name}</div>
                       </div>
                     ))}
-                    {tasks.length > 5 && (
-                      <div className="yearly-more">+{tasks.length - 5} more</div>
+                    {tasks.length > MAX_YEARLY_TASKS_DISPLAYED && (
+                      <div className="yearly-more">+{tasks.length - MAX_YEARLY_TASKS_DISPLAYED} more</div>
                     )}
                   </div>
                 )}
