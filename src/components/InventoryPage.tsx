@@ -94,8 +94,8 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
   // Get child locations for a given parent ID
   const getChildLocations = useCallback((parentId: string | number | null): Location[] => {
     if (parentId === null) {
-      // Return top-level locations (no parent or primary)
-      return locations.filter(loc => loc.is_primary_location || !loc.parent_id);
+      // Return top-level locations (those without a parent)
+      return locations.filter(loc => !loc.parent_id);
     }
     return locations.filter(loc => loc.parent_id?.toString() === parentId.toString());
   }, [locations]);
@@ -161,6 +161,10 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
 
   // Handler to navigate to a location
   const handleLocationClick = (location: Location) => {
+    // Prevent adding duplicate if already current location
+    if (currentLocation?.id === location.id) {
+      return;
+    }
     setLocationPath([...locationPath, location]);
     setSelectedLocation(location);
   };
@@ -279,24 +283,32 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
           </span>
         )}
         {childCount > 0 && (
-          <span style={{ 
-            fontSize: "0.75rem", 
-            opacity: 0.8,
-            backgroundColor: "rgba(0,0,0,0.2)",
-            padding: "0.125rem 0.375rem",
-            borderRadius: "1rem"
-          }}>
+          <span 
+            style={{ 
+              fontSize: "0.75rem", 
+              opacity: 0.8,
+              backgroundColor: "rgba(0,0,0,0.2)",
+              padding: "0.125rem 0.375rem",
+              borderRadius: "1rem"
+            }}
+            role="img"
+            aria-label={`${childCount} sub-location${childCount !== 1 ? 's' : ''}`}
+          >
             📁 {childCount}
           </span>
         )}
         {itemCount > 0 && (
-          <span style={{ 
-            fontSize: "0.75rem", 
-            opacity: 0.8,
-            backgroundColor: "rgba(0,0,0,0.2)",
-            padding: "0.125rem 0.375rem",
-            borderRadius: "1rem"
-          }}>
+          <span 
+            style={{ 
+              fontSize: "0.75rem", 
+              opacity: 0.8,
+              backgroundColor: "rgba(0,0,0,0.2)",
+              padding: "0.125rem 0.375rem",
+              borderRadius: "1rem"
+            }}
+            role="img"
+            aria-label={`${itemCount} item${itemCount !== 1 ? 's' : ''}`}
+          >
             📦 {itemCount}
           </span>
         )}
