@@ -1801,6 +1801,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
             <small style={{ color: "var(--muted)", fontSize: "0.875rem", display: "block", marginBottom: "0.75rem" }}>
               Gemini AI powers item detection from photos, barcode lookup, and AI valuation.
               {configStatus?.gemini_from_env ? " Configured via environment variable (read-only)." : " Configure below or in your .env file."}
+              {aiStatus?.plugins_enabled && (
+                <span style={{ display: 'block', marginTop: '0.25rem', color: 'var(--color-success, #28a745)' }}>
+                  ✓ {aiStatus.plugin_count} custom LLM plugin{aiStatus.plugin_count !== 1 ? 's' : ''} enabled for AI scan operations
+                </span>
+              )}
             </small>
             
             {/* Status Indicator */}

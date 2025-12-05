@@ -797,12 +797,14 @@ def parse_barcode_lookup_response(response_text: str) -> BarcodeLookupResult:
 @router.post("/barcode-lookup", response_model=BarcodeLookupResult)
 async def lookup_barcode(
     request: BarcodeLookupRequest,
+    use_plugin: bool = True,  # New parameter to enable/disable plugin usage
     db: Session = Depends(get_db)
 ):
     """
     Look up product information using a barcode/UPC code.
     
-    Uses Gemini AI to identify the product and provide details like:
+    Uses custom LLM plugins (if configured) or Gemini AI to identify the product 
+    and provide details like:
     - Product name
     - Brand/Manufacturer
     - Description
@@ -812,14 +814,6 @@ async def lookup_barcode(
     Note: This uses AI to look up products based on UPC codes. Results
     may vary in accuracy as the AI uses its training data to identify products.
     """
-    # Check if Gemini API is configured (env or database)
-    gemini_api_key = get_effective_gemini_api_key(db)
-    if not gemini_api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment or configure it in the admin panel."
-        )
-    
     # Validate UPC format (basic validation)
     upc = request.upc.strip()
     if not upc:
@@ -840,6 +834,32 @@ async def lookup_barcode(
         raise HTTPException(
             status_code=400,
             detail="Invalid UPC code format. UPC should be 6-14 digits."
+        )
+    
+    # Try custom LLM plugins first if enabled
+    if use_plugin:
+        from ..plugin_service import get_enabled_ai_scan_plugins, lookup_barcode_with_plugin
+        
+        plugins = await get_enabled_ai_scan_plugins(db)
+        
+        if plugins:
+            # Try each plugin in priority order
+            for plugin in plugins:
+                logger.info(f"Trying plugin: {plugin.name} for barcode lookup")
+                result = await lookup_barcode_with_plugin(plugin, upc_clean)
+                
+                if result and result.get('found'):
+                    # Convert plugin result to BarcodeLookupResult
+                    return BarcodeLookupResult(**result)
+            
+            logger.info("All plugins failed, falling back to Gemini AI")
+    
+    # Check if Gemini API is configured (env or database)
+    gemini_api_key = get_effective_gemini_api_key(db)
+    if not gemini_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment or configure it in the admin panel."
         )
     
     try:
