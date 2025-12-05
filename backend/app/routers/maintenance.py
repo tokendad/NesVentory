@@ -56,7 +56,7 @@ def get_maintenance_task(
 @router.put("/{task_id}", response_model=schemas.MaintenanceTask)
 def update_maintenance_task(
     task_id: UUID,
-    task_update: schemas.MaintenanceTaskCreate,
+    task_update: schemas.MaintenanceTaskUpdate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):

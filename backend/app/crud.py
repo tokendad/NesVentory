@@ -106,14 +106,14 @@ def get_maintenance_task(db: Session, task_id) -> Optional[models.MaintenanceTas
 
 
 def update_maintenance_task(
-    db: Session, task_id, task_update: schemas.MaintenanceTaskCreate
+    db: Session, task_id, task_update: schemas.MaintenanceTaskUpdate
 ) -> Optional[models.MaintenanceTask]:
     """Update a maintenance task."""
     db_task = get_maintenance_task(db, task_id)
     if not db_task:
         return None
     
-    update_data = task_update.model_dump(exclude_unset=True)
+    update_data = task_update.model_dump(exclude_unset=True, exclude={'id', 'created_at', 'updated_at'})
     for field, value in update_data.items():
         setattr(db_task, field, value)
     
