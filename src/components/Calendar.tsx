@@ -147,6 +147,10 @@ const Calendar: React.FC = () => {
     window.print();
   };
 
+  const formatDateString = (date: Date) => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
   const today = new Date();
   const isToday = (day: number) => {
     return (
@@ -171,7 +175,7 @@ const Calendar: React.FC = () => {
   }, [tasks]);
 
   const getTasksForDay = useCallback((day: number) => {
-    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dateStr = formatDateString(new Date(currentDate.getFullYear(), currentDate.getMonth(), day));
     return tasksByDate[dateStr] || [];
   }, [currentDate, tasksByDate]);
 
@@ -181,7 +185,7 @@ const Calendar: React.FC = () => {
   }, [items]);
 
   const getTasksForDate = useCallback((date: Date) => {
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const dateStr = formatDateString(date);
     return tasksByDate[dateStr] || [];
   }, [tasksByDate]);
 
@@ -190,13 +194,11 @@ const Calendar: React.FC = () => {
     weekStart.setDate(currentDate.getDate() - currentDate.getDay());
     const tasksInWeek: { date: Date; tasks: MaintenanceTask[] }[] = [];
     
-    // Pre-compute all date strings for the week
-    const weekDates: string[] = [];
+    // Compute tasks for each day of the week
     for (let i = 0; i < 7; i++) {
       const date = new Date(weekStart);
       date.setDate(weekStart.getDate() + i);
-      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-      weekDates.push(dateStr);
+      const dateStr = formatDateString(date);
       tasksInWeek.push({
         date,
         tasks: tasksByDate[dateStr] || []
@@ -423,8 +425,8 @@ const Calendar: React.FC = () => {
                 Yearly
               </button>
             </div>
-            <button className="calendar-print-btn" onClick={handlePrint} title="Print Calendar">
-              🖨️ Print
+            <button className="calendar-print-btn" onClick={handlePrint} title="Print Calendar" aria-label="Print Calendar">
+              Print
             </button>
           </div>
           <div className="calendar-header">
