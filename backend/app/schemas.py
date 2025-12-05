@@ -333,6 +333,16 @@ class MaintenanceTaskCreate(MaintenanceTaskBase):
     pass
 
 
+class MaintenanceTaskUpdate(BaseModel):
+    item_id: Optional[UUID] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    next_due_date: Optional[date] = None
+    recurrence_type: Optional[str] = None
+    recurrence_interval: Optional[int] = None
+    last_completed: Optional[date] = None
+
+
 class MaintenanceTask(MaintenanceTaskBase):
     id: UUID
     created_at: datetime

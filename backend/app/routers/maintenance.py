@@ -34,7 +34,7 @@ def get_maintenance_task(task_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.put("/{task_id}", response_model=schemas.MaintenanceTask)
-def update_maintenance_task(task_id: UUID, payload: schemas.MaintenanceTaskCreate, db: Session = Depends(get_db)):
+def update_maintenance_task(task_id: UUID, payload: schemas.MaintenanceTaskUpdate, db: Session = Depends(get_db)):
     """Update a maintenance task."""
     task = db.query(models.MaintenanceTask).filter(models.MaintenanceTask.id == task_id).first()
     if not task:
