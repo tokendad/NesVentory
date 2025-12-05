@@ -3199,3 +3199,124 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     justify-content: flex-end;
   }
 }
+
+/* Calendar Enhancements */
+.calendar-loading {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-muted);
+}
+
+.calendar-day {
+  position: relative;
+  min-height: 80px;
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.calendar-day:hover:not(.empty) {
+  background: var(--hover-bg);
+  transform: scale(1.02);
+}
+
+.calendar-day.selected {
+  background: var(--hover-bg);
+  box-shadow: inset 0 0 0 2px var(--primary-color);
+}
+
+.calendar-day.has-tasks {
+  background: linear-gradient(to bottom, transparent 0%, transparent 50%, rgba(59, 130, 246, 0.05) 100%);
+}
+
+.day-number {
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.task-indicators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 0.25rem;
+}
+
+.task-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.task-indicator.more {
+  width: auto;
+  height: auto;
+  background: var(--text-muted);
+  color: white;
+  font-size: 0.65rem;
+  padding: 0 3px;
+  border-radius: 3px;
+}
+
+.day-tasks-popup {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.popup-task {
+  padding: 0.5rem;
+  border-left: 3px solid var(--primary-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.popup-task:last-child {
+  border-bottom: none;
+}
+
+.popup-task-name {
+  font-weight: 500;
+  font-size: 0.85rem;
+  margin-bottom: 0.15rem;
+}
+
+.popup-task-item {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Adjust calendar grid for better task visibility */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: var(--border-color);
+  border: 1px solid var(--border-color);
+}
+
+/* Mobile adjustments for calendar */
+@media (max-width: 768px) {
+  .calendar-day {
+    min-height: 60px;
+    padding: 0.25rem;
+    font-size: 0.85rem;
+  }
+
+  .day-tasks-popup {
+    position: fixed;
+    left: 1rem;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    max-height: 60vh;
+  }
+}
