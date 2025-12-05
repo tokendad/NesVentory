@@ -326,6 +326,7 @@ class MaintenanceTaskBase(BaseModel):
     next_due_date: Optional[date] = None
     recurrence_type: str
     recurrence_interval: Optional[int] = None
+    color: Optional[str] = "#3b82f6"  # Default blue color
     last_completed: Optional[date] = None
 
 
