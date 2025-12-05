@@ -88,23 +88,28 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
   const [tagUpdateMode, setTagUpdateMode] = useState<"replace" | "add" | "remove">("add");
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  // Track the location navigation path for breadcrumb navigation
+  const [locationPath, setLocationPath] = useState<Location[]>([]);
 
-  // Build location tree
-  const locationTree = useMemo(() => {
-    const byId = new Map<string | number, Location & { children: Location[] }>();
-    locations.forEach((loc) =>
-      byId.set(loc.id, { ...loc, children: [] })
-    );
-    const roots: (Location & { children: Location[] })[] = [];
-    byId.forEach((loc) => {
-      if (loc.parent_id != null && byId.has(loc.parent_id)) {
-        byId.get(loc.parent_id)!.children.push(loc);
-      } else {
-        roots.push(loc);
-      }
-    });
-    return roots;
+  // Get child locations for a given parent ID
+  const getChildLocations = useCallback((parentId: string | number | null): Location[] => {
+    if (parentId === null) {
+      // Return top-level locations (no parent or primary)
+      return locations.filter(loc => loc.is_primary_location || !loc.parent_id);
+    }
+    return locations.filter(loc => loc.parent_id?.toString() === parentId.toString());
   }, [locations]);
+
+  // Get the current location (last in path)
+  const currentLocation = locationPath.length > 0 ? locationPath[locationPath.length - 1] : null;
+
+  // Get locations to display in the current panel
+  const currentPanelLocations = useMemo(() => {
+    if (currentLocation === null) {
+      return getChildLocations(null);
+    }
+    return getChildLocations(currentLocation.id);
+  }, [getChildLocations, currentLocation]);
 
   // Get items for location
   const getItemsAtLocation = useCallback((locationId: string | number | null): Item[] => {
@@ -153,6 +158,24 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
 
   // Get enabled columns
   const enabledColumns = columns.filter(col => col.enabled);
+
+  // Handler to navigate to a location
+  const handleLocationClick = (location: Location) => {
+    setLocationPath([...locationPath, location]);
+    setSelectedLocation(location);
+  };
+
+  // Handler to navigate back to a specific level in the breadcrumb
+  const handleBreadcrumbClick = (index: number) => {
+    if (index < 0) {
+      setLocationPath([]);
+      setSelectedLocation(null);
+    } else {
+      const newPath = locationPath.slice(0, index + 1);
+      setLocationPath(newPath);
+      setSelectedLocation(newPath[newPath.length - 1]);
+    }
+  };
 
   // Bulk operation handlers
   const handleSelectAll = (checked: boolean) => {
@@ -221,84 +244,93 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
     setSelectedTagIds(newSelected);
   };
 
-  // Location node component
-  const LocationNode: React.FC<{ 
-    loc: Location & { children: Location[] }; 
-    level: number;
-  }> = ({ loc, level }) => {
+  // Location card component for browse locations section
+  const LocationCard: React.FC<{ loc: Location }> = ({ loc }) => {
     const itemCount = getItemsAtLocation(loc.id).length;
-    const hasChildren = loc.children && loc.children.length > 0;
-    const isSelected = selectedLocation?.id === loc.id;
+    const childCount = getChildLocations(loc.id).length;
 
     return (
-      <div style={{ display: "inline-block" }}>
-        <div
-          className={`location-bubble ${isSelected ? 'selected' : ''}`}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.5rem 1rem",
-            margin: "0.25rem",
-            borderRadius: "2rem",
-            background: isSelected ? "var(--accent)" : "rgba(78, 205, 196, 0.2)",
-            border: `1px solid ${isSelected ? "var(--accent)" : "rgba(78, 205, 196, 0.5)"}`,
-            cursor: "pointer",
-            fontSize: "0.875rem",
-          }}
-          onClick={() => setSelectedLocation(isSelected ? null : loc)}
-        >
-          <span>{loc.friendly_name || loc.name}</span>
-          {itemCount > 0 && (
-            <span style={{ 
-              fontSize: "0.75rem", 
-              opacity: 0.8,
-              backgroundColor: "rgba(0,0,0,0.2)",
-              padding: "0.125rem 0.375rem",
-              borderRadius: "1rem"
-            }}>
-              {itemCount}
-            </span>
-          )}
-          <button
-            className="btn-icon-small"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowLocationSettings(loc);
-              setEditFormData({
-                name: loc.name,
-                friendly_name: loc.friendly_name || "",
-                location_type: loc.location_type || "",
-                parent_id: loc.parent_id?.toString() || "",
-                is_primary_location: loc.is_primary_location || false,
-                is_container: loc.is_container || false,
-                description: loc.description || "",
-                address: loc.address || "",
-                estimated_property_value: loc.estimated_property_value?.toString() ?? "",
-                estimated_value_with_items: loc.estimated_value_with_items?.toString() ?? "",
-              });
-            }}
-            title="Location Settings"
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "0.25rem",
-              display: "flex",
-              alignItems: "center",
-              fontSize: "1rem",
-            }}
-          >
-            ⚙️
-          </button>
-        </div>
-        {hasChildren && (
-          <div style={{ display: "inline-block", marginLeft: "0.5rem" }}>
-            {loc.children.map(child => (
-              <LocationNode key={child.id} loc={child} level={level + 1} />
-            ))}
-          </div>
+      <div
+        className="location-bubble"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          padding: "0.5rem 1rem",
+          margin: "0.25rem",
+          borderRadius: "2rem",
+          background: "rgba(78, 205, 196, 0.2)",
+          border: "1px solid rgba(78, 205, 196, 0.5)",
+          cursor: "pointer",
+          fontSize: "0.875rem",
+        }}
+        onClick={() => handleLocationClick(loc)}
+      >
+        <span>{loc.friendly_name || loc.name}</span>
+        {loc.is_primary_location && (
+          <span style={{
+            fontSize: "0.625rem",
+            backgroundColor: "#4ecdc4",
+            color: "#fff",
+            padding: "0.125rem 0.25rem",
+            borderRadius: "3px",
+          }}>
+            HOME
+          </span>
         )}
+        {childCount > 0 && (
+          <span style={{ 
+            fontSize: "0.75rem", 
+            opacity: 0.8,
+            backgroundColor: "rgba(0,0,0,0.2)",
+            padding: "0.125rem 0.375rem",
+            borderRadius: "1rem"
+          }}>
+            📁 {childCount}
+          </span>
+        )}
+        {itemCount > 0 && (
+          <span style={{ 
+            fontSize: "0.75rem", 
+            opacity: 0.8,
+            backgroundColor: "rgba(0,0,0,0.2)",
+            padding: "0.125rem 0.375rem",
+            borderRadius: "1rem"
+          }}>
+            📦 {itemCount}
+          </span>
+        )}
+        <button
+          className="btn-icon-small"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowLocationSettings(loc);
+            setEditFormData({
+              name: loc.name,
+              friendly_name: loc.friendly_name || "",
+              location_type: loc.location_type || "",
+              parent_id: loc.parent_id?.toString() || "",
+              is_primary_location: loc.is_primary_location || false,
+              is_container: loc.is_container || false,
+              description: loc.description || "",
+              address: loc.address || "",
+              estimated_property_value: loc.estimated_property_value?.toString() ?? "",
+              estimated_value_with_items: loc.estimated_value_with_items?.toString() ?? "",
+            });
+          }}
+          title="Location Settings"
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: "0.25rem",
+            display: "flex",
+            alignItems: "center",
+            fontSize: "1rem",
+          }}
+        >
+          ⚙️
+        </button>
       </div>
     );
   };
@@ -372,8 +404,11 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <button
               className="btn-outline"
-              onClick={() => setSelectedLocation(null)}
-              disabled={selectedLocation === null}
+              onClick={() => {
+                setLocationPath([]);
+                setSelectedLocation(null);
+              }}
+              disabled={locationPath.length === 0}
             >
               All Locations
             </button>
@@ -407,13 +442,64 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
           </div>
         </div>
         {locationsLoading && <p className="muted">Loading locations...</p>}
-        {!locationsLoading && locationTree.length === 0 && (
-          <p className="muted">No locations yet.</p>
+        
+        {/* Breadcrumb navigation */}
+        {!locationsLoading && (
+          <div style={{
+            padding: "0.75rem 1rem",
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: "0.5rem",
+            borderBottom: "1px solid var(--border-subtle)"
+          }}>
+            <button
+              style={{
+                background: locationPath.length === 0 ? "rgba(78, 205, 196, 0.2)" : "transparent",
+                border: "none",
+                color: "var(--text)",
+                cursor: "pointer",
+                padding: "0.25rem 0.5rem",
+                borderRadius: "0.25rem",
+                fontSize: "0.875rem",
+              }}
+              onClick={() => handleBreadcrumbClick(-1)}
+            >
+              All Locations
+            </button>
+            {locationPath.map((loc, index) => (
+              <React.Fragment key={loc.id}>
+                <span style={{ color: "var(--muted)" }}>›</span>
+                <button
+                  style={{
+                    background: index === locationPath.length - 1 ? "rgba(78, 205, 196, 0.2)" : "transparent",
+                    border: "none",
+                    color: "var(--text)",
+                    cursor: "pointer",
+                    padding: "0.25rem 0.5rem",
+                    borderRadius: "0.25rem",
+                    fontSize: "0.875rem",
+                  }}
+                  onClick={() => handleBreadcrumbClick(index)}
+                >
+                  {loc.friendly_name || loc.name}
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
         )}
-        {!locationsLoading && locationTree.length > 0 && (
+
+        {!locationsLoading && currentPanelLocations.length === 0 && (
+          <p className="muted" style={{ padding: "1rem" }}>
+            {currentLocation 
+              ? "No sub-locations in this location."
+              : "No locations yet."}
+          </p>
+        )}
+        {!locationsLoading && currentPanelLocations.length > 0 && (
           <div style={{ padding: "1rem", display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
-            {locationTree.map(loc => (
-              <LocationNode key={loc.id} loc={loc} level={0} />
+            {currentPanelLocations.map(loc => (
+              <LocationCard key={loc.id} loc={loc} />
             ))}
           </div>
         )}
