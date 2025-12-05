@@ -122,6 +122,8 @@ class AIStatusResponse(BaseModel):
     """Schema for AI feature status."""
     enabled: bool
     model: Optional[str] = None
+    plugins_enabled: bool = False
+    plugin_count: int = 0
 
 
 class DataTagInfo(BaseModel):
@@ -426,16 +428,23 @@ def parse_data_tag_response(response_text: str) -> DataTagInfo:
 
 
 @router.get("/status", response_model=AIStatusResponse)
-def get_ai_status(db: Session = Depends(get_db)):
+async def get_ai_status(db: Session = Depends(get_db)):
     """
     Check if AI detection feature is enabled and configured.
-    Checks both environment variables and database settings.
+    Checks both environment variables and database settings, as well as custom LLM plugins.
     """
     gemini_api_key = get_effective_gemini_api_key(db)
     is_enabled = bool(gemini_api_key)
+    
+    # Check for enabled plugins
+    from ..plugin_service import get_enabled_ai_scan_plugins
+    plugins = await get_enabled_ai_scan_plugins(db)
+    
     return AIStatusResponse(
-        enabled=is_enabled,
-        model=settings.GEMINI_MODEL if is_enabled else None
+        enabled=is_enabled or len(plugins) > 0,  # Enabled if Gemini OR plugins are configured
+        model=settings.GEMINI_MODEL if is_enabled else None,
+        plugins_enabled=len(plugins) > 0,
+        plugin_count=len(plugins)
     )
 
 
@@ -547,6 +556,7 @@ Return an empty array [] if no identifiable items are found."""
 @router.post("/parse-data-tag", response_model=DataTagInfo)
 async def parse_data_tag(
     file: UploadFile = File(..., description="Image of a data tag/label to parse"),
+    use_plugin: bool = True,  # New parameter to enable/disable plugin usage
     db: Session = Depends(get_db)
 ):
     """
@@ -554,7 +564,35 @@ async def parse_data_tag(
     
     Extracts manufacturer, serial number, model number, and production date
     from product data tags, labels, or identification plates.
+    
+    If custom LLM plugins are enabled for AI scan, they will be tried first
+    before falling back to the default Gemini AI.
     """
+    # Try custom LLM plugins first if enabled
+    if use_plugin:
+        from ..plugin_service import get_enabled_ai_scan_plugins, parse_data_tag_with_plugin
+        
+        plugins = await get_enabled_ai_scan_plugins(db)
+        
+        if plugins:
+            # Read the image data once
+            image_data = await file.read()
+            
+            # Try each plugin in priority order
+            for plugin in plugins:
+                logger.info(f"Trying plugin: {plugin.name} for data tag parsing")
+                result = await parse_data_tag_with_plugin(plugin, image_data, file.content_type or "image/jpeg")
+                
+                if result:
+                    # Convert plugin result to DataTagInfo
+                    # The plugin should return data in a compatible format
+                    data_tag_info = DataTagInfo(**result)
+                    return data_tag_info
+            
+            logger.info("All plugins failed, falling back to Gemini AI")
+            # Reset file position for Gemini fallback
+            await file.seek(0)
+    
     # Check if Gemini API is configured (env or database)
     gemini_api_key = get_effective_gemini_api_key(db)
     if not gemini_api_key:

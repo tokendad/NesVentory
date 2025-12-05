@@ -885,6 +885,8 @@ export interface DetectionResult {
 export interface AIStatusResponse {
   enabled: boolean;
   model?: string | null;
+  plugins_enabled?: boolean;
+  plugin_count?: number;
 }
 
 export interface DataTagInfo {
