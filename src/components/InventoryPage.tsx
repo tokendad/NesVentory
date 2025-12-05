@@ -162,7 +162,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
   // Handler to navigate to a location
   const handleLocationClick = (location: Location) => {
     // Prevent adding duplicate if already current location
-    if (currentLocation?.id === location.id) {
+    if (currentLocation?.id?.toString() === location.id.toString()) {
       return;
     }
     setLocationPath([...locationPath, location]);
