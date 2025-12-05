@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { fetchMaintenanceTasks, fetchItems, type MaintenanceTask, type Item } from "../lib/api";
 
 const Calendar: React.FC = () => {
@@ -58,15 +58,29 @@ const Calendar: React.FC = () => {
     );
   };
 
-  const getTasksForDay = (day: number) => {
-    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return tasks.filter(task => task.next_due_date === dateStr);
-  };
+  // Memoize task grouping by date to avoid recalculating on every render
+  const tasksByDate = useMemo(() => {
+    const grouped: Record<string, MaintenanceTask[]> = {};
+    tasks.forEach(task => {
+      if (task.next_due_date) {
+        if (!grouped[task.next_due_date]) {
+          grouped[task.next_due_date] = [];
+        }
+        grouped[task.next_due_date].push(task);
+      }
+    });
+    return grouped;
+  }, [tasks]);
 
-  const getItemName = (itemId: string) => {
+  const getTasksForDay = useCallback((day: number) => {
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return tasksByDate[dateStr] || [];
+  }, [currentDate, tasksByDate]);
+
+  const getItemName = useCallback((itemId: string) => {
     const item = items.find(i => i.id.toString() === itemId);
     return item?.name || 'Unknown Item';
-  };
+  }, [items]);
 
   const renderCalendar = () => {
     const days = [];

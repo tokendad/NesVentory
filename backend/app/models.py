@@ -336,9 +336,17 @@ class MaintenanceTask(Base):
 
     next_due_date = Column(Date, nullable=True)
     recurrence_type = Column(
-        Enum(RecurrenceType.NONE, RecurrenceType.DAILY, RecurrenceType.WEEKLY, 
-             RecurrenceType.BI_WEEKLY, RecurrenceType.MONTHLY, RecurrenceType.BI_MONTHLY,
-             RecurrenceType.YEARLY, RecurrenceType.CUSTOM_DAYS, name="recurrence_type"),
+        Enum(
+            RecurrenceType.NONE,
+            RecurrenceType.DAILY,
+            RecurrenceType.WEEKLY,
+            RecurrenceType.BI_WEEKLY,
+            RecurrenceType.MONTHLY,
+            RecurrenceType.BI_MONTHLY,
+            RecurrenceType.YEARLY,
+            RecurrenceType.CUSTOM_DAYS,
+            name="recurrence_type"
+        ),
         nullable=False,
         default=RecurrenceType.NONE
     )

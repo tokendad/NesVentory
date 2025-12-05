@@ -165,6 +165,9 @@ const MaintenanceTab: React.FC<MaintenanceTabProps> = ({ itemId }) => {
     if (recurrence === 'none') return null;
 
     const date = new Date(fromDate);
+    
+    // Store original day for month/year calculations
+    const originalDay = date.getDate();
 
     switch (recurrence) {
       case 'daily':
@@ -176,20 +179,39 @@ const MaintenanceTab: React.FC<MaintenanceTabProps> = ({ itemId }) => {
       case 'bi_weekly':
         date.setDate(date.getDate() + 14);
         break;
-      case 'monthly':
-        date.setMonth(date.getMonth() + 1);
-        break;
-      case 'bi_monthly':
-        date.setMonth(date.getMonth() + 2);
-        break;
-      case 'yearly':
-        date.setFullYear(date.getFullYear() + 1);
-        break;
-      case 'custom_days':
-        if (interval) {
-          date.setDate(date.getDate() + interval);
+      case 'monthly': {
+        // Handle month boundaries properly
+        const targetMonth = date.getMonth() + 1;
+        date.setMonth(targetMonth);
+        // Adjust if day doesn't exist in new month (e.g., Jan 31 -> Feb 28/29)
+        if (date.getDate() < originalDay) {
+          date.setDate(0); // Set to last day of previous month
         }
         break;
+      }
+      case 'bi_monthly': {
+        // Handle month boundaries properly
+        const targetMonth = date.getMonth() + 2;
+        date.setMonth(targetMonth);
+        // Adjust if day doesn't exist in new month
+        if (date.getDate() < originalDay) {
+          date.setDate(0); // Set to last day of previous month
+        }
+        break;
+      }
+      case 'yearly': {
+        date.setFullYear(date.getFullYear() + 1);
+        // Handle leap year edge case (Feb 29)
+        if (date.getMonth() !== new Date(fromDate).getMonth()) {
+          date.setDate(0); // Move to Feb 28
+        }
+        break;
+      }
+      case 'custom_days': {
+        const days = interval && interval > 0 ? interval : 1;
+        date.setDate(date.getDate() + days);
+        break;
+      }
     }
 
     return date.toISOString().split('T')[0];
