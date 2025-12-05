@@ -394,3 +394,41 @@ class SystemSettings(Base):
     
     updated_at = Column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow(), nullable=False)
 
+
+class Plugin(Base):
+    """
+    Custom LLM plugins that can be used for AI-powered features.
+    
+    Plugins are external LLM services (like custom GPT instances or specialized models)
+    that are pre-seeded with specific data and can be used for AI scan operations.
+    """
+    __tablename__ = "plugins"
+
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    name = Column(String(100), nullable=False, unique=True, index=True)
+    description = Column(Text, nullable=True)
+    
+    # Plugin type: currently 'llm' for custom LLM integrations
+    plugin_type = Column(String(50), nullable=False, default='llm')
+    
+    # Endpoint URL for the plugin API
+    endpoint_url = Column(String(500), nullable=False)
+    
+    # API key or authentication token (encrypted in production)
+    api_key = Column(String(500), nullable=True)
+    
+    # Additional configuration as JSON (model name, parameters, etc.)
+    config = Column(JSON, nullable=True)
+    
+    # Enable/disable plugin
+    enabled = Column(Boolean, default=True, nullable=False)
+    
+    # Use plugin for AI scan operations
+    use_for_ai_scan = Column(Boolean, default=False, nullable=False)
+    
+    # Priority order (lower number = higher priority)
+    priority = Column(Integer, default=100, nullable=False)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+

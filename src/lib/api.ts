@@ -1498,3 +1498,109 @@ export async function deleteMaintenanceTask(taskId: string): Promise<void> {
   }
 }
 
+// --- Plugin APIs ---
+
+export interface Plugin {
+  id: string;
+  name: string;
+  description?: string | null;
+  plugin_type: string;
+  endpoint_url: string;
+  api_key?: string | null;
+  config?: Record<string, unknown> | null;
+  enabled: boolean;
+  use_for_ai_scan: boolean;
+  priority: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PluginCreate {
+  name: string;
+  description?: string | null;
+  plugin_type?: string;
+  endpoint_url: string;
+  api_key?: string | null;
+  config?: Record<string, unknown> | null;
+  enabled?: boolean;
+  use_for_ai_scan?: boolean;
+  priority?: number;
+}
+
+export interface PluginUpdate {
+  name?: string;
+  description?: string | null;
+  endpoint_url?: string;
+  api_key?: string | null;
+  config?: Record<string, unknown> | null;
+  enabled?: boolean;
+  use_for_ai_scan?: boolean;
+  priority?: number;
+}
+
+export async function fetchPlugins(): Promise<Plugin[]> {
+  const res = await fetch(`${API_BASE_URL}/api/plugins/`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<Plugin[]>(res);
+}
+
+export async function getPlugin(pluginId: string): Promise<Plugin> {
+  const res = await fetch(`${API_BASE_URL}/api/plugins/${pluginId}`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<Plugin>(res);
+}
+
+export async function createPlugin(plugin: PluginCreate): Promise<Plugin> {
+  const res = await fetch(`${API_BASE_URL}/api/plugins/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(plugin),
+  });
+  return handleResponse<Plugin>(res);
+}
+
+export async function updatePlugin(pluginId: string, plugin: PluginUpdate): Promise<Plugin> {
+  const res = await fetch(`${API_BASE_URL}/api/plugins/${pluginId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(plugin),
+  });
+  return handleResponse<Plugin>(res);
+}
+
+export async function deletePlugin(pluginId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/plugins/${pluginId}`, {
+    method: "DELETE",
+    headers: {
+      ...authHeaders(),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text;
+    try {
+      const data = JSON.parse(text);
+      message = (data.detail as string) || JSON.stringify(data);
+    } catch {
+      // ignore
+    }
+    throw new Error(message || `HTTP ${res.status}`);
+  }
+}
+
