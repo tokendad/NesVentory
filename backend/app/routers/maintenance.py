@@ -40,7 +40,7 @@ def update_maintenance_task(task_id: UUID, payload: schemas.MaintenanceTaskCreat
     if not task:
         raise HTTPException(status_code=404, detail="Maintenance task not found")
     
-    for key, value in payload.model_dump().items():
+    for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(task, key, value)
     
     db.commit()
@@ -57,4 +57,3 @@ def delete_maintenance_task(task_id: UUID, db: Session = Depends(get_db)):
     
     db.delete(task)
     db.commit()
-    return None
