@@ -28,6 +28,10 @@ import {
   getUPCDatabaseSettings,
   updateUPCDatabaseSettings,
   updateApiKeys,
+  fetchPlugins,
+  createPlugin,
+  updatePlugin,
+  deletePlugin,
   type User, 
   type Location, 
   type AdminUserCreate,
@@ -42,7 +46,10 @@ import {
   type AIValuationRunResponse,
   type AIEnrichmentRunResponse,
   type AvailableUPCDatabase,
-  type UPCDatabaseConfig
+  type UPCDatabaseConfig,
+  type Plugin,
+  type PluginCreate,
+  type PluginUpdate
 } from "../lib/api";
 
 interface AdminPageProps {
@@ -76,7 +83,7 @@ interface GoogleWindow extends Window {
   };
 }
 
-type MainTabType = 'users' | 'logs' | 'server';
+type MainTabType = 'users' | 'logs' | 'server' | 'plugins';
 type UserSubTabType = 'all' | 'pending' | 'create';
 
 const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded = false }) => {
@@ -176,6 +183,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
   const [upcSaveSuccess, setUpcSaveSuccess] = useState(false);
   const [editingUpcDb, setEditingUpcDb] = useState<string | null>(null);
   const [editingApiKey, setEditingApiKey] = useState("");
+
+  // Plugin states
+  const [plugins, setPlugins] = useState<Plugin[]>([]);
+  const [pluginsLoading, setPluginsLoading] = useState(false);
+  const [pluginsError, setPluginsError] = useState<string | null>(null);
+  const [editingPlugin, setEditingPlugin] = useState<string | null>(null);
+  const [pluginFormData, setPluginFormData] = useState<Partial<PluginCreate>>({});
+  const [pluginFormError, setPluginFormError] = useState<string | null>(null);
+  const [pluginFormSuccess, setPluginFormSuccess] = useState<string | null>(null);
+  const [showPluginApiKey, setShowPluginApiKey] = useState<Record<string, boolean>>({});
+
 
   async function loadUsers() {
     setLoading(true);
@@ -277,6 +295,20 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     }
   }
 
+  async function loadPlugins() {
+    setPluginsLoading(true);
+    setPluginsError(null);
+    try {
+      const pluginsData = await fetchPlugins();
+      setPlugins(pluginsData);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to load plugins";
+      setPluginsError(errorMessage);
+    } finally {
+      setPluginsLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadUsers();
   }, []);
@@ -287,6 +319,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     }
     if (mainTab === 'server') {
       loadConfigStatus();
+    }
+    if (mainTab === 'plugins') {
+      loadPlugins();
     }
   }, [mainTab]);
 
@@ -1766,6 +1801,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
             <small style={{ color: "var(--muted)", fontSize: "0.875rem", display: "block", marginBottom: "0.75rem" }}>
               Gemini AI powers item detection from photos, barcode lookup, and AI valuation.
               {configStatus?.gemini_from_env ? " Configured via environment variable (read-only)." : " Configure below or in your .env file."}
+              {aiStatus?.plugins_enabled && (
+                <span style={{ display: 'block', marginTop: '0.25rem', color: 'var(--color-success, #28a745)' }}>
+                  ✓ {aiStatus.plugin_count} custom LLM plugin{aiStatus.plugin_count !== 1 ? 's' : ''} enabled for AI scan operations
+                </span>
+              )}
             </small>
             
             {/* Status Indicator */}
@@ -2358,6 +2398,399 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     </div>
   );
 
+  const renderPluginsTab = () => (
+    <div className="admin-section">
+      <h3>Plugin Management</h3>
+      <p style={{ color: 'var(--color-text-secondary)', marginBottom: '1.5rem' }}>
+        Configure custom LLM plugins for AI-powered features like data tag parsing and barcode lookup.
+      </p>
+
+      {pluginsError && (
+        <div className="error-message" style={{ marginBottom: '1rem' }}>
+          {pluginsError}
+        </div>
+      )}
+
+      {pluginFormError && (
+        <div className="error-message" style={{ marginBottom: '1rem' }}>
+          {pluginFormError}
+        </div>
+      )}
+
+      {pluginFormSuccess && (
+        <div className="success-message" style={{ marginBottom: '1rem' }}>
+          {pluginFormSuccess}
+        </div>
+      )}
+
+      {/* Add New Plugin Form */}
+      {editingPlugin === 'new' && (
+        <div className="panel" style={{ marginBottom: '1.5rem' }}>
+          <div className="panel-header">
+            <h4>Add New Plugin</h4>
+          </div>
+          <div className="panel-content">
+            <div className="form-group">
+              <label>Plugin Name *</label>
+              <input
+                type="text"
+                value={pluginFormData.name || ''}
+                onChange={(e) => setPluginFormData({ ...pluginFormData, name: e.target.value })}
+                placeholder="e.g., NesVentory Custom LLM"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Description</label>
+              <textarea
+                value={pluginFormData.description || ''}
+                onChange={(e) => setPluginFormData({ ...pluginFormData, description: e.target.value })}
+                placeholder="Description of what this plugin does"
+                rows={2}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Endpoint URL *</label>
+              <input
+                type="text"
+                value={pluginFormData.endpoint_url || ''}
+                onChange={(e) => setPluginFormData({ ...pluginFormData, endpoint_url: e.target.value })}
+                placeholder="https://your-plugin-api.com/endpoint"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>API Key (optional)</label>
+              <input
+                type="password"
+                value={pluginFormData.api_key || ''}
+                onChange={(e) => setPluginFormData({ ...pluginFormData, api_key: e.target.value })}
+                placeholder="API key for authentication"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={pluginFormData.enabled !== false}
+                  onChange={(e) => setPluginFormData({ ...pluginFormData, enabled: e.target.checked })}
+                />
+                {' '}Enabled
+              </label>
+            </div>
+
+            <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={pluginFormData.use_for_ai_scan || false}
+                  onChange={(e) => setPluginFormData({ ...pluginFormData, use_for_ai_scan: e.target.checked })}
+                />
+                {' '}Use for AI Scan Operations
+              </label>
+            </div>
+
+            <div className="form-group">
+              <label>Priority (lower = higher priority)</label>
+              <input
+                type="number"
+                value={pluginFormData.priority || 100}
+                onChange={(e) => setPluginFormData({ ...pluginFormData, priority: parseInt(e.target.value, 10) || 100 })}
+                min={1}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+              <button
+                className="btn-primary"
+                onClick={async () => {
+                  setPluginFormError(null);
+                  setPluginFormSuccess(null);
+                  if (!pluginFormData.name || !pluginFormData.endpoint_url) {
+                    setPluginFormError('Name and Endpoint URL are required');
+                    return;
+                  }
+                  try {
+                    await createPlugin(pluginFormData as PluginCreate);
+                    setPluginFormSuccess('Plugin created successfully');
+                    setEditingPlugin(null);
+                    setPluginFormData({});
+                    loadPlugins();
+                  } catch (err) {
+                    setPluginFormError(err instanceof Error ? err.message : 'Failed to create plugin');
+                  }
+                }}
+              >
+                Create Plugin
+              </button>
+              <button
+                className="btn-outline"
+                onClick={() => {
+                  setEditingPlugin(null);
+                  setPluginFormData({});
+                  setPluginFormError(null);
+                  setPluginFormSuccess(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Plugin Button */}
+      {!editingPlugin && (
+        <button
+          className="btn-primary"
+          onClick={() => {
+            setEditingPlugin('new');
+            setPluginFormData({ enabled: true, priority: 100 });
+            setPluginFormError(null);
+            setPluginFormSuccess(null);
+          }}
+          style={{ marginBottom: '1.5rem' }}
+        >
+          + Add Plugin
+        </button>
+      )}
+
+      {/* Plugins List */}
+      {pluginsLoading ? (
+        <p>Loading plugins...</p>
+      ) : plugins.length === 0 ? (
+        <p style={{ color: 'var(--color-text-secondary)' }}>
+          No plugins configured. Add a plugin to get started.
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {plugins.map((plugin) => (
+            <div key={plugin.id} className="panel">
+              <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h4 style={{ margin: 0 }}>{plugin.name}</h4>
+                  {plugin.description && (
+                    <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
+                      {plugin.description}
+                    </p>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span
+                    style={{
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '1rem',
+                      fontSize: '0.85rem',
+                      backgroundColor: plugin.enabled ? 'var(--color-success-bg, #d4edda)' : 'var(--color-warning-bg, #fff3cd)',
+                      color: plugin.enabled ? 'var(--color-success, #155724)' : 'var(--color-warning, #856404)',
+                    }}
+                  >
+                    {plugin.enabled ? '✓ Enabled' : '○ Disabled'}
+                  </span>
+                  {plugin.use_for_ai_scan && (
+                    <span
+                      style={{
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: '1rem',
+                        fontSize: '0.85rem',
+                        backgroundColor: 'var(--color-info-bg, #d1ecf1)',
+                        color: 'var(--color-info, #0c5460)',
+                      }}
+                    >
+                      🤖 AI Scan
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="panel-content">
+                {editingPlugin === plugin.id ? (
+                  <>
+                    <div className="form-group">
+                      <label>Plugin Name *</label>
+                      <input
+                        type="text"
+                        value={pluginFormData.name || plugin.name}
+                        onChange={(e) => setPluginFormData({ ...pluginFormData, name: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Description</label>
+                      <textarea
+                        value={pluginFormData.description !== undefined ? pluginFormData.description : plugin.description || ''}
+                        onChange={(e) => setPluginFormData({ ...pluginFormData, description: e.target.value })}
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Endpoint URL *</label>
+                      <input
+                        type="text"
+                        value={pluginFormData.endpoint_url || plugin.endpoint_url}
+                        onChange={(e) => setPluginFormData({ ...pluginFormData, endpoint_url: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>API Key (leave blank to keep current)</label>
+                      <input
+                        type="password"
+                        value={pluginFormData.api_key !== undefined ? pluginFormData.api_key : ''}
+                        onChange={(e) => setPluginFormData({ ...pluginFormData, api_key: e.target.value })}
+                        placeholder="Enter new API key or leave blank"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={pluginFormData.enabled !== undefined ? pluginFormData.enabled : plugin.enabled}
+                          onChange={(e) => setPluginFormData({ ...pluginFormData, enabled: e.target.checked })}
+                        />
+                        {' '}Enabled
+                      </label>
+                    </div>
+
+                    <div className="form-group">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={pluginFormData.use_for_ai_scan !== undefined ? pluginFormData.use_for_ai_scan : plugin.use_for_ai_scan}
+                          onChange={(e) => setPluginFormData({ ...pluginFormData, use_for_ai_scan: e.target.checked })}
+                        />
+                        {' '}Use for AI Scan Operations
+                      </label>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Priority</label>
+                      <input
+                        type="number"
+                        value={pluginFormData.priority !== undefined ? pluginFormData.priority : plugin.priority}
+                        onChange={(e) => setPluginFormData({ ...pluginFormData, priority: parseInt(e.target.value, 10) || 100 })}
+                        min={1}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                      <button
+                        className="btn-primary"
+                        onClick={async () => {
+                          setPluginFormError(null);
+                          setPluginFormSuccess(null);
+                          try {
+                            const updateData: PluginUpdate = {};
+                            if (pluginFormData.name !== undefined) updateData.name = pluginFormData.name;
+                            if (pluginFormData.description !== undefined) updateData.description = pluginFormData.description;
+                            if (pluginFormData.endpoint_url !== undefined) updateData.endpoint_url = pluginFormData.endpoint_url;
+                            if (pluginFormData.api_key !== undefined && pluginFormData.api_key !== '') updateData.api_key = pluginFormData.api_key;
+                            if (pluginFormData.enabled !== undefined) updateData.enabled = pluginFormData.enabled;
+                            if (pluginFormData.use_for_ai_scan !== undefined) updateData.use_for_ai_scan = pluginFormData.use_for_ai_scan;
+                            if (pluginFormData.priority !== undefined) updateData.priority = pluginFormData.priority;
+
+                            await updatePlugin(plugin.id, updateData);
+                            setPluginFormSuccess('Plugin updated successfully');
+                            setEditingPlugin(null);
+                            setPluginFormData({});
+                            loadPlugins();
+                          } catch (err) {
+                            setPluginFormError(err instanceof Error ? err.message : 'Failed to update plugin');
+                          }
+                        }}
+                      >
+                        Save Changes
+                      </button>
+                      <button
+                        className="btn-outline"
+                        onClick={() => {
+                          setEditingPlugin(null);
+                          setPluginFormData({});
+                          setPluginFormError(null);
+                          setPluginFormSuccess(null);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.5rem 1rem', fontSize: '0.95rem' }}>
+                      <strong>Endpoint:</strong>
+                      <span style={{ wordBreak: 'break-all' }}>{plugin.endpoint_url}</span>
+                      
+                      <strong>API Key:</strong>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        {plugin.api_key ? (
+                          <>
+                            <code style={{ flex: 1 }}>
+                              {showPluginApiKey[plugin.id] ? plugin.api_key : '••••••••••••••••'}
+                            </code>
+                            <button
+                              className="btn-outline"
+                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
+                              onClick={() => setShowPluginApiKey({ ...showPluginApiKey, [plugin.id]: !showPluginApiKey[plugin.id] })}
+                            >
+                              {showPluginApiKey[plugin.id] ? '🙈 Hide' : '👁️ Show'}
+                            </button>
+                          </>
+                        ) : (
+                          <span style={{ color: 'var(--color-text-secondary)' }}>Not configured</span>
+                        )}
+                      </div>
+                      
+                      <strong>Priority:</strong>
+                      <span>{plugin.priority}</span>
+                      
+                      <strong>Created:</strong>
+                      <span>{new Date(plugin.created_at).toLocaleString()}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                      <button
+                        className="btn-outline"
+                        onClick={() => {
+                          setEditingPlugin(plugin.id);
+                          setPluginFormData({});
+                          setPluginFormError(null);
+                          setPluginFormSuccess(null);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn-outline"
+                        style={{ color: 'var(--color-danger, #dc3545)' }}
+                        onClick={async () => {
+                          if (!confirm(`Are you sure you want to delete the plugin "${plugin.name}"?`)) return;
+                          setPluginFormError(null);
+                          setPluginFormSuccess(null);
+                          try {
+                            await deletePlugin(plugin.id);
+                            setPluginFormSuccess('Plugin deleted successfully');
+                            loadPlugins();
+                          } catch (err) {
+                            setPluginFormError(err instanceof Error ? err.message : 'Failed to delete plugin');
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   const content = (
     <>
       {!embedded && (
@@ -2399,6 +2832,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
         >
           ⚙️ Server Settings
         </button>
+        <button
+          type="button"
+          className={`tab-button ${mainTab === 'plugins' ? 'active' : ''}`}
+          onClick={() => handleMainTabChange('plugins')}
+        >
+          🧩 Plugins
+        </button>
       </div>
 
       {/* Tab Content */}
@@ -2406,6 +2846,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
         {mainTab === 'users' && renderUserAdminTab()}
         {mainTab === 'logs' && renderLogSettingsTab()}
         {mainTab === 'server' && renderServerSettingsTab()}
+        {mainTab === 'plugins' && renderPluginsTab()}
       </div>
     </>
   );

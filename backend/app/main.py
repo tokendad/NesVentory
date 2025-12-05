@@ -16,7 +16,7 @@ setup_logging()
 from . import models
 from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
-from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, maintenance
+from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, maintenance, plugins
 
 
 def run_migrations():
@@ -153,6 +153,7 @@ app.include_router(gdrive.router, prefix="/api")
 app.include_router(logs.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
 app.include_router(maintenance.router)
+app.include_router(plugins.router, prefix="/api")
 
 # Setup uploads directory and mount static files
 # Media files are stored in /app/data/media to ensure they persist with the database
