@@ -40,7 +40,7 @@ def update_maintenance_task(task_id: UUID, payload: schemas.MaintenanceTaskUpdat
     if not task:
         raise HTTPException(status_code=404, detail="Maintenance task not found")
     
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    for key, value in payload.model_dump(exclude_unset=True, exclude={'id', 'created_at', 'updated_at'}).items():
         setattr(task, key, value)
     
     db.commit()
