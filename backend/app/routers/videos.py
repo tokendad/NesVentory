@@ -104,11 +104,8 @@ def delete_video(
     
     # Delete file from storage
     storage = get_storage()
-    try:
-        storage_path = extract_storage_path(video.path, "videos")
-        storage.delete(storage_path)
-    except Exception as e:
-        logger.warning(f"Failed to delete video file: {e}")
+    storage_path = extract_storage_path(video.path, "videos")
+    storage.delete(storage_path)
     
     db.delete(video)
     db.commit()
