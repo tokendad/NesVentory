@@ -89,6 +89,7 @@ class LocalStorageBackend(StorageBackend):
         # Ensure base directories exist
         (self.base_path / "photos").mkdir(parents=True, exist_ok=True)
         (self.base_path / "documents").mkdir(parents=True, exist_ok=True)
+        (self.base_path / "videos").mkdir(parents=True, exist_ok=True)
 
     def _get_full_path(self, path: str) -> Path:
         """Get the full filesystem path for a relative path."""
@@ -319,7 +320,7 @@ def extract_storage_path(url_or_path: str, file_type: str = "photos") -> str:
     
     Args:
         url_or_path: The URL or path from which to extract the storage path
-        file_type: The file type (photos or documents) for fallback path construction
+        file_type: The file type (photos, documents, or videos) for fallback path construction
     
     Returns:
         The storage path suitable for use with the storage backend
@@ -340,9 +341,9 @@ def extract_storage_path(url_or_path: str, file_type: str = "photos") -> str:
         parts = path.split("/")
         
         # Check if the path starts with the file type directory
-        if len(parts) > 0 and parts[0] in ("photos", "documents"):
+        if len(parts) > 0 and parts[0] in ("photos", "documents", "videos"):
             return path
-        elif len(parts) > 1 and parts[1] in ("photos", "documents"):
+        elif len(parts) > 1 and parts[1] in ("photos", "documents", "videos"):
             # Skip bucket name (first segment)
             return "/".join(parts[1:])
         else:

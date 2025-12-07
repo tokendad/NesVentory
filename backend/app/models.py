@@ -215,6 +215,7 @@ class Location(Base):
 
     parent = relationship("Location", remote_side=[id], backref="children")
     items = relationship("Item", back_populates="location")
+    videos = relationship("Video", back_populates="location")
     
     # Relationship for user access control (many-to-many)
     allowed_users = relationship("User", secondary="user_location_access", back_populates="allowed_locations")
@@ -312,6 +313,21 @@ class Document(Base):
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     item = relationship("Item", back_populates="documents")
+
+
+class Video(Base):
+    __tablename__ = "videos"
+
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    location_id = Column(UUID(), ForeignKey("locations.id"), nullable=False)
+    filename = Column(String(255), nullable=False)
+    mime_type = Column(String(128), nullable=True)
+    path = Column(String(1024), nullable=False)
+    video_type = Column(String(64), nullable=True)  # 'room_tour', 'description', etc.
+
+    uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    location = relationship("Location", back_populates="videos")
 
 
 class RecurrenceType(str, enum.Enum):

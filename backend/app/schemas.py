@@ -223,6 +223,28 @@ class Document(DocumentBase):
         from_attributes = True
 
 
+# --- Video Schemas ---
+
+class VideoBase(BaseModel):
+    location_id: UUID
+    filename: str
+    mime_type: Optional[str] = None
+    path: str
+    video_type: Optional[str] = None
+
+
+class VideoCreate(VideoBase):
+    pass
+
+
+class Video(VideoBase):
+    id: UUID
+    uploaded_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # --- Item Schemas ---
 
 # Tag schemas defined first due to forward reference
