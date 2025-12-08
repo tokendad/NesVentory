@@ -16,7 +16,7 @@ setup_logging()
 from . import models
 from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
-from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, maintenance, plugins
+from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins
 
 
 def run_migrations():
@@ -29,7 +29,7 @@ def run_migrations():
     """
     # Whitelist of allowed table and column names for security
     # Only these exact names are permitted in migrations
-    ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks"}
+    ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks", "videos"}
     ALLOWED_COLUMNS = {"google_id", "estimated_value_ai_date", "estimated_value_user_date", "estimated_value_user_name",
                        "ai_schedule_enabled", "ai_schedule_interval_days", "ai_schedule_last_run",
                        "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "document_type", "color"}
@@ -152,6 +152,7 @@ app.include_router(ai.router, prefix="/api")
 app.include_router(gdrive.router, prefix="/api")
 app.include_router(logs.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
+app.include_router(videos.router, prefix="/api")
 app.include_router(maintenance.router)
 app.include_router(plugins.router, prefix="/api")
 

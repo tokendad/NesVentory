@@ -55,6 +55,15 @@ This is a major release with a complete redesign of the user interface.
 - Locations tree from sidebar
 - Theme and Locale buttons from header
 
+
+## [4.8.1] - 2025-12-04
+### Added
+- New video upload feature
+
+### Changed
+- Downgraded Python version from 3.14 to 3.11
+- Upgraded React from 19.2.0 to 19.2.1
+- Upgraded FastAPI from 0.123.3 to 0.123.7
 ## [4.8.0] - 2025-12-02
 ### Added
 - Upgraded dependencies,  added docker compose

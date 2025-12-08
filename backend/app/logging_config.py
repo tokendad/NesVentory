@@ -152,13 +152,17 @@ def setup_logging() -> None:
     )
     
     # File handler for main log
+    file_handler_created = False
     try:
-        file_handler = logging.FileHandler(CURRENT_LOG_FILE, mode='a', encoding='utf-8')
+        file_handler = logging.FileHandler(str(CURRENT_LOG_FILE), mode='a', encoding='utf-8')
         file_handler.setLevel(python_log_level)
         file_handler.setFormatter(detailed_formatter)
         root_logger.addHandler(file_handler)
-    except OSError as e:
-        print(f"Warning: Could not create file handler: {e}", file=sys.stderr)
+        file_handler_created = True
+    except (OSError, IOError) as e:
+        print(f"❌ ERROR: Could not create file handler: {e}", file=sys.stderr)
+        print(f"   Log file path: {CURRENT_LOG_FILE}", file=sys.stderr)
+        print(f"   Logging will continue to console only", file=sys.stderr)
     
     # Console handler - use same log level as file handler for docker logs visibility
     console_handler = logging.StreamHandler(sys.stdout)
@@ -174,9 +178,16 @@ def setup_logging() -> None:
     # Log startup information
     logger = logging.getLogger(__name__)
     logger.info(f"NesVentory logging initialized - Level: {log_level_setting}")
-    logger.info(f"Log file: {CURRENT_LOG_FILE}")
+    if file_handler_created:
+        logger.info(f"Log file: {CURRENT_LOG_FILE}")
+    else:
+        logger.warning(f"File logging not available - file handler creation failed")
     
     print(f"📋 Logging initialized - Level: {log_level_setting}, File: {CURRENT_LOG_FILE}")
+    if file_handler_created:
+        print(f"✅ File handler successfully created")
+    else:
+        print(f"❌ File handler creation failed - check error messages above")
 
 
 def reconfigure_logging_level(log_level_setting: str) -> None:
@@ -204,4 +215,11 @@ def reconfigure_logging_level(log_level_setting: str) -> None:
         logging.getLogger(logger_name).setLevel(python_log_level)
     
     logger = logging.getLogger(__name__)
-    logger.info(f"Logging level changed to: {log_level_setting}")
+    # Log the log level change as INFO, but ensure it is always emitted by temporarily lowering the logger's level if needed.
+    original_level = logger.level
+    if original_level > logging.INFO:
+        logger.setLevel(logging.INFO)
+        logger.info(f"Logging level changed to: {log_level_setting}")
+        logger.setLevel(original_level)
+    else:
+        logger.info(f"Logging level changed to: {log_level_setting}")
