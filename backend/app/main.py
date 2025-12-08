@@ -162,6 +162,7 @@ UPLOAD_DIR = Path("/app/data/media")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 (UPLOAD_DIR / "photos").mkdir(exist_ok=True)
 (UPLOAD_DIR / "documents").mkdir(exist_ok=True)
+(UPLOAD_DIR / "videos").mkdir(exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 # Mount frontend static files (v2.0 unified container)
