@@ -157,3 +157,41 @@ async def lookup_barcode_with_plugin(
     except Exception as e:
         logger.error(f"Error looking up barcode with plugin {plugin.name}: {e}")
         return None
+
+
+async def detect_items_with_plugin(
+    plugin: models.Plugin,
+    image_data: bytes,
+    mime_type: str
+) -> Optional[Dict[str, Any]]:
+    """
+    Detect items in an image using a custom LLM plugin.
+    
+    Args:
+        plugin: The Plugin model instance
+        image_data: The image bytes
+        mime_type: The MIME type of the image
+        
+    Returns:
+        Detection result with items array, or None if detection failed
+    """
+    try:
+        # Prepare the files dict for multipart upload
+        files = {
+            'file': ('image', image_data, mime_type)
+        }
+        
+        # Call the plugin endpoint
+        result = await call_plugin_endpoint(
+            plugin,
+            '/detect-items',
+            files=files,
+            timeout=60.0  # Item detection might take longer
+        )
+        
+        logger.info(f"Successfully detected items using plugin: {plugin.name}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error detecting items with plugin {plugin.name}: {e}")
+        return None

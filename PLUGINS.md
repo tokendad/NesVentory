@@ -56,7 +56,54 @@ Your plugin must implement the following endpoints:
 
 All fields are optional. Return `null` or omit fields that cannot be determined from the image.
 
-### 2. Lookup Barcode
+### 2. Detect Items (Image Processing)
+
+**Endpoint**: `POST /detect-items`
+
+**Request**: Multipart form data with a file field
+- Field name: `file`
+- Content: Image file (JPEG, PNG, GIF, or WebP)
+
+**Note**: This endpoint requires image processing capabilities. Plugins must have "Supports Image Processing" enabled to be used for this operation.
+
+**Response**: JSON object with an array of detected items
+```json
+{
+  "items": [
+    {
+      "name": "Department 56 Snow Village Church",
+      "description": "White church with red door and steeple",
+      "brand": "Department 56",
+      "estimated_value": 45.00,
+      "confidence": 0.92,
+      "estimation_date": "12/08/24"
+    },
+    {
+      "name": "Department 56 Village Bakery",
+      "description": "Two-story brick bakery building",
+      "brand": "Department 56",
+      "estimated_value": 38.00,
+      "confidence": 0.88,
+      "estimation_date": "12/08/24"
+    }
+  ],
+  "raw_response": "Optional raw response text"
+}
+```
+
+**Fields:**
+- `items` (required): Array of detected item objects
+  - `name` (required): Clear, specific name for the item
+  - `description` (optional): Brief description including color, size, or notable features
+  - `brand` (optional): The brand/manufacturer if identifiable
+  - `estimated_value` (optional): Approximate value in USD
+  - `confidence` (optional): Confidence in identification (0.0 to 1.0)
+  - `estimation_date` (optional): Date when value was estimated (MM/DD/YY format)
+- `raw_response` (optional): Raw response text for debugging
+
+Return an empty array `[]` if no items are detected.
+
+### 3. Lookup Barcode
 
 **Endpoint**: `POST /lookup-barcode`
 
@@ -100,8 +147,9 @@ https://github.com/tokendad/Plugin-Nesventory-LLM
 
 ## How It Works
 
-1. When a user performs an AI scan operation (e.g., uploading a data tag image):
+1. When a user performs an AI scan operation (e.g., uploading an image for item detection, data tag parsing, or barcode scanning):
    - The system first checks if any plugins are enabled for AI scan operations
+   - For image-based operations (item detection, data tag parsing), only plugins with "Supports Image Processing" enabled are used
    - Plugins are tried in priority order (lowest priority number first)
    - If a plugin returns valid results, they are used immediately
    - If all plugins fail or return no results, the system falls back to Google Gemini AI
