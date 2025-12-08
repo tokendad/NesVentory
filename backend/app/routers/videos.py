@@ -74,7 +74,7 @@ async def upload_video(
     # Create video record
     video = models.Video(
         location_id=location_id,
-        filename=file.filename or filename,
+        filename=filename,
         path=file_url,
         mime_type=file.content_type,
         video_type=video_type
