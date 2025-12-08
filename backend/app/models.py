@@ -215,7 +215,7 @@ class Location(Base):
 
     parent = relationship("Location", remote_side=[id], backref="children")
     items = relationship("Item", back_populates="location")
-    videos = relationship("Video", back_populates="location")
+    videos = relationship("Video", back_populates="location", cascade="all, delete-orphan")
     
     # Relationship for user access control (many-to-many)
     allowed_users = relationship("User", secondary="user_location_access", back_populates="allowed_locations")
