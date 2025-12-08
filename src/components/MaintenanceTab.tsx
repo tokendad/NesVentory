@@ -73,7 +73,6 @@ const MaintenanceTab: React.FC<MaintenanceTabProps> = ({ itemId }) => {
     setFormInterval(1);
     setFormColor(DEFAULT_COLORS[0]);
     setEditingTaskId(null);
-    setShowAddForm(false);
   };
 
   const handleAdd = () => {
@@ -117,6 +116,7 @@ const MaintenanceTab: React.FC<MaintenanceTabProps> = ({ itemId }) => {
       }
       await loadTasks();
       resetForm();
+      setShowAddForm(false);
     } catch (err: any) {
       setError(err.message || 'Failed to save task');
     }
@@ -311,7 +311,7 @@ const MaintenanceTab: React.FC<MaintenanceTabProps> = ({ itemId }) => {
           </div>
 
           <div className="form-actions">
-            <button className="btn-outline" onClick={resetForm}>
+            <button className="btn-outline" onClick={() => { resetForm(); setShowAddForm(false); }}>
               Cancel
             </button>
             <button className="btn-primary" onClick={handleSave}>
