@@ -16,7 +16,7 @@ setup_logging()
 from . import models
 from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
-from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos
+from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins
 
 
 def run_migrations():
@@ -32,8 +32,8 @@ def run_migrations():
     ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks", "videos"}
     ALLOWED_COLUMNS = {"google_id", "estimated_value_ai_date", "estimated_value_user_date", "estimated_value_user_name",
                        "ai_schedule_enabled", "ai_schedule_interval_days", "ai_schedule_last_run",
-                       "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "document_type"}
-    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "VARCHAR(64)", "BOOLEAN DEFAULT FALSE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT", "JSON"}
+                       "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "document_type", "color"}
+    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "VARCHAR(64)", "VARCHAR(7)", "BOOLEAN DEFAULT FALSE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT", "JSON"}
     
     # Define migrations: (table_name, column_name, column_definition)
     migrations = [
@@ -54,6 +54,8 @@ def run_migrations():
         ("users", "upc_databases", "JSON"),
         # Document model: document_type column for categorizing documents (manuals, attachments, etc.)
         ("documents", "document_type", "VARCHAR(64)"),
+        # MaintenanceTask model: color column for customizing task colors
+        ("maintenance_tasks", "color", "VARCHAR(7)"),
     ]
     
     with engine.begin() as conn:
@@ -151,6 +153,8 @@ app.include_router(gdrive.router, prefix="/api")
 app.include_router(logs.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
 app.include_router(videos.router, prefix="/api")
+app.include_router(maintenance.router)
+app.include_router(plugins.router, prefix="/api")
 
 # Setup uploads directory and mount static files
 # Media files are stored in /app/data/media to ensure they persist with the database

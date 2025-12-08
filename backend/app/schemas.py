@@ -348,11 +348,23 @@ class MaintenanceTaskBase(BaseModel):
     next_due_date: Optional[date] = None
     recurrence_type: str
     recurrence_interval: Optional[int] = None
+    color: Optional[str] = "#3b82f6"  # Default blue color
     last_completed: Optional[date] = None
 
 
 class MaintenanceTaskCreate(MaintenanceTaskBase):
     pass
+
+
+class MaintenanceTaskUpdate(BaseModel):
+    item_id: Optional[UUID] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    next_due_date: Optional[date] = None
+    recurrence_type: Optional[str] = None
+    recurrence_interval: Optional[int] = None
+    color: Optional[str] = None
+    last_completed: Optional[date] = None
 
 
 class MaintenanceTask(MaintenanceTaskBase):
@@ -394,3 +406,41 @@ class BulkUpdateLocationRequest(BaseModel):
 class BulkUpdateLocationResponse(BaseModel):
     updated_count: int
     message: str
+
+
+# --- Plugin Schemas ---
+
+class PluginBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    plugin_type: str = 'llm'
+    endpoint_url: str
+    api_key: Optional[str] = None
+    config: Optional[dict] = None
+    enabled: bool = True
+    use_for_ai_scan: bool = False
+    priority: int = 100
+
+
+class PluginCreate(PluginBase):
+    pass
+
+
+class PluginUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    endpoint_url: Optional[str] = None
+    api_key: Optional[str] = None
+    config: Optional[dict] = None
+    enabled: Optional[bool] = None
+    use_for_ai_scan: Optional[bool] = None
+    priority: Optional[int] = None
+
+
+class Plugin(PluginBase):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

@@ -4,6 +4,37 @@
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
+## 🚀 What's New in Version 5.0.0
+
+This is a major release featuring a complete redesign of the user interface for improved usability and efficiency.
+
+### ✨ Key Features in v5.0
+
+🎯 **Unified Inventory Page**
+- All-in-one view combining stats, locations, and items
+- Interactive location browser with dynamic filtering
+- Quick location settings access via gear icon
+- Customizable item display (10-100+ items)
+- Configurable table columns
+- Streamlined item interaction
+
+📱 **Redesigned Navigation**
+- 📦 Inventory - Your complete inventory at a glance
+- 👤 User Settings - Manage your profile
+- 📅 Maintenance Calendar - Track maintenance schedules
+- ⚙️ System Settings - Theme, Locale, and Service Status
+- 🔐 Admin - Administrative functions (admin only)
+
+🔍 **Enhanced Header**
+- Global search across all items
+- Logo and branding prominently displayed
+- Cleaner, more intuitive layout
+
+📊 **System Settings Hub**
+- Tabbed interface for Theme, Locale & Currency, and Service Status
+- All system configuration in one place
+- Better organization and discoverability
+
 ## 🚀 What's New in Version 4.4.0
 
 This release introduces a tabbed Edit Item interface for better organization and adds warranty management capabilities.
@@ -83,6 +114,7 @@ This is a major release preparing NesVentory for public release with comprehensi
 - 📦 **Inventory Management** - Track all your household items with detailed information
 - 📷 **AI Photo Detection** - Scan rooms with AI to detect and add items automatically
 - 🤖 **AI Data Tag Parsing** - Extract product info from data tag photos
+- 🧩 **Custom LLM Plugins** - Integrate specialized AI models for enhanced scanning accuracy
 - 📍 **Location Hierarchy** - Organize items by rooms and sub-locations
 - 📱 **QR Code Labels** - Print QR labels for locations and containers
 - 📦 **Container Support** - Mark locations as boxes/bins for seasonal storage
@@ -160,6 +192,7 @@ The application comes with pre-seeded test users:
 - **[INSTALL.txt](INSTALL.txt)** - Comprehensive installation guide with Docker Compose and CLI commands
 - **[SEEDING.md](SEEDING.md)** - Details about pre-seeded test data and how to customize it
 - **[INTERNATIONALIZATION.md](INTERNATIONALIZATION.md)** - Guide to international format support for dates and currencies
+- **[PLUGINS.md](PLUGINS.md)** - Guide for creating and configuring custom LLM plugins
 
 ## 📄 License
 

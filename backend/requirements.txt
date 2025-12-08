@@ -13,6 +13,12 @@ python-multipart==0.0.20
 python-dotenv==1.2.1
 httpx==0.28.1
 openpyxl==3.1.5
+# Pin transitive dependencies to avoid backtracking during pip resolution
+# protobuf 5.x is required by grpcio-status >= 1.68, but compatible with all Google packages
+protobuf==5.29.5
+googleapis-common-protos==1.65.0
+grpcio==1.68.1
+grpcio-status==1.68.1
 google-generativeai==0.8.5
 google-api-python-client==2.187.0
 google-auth-oauthlib==1.2.3
