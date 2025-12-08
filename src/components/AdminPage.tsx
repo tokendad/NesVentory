@@ -2567,7 +2567,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
               <label>
                 <input
                   type="checkbox"
-                  checked={pluginFormData.supports_image_processing !== false}
+                  checked={pluginFormData.supports_image_processing ?? true}
                   onChange={(e) => setPluginFormData({ ...pluginFormData, supports_image_processing: e.target.checked })}
                 />
                 {' '}Supports Image Processing
@@ -2765,7 +2765,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                       <label>
                         <input
                           type="checkbox"
-                          checked={pluginFormData.supports_image_processing !== undefined ? pluginFormData.supports_image_processing : plugin.supports_image_processing}
+                          checked={pluginFormData.supports_image_processing ?? plugin.supports_image_processing}
                           onChange={(e) => setPluginFormData({ ...pluginFormData, supports_image_processing: e.target.checked })}
                         />
                         {' '}Supports Image Processing
