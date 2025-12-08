@@ -14,16 +14,25 @@ from . import models
 logger = logging.getLogger(__name__)
 
 
-def get_enabled_ai_scan_plugins(db: Session) -> List[models.Plugin]:
+def get_enabled_ai_scan_plugins(db: Session, requires_image_processing: bool = False) -> List[models.Plugin]:
     """
     Get all enabled plugins that are configured for AI scan operations.
     
+    Args:
+        db: Database session
+        requires_image_processing: If True, only return plugins that support image processing
+    
     Returns plugins ordered by priority (lower priority number = higher priority).
     """
-    plugins = db.query(models.Plugin).filter(
+    query = db.query(models.Plugin).filter(
         models.Plugin.enabled.is_(True),
         models.Plugin.use_for_ai_scan.is_(True)
-    ).order_by(models.Plugin.priority).all()
+    )
+    
+    if requires_image_processing:
+        query = query.filter(models.Plugin.supports_image_processing.is_(True))
+    
+    plugins = query.order_by(models.Plugin.priority).all()
     
     return plugins
 

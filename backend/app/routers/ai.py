@@ -572,7 +572,8 @@ async def parse_data_tag(
     if use_plugin:
         from ..plugin_service import get_enabled_ai_scan_plugins, parse_data_tag_with_plugin
         
-        plugins = get_enabled_ai_scan_plugins(db)
+        # Get plugins that support image processing for data tag parsing
+        plugins = get_enabled_ai_scan_plugins(db, requires_image_processing=True)
         
         if plugins:
             # Read the image data once

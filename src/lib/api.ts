@@ -1512,6 +1512,7 @@ export interface Plugin {
   config?: Record<string, unknown> | null;
   enabled: boolean;
   use_for_ai_scan: boolean;
+  supports_image_processing: boolean;
   priority: number;
   created_at: string;
   updated_at: string;
@@ -1526,6 +1527,7 @@ export interface PluginCreate {
   config?: Record<string, unknown> | null;
   enabled?: boolean;
   use_for_ai_scan?: boolean;
+  supports_image_processing?: boolean;
   priority?: number;
 }
 
@@ -1537,6 +1539,7 @@ export interface PluginUpdate {
   config?: Record<string, unknown> | null;
   enabled?: boolean;
   use_for_ai_scan?: boolean;
+  supports_image_processing?: boolean;
   priority?: number;
 }
 

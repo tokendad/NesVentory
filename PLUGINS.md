@@ -19,19 +19,22 @@ Plugins can be configured through the Admin panel in the "Plugins" tab:
    - **API Key**: Authentication token for your plugin (optional)
    - **Enabled**: Enable/disable the plugin
    - **Use for AI Scan Operations**: Enable this plugin for AI scan features
+   - **Supports Image Processing**: Indicates if this plugin can process image uploads (default: enabled)
    - **Priority**: Lower numbers = higher priority (default: 100)
 
 ## Plugin API Specification
 
 Your plugin must implement the following endpoints:
 
-### 1. Parse Data Tag
+### 1. Parse Data Tag (Image Processing)
 
 **Endpoint**: `POST /parse-data-tag`
 
 **Request**: Multipart form data with a file field
 - Field name: `file`
 - Content: Image file (JPEG, PNG, GIF, or WebP)
+
+**Note**: This endpoint requires image processing capabilities. Plugins must have "Supports Image Processing" enabled to be used for this operation.
 
 **Response**: JSON object with the following optional fields:
 ```json
