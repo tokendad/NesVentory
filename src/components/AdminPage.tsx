@@ -2552,7 +2552,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                 type="text"
                 value={pluginFormData.endpoint_url || ''}
                 onChange={(e) => setPluginFormData({ ...pluginFormData, endpoint_url: e.target.value })}
-                placeholder="https://your-plugin-api.com/endpoint"
+                placeholder="Base URL only (e.g., http://192.168.1.100:8002 or https://plugin-api.example.com)"
               />
             </div>
 
@@ -2751,6 +2751,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                         type="text"
                         value={pluginFormData.endpoint_url || plugin.endpoint_url}
                         onChange={(e) => setPluginFormData({ ...pluginFormData, endpoint_url: e.target.value })}
+                        placeholder="Base URL only (e.g., http://192.168.1.100:8002 or https://plugin-api.example.com)"
                       />
                     </div>
 
