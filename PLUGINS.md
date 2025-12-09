@@ -215,6 +215,21 @@ You can find the container name using:
 docker ps
 ```
 
+#### **Alternative: Use Host Machine IP Address** (Works in most scenarios)
+
+Use your host machine's local IP address:
+
+```
+http://192.168.1.102:8002/
+```
+
+To find your machine's IP address:
+- **Linux/Mac**: `ip addr show` or `ifconfig`
+- **Windows**: `ipconfig`
+- Look for your local network IP (usually starts with `192.168.` or `10.`)
+
+This works reliably when containers are on different networks or when container name resolution doesn't work.
+
 #### Alternative Options (if container name doesn't work):
 
 **If you get "name resolution" error**, the containers are on **different Docker networks**. Fix this by:

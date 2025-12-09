@@ -2552,10 +2552,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                 type="text"
                 value={pluginFormData.endpoint_url || ''}
                 onChange={(e) => setPluginFormData({ ...pluginFormData, endpoint_url: e.target.value })}
-                placeholder="http://container-name:8002 (or https://your-plugin-api.com)"
+                placeholder="http://192.168.1.100:8002 or http://container-name:8002"
               />
               <small style={{ color: '#666', fontSize: '0.85em', marginTop: '4px', display: 'block' }}>
-                Docker users: Use container name (e.g., "http://nesventory-llm:8002"), not "localhost"
+                Docker users: Use host machine IP (e.g., "http://192.168.1.100:8002") or container name. Do NOT use "localhost"
               </small>
             </div>
 
@@ -2754,10 +2754,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                         type="text"
                         value={pluginFormData.endpoint_url || plugin.endpoint_url}
                         onChange={(e) => setPluginFormData({ ...pluginFormData, endpoint_url: e.target.value })}
-                        placeholder="http://container-name:8002 (or https://your-plugin-api.com)"
+                        placeholder="http://192.168.1.100:8002 or http://container-name:8002"
                       />
                       <small style={{ color: '#666', fontSize: '0.85em', marginTop: '4px', display: 'block' }}>
-                        Docker users: Use container name (e.g., "http://nesventory-llm:8002"), not "localhost"
+                        Docker users: Use host machine IP (e.g., "http://192.168.1.100:8002") or container name. Do NOT use "localhost"
                       </small>
                     </div>
 
