@@ -195,3 +195,69 @@ async def detect_items_with_plugin(
     except Exception as e:
         logger.error(f"Error detecting items with plugin {plugin.name}: {e}")
         return None
+
+
+async def test_plugin_connection(plugin: models.Plugin) -> Dict[str, Any]:
+    """
+    Test the connection to a plugin by calling a health check endpoint.
+    
+    Args:
+        plugin: The Plugin model instance to test
+        
+    Returns:
+        A dictionary with:
+        - 'success': bool indicating if the connection test succeeded
+        - 'message': str with success/error message
+        - 'status_code': int HTTP status code (if available)
+    """
+    try:
+        # Construct the health check URL
+        base_url = plugin.endpoint_url.rstrip('/')
+        url = f"{base_url}/health"
+        
+        # Prepare headers
+        headers = {}
+        if plugin.api_key:
+            headers['Authorization'] = f'Bearer {plugin.api_key}'
+        
+        # Make the request with a shorter timeout for connection tests
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(url, headers=headers)
+            
+            # Check if the response is successful
+            if response.status_code == 200:
+                logger.info(f"Connection test successful for plugin: {plugin.name}")
+                return {
+                    'success': True,
+                    'message': 'Connection successful',
+                    'status_code': response.status_code
+                }
+            else:
+                logger.warning(f"Connection test failed for plugin {plugin.name}: HTTP {response.status_code}")
+                return {
+                    'success': False,
+                    'message': f'Received HTTP {response.status_code}',
+                    'status_code': response.status_code
+                }
+                
+    except httpx.TimeoutException:
+        logger.error(f"Connection test timed out for plugin: {plugin.name}")
+        return {
+            'success': False,
+            'message': 'Connection timed out after 10 seconds',
+            'status_code': None
+        }
+    except httpx.ConnectError as e:
+        logger.error(f"Connection error testing plugin {plugin.name}: {e}")
+        return {
+            'success': False,
+            'message': f'Connection failed: {str(e)}',
+            'status_code': None
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error testing plugin {plugin.name}: {e}")
+        return {
+            'success': False,
+            'message': f'Error: {str(e)}',
+            'status_code': None
+        }

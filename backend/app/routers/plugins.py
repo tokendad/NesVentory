@@ -12,6 +12,7 @@ import logging
 
 from ..deps import get_db
 from .. import models, schemas, auth
+from .. import plugin_service
 
 logger = logging.getLogger(__name__)
 
@@ -175,3 +176,34 @@ def delete_plugin(
     
     logger.info(f"Plugin deleted: {plugin_name} (ID: {plugin_id})")
     return None
+
+
+@router.post("/{plugin_id}/test", response_model=schemas.PluginConnectionTestResult)
+async def test_plugin_connection(
+    plugin_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """
+    Test the connection to a plugin.
+    
+    Calls the plugin's /health endpoint to verify connectivity and authentication.
+    Admin-only endpoint.
+    """
+    if current_user.role != models.UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can test plugin connections"
+        )
+    
+    plugin = db.query(models.Plugin).filter(models.Plugin.id == plugin_id).first()
+    if not plugin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Plugin not found"
+        )
+    
+    logger.info(f"Testing connection to plugin: {plugin.name} (ID: {plugin_id})")
+    result = await plugin_service.test_plugin_connection(plugin)
+    
+    return result

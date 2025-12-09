@@ -1543,6 +1543,12 @@ export interface PluginUpdate {
   priority?: number;
 }
 
+export interface PluginConnectionTestResult {
+  success: boolean;
+  message: string;
+  status_code?: number | null;
+}
+
 export async function fetchPlugins(): Promise<Plugin[]> {
   const res = await fetch(`${API_BASE_URL}/api/plugins/`, {
     headers: {
@@ -1607,5 +1613,16 @@ export async function deletePlugin(pluginId: string): Promise<void> {
     }
     throw new Error(message || `HTTP ${res.status}`);
   }
+}
+
+export async function testPluginConnection(pluginId: string): Promise<PluginConnectionTestResult> {
+  const res = await fetch(`${API_BASE_URL}/api/plugins/${pluginId}/test`, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<PluginConnectionTestResult>(res);
 }
 

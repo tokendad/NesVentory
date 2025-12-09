@@ -26,6 +26,23 @@ Plugins can be configured through the Admin panel in the "Plugins" tab:
 
 Your plugin must implement the following endpoints:
 
+### 0. Health Check (Required for Connection Testing)
+
+**Endpoint**: `GET /health`
+
+**Request**: No request body required
+
+**Response**: Any successful HTTP 200 response indicates the plugin is reachable and functioning.
+
+**Example Response**:
+```json
+{
+  "status": "ok"
+}
+```
+
+This endpoint is used by the "Test Connection" feature in the Admin panel to verify that the plugin is accessible and properly configured. The actual response body is not validated; only the HTTP 200 status code is checked.
+
 ### 1. Parse Data Tag (Image Processing)
 
 **Endpoint**: `POST /parse-data-tag`
@@ -181,10 +198,12 @@ https://github.com/tokendad/Plugin-Nesventory-LLM
 - Ensure **Use for AI Scan Operations** is checked
 - Check the plugin endpoint URL is correct
 - Verify the API key is valid (if required)
+- Use the **Test Connection** button to verify connectivity
 
 ### Plugin Failing
+- Use the **Test Connection** button in the Admin panel to diagnose connectivity issues
 - Check plugin logs for error details
-- Verify the plugin implements the correct API specification
+- Verify the plugin implements the correct API specification (including `/health` endpoint)
 - Test the plugin endpoint manually with curl or Postman
 - Check network connectivity between NesVentory and the plugin
 
@@ -202,6 +221,7 @@ The Plugins tab in the Admin panel provides:
 - **Enable/Disable Toggle**: Quickly enable or disable plugins without deleting them
 - **Priority Management**: Set the order in which plugins are tried
 - **API Key Management**: Securely store and manage plugin API keys (displayed as masked)
+- **Test Connection**: Verify plugin connectivity and authentication by calling the `/health` endpoint
 - **Delete**: Remove plugins that are no longer needed
 
 Plugin status is also displayed in the Server Settings → AI section, showing how many plugins are currently enabled for AI scan operations.

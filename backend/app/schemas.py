@@ -446,3 +446,10 @@ class Plugin(PluginBase):
 
     class Config:
         from_attributes = True
+
+
+class PluginConnectionTestResult(BaseModel):
+    """Result of a plugin connection test."""
+    success: bool
+    message: str
+    status_code: Optional[int] = None
