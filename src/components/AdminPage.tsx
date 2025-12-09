@@ -2552,8 +2552,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                 type="text"
                 value={pluginFormData.endpoint_url || ''}
                 onChange={(e) => setPluginFormData({ ...pluginFormData, endpoint_url: e.target.value })}
-                placeholder="https://your-plugin-api.com/endpoint"
+                placeholder="http://container-name:8002 (or https://your-plugin-api.com)"
               />
+              <small style={{ color: '#666', fontSize: '0.85em', marginTop: '4px', display: 'block' }}>
+                Docker users: Use container name (e.g., "http://nesventory-llm:8002"), not "localhost"
+              </small>
             </div>
 
             <div className="form-group">
@@ -2751,7 +2754,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                         type="text"
                         value={pluginFormData.endpoint_url || plugin.endpoint_url}
                         onChange={(e) => setPluginFormData({ ...pluginFormData, endpoint_url: e.target.value })}
+                        placeholder="http://container-name:8002 (or https://your-plugin-api.com)"
                       />
+                      <small style={{ color: '#666', fontSize: '0.85em', marginTop: '4px', display: 'block' }}>
+                        Docker users: Use container name (e.g., "http://nesventory-llm:8002"), not "localhost"
+                      </small>
                     </div>
 
                     <div className="form-group">

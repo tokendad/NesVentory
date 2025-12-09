@@ -193,10 +193,48 @@ https://github.com/tokendad/Plugin-Nesventory-LLM
 
 ## Troubleshooting
 
+### Docker Networking Issues (Common Issue!)
+
+**IMPORTANT**: If you're running NesVentory in Docker and your plugin in another container, `localhost` or `127.0.0.1` will NOT work!
+
+Inside a Docker container, `localhost` refers to the container itself, not other containers or the host machine. 
+
+#### **Recommended Solution: Use Container Name**
+
+If both containers are on the same Docker network (which they are by default with docker-compose), use the **container name** as the hostname:
+
+```
+http://nesventory-llm:8002/
+```
+
+**Example**: If your plugin's container is named `nesventory-llm` and listens on port `8002`, use:
+- Endpoint URL: `http://nesventory-llm:8002`
+
+You can find the container name using:
+```bash
+docker ps
+```
+
+#### Alternative Options (if container name doesn't work):
+
+**Option 2: Use `host.docker.internal` (Docker Desktop on Mac/Windows)**
+```
+http://host.docker.internal:8002/
+```
+This hostname resolves to the host machine from inside a container.
+
+**Option 3: Use the Docker host IP (Linux)**
+```
+http://172.17.0.1:8002/
+```
+On Linux, you can access the host from a container using the Docker bridge IP (usually `172.17.0.1`).
+
+**Testing**: Use the **Test Connection** button in the Admin panel. If you see an error mentioning "localhost", you need to update your endpoint URL using the container name or one of the options above.
+
 ### Plugin Not Being Called
 - Ensure the plugin is **Enabled**
 - Ensure **Use for AI Scan Operations** is checked
-- Check the plugin endpoint URL is correct
+- Check the plugin endpoint URL is correct (see Docker networking above!)
 - Verify the API key is valid (if required)
 - Use the **Test Connection** button to verify connectivity
 
@@ -206,6 +244,7 @@ https://github.com/tokendad/Plugin-Nesventory-LLM
 - Verify the plugin implements the correct API specification (including `/health` endpoint)
 - Test the plugin endpoint manually with curl or Postman
 - Check network connectivity between NesVentory and the plugin
+- If using Docker, see "Docker Networking Issues" above
 
 ### Results Not as Expected
 - Verify the plugin is returning data in the correct format

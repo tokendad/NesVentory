@@ -242,6 +242,15 @@ async def test_plugin_connection(plugin: models.Plugin) -> Dict[str, Any]:
                 
     except httpx.TimeoutException:
         logger.error(f"Connection test timed out for plugin: {plugin.name}")
+        
+        # Check if using localhost - common Docker networking mistake
+        if 'localhost' in plugin.endpoint_url.lower() or '127.0.0.1' in plugin.endpoint_url:
+            return {
+                'success': False,
+                'message': 'Connection timed out. NOTE: If running in Docker, "localhost" refers to the container itself. Use the container name (e.g., "nesventory-llm") instead, or "host.docker.internal" on Docker Desktop.',
+                'status_code': None
+            }
+        
         return {
             'success': False,
             'message': 'Connection timed out after 10 seconds',
@@ -249,6 +258,15 @@ async def test_plugin_connection(plugin: models.Plugin) -> Dict[str, Any]:
         }
     except httpx.ConnectError as e:
         logger.error(f"Connection error testing plugin {plugin.name}: {e}")
+        
+        # Check if using localhost - common Docker networking mistake
+        if 'localhost' in plugin.endpoint_url.lower() or '127.0.0.1' in plugin.endpoint_url:
+            return {
+                'success': False,
+                'message': f'Connection failed: {str(e)}. NOTE: If running in Docker, "localhost" refers to the container itself. Use the container name (e.g., "http://nesventory-llm:8002") instead. Run "docker ps" to find the container name.',
+                'status_code': None
+            }
+        
         return {
             'success': False,
             'message': f'Connection failed: {str(e)}',
