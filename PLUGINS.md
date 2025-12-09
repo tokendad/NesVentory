@@ -75,7 +75,7 @@ All fields are optional. Return `null` or omit fields that cannot be determined 
 
 ### 2. Detect Items (Image Processing)
 
-**Endpoint**: `POST /detect-items`
+**Endpoint**: `POST /nesventory/identify/image`
 
 **Request**: Multipart form data with a file field
 - Field name: `file`

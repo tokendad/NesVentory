@@ -184,7 +184,7 @@ async def detect_items_with_plugin(
         # Call the plugin endpoint
         result = await call_plugin_endpoint(
             plugin,
-            '/detect-items',
+            '/nesventory/identify/image',
             files=files,
             timeout=60.0  # Item detection might take longer
         )
