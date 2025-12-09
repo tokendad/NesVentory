@@ -802,11 +802,6 @@ tbody tr:hover {
     max-height: calc(100vh - 1rem);
     width: calc(100% - 1rem);
   }
-
-  .modal-content.large {
-    max-width: 100%;
-    padding: 1rem;
-  }
 }
 
 /* Modal Styles */
@@ -2178,6 +2173,7 @@ tbody tr:hover {
   }
 
   /* AI Detection modal specific mobile fixes */
+  /* TODO: Replace inline styles in AIDetection component with CSS classes for better maintainability */
   /* Note: !important is needed to override inline styles in the component */
   .modal-content.large > div[style*="padding"] {
     padding: 0.75rem !important;
