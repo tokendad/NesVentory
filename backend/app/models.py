@@ -379,3 +379,24 @@ class SystemSettings(Base):
     
     updated_at = Column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow(), nullable=False)
 
+
+class Plugin(Base):
+    """
+    External LLM plugins for AI-powered item identification.
+    
+    Plugins are tried in priority order (lower = higher priority) before
+    falling back to Gemini AI for image analysis and item detection.
+    """
+    __tablename__ = "plugins"
+
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False)  # Display name of the plugin
+    endpoint_url = Column(String(1024), nullable=False)  # Base URL of the plugin API
+    api_key = Column(String(255), nullable=True)  # Optional API key for authentication
+    enabled = Column(Boolean, default=True, nullable=False)  # Whether to use this plugin
+    priority = Column(Integer, default=100, nullable=False)  # Lower number = higher priority
+    supports_image_processing = Column(Boolean, default=True, nullable=False)  # Can process image uploads
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+

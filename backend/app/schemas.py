@@ -372,3 +372,36 @@ class BulkUpdateLocationRequest(BaseModel):
 class BulkUpdateLocationResponse(BaseModel):
     updated_count: int
     message: str
+
+
+# --- Plugin Schemas ---
+
+class PluginBase(BaseModel):
+    name: str
+    endpoint_url: str
+    api_key: Optional[str] = None
+    enabled: bool = True
+    priority: int = 100
+    supports_image_processing: bool = True
+
+
+class PluginCreate(PluginBase):
+    pass
+
+
+class PluginUpdate(BaseModel):
+    name: Optional[str] = None
+    endpoint_url: Optional[str] = None
+    api_key: Optional[str] = None
+    enabled: Optional[bool] = None
+    priority: Optional[int] = None
+    supports_image_processing: Optional[bool] = None
+
+
+class Plugin(PluginBase):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

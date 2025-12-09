@@ -21,6 +21,7 @@ from ..config import settings
 from ..deps import get_db
 from .. import models, schemas, auth
 from ..settings_service import get_effective_gemini_api_key
+from ..plugin_service import try_plugins_for_image_detection
 
 logger = logging.getLogger(__name__)
 
@@ -447,17 +448,10 @@ async def detect_items(
     """
     Analyze an uploaded image using AI to detect household items.
     
+    Tries enabled plugins first (in priority order), then falls back to Gemini AI.
     Returns a list of detected items with names, descriptions, and estimated values.
     These can be used to create inventory items.
     """
-    # Check if Gemini API is configured (env or database)
-    gemini_api_key = get_effective_gemini_api_key(db)
-    if not gemini_api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment or configure it in the admin panel."
-        )
-    
     # Validate file type
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(
@@ -466,14 +460,102 @@ async def detect_items(
         )
     
     try:
+        # Read the image data once
+        image_data = await file.read()
+        
+        # Try plugins first (in priority order)
+        plugin_result, plugin_name = await try_plugins_for_image_detection(
+            db, image_data, file.content_type
+        )
+        
+        if plugin_result:
+            logger.info(f"Using plugin '{plugin_name}' for item detection")
+            # Parse plugin response to DetectedItem format
+            items = []
+            
+            # Handle different plugin response formats
+            if "items" in plugin_result:
+                # Direct items array
+                plugin_items = plugin_result["items"]
+            elif "matched_items" in plugin_result:
+                # Image search format (from LLM plugin)
+                plugin_items = plugin_result["matched_items"]
+            elif isinstance(plugin_result, list):
+                # Array response
+                plugin_items = plugin_result
+            else:
+                # Treat entire response as single item
+                plugin_items = [plugin_result]
+            
+            for item_data in plugin_items:
+                if isinstance(item_data, dict):
+                    # Extract fields, handling different formats
+                    name = (
+                        item_data.get("name") or
+                        item_data.get("item_name") or
+                        item_data.get("description") or
+                        "Unknown Item"
+                    )
+                    
+                    description = item_data.get("description") or item_data.get("desc")
+                    brand = item_data.get("brand") or item_data.get("manufacturer")
+                    
+                    # Parse estimated value
+                    estimated_value = None
+                    value_str = item_data.get("estimated_value") or item_data.get("value")
+                    if value_str:
+                        try:
+                            estimated_value = float(value_str) if isinstance(value_str, (int, float)) else None
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    # Parse confidence (plugin may use 'score' or 'confidence')
+                    confidence = None
+                    conf_value = item_data.get("confidence") or item_data.get("score")
+                    if conf_value is not None:
+                        try:
+                            confidence = float(conf_value)
+                            # Normalize to 0-1 if given as percentage
+                            if confidence > 1:
+                                confidence = confidence / 100
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    # Add estimation date if there's an estimated value
+                    estimation_date = None
+                    if estimated_value is not None:
+                        estimation_date = datetime.now(timezone.utc).strftime("%m/%d/%y")
+                    
+                    items.append(DetectedItem(
+                        name=name,
+                        description=description,
+                        brand=brand,
+                        estimated_value=estimated_value,
+                        confidence=confidence,
+                        estimation_date=estimation_date
+                    ))
+            
+            if items:
+                return DetectionResult(items=items, raw_response=None)
+        
+        # Fall back to Gemini AI if no plugins succeeded
+        logger.info("Falling back to Gemini AI for item detection")
+        
+        # Check if Gemini API is configured (env or database)
+        gemini_api_key = get_effective_gemini_api_key(db)
+        if not gemini_api_key:
+            raise HTTPException(
+                status_code=503,
+                detail="AI detection is not configured. Please configure an LLM plugin or set GEMINI_API_KEY in environment or admin panel."
+            )
+        
         # Import Gemini SDK
         import google.generativeai as genai
         
         # Configure the API with effective key
         genai.configure(api_key=gemini_api_key)
         
-        # Read and encode the image
-        image_data = await file.read()
+        # Encode the image
         image_base64 = base64.b64encode(image_data).decode("utf-8")
         
         # Create the model
