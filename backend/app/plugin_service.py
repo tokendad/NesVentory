@@ -138,6 +138,15 @@ async def parse_data_tag_with_plugin(
         logger.info(f"Successfully parsed data tag using plugin: {plugin.name}")
         return result
         
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            logger.error(
+                f"Plugin {plugin.name} returned 404 for /parse-data-tag endpoint. "
+                f"Ensure the plugin implements the required API endpoints. See PLUGINS.md for details."
+            )
+        else:
+            logger.error(f"HTTP error parsing data tag with plugin {plugin.name}: {e}")
+        return None
     except Exception as e:
         logger.error(f"Error parsing data tag with plugin {plugin.name}: {e}")
         return None
@@ -213,6 +222,16 @@ async def detect_items_with_plugin(
         logger.info(f"Successfully detected items using plugin: {plugin.name}")
         return result
         
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            logger.error(
+                f"Plugin {plugin.name} returned 404 for /nesventory/identify/image endpoint. "
+                f"This endpoint was added in December 2025. Please update the plugin to the latest version. "
+                f"See PLUGINS.md for update instructions."
+            )
+        else:
+            logger.error(f"HTTP error detecting items with plugin {plugin.name}: {e}")
+        return None
     except Exception as e:
         logger.error(f"Error detecting items with plugin {plugin.name}: {e}")
         return None

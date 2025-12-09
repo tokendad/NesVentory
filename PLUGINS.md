@@ -162,6 +162,18 @@ Authorization: Bearer YOUR_API_KEY
 See the reference implementation at:
 https://github.com/tokendad/Plugin-Nesventory-LLM
 
+**Important**: For full compatibility with NesVentory's AI scan features (including item detection from images), ensure you are running the **latest version** of the Plugin-Nesventory-LLM. The image identification endpoint (`/nesventory/identify/image`) was added in December 2025. If you experience 404 errors when using AI scan, update your plugin to the latest version:
+
+```bash
+# Pull the latest version
+docker pull tokendad/plugin-nesventory-llm:latest
+
+# Or rebuild from source
+cd Plugin-Nesventory-LLM
+git pull
+docker-compose up --build -d
+```
+
 ## How It Works
 
 1. When a user performs an AI scan operation (e.g., uploading an image for item detection, data tag parsing, or barcode scanning):
@@ -192,6 +204,42 @@ https://github.com/tokendad/Plugin-Nesventory-LLM
 6. **Secure Your Endpoint**: Use HTTPS and validate the API key on every request
 
 ## Troubleshooting
+
+### ⚠️ ERROR: "404 Not Found" when using AI Scan (MOST COMMON ISSUE)
+
+**Symptom**: AI scan operations fail with error logs showing:
+```
+ERROR | Error detecting items with plugin Department 56: Client error '404 Not Found' for url 'http://192.168.1.102:8002/nesventory/identify/image'
+INFO  | All plugins failed, falling back to Gemini AI
+```
+
+**Root Cause**: Your LLM plugin server is running an **outdated version** that doesn't include the image identification endpoints.
+
+**Solution**: Update your plugin to the latest version:
+
+```bash
+# If using Docker (recommended)
+cd Plugin-Nesventory-LLM
+docker-compose down
+docker-compose pull  # Pull latest image
+docker-compose up -d
+
+# Or rebuild from source
+cd Plugin-Nesventory-LLM
+git pull origin main
+docker-compose up --build -d
+```
+
+**Verify the fix**:
+```bash
+# Should return 200 OK
+curl -v http://192.168.1.102:8002/health
+
+# Should return 422 (missing file) NOT 404 (endpoint not found)
+curl -X POST http://192.168.1.102:8002/nesventory/identify/image
+```
+
+If you see `{"detail":"Not Found"}`, the endpoint still doesn't exist - ensure you pulled/built the latest version.
 
 ### Docker Networking Issues (Common Issue!)
 
@@ -273,9 +321,31 @@ ip addr show docker0 | grep inet
 - Use the **Test Connection** button in the Admin panel to diagnose connectivity issues
 - Check plugin logs for error details
 - Verify the plugin implements the correct API specification (including `/health` endpoint)
-- Test the plugin endpoint manually with curl or Postman
+- Test the plugin endpoint manually with curl (see commands below)
 - Check network connectivity between NesVentory and the plugin
 - If using Docker, see "Docker Networking Issues" above
+
+**Testing Plugin Endpoints with curl**:
+
+```bash
+# Test health check (should return 200 OK)
+curl -v http://192.168.1.102:8002/health
+
+# Test if the image identification endpoint exists (404 = endpoint missing, 422 = endpoint exists but missing file)
+curl -X POST http://192.168.1.102:8002/nesventory/identify/image
+
+# Test image identification with an actual image
+curl -X POST http://192.168.1.102:8002/nesventory/identify/image \
+  -F "file=@/path/to/image.jpg"
+
+# Check which endpoints are available (if the plugin has docs)
+curl http://192.168.1.102:8002/docs
+```
+
+**Common Issues**:
+- **404 Not Found** on `/nesventory/identify/image`: Plugin is running an old version. Update to latest version (see "Example Plugin Implementation" section above).
+- **Connection refused**: Plugin server is not running or wrong IP/port.
+- **Timeout**: Firewall blocking connection or wrong network configuration (see "Docker Networking Issues" above).
 
 ### Results Not as Expected
 - Verify the plugin is returning data in the correct format

@@ -2555,7 +2555,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                 placeholder="http://192.168.1.100:8002 or http://container-name:8002"
               />
               <small className="help-text">
-                Docker users: Use host machine IP (e.g., "http://192.168.1.100:8002") or container name. Do NOT use "localhost"
+                Docker users: Use host machine IP (e.g., "http://192.168.1.100:8002") or container name. Do NOT use "localhost".<br />
+                For Plugin-Nesventory-LLM: Ensure you're running the latest version for full AI scan support.
               </small>
             </div>
 
@@ -2757,7 +2758,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                         placeholder="http://192.168.1.100:8002 or http://container-name:8002"
                       />
                       <small className="help-text">
-                        Docker users: Use host machine IP (e.g., "http://192.168.1.100:8002") or container name. Do NOT use "localhost"
+                        Docker users: Use host machine IP (e.g., "http://192.168.1.100:8002") or container name. Do NOT use "localhost".<br />
+                        For Plugin-Nesventory-LLM: Ensure you're running the latest version for full AI scan support.
                       </small>
                     </div>
 
