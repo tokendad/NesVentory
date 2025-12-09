@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import type { Item, Location, Tag } from "../lib/api";
 import { getLocationPath } from "../lib/utils";
-import { updateLocation, createLocation } from "../lib/api";
+import { updateLocation, createLocation, deleteLocation } from "../lib/api";
 
 interface InventoryPageProps {
   items: Item[];
@@ -90,6 +90,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   // Track the location navigation path for breadcrumb navigation
   const [locationPath, setLocationPath] = useState<Location[]>([]);
+  const [showDeleteLocationConfirm, setShowDeleteLocationConfirm] = useState(false);
 
   // Get child locations for a given parent ID
   const getChildLocations = useCallback((parentId: string | number | null): Location[] => {
@@ -385,6 +386,20 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
       onRefreshLocations();
     } catch (err: any) {
       alert(`Failed to ${showLocationSettings === "create" ? "create" : "update"} location: ${err.message}`);
+    }
+  };
+
+  const handleLocationDelete = async () => {
+    if (!showLocationSettings || showLocationSettings === "create") return;
+    
+    try {
+      await deleteLocation(showLocationSettings.id.toString());
+      setShowDeleteLocationConfirm(false);
+      setShowLocationSettings(null);
+      setEditFormData(null);
+      onRefreshLocations();
+    } catch (err: any) {
+      alert(`Failed to delete location: ${err.message}`);
     }
   };
 
@@ -855,6 +870,16 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
               </div>
 
               <div className="form-actions">
+                {showLocationSettings !== "create" && (
+                  <button
+                    type="button"
+                    className="btn-danger"
+                    onClick={() => setShowDeleteLocationConfirm(true)}
+                    style={{ marginRight: "auto" }}
+                  >
+                    Delete
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn-outline"
@@ -867,6 +892,33 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Location Confirmation Modal */}
+      {showDeleteLocationConfirm && showLocationSettings !== "create" && (
+        <div className="modal-overlay" onClick={() => setShowDeleteLocationConfirm(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Confirm Delete Location</h2>
+              <button className="modal-close" onClick={() => setShowDeleteLocationConfirm(false)}>✕</button>
+            </div>
+            <div style={{ padding: "1.5rem" }}>
+              <p>Are you sure you want to delete this location?</p>
+              <p style={{ marginTop: "0.5rem" }}>
+                All items in this location will be moved to its parent location.
+              </p>
+              <p style={{ color: "var(--danger)", marginTop: "0.5rem" }}>This action cannot be undone.</p>
+            </div>
+            <div className="form-actions">
+              <button className="btn-outline" onClick={() => setShowDeleteLocationConfirm(false)}>
+                Cancel
+              </button>
+              <button className="btn-danger" onClick={handleLocationDelete}>
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}
