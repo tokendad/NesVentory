@@ -29,11 +29,12 @@ def run_migrations():
     """
     # Whitelist of allowed table and column names for security
     # Only these exact names are permitted in migrations
-    ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks", "videos"}
+    ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks", "videos", "plugins"}
     ALLOWED_COLUMNS = {"google_id", "estimated_value_ai_date", "estimated_value_user_date", "estimated_value_user_name",
                        "ai_schedule_enabled", "ai_schedule_interval_days", "ai_schedule_last_run",
-                       "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "document_type", "color"}
-    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "VARCHAR(64)", "VARCHAR(7)", "BOOLEAN DEFAULT FALSE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT", "JSON"}
+                       "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "document_type", "color", 
+                       "supports_image_processing"}
+    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "VARCHAR(64)", "VARCHAR(7)", "BOOLEAN DEFAULT FALSE", "BOOLEAN DEFAULT TRUE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT", "JSON"}
     
     # Define migrations: (table_name, column_name, column_definition)
     migrations = [
@@ -56,6 +57,8 @@ def run_migrations():
         ("documents", "document_type", "VARCHAR(64)"),
         # MaintenanceTask model: color column for customizing task colors
         ("maintenance_tasks", "color", "VARCHAR(7)"),
+        # Plugin model: supports_image_processing column for indicating image processing capabilities
+        ("plugins", "supports_image_processing", "BOOLEAN DEFAULT TRUE"),
     ]
     
     with engine.begin() as conn:

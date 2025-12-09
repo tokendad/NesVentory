@@ -451,6 +451,7 @@ def get_ai_status(db: Session = Depends(get_db)):
 @router.post("/detect-items", response_model=DetectionResult)
 async def detect_items(
     file: UploadFile = File(..., description="Image file to analyze for items"),
+    use_plugin: bool = True,  # Parameter to enable/disable plugin usage
     db: Session = Depends(get_db)
 ):
     """
@@ -458,7 +459,39 @@ async def detect_items(
     
     Returns a list of detected items with names, descriptions, and estimated values.
     These can be used to create inventory items.
+    
+    If custom LLM plugins are enabled for AI scan, they will be tried first
+    before falling back to the default Gemini AI.
     """
+    # Try custom LLM plugins first if enabled
+    if use_plugin:
+        from ..plugin_service import get_enabled_ai_scan_plugins, detect_items_with_plugin
+        
+        # Get plugins that support image processing for item detection
+        plugins = get_enabled_ai_scan_plugins(db, requires_image_processing=True)
+        
+        if plugins:
+            # Read the image data once
+            image_data = await file.read()
+            
+            # Try each plugin in priority order
+            for plugin in plugins:
+                logger.info(f"Trying plugin: {plugin.name} for item detection")
+                result = await detect_items_with_plugin(plugin, image_data, file.content_type or "image/jpeg")
+                
+                if result and result.get("items"):
+                    # Convert plugin result to DetectionResult
+                    # The plugin should return data in a compatible format
+                    items = [DetectedItem(**item) for item in result.get("items", [])]
+                    return DetectionResult(
+                        items=items,
+                        raw_response=result.get("raw_response")
+                    )
+            
+            logger.info("All plugins failed, falling back to Gemini AI")
+            # Reset file position for Gemini fallback
+            await file.seek(0)
+    
     # Check if Gemini API is configured (env or database)
     gemini_api_key = get_effective_gemini_api_key(db)
     if not gemini_api_key:
@@ -572,7 +605,8 @@ async def parse_data_tag(
     if use_plugin:
         from ..plugin_service import get_enabled_ai_scan_plugins, parse_data_tag_with_plugin
         
-        plugins = get_enabled_ai_scan_plugins(db)
+        # Get plugins that support image processing for data tag parsing
+        plugins = get_enabled_ai_scan_plugins(db, requires_image_processing=True)
         
         if plugins:
             # Read the image data once

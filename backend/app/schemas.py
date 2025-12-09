@@ -419,6 +419,7 @@ class PluginBase(BaseModel):
     config: Optional[dict] = None
     enabled: bool = True
     use_for_ai_scan: bool = False
+    supports_image_processing: bool = True
     priority: int = 100
 
 
@@ -434,6 +435,7 @@ class PluginUpdate(BaseModel):
     config: Optional[dict] = None
     enabled: Optional[bool] = None
     use_for_ai_scan: Optional[bool] = None
+    supports_image_processing: Optional[bool] = None
     priority: Optional[int] = None
 
 

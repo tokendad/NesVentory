@@ -2564,6 +2564,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
             </div>
 
             <div className="form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={pluginFormData.supports_image_processing ?? true}
+                  onChange={(e) => setPluginFormData({ ...pluginFormData, supports_image_processing: e.target.checked })}
+                />
+                {' '}Supports Image Processing
+              </label>
+            </div>
+
+            <div className="form-group">
               <label>Priority (lower = higher priority)</label>
               <input
                 type="number"
@@ -2673,6 +2684,19 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                       🤖 AI Scan
                     </span>
                   )}
+                  {plugin.supports_image_processing && (
+                    <span
+                      style={{
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: '1rem',
+                        fontSize: '0.85rem',
+                        backgroundColor: 'var(--color-info-bg, #e7f3ff)',
+                        color: 'var(--color-info, #004085)',
+                      }}
+                    >
+                      🖼️ Image Processing
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="panel-content">
@@ -2734,6 +2758,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                           onChange={(e) => setPluginFormData({ ...pluginFormData, use_for_ai_scan: e.target.checked })}
                         />
                         {' '}Use for AI Scan Operations
+                      </label>
+                    </div>
+
+                    <div className="form-group">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={pluginFormData.supports_image_processing !== undefined ? pluginFormData.supports_image_processing : plugin.supports_image_processing}
+                          onChange={(e) => setPluginFormData({ ...pluginFormData, supports_image_processing: e.target.checked })}
+                        />
+                        {' '}Supports Image Processing
                       </label>
                     </div>
 

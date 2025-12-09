@@ -442,6 +442,9 @@ class Plugin(Base):
     # Use plugin for AI scan operations
     use_for_ai_scan = Column(Boolean, default=False, nullable=False)
     
+    # Supports image processing capabilities
+    supports_image_processing = Column(Boolean, default=True, nullable=False)
+    
     # Priority order (lower number = higher priority)
     priority = Column(Integer, default=100, nullable=False)
     
