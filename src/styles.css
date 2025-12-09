@@ -805,7 +805,6 @@ tbody tr:hover {
 
   .modal-content.large {
     max-width: 100%;
-    width: calc(100% - 1rem);
     padding: 1rem;
   }
 }
@@ -2179,7 +2178,8 @@ tbody tr:hover {
   }
 
   /* AI Detection modal specific mobile fixes */
-  .modal-content.large > div {
+  /* Note: !important is needed to override inline styles in the component */
+  .modal-content.large > div[style*="padding"] {
     padding: 0.75rem !important;
   }
 
@@ -2188,7 +2188,8 @@ tbody tr:hover {
     padding: 0;
   }
 
-  .modal-content .table-wrapper {
+  /* Note: !important is needed to override inline maxHeight style */
+  .modal-content.large .table-wrapper {
     max-height: 300px !important;
   }
   
