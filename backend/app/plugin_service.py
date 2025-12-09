@@ -7,11 +7,32 @@ Provides functionality to interact with custom LLM plugins for AI operations.
 import logging
 import httpx
 from typing import Optional, Dict, Any, List
+from urllib.parse import urlparse
 from sqlalchemy.orm import Session
 
 from . import models
 
 logger = logging.getLogger(__name__)
+
+
+def _is_localhost_url(url: str) -> bool:
+    """
+    Check if a URL refers to localhost or loopback address.
+    
+    Args:
+        url: The URL to check
+        
+    Returns:
+        True if the URL uses localhost or 127.0.0.1, False otherwise
+    """
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname or ''
+        return hostname.lower() in ('localhost', '127.0.0.1', '::1')
+    except Exception:
+        # Fallback to simple string matching if URL parsing fails
+        url_lower = url.lower()
+        return 'localhost' in url_lower or '127.0.0.1' in url
 
 
 def get_enabled_ai_scan_plugins(db: Session, requires_image_processing: bool = False) -> List[models.Plugin]:
@@ -244,10 +265,10 @@ async def test_plugin_connection(plugin: models.Plugin) -> Dict[str, Any]:
         logger.error(f"Connection test timed out for plugin: {plugin.name}")
         
         # Check if using localhost - common Docker networking mistake
-        if 'localhost' in plugin.endpoint_url.lower() or '127.0.0.1' in plugin.endpoint_url:
+        if _is_localhost_url(plugin.endpoint_url):
             return {
                 'success': False,
-                'message': 'Connection timed out. NOTE: If running in Docker, "localhost" refers to the container itself. Use the container name (e.g., "nesventory-llm") instead, or "host.docker.internal" on Docker Desktop.',
+                'message': 'Connection timed out. NOTE: If running in Docker, "localhost" refers to the container itself. Use the host machine IP (e.g., "http://192.168.1.100:8002"), container name, or "host.docker.internal" on Docker Desktop.',
                 'status_code': None
             }
         
@@ -265,15 +286,15 @@ async def test_plugin_connection(plugin: models.Plugin) -> Dict[str, Any]:
         if 'name resolution' in error_str.lower() or 'errno -3' in error_str.lower():
             return {
                 'success': False,
-                'message': f'Cannot resolve hostname: {error_str}. The containers may be on different Docker networks. Solutions: (1) Use "docker network connect" to connect both containers to the same network, (2) Use "host.docker.internal" (Docker Desktop), or (3) Use the host IP like "http://172.17.0.1:8002"',
+                'message': f'Cannot resolve hostname: {error_str}. The containers may be on different Docker networks. Solutions: (1) Use host machine IP like "http://192.168.1.100:8002", (2) Use "docker network connect" to connect both containers to the same network, (3) Use "host.docker.internal" (Docker Desktop)',
                 'status_code': None
             }
         
         # Check if using localhost - common Docker networking mistake
-        if 'localhost' in plugin.endpoint_url.lower() or '127.0.0.1' in plugin.endpoint_url:
+        if _is_localhost_url(plugin.endpoint_url):
             return {
                 'success': False,
-                'message': f'Connection failed: {error_str}. NOTE: If running in Docker, "localhost" refers to the container itself. Use the container name (e.g., "http://nesventory-llm:8002") instead. Run "docker ps" to find the container name.',
+                'message': f'Connection failed: {error_str}. NOTE: If running in Docker, "localhost" refers to the container itself. Use the host machine IP (e.g., "http://192.168.1.100:8002") instead. Run "ip addr" or "ifconfig" to find your IP.',
                 'status_code': None
             }
         
