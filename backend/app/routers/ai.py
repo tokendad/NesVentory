@@ -480,6 +480,12 @@ async def detect_items(
             elif "matched_items" in plugin_result:
                 # Image search format (from LLM plugin)
                 plugin_items = plugin_result["matched_items"]
+            elif "item" in plugin_result:
+                # Single item format (from identify endpoint)
+                plugin_items = [plugin_result["item"]]
+                # Add alternatives if present
+                if "alternatives" in plugin_result and isinstance(plugin_result["alternatives"], list):
+                    plugin_items.extend(plugin_result["alternatives"])
             elif isinstance(plugin_result, list):
                 # Array response
                 plugin_items = plugin_result
@@ -487,7 +493,15 @@ async def detect_items(
                 # Treat entire response as single item
                 plugin_items = [plugin_result]
             
-            for item_data in plugin_items:
+            # Get top-level confidence if available (applies to first item)
+            top_level_confidence = None
+            if "confidence" in plugin_result and not isinstance(plugin_result.get("items"), list):
+                try:
+                    top_level_confidence = float(plugin_result["confidence"])
+                except (ValueError, TypeError):
+                    pass
+            
+            for idx, item_data in enumerate(plugin_items):
                 if isinstance(item_data, dict):
                     # Extract fields, handling different formats
                     name = (
@@ -510,6 +524,7 @@ async def detect_items(
                             pass
                     
                     # Parse confidence (plugin may use 'score' or 'confidence')
+                    # Use top-level confidence for first item if item doesn't have its own
                     confidence = None
                     conf_value = item_data.get("confidence") or item_data.get("score")
                     if conf_value is not None:
@@ -520,6 +535,9 @@ async def detect_items(
                                 confidence = confidence / 100
                         except (ValueError, TypeError):
                             pass
+                    elif idx == 0 and top_level_confidence is not None:
+                        # Use top-level confidence for first item
+                        confidence = top_level_confidence
                     
                     # Add estimation date if there's an estimated value
                     estimation_date = None
