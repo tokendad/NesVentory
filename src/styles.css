@@ -2177,6 +2177,20 @@ tbody tr:hover {
   .modal-header h2 {
     font-size: 1.1rem;
   }
+
+  /* AI Detection modal specific mobile fixes */
+  .modal-content.large > div {
+    padding: 0.75rem !important;
+  }
+
+  /* Ensure location selector wraps properly on mobile */
+  .modal-content .import-section {
+    padding: 0;
+  }
+
+  .modal-content .table-wrapper {
+    max-height: 300px !important;
+  }
   
   /* UserSettings modal specific mobile fixes */
   .modal-content .form-vertical {
