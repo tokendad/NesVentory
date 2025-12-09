@@ -72,9 +72,6 @@ jobs:
           images: ${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest
-            type=raw,value=${{ steps.version.outputs.version }}
-            type=raw,value=${{ steps.version.outputs.major_minor }}
-            type=raw,value=${{ steps.version.outputs.major }}
             type=raw,value=${{ inputs.tag }},enable=${{ inputs.tag != '' }}
 
       - name: Build and push Docker image
