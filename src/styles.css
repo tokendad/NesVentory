@@ -800,6 +800,13 @@ tbody tr:hover {
   .modal-content {
     margin: 0.5rem;
     max-height: calc(100vh - 1rem);
+    width: calc(100% - 1rem);
+  }
+
+  .modal-content.large {
+    max-width: 100%;
+    width: calc(100% - 1rem);
+    padding: 1rem;
   }
 }
 
@@ -2160,6 +2167,11 @@ tbody tr:hover {
     padding: 1rem;
     margin: 0;
     border-radius: 0.75rem;
+  }
+
+  .modal-content.large {
+    max-width: 100%;
+    padding: 1rem;
   }
   
   .modal-header h2 {
