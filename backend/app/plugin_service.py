@@ -23,7 +23,7 @@ def _is_localhost_url(url: str) -> bool:
         url: The URL to check
         
     Returns:
-        True if the URL uses localhost or 127.0.0.1, False otherwise
+        True if the URL uses localhost, 127.0.0.1, or ::1 (IPv6 localhost), False otherwise
     """
     try:
         parsed = urlparse(url)
