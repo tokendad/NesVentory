@@ -56,6 +56,22 @@ def delete_location(location_id: UUID, db: Session = Depends(get_db)):
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
 
+    # Get the parent location ID (will be None if this is a top-level location)
+    parent_location_id = loc.parent_id
+    
+    # Move all items from this location to the parent location
+    items_in_location = db.query(models.Item).filter(models.Item.location_id == location_id).all()
+    for item in items_in_location:
+        item.location_id = parent_location_id
+    
+    # Move all child locations to the parent location
+    child_locations = db.query(models.Location).filter(models.Location.parent_id == location_id).all()
+    for child_loc in child_locations:
+        child_loc.parent_id = parent_location_id
+    
+    # Videos will be cascade deleted automatically due to the relationship definition
+    # in the Location model: videos = relationship("Video", back_populates="location", cascade="all, delete-orphan")
+    
     db.delete(loc)
     db.commit()
     return None
