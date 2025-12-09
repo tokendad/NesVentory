@@ -32,6 +32,7 @@ import {
   createPlugin,
   updatePlugin,
   deletePlugin,
+  testPluginConnection,
   type User, 
   type Location, 
   type AdminUserCreate,
@@ -49,7 +50,8 @@ import {
   type UPCDatabaseConfig,
   type Plugin,
   type PluginCreate,
-  type PluginUpdate
+  type PluginUpdate,
+  type PluginConnectionTestResult
 } from "../lib/api";
 
 interface AdminPageProps {
@@ -195,6 +197,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
   const [pluginFormError, setPluginFormError] = useState<string | null>(null);
   const [pluginFormSuccess, setPluginFormSuccess] = useState<string | null>(null);
   const [showPluginApiKey, setShowPluginApiKey] = useState<Record<string, boolean>>({});
+  const [testingConnection, setTestingConnection] = useState<Record<string, boolean>>({});
+  const [connectionTestResults, setConnectionTestResults] = useState<Record<string, PluginConnectionTestResult | null>>({});
 
 
   async function loadUsers() {
@@ -308,6 +312,27 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
       setPluginsError(errorMessage);
     } finally {
       setPluginsLoading(false);
+    }
+  }
+
+  async function handleTestConnection(pluginId: string) {
+    setTestingConnection({ ...testingConnection, [pluginId]: true });
+    setConnectionTestResults({ ...connectionTestResults, [pluginId]: null });
+    try {
+      const result = await testPluginConnection(pluginId);
+      setConnectionTestResults({ ...connectionTestResults, [pluginId]: result });
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to test connection";
+      setConnectionTestResults({ 
+        ...connectionTestResults, 
+        [pluginId]: { 
+          success: false, 
+          message: errorMessage,
+          status_code: null 
+        } 
+      });
+    } finally {
+      setTestingConnection({ ...testingConnection, [pluginId]: false });
     }
   }
 
@@ -2870,6 +2895,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                       </button>
                       <button
                         className="btn-outline"
+                        onClick={() => handleTestConnection(plugin.id)}
+                        disabled={testingConnection[plugin.id]}
+                      >
+                        {testingConnection[plugin.id] ? '⏳ Testing...' : '🔌 Test Connection'}
+                      </button>
+                      <button
+                        className="btn-outline"
                         style={{ color: 'var(--color-danger, #dc3545)' }}
                         onClick={async () => {
                           if (!confirm(`Are you sure you want to delete the plugin "${plugin.name}"?`)) return;
@@ -2887,6 +2919,41 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                         Delete
                       </button>
                     </div>
+
+                    {/* Display connection test result */}
+                    {connectionTestResults[plugin.id] && (
+                      <div 
+                        style={{ 
+                          marginTop: '1rem',
+                          padding: '0.75rem',
+                          borderRadius: '0.25rem',
+                          backgroundColor: connectionTestResults[plugin.id]?.success 
+                            ? 'var(--color-success-bg, #d4edda)' 
+                            : 'var(--color-danger-bg, #f8d7da)',
+                          color: connectionTestResults[plugin.id]?.success 
+                            ? 'var(--color-success, #155724)' 
+                            : 'var(--color-danger, #721c24)',
+                          fontSize: '0.9rem'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '1.2rem' }}>
+                            {connectionTestResults[plugin.id]?.success ? '✅' : '❌'}
+                          </span>
+                          <div>
+                            <strong>
+                              {connectionTestResults[plugin.id]?.success ? 'Connection Successful' : 'Connection Failed'}
+                            </strong>
+                            <div style={{ marginTop: '0.25rem' }}>
+                              {connectionTestResults[plugin.id]?.message}
+                              {connectionTestResults[plugin.id]?.status_code && (
+                                <span> (HTTP {connectionTestResults[plugin.id]?.status_code})</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
