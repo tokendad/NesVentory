@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 # Timeout for plugin API calls (in seconds)
 PLUGIN_TIMEOUT = 30.0
 
+# Timeout for plugin connection tests (in seconds)
+PLUGIN_TEST_TIMEOUT = 10.0
+
 
 def get_enabled_plugins(
     db: Session,
@@ -31,10 +34,10 @@ def get_enabled_plugins(
     Returns:
         List of enabled plugins ordered by priority
     """
-    query = db.query(models.Plugin).filter(models.Plugin.enabled == True)
+    query = db.query(models.Plugin).filter(models.Plugin.enabled.is_(True))
     
     if requires_image_processing:
-        query = query.filter(models.Plugin.supports_image_processing == True)
+        query = query.filter(models.Plugin.supports_image_processing.is_(True))
     
     return query.order_by(models.Plugin.priority).all()
 
@@ -149,7 +152,7 @@ def test_plugin_connection(plugin: models.Plugin) -> dict:
         if plugin.api_key:
             headers["Authorization"] = f"Bearer {plugin.api_key}"
         
-        with httpx.Client(timeout=10.0) as client:
+        with httpx.Client(timeout=PLUGIN_TEST_TIMEOUT) as client:
             try:
                 response = client.get(test_url, headers=headers)
                 if response.status_code == 200:
@@ -185,7 +188,7 @@ def test_plugin_connection(plugin: models.Plugin) -> dict:
     except httpx.TimeoutException:
         return {
             "success": False,
-            "error": f"Connection timeout after 10 seconds"
+            "error": f"Connection timeout after {PLUGIN_TEST_TIMEOUT} seconds"
         }
     except Exception as e:
         return {

@@ -66,7 +66,7 @@ def update_plugin(
         raise HTTPException(status_code=404, detail="Plugin not found")
     
     # Update only provided fields
-    update_data = plugin_update.model_dump(exclude_unset=True, exclude={'id', 'created_at', 'updated_at'})
+    update_data = plugin_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_plugin, key, value)
     

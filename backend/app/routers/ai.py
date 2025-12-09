@@ -493,7 +493,9 @@ async def detect_items(
                 # Treat entire response as single item
                 plugin_items = [plugin_result]
             
-            # Get top-level confidence if available (applies to first item)
+            # Get top-level confidence if available
+            # This applies to the first item when plugin returns a single item result
+            # with a confidence score at the root level (e.g., {"confidence": 0.85, "item": {...}})
             top_level_confidence = None
             if "confidence" in plugin_result and not isinstance(plugin_result.get("items"), list):
                 try:
@@ -517,9 +519,9 @@ async def detect_items(
                     # Parse estimated value
                     estimated_value = None
                     value_str = item_data.get("estimated_value") or item_data.get("value")
-                    if value_str:
+                    if value_str is not None:
                         try:
-                            estimated_value = float(value_str) if isinstance(value_str, (int, float)) else None
+                            estimated_value = float(value_str)
                         except (ValueError, TypeError):
                             pass
                     
@@ -536,7 +538,7 @@ async def detect_items(
                         except (ValueError, TypeError):
                             pass
                     elif idx == 0 and top_level_confidence is not None:
-                        # Use top-level confidence for first item
+                        # Use top-level confidence for first item if it doesn't have its own
                         confidence = top_level_confidence
                     
                     # Add estimation date if there's an estimated value
