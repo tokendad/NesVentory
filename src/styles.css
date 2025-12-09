@@ -800,6 +800,7 @@ tbody tr:hover {
   .modal-content {
     margin: 0.5rem;
     max-height: calc(100vh - 1rem);
+    width: calc(100% - 1rem);
   }
 }
 
@@ -2161,9 +2162,31 @@ tbody tr:hover {
     margin: 0;
     border-radius: 0.75rem;
   }
+
+  .modal-content.large {
+    max-width: 100%;
+    padding: 1rem;
+  }
   
   .modal-header h2 {
     font-size: 1.1rem;
+  }
+
+  /* AI Detection modal specific mobile fixes */
+  /* TODO: Replace inline styles in AIDetection component with CSS classes for better maintainability */
+  /* Note: !important is needed to override inline styles in the component */
+  .modal-content.large > div[style*="padding"] {
+    padding: 0.75rem !important;
+  }
+
+  /* Ensure location selector wraps properly on mobile */
+  .modal-content .import-section {
+    padding: 0;
+  }
+
+  /* Note: !important is needed to override inline maxHeight style */
+  .modal-content.large .table-wrapper {
+    max-height: 300px !important;
   }
   
   /* UserSettings modal specific mobile fixes */
