@@ -316,23 +316,23 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
   }
 
   async function handleTestConnection(pluginId: string) {
-    setTestingConnection({ ...testingConnection, [pluginId]: true });
-    setConnectionTestResults({ ...connectionTestResults, [pluginId]: null });
+    setTestingConnection(prev => ({ ...prev, [pluginId]: true }));
+    setConnectionTestResults(prev => ({ ...prev, [pluginId]: null }));
     try {
       const result = await testPluginConnection(pluginId);
-      setConnectionTestResults({ ...connectionTestResults, [pluginId]: result });
+      setConnectionTestResults(prev => ({ ...prev, [pluginId]: result }));
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Failed to test connection";
-      setConnectionTestResults({ 
-        ...connectionTestResults, 
+      setConnectionTestResults(prev => ({ 
+        ...prev, 
         [pluginId]: { 
           success: false, 
           message: errorMessage,
           status_code: null 
         } 
-      });
+      }));
     } finally {
-      setTestingConnection({ ...testingConnection, [pluginId]: false });
+      setTestingConnection(prev => ({ ...prev, [pluginId]: false }));
     }
   }
 

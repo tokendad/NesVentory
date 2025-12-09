@@ -197,7 +197,7 @@ async def detect_items_with_plugin(
         return None
 
 
-async def test_plugin_connection(plugin: models.Plugin) -> dict:
+async def test_plugin_connection(plugin: models.Plugin) -> Dict[str, Any]:
     """
     Test the connection to a plugin by calling a health check endpoint.
     
