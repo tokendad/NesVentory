@@ -2552,8 +2552,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                 type="text"
                 value={pluginFormData.endpoint_url || ''}
                 onChange={(e) => setPluginFormData({ ...pluginFormData, endpoint_url: e.target.value })}
-                placeholder="Base URL only (e.g., http://192.168.1.100:8002 or https://plugin-api.example.com)"
+                placeholder="http://192.168.1.100:8002 or http://container-name:8002"
               />
+              <small className="help-text">
+                Docker users: Use host machine IP (e.g., "http://192.168.1.100:8002") or container name. Do NOT use "localhost"
+              </small>
             </div>
 
             <div className="form-group">
@@ -2751,8 +2754,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                         type="text"
                         value={pluginFormData.endpoint_url || plugin.endpoint_url}
                         onChange={(e) => setPluginFormData({ ...pluginFormData, endpoint_url: e.target.value })}
-                        placeholder="Base URL only (e.g., http://192.168.1.100:8002 or https://plugin-api.example.com)"
+                        placeholder="http://192.168.1.100:8002 or http://container-name:8002"
                       />
+                      <small className="help-text">
+                        Docker users: Use host machine IP (e.g., "http://192.168.1.100:8002") or container name. Do NOT use "localhost"
+                      </small>
                     </div>
 
                     <div className="form-group">
