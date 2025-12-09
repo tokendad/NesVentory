@@ -259,17 +259,27 @@ async def test_plugin_connection(plugin: models.Plugin) -> Dict[str, Any]:
     except httpx.ConnectError as e:
         logger.error(f"Connection error testing plugin {plugin.name}: {e}")
         
+        error_str = str(e)
+        
+        # Check for DNS resolution failure (common when containers are on different networks)
+        if 'name resolution' in error_str.lower() or 'errno -3' in error_str.lower():
+            return {
+                'success': False,
+                'message': f'Cannot resolve hostname: {error_str}. The containers may be on different Docker networks. Solutions: (1) Use "docker network connect" to connect both containers to the same network, (2) Use "host.docker.internal" (Docker Desktop), or (3) Use the host IP like "http://172.17.0.1:8002"',
+                'status_code': None
+            }
+        
         # Check if using localhost - common Docker networking mistake
         if 'localhost' in plugin.endpoint_url.lower() or '127.0.0.1' in plugin.endpoint_url:
             return {
                 'success': False,
-                'message': f'Connection failed: {str(e)}. NOTE: If running in Docker, "localhost" refers to the container itself. Use the container name (e.g., "http://nesventory-llm:8002") instead. Run "docker ps" to find the container name.',
+                'message': f'Connection failed: {error_str}. NOTE: If running in Docker, "localhost" refers to the container itself. Use the container name (e.g., "http://nesventory-llm:8002") instead. Run "docker ps" to find the container name.',
                 'status_code': None
             }
         
         return {
             'success': False,
-            'message': f'Connection failed: {str(e)}',
+            'message': f'Connection failed: {error_str}',
             'status_code': None
         }
     except Exception as e:

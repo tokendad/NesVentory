@@ -217,6 +217,19 @@ docker ps
 
 #### Alternative Options (if container name doesn't work):
 
+**If you get "name resolution" error**, the containers are on **different Docker networks**. Fix this by:
+
+1. **Connect containers to the same network**:
+   ```bash
+   # Find NesVentory's network
+   docker inspect nesventory5 --format='{{range .NetworkSettings.Networks}}{{println .NetworkID}}{{end}}'
+   
+   # Connect the plugin container to that network
+   docker network connect NETWORK_NAME nesventory-llm
+   ```
+
+2. **Use a combined docker-compose.yml** with both services in one file so they share a network automatically.
+
 **Option 2: Use `host.docker.internal` (Docker Desktop on Mac/Windows)**
 ```
 http://host.docker.internal:8002/
@@ -227,9 +240,12 @@ This hostname resolves to the host machine from inside a container.
 ```
 http://172.17.0.1:8002/
 ```
-On Linux, you can access the host from a container using the Docker bridge IP (usually `172.17.0.1`).
+On Linux, you can access the host from a container using the Docker bridge IP (usually `172.17.0.1`). Find your Docker bridge IP with:
+```bash
+ip addr show docker0 | grep inet
+```
 
-**Testing**: Use the **Test Connection** button in the Admin panel. If you see an error mentioning "localhost", you need to update your endpoint URL using the container name or one of the options above.
+**Testing**: Use the **Test Connection** button in the Admin panel. The error message will guide you to the right solution.
 
 ### Plugin Not Being Called
 - Ensure the plugin is **Enabled**
