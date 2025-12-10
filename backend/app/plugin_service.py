@@ -118,9 +118,30 @@ def _log_plugin_error(plugin: models.Plugin, endpoint_path: str, error: Exceptio
         if error.response.status_code == 404:
             if endpoint_path == '/nesventory/identify/image':
                 logger.error(
-                    f"Plugin {plugin.name} returned 404 for {endpoint_path} endpoint. "
-                    f"This endpoint was added in December 2025. Please update the plugin to the latest version. "
-                    f"See PLUGINS.md for update instructions."
+                    f"\n{'='*80}\n"
+                    f"PLUGIN ERROR: 404 Not Found for {endpoint_path}\n"
+                    f"{'='*80}\n"
+                    f"Plugin: {plugin.name}\n"
+                    f"URL: {plugin.endpoint_url}{endpoint_path}\n\n"
+                    f"The /nesventory/identify/image endpoint was added in December 2025.\n"
+                    f"Your plugin Docker image is OUTDATED.\n\n"
+                    f"SOLUTION - Choose ONE of these options:\n\n"
+                    f"1. Pull the latest Docker image (RECOMMENDED):\n"
+                    f"   cd Plugin-Nesventory-LLM\n"
+                    f"   docker-compose down\n"
+                    f"   docker-compose pull\n"
+                    f"   docker-compose up -d\n\n"
+                    f"2. Rebuild from source:\n"
+                    f"   cd Plugin-Nesventory-LLM\n"
+                    f"   git pull origin main\n"
+                    f"   docker-compose down\n"
+                    f"   docker-compose up --build -d\n\n"
+                    f"3. Use Docker directly:\n"
+                    f"   docker pull tokendad/plugin-nesventory-llm:latest\n"
+                    f"   docker restart <container-name>\n\n"
+                    f"After updating, test the connection using the 'Test Connection' button\n"
+                    f"in the Admin panel.\n"
+                    f"{'='*80}\n"
                 )
             else:
                 logger.error(
