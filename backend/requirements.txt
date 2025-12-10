@@ -1,7 +1,7 @@
 fastapi==0.124.0
 werkzeug==3.1.4
 uvicorn[standard]==0.38.0
-SQLAlchemy==2.0.44
+SQLAlchemy==2.0.45
 psycopg2-binary==2.9.11
 asyncpg==0.31.0
 python-jose[cryptography]==3.5.0
