@@ -479,7 +479,7 @@ async def detect_items(
                 logger.info(f"Trying plugin: {plugin.name} for item detection")
                 result = await detect_items_with_plugin(plugin, image_data, file.content_type or "image/jpeg")
                 
-                if result and result.get("items"):
+                if result and "items" in result:
                     # Convert plugin result to DetectionResult
                     # The plugin should return data in a compatible format
                     items = [DetectedItem(**item) for item in result.get("items", [])]
