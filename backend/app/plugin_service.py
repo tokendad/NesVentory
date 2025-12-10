@@ -300,18 +300,23 @@ async def test_plugin_connection(plugin: models.Plugin) -> Dict[str, Any]:
                 warnings = []
                 try:
                     # Test if the /nesventory/identify/image endpoint exists
+                    # We expect 422 (missing file parameter) if the endpoint exists
+                    # or 404 if the endpoint doesn't exist (outdated plugin)
                     test_url = f"{base_url}/nesventory/identify/image"
                     test_response = await client.post(test_url, headers=headers, timeout=5.0)
-                    # We expect either 422 (missing file) or 200, not 404
+                    # If we get here without exception, the endpoint exists and returned 200
+                    # (though 422 would be more typical for missing file)
                 except httpx.HTTPStatusError as e:
                     if e.response.status_code == 404:
+                        # Endpoint doesn't exist - plugin is outdated
                         warnings.append(
                             "WARNING: Plugin appears to be outdated. "
                             "The /nesventory/identify/image endpoint is missing. "
                             "Please update to the latest version (December 2025 or later)."
                         )
+                    # 422 or other status codes are fine - endpoint exists but expects different input
                 except Exception:
-                    # Other errors are fine, we just want to detect 404s
+                    # Network errors or timeouts during test - don't fail the main health check
                     pass
                 
                 logger.info(f"Connection test successful for plugin: {plugin.name}")
