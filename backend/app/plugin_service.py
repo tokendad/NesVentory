@@ -118,9 +118,30 @@ def _log_plugin_error(plugin: models.Plugin, endpoint_path: str, error: Exceptio
         if error.response.status_code == 404:
             if endpoint_path == '/nesventory/identify/image':
                 logger.error(
-                    f"Plugin {plugin.name} returned 404 for {endpoint_path} endpoint. "
-                    f"This endpoint was added in December 2025. Please update the plugin to the latest version. "
-                    f"See PLUGINS.md for update instructions."
+                    f"\n{'='*80}\n"
+                    f"PLUGIN ERROR: 404 Not Found for {endpoint_path}\n"
+                    f"{'='*80}\n"
+                    f"Plugin: {plugin.name}\n"
+                    f"URL: {plugin.endpoint_url}{endpoint_path}\n\n"
+                    f"The /nesventory/identify/image endpoint was added in December 2025.\n"
+                    f"Your plugin Docker image is OUTDATED.\n\n"
+                    f"SOLUTION - Choose ONE of these options:\n\n"
+                    f"1. Pull the latest Docker image (RECOMMENDED):\n"
+                    f"   cd Plugin-Nesventory-LLM\n"
+                    f"   docker-compose down\n"
+                    f"   docker-compose pull\n"
+                    f"   docker-compose up -d\n\n"
+                    f"2. Rebuild from source:\n"
+                    f"   cd Plugin-Nesventory-LLM\n"
+                    f"   git pull origin main\n"
+                    f"   docker-compose down\n"
+                    f"   docker-compose up --build -d\n\n"
+                    f"3. Use Docker directly:\n"
+                    f"   docker pull tokendad/plugin-nesventory-llm:latest\n"
+                    f"   docker restart <container-name>\n\n"
+                    f"After updating, test the connection using the 'Test Connection' button\n"
+                    f"in the Admin panel.\n"
+                    f"{'='*80}\n"
                 )
             else:
                 logger.error(
@@ -275,11 +296,40 @@ async def test_plugin_connection(plugin: models.Plugin) -> Dict[str, Any]:
             
             # Check if the response is successful
             if response.status_code == 200:
+                # Try to check for the image identification endpoint
+                warnings = []
+                try:
+                    # Test if the /nesventory/identify/image endpoint exists
+                    # We expect 422 (missing file parameter) if the endpoint exists
+                    # or 404 if the endpoint doesn't exist (outdated plugin)
+                    test_url = f"{base_url}/nesventory/identify/image"
+                    await client.post(test_url, headers=headers, timeout=5.0)
+                    # If we get here without exception, the endpoint exists and returned 200
+                    # (though 422 would be more typical for missing file)
+                except httpx.HTTPStatusError as e:
+                    if e.response.status_code == 404:
+                        # Endpoint doesn't exist - plugin is outdated
+                        warnings.append(
+                            "WARNING: Plugin appears to be outdated. "
+                            "The /nesventory/identify/image endpoint is missing. "
+                            "Please update to the latest version (December 2025 or later)."
+                        )
+                    # Status codes like 422 (missing file) mean the endpoint exists - that's good!
+                    # We only warn on 404 (endpoint not found)
+                except Exception:
+                    # Network errors or timeouts during test - don't fail the main health check
+                    pass
+                
                 logger.info(f"Connection test successful for plugin: {plugin.name}")
+                message = 'Connection successful'
+                if warnings:
+                    message = f"Connection successful but with warnings:\n" + "\n".join(warnings)
+                
                 return {
                     'success': True,
-                    'message': 'Connection successful',
-                    'status_code': response.status_code
+                    'message': message,
+                    'status_code': response.status_code,
+                    'warnings': warnings if warnings else None
                 }
             else:
                 logger.warning(f"Connection test failed for plugin {plugin.name}: HTTP {response.status_code}")

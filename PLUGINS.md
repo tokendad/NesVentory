@@ -1,5 +1,7 @@
 # Custom LLM Plugin System
 
+> **⚠️ IMPORTANT: Getting 404 errors?** Your plugin Docker image is likely outdated. The `/nesventory/identify/image` endpoint was added in December 2025. Even if you re-cloned the plugin code, you must rebuild or pull the latest Docker image. Jump to [Troubleshooting](#troubleshooting) for the fix.
+
 NesVentory supports custom LLM (Large Language Model) plugins that can be used for AI-powered features such as data tag parsing and barcode lookup. This allows you to integrate specialized or pre-trained models that may be better suited for your specific needs.
 
 ## Overview
@@ -213,33 +215,57 @@ ERROR | Error detecting items with plugin Department 56: Client error '404 Not F
 INFO  | All plugins failed, falling back to Gemini AI
 ```
 
-**Root Cause**: Your LLM plugin server is running an **outdated version** that doesn't include the image identification endpoints.
+**Root Cause**: Your LLM plugin server is running an **outdated Docker image** that doesn't include the `/nesventory/identify/image` endpoint. The endpoint was added in December 2025.
 
-**Solution**: Update your plugin to the latest version:
+**❌ Common Mistake**: Many users re-clone the plugin repository (`git pull`) but forget to rebuild the Docker image. The code is updated, but Docker is still running the old image!
 
+**✅ Solution**: You MUST rebuild or pull the latest Docker image:
+
+**Option 1: Pull pre-built image (FASTEST)**
 ```bash
-# If using Docker (recommended)
 cd Plugin-Nesventory-LLM
 docker-compose down
-docker-compose pull  # Pull latest image
+docker-compose pull      # Downloads latest image from Docker Hub
 docker-compose up -d
+```
 
-# Or rebuild from source
+**Option 2: Rebuild from source**
+```bash
 cd Plugin-Nesventory-LLM
-git pull origin main
-docker-compose up --build -d
+git pull origin main     # Get latest code
+docker-compose down
+docker-compose build --no-cache    # Force rebuild
+docker-compose up -d
+```
+
+**Option 3: Using Docker directly**
+```bash
+# Stop the old container
+docker stop nesventory-llm
+
+# Pull latest image
+docker pull tokendad/plugin-nesventory-llm:latest
+
+# Restart (or recreate if needed)
+docker start nesventory-llm
 ```
 
 **Verify the fix**:
 ```bash
-# Should return 200 OK
+# Test 1: Health check should return 200 OK
 curl -v http://192.168.1.102:8002/health
 
-# Should return 422 (missing file) NOT 404 (endpoint not found)
+# Test 2: Endpoint should exist (422 = exists but needs file, 404 = doesn't exist)
 curl -X POST http://192.168.1.102:8002/nesventory/identify/image
+# Expected: {"detail":[{"type":"missing","loc":["body","file"],...}]}
+# If you see: {"detail":"Not Found"} - the endpoint STILL doesn't exist!
 ```
 
-If you see `{"detail":"Not Found"}`, the endpoint still doesn't exist - ensure you pulled/built the latest version.
+**Still getting 404 after updating?**
+1. Verify you're running the new image: `docker-compose ps` - check the "Created" timestamp
+2. Check Docker image version: `docker images | grep plugin-nesventory-llm`
+3. Try with `--no-cache` flag: `docker-compose build --no-cache`
+4. Ensure old containers are removed: `docker-compose down -v` then rebuild
 
 ### Docker Networking Issues (Common Issue!)
 
