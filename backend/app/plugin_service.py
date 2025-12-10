@@ -296,11 +296,34 @@ async def test_plugin_connection(plugin: models.Plugin) -> Dict[str, Any]:
             
             # Check if the response is successful
             if response.status_code == 200:
+                # Try to check for the image identification endpoint
+                warnings = []
+                try:
+                    # Test if the /nesventory/identify/image endpoint exists
+                    test_url = f"{base_url}/nesventory/identify/image"
+                    test_response = await client.post(test_url, headers=headers, timeout=5.0)
+                    # We expect either 422 (missing file) or 200, not 404
+                except httpx.HTTPStatusError as e:
+                    if e.response.status_code == 404:
+                        warnings.append(
+                            "WARNING: Plugin appears to be outdated. "
+                            "The /nesventory/identify/image endpoint is missing. "
+                            "Please update to the latest version (December 2025 or later)."
+                        )
+                except Exception:
+                    # Other errors are fine, we just want to detect 404s
+                    pass
+                
                 logger.info(f"Connection test successful for plugin: {plugin.name}")
+                message = 'Connection successful'
+                if warnings:
+                    message = f"Connection successful but with warnings:\n" + "\n".join(warnings)
+                
                 return {
                     'success': True,
-                    'message': 'Connection successful',
-                    'status_code': response.status_code
+                    'message': message,
+                    'status_code': response.status_code,
+                    'warnings': warnings if warnings else None
                 }
             else:
                 logger.warning(f"Connection test failed for plugin {plugin.name}: HTTP {response.status_code}")
