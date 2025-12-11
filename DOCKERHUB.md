@@ -119,43 +119,29 @@ The application comes with pre-seeded test users:
 
 ## Environment Variables
 
-### Required Security Settings
-
-| Variable | Description |
-|----------|-------------|
-| `SECRET_KEY` | Application secret key (generate a secure random string) |
-| `JWT_SECRET_KEY` | JWT token signing key (generate a secure random string) |
-
-Generate secure keys with:
-```bash
-python -c "import secrets; print(secrets.token_urlsafe(32))"
-```
-
-### Optional Settings
-
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `APP_PORT` | `8001` | Application port (optional, defaults to 8001). To change the exposed port, modify the host port in docker-compose.yml ports mapping instead. |
+| `SECRET_KEY` | **Required** | Application secret key (generate a secure random string) |
+| `JWT_SECRET_KEY` | **Required** | JWT token signing key (generate a secure random string) |
+| `APP_PORT` | `8001` | Application port (optional for advanced users - defaults to 8001 inside container) |
 | `PUID` | `1000` | User ID for file ownership |
 | `PGID` | `1000` | Group ID for file ownership |
 | `UMASK` | `002` | File permission mask |
 | `TZ` | `Etc/UTC` | Timezone (e.g., `America/New_York`) |
 | `DB_PATH` | `/app/data/nesventory.db` | SQLite database path |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | JWT token expiration |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | JWT token expiration in minutes |
+| `JWT_ALGORITHM` | `HS256` | JWT algorithm (recommended: HS256) |
+| `GEMINI_API_KEY` | | Google Gemini API key for AI photo detection |
+| `GEMINI_MODEL` | `gemini-2.0-flash` | Gemini model (default: `gemini-2.0-flash`) |
+| `GEMINI_REQUEST_DELAY` | `4.0` | Delay between AI requests in seconds (to avoid rate limits on free tier) |
+| `GOOGLE_CLIENT_ID` | | Google OAuth Client ID |
+| `GOOGLE_CLIENT_SECRET` | | Google OAuth Client Secret |
+| `DISABLE_SIGNUPS` | `false` | Set to `true` to disable new user self-registration |
 
-### AI Features (Optional)
-
-| Variable | Description |
-|----------|-------------|
-| `GEMINI_API_KEY` | Google Gemini API key for AI photo detection |
-| `GEMINI_MODEL` | Gemini model (default: `gemini-2.0-flash`) |
-
-### Google OAuth (Optional)
-
-| Variable | Description |
-|----------|-------------|
-| `GOOGLE_CLIENT_ID` | Google OAuth Client ID |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret |
+Generate secure keys with:
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
 
 ## Volumes
 
@@ -171,31 +157,7 @@ The `/app/data` volume contains:
 
 | Port | Description |
 |------|-------------|
-| `8001` | Web UI and API (default port 8001). Change host port in docker-compose.yml ports mapping. |
-
-## Health Check
-
-```bash
-curl http://localhost:8001/api/health
-# Response: {"status":"healthy"}
-
-curl http://localhost:8001/api/version
-# Response: {"name":"NesVentory","version":"4.4.0"}
-```
-
-## User/Group Identifiers
-
-To avoid permission issues with bind mounts, you can specify the user and group IDs:
-
-```bash
-# Find your user ID
-id -u
-
-# Find your group ID
-id -g
-```
-
-Set `PUID` and `PGID` environment variables to match your host user.
+| `8001` | Web UI and API (configurable via `APP_PORT`) |
 
 ## License
 
