@@ -135,7 +135,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `APP_PORT` | `8001` | Application port (optional). Change host port in docker-compose.yml ports mapping instead. |
+| `APP_PORT` | `8001` | Application port (optional, defaults to 8001). To change the exposed port, modify the host port in docker-compose.yml ports mapping instead. |
 | `PUID` | `1000` | User ID for file ownership |
 | `PGID` | `1000` | Group ID for file ownership |
 | `UMASK` | `002` | File permission mask |
