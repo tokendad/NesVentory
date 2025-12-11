@@ -135,7 +135,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `APP_PORT` | `8001` | Application port (optional - defaults to 8001). For most users, change the host port in Docker ports mapping instead of setting this variable. |
+| `APP_PORT` | `8001` | Application port (optional). Change host port in docker-compose.yml ports mapping instead. |
 | `PUID` | `1000` | User ID for file ownership |
 | `PGID` | `1000` | Group ID for file ownership |
 | `UMASK` | `002` | File permission mask |
@@ -171,7 +171,7 @@ The `/app/data` volume contains:
 
 | Port | Description |
 |------|-------------|
-| `8001` | Web UI and API (default port). To run on a different host port, change the left side of the ports mapping in docker-compose.yml (e.g., `"8080:8001"`). Advanced users can override the container's internal port by setting the `APP_PORT` environment variable. |
+| `8001` | Web UI and API (default port 8001). Change host port in docker-compose.yml ports mapping. |
 
 ## Health Check
 
