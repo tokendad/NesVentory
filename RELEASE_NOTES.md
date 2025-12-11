@@ -1,12 +1,12 @@
-# NesVentory v4.8.1 - Upgrades to packages
+# NesVentory v4.8.2 - Bug fix
 
 ## Overview
 
-Version 4.8.1 release.
+Version 4.8.2 release.
 
 ## New Features
 
-Upgrades to packages
+Updated workdflows
 
 ---
 

@@ -7,6 +7,10 @@ All notable changes to this project will be documented in this file.
 
 
 
+
+## [4.8.2] - 2025-12-11
+### Fixed
+- Updated workdflows
 ## [4.8.1] - 2025-12-04
 ### Fixed
 - Upgrades to packages
