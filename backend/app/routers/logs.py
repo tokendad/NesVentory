@@ -325,9 +325,12 @@ async def get_log_content(
         raise HTTPException(status_code=400, detail="Invalid file name")
     filepath = LOG_DIR / normalized_name
     
-    # Verify the file is within LOG_DIR (prevent path traversal)
+    # Resolve both paths first
+    resolved_log_dir = LOG_DIR.resolve()
+    resolved_filepath = filepath.resolve(strict=False)
+    # Verify the resolved file is within the resolved LOG_DIR (prevent path traversal via symlinks/tricks)
     try:
-        filepath.resolve().relative_to(LOG_DIR.resolve())
+        resolved_filepath.relative_to(resolved_log_dir)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid file path")
     
