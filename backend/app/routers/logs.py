@@ -234,17 +234,16 @@ async def delete_log_files(
     
     for filename in request.file_names:
         # Security: ensure filename is safe and within log directory
-        # Normalize filename and prevent absolute paths
+        # Normalize filename
         norm_filename = os.path.normpath(filename)
-        if os.path.isabs(norm_filename) or norm_filename.startswith("..") or os.path.sep in norm_filename and ("/" in norm_filename or "\\" in norm_filename):
-            continue
         
         filepath = LOG_DIR / norm_filename
         
         # Verify the file is within LOG_DIR (prevent path traversal)
         try:
-            filepath.resolve().relative_to(LOG_DIR.resolve())
-        except ValueError:
+            resolved = filepath.resolve()
+            resolved.relative_to(LOG_DIR.resolve())
+        except (ValueError, RuntimeError):
             continue
         
         # Don't allow deleting the settings file
