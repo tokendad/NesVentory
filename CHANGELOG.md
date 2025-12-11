@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 
 
 
+
+## [5.1.0] - 2025-12-11
+### Added
 ## [5.0.0] - 2025-12-02
 ### Major UI Redesign
 This is a major release with a complete redesign of the user interface.

@@ -1,12 +1,8 @@
-# NesVentory v4.8.1 - Upgrades to packages
+# NesVentory v5.1.0 - Features added
 
 ## Overview
 
-Version 4.8.1 release.
-
-## New Features
-
-Upgrades to packages
+Version 5.1.0 release.
 
 ---
 
