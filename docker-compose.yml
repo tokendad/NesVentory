@@ -61,8 +61,10 @@ services:
       # ======================================================================
       # APPLICATION SETTINGS
       # ======================================================================
-      # Application port (must match the container port in ports mapping)
-      APP_PORT: 8001
+      # APP_PORT is optional - defaults to 8001 inside the container
+      # Most users should change the host port in the ports mapping above instead
+      # Only set APP_PORT if you need the container to run on a different internal port
+      # Example: APP_PORT: 8080
       
       # JWT token expiration in minutes
       # Recommended: 30-60 minutes for better security

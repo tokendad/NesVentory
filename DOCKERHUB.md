@@ -19,6 +19,15 @@
 - `4.4.0`, `4.4` - Current version
 - `4.x.x` - Specific version tags
 
+## Recent Changes
+
+**December 2025 - Simplified Docker Configuration:**
+- The `APP_PORT` environment variable is now optional in docker-compose.yml examples
+- Application defaults to port 8001 inside the container (no configuration needed)
+- To run on a different host port, simply change the left side of the ports mapping (e.g., `"8080:8001"`)
+- Advanced users can still override the internal container port by setting `APP_PORT` if needed
+- This change reduces configuration complexity for typical Docker Compose users
+
 ## What is NesVentory?
 
 NesVentory is a self-hosted home inventory management system built with:
@@ -79,12 +88,13 @@ services:
       TZ: America/New_York
       SECRET_KEY: <generate-secure-key>
       JWT_SECRET_KEY: <generate-secure-key>
-      APP_PORT: 8001
+      # APP_PORT is optional - application defaults to port 8001
+      # To change the host port, edit the ports mapping below instead
     volumes:
       - /path/to/nesventory_data:/app/data
       - /etc/localtime:/etc/localtime:ro
     ports:
-      - "8001:8001"
+      - "8001:8001"  # Change host port (left side) to run on a different port
 ```
 
 Then run:
@@ -125,7 +135,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `APP_PORT` | `8001` | Application port |
+| `APP_PORT` | `8001` | Application port (optional - defaults to 8001). For most users, change the host port in Docker ports mapping instead of setting this variable. |
 | `PUID` | `1000` | User ID for file ownership |
 | `PGID` | `1000` | Group ID for file ownership |
 | `UMASK` | `002` | File permission mask |
@@ -161,7 +171,7 @@ The `/app/data` volume contains:
 
 | Port | Description |
 |------|-------------|
-| `8001` | Web UI and API (configurable via `APP_PORT`) |
+| `8001` | Web UI and API (default port). To run on a different host port, change the left side of the ports mapping in docker-compose.yml (e.g., `"8080:8001"`). Advanced users can override the container's internal port by setting the `APP_PORT` environment variable. |
 
 ## Health Check
 
