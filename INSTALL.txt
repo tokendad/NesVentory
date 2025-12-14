@@ -2,7 +2,7 @@
 NesVentory Installation Guide
 ================================================================================
 
-Version: 4.0.0
+Version: 6.0.0
 
 This guide provides detailed instructions for installing and running NesVentory
 using Docker Compose or Docker CLI commands.
@@ -290,7 +290,7 @@ To verify the installation is successful:
 3. Check Backend Version:
    curl http://localhost:8001/api/version
    
-   Expected response: {"name":"NesVentory","version":"4.0.0"}
+   Expected response: {"name":"NesVentory","version":"6.0.0"}
 
 4. Check Frontend:
    Open http://localhost:5173 in your browser

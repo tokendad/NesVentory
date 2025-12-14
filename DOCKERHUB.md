@@ -15,9 +15,10 @@
 
 ## Supported Tags
 
-- `latest` - Latest stable release
-- `4.4.0`, `4.4` - Current version
-- `4.x.x` - Specific version tags
+- `latest` - Latest stable release (6.0.0)
+- `6.0.0`, `6.0`, `6` - Version 6.0.0 with merged 5.0 features
+- `5.x.x` - Version 5 series tags
+- `4.x.x` - Version 4 series tags (legacy)
 
 ## What is NesVentory?
 

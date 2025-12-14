@@ -4,11 +4,30 @@
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
-## 🚀 What's New in Version 5.0.0
+## 🚀 What's New in Version 6.0.0
 
-This is a major release featuring a complete redesign of the user interface for improved usability and efficiency.
+This is a major release consolidating the 5.0 upgrade into the main branch with enhanced plugin support, maintenance tracking, and video support.
 
-### ✨ Key Features in v5.0
+### ✨ Key Features in v6.0
+
+🔌 **LLM Plugin System**
+- Support for external LLM plugins for AI-powered item detection
+- Plugin priority system with automatic fallback to Gemini AI
+- Configurable plugin endpoints and API keys
+- Health check and version detection for plugins
+- Enhanced error handling with detailed troubleshooting guidance
+
+🛠️ **Maintenance Management**
+- Comprehensive maintenance tracking system
+- Recurring maintenance schedules
+- Maintenance history and notes
+- Calendar view for maintenance tasks
+
+🎥 **Video Support**
+- Upload and manage video files for items
+- Video storage and retrieval system
+
+### ✨ Features from v5.0
 
 🎯 **Unified Inventory Page**
 - All-in-one view combining stats, locations, and items
@@ -204,13 +223,12 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for det
 
 ### Branching Strategy
 
-We use a **dev → main → stable** workflow:
+We use **main** as the primary branch:
 
 | Branch | Purpose |
 |--------|---------|
-| `dev` | Active development |
-| `main` | Integration and testing |
-| `stable` | Production releases (Docker Hub) |
+| `main` | Primary production branch |
+| `feature/*` | Development branches for new features |
 
 ### Commit Message Guidelines
 
@@ -228,9 +246,8 @@ Other valid prefixes include: `style:`, `refactor:`, `perf:`, `test:`, `build:`,
 
 ### Release Process
 
-When PRs are merged:
-- **To `main`**: Version is automatically bumped based on PR labels
-- **To `stable`**: GitHub Release is created and Docker image is pushed to Docker Hub
+- Use the Release Workflow to create new versions
+- Docker images are published to Docker Hub with version tags and "latest" for main branch
 
 ## 📞 Support
 

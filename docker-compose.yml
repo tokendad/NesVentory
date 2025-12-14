@@ -4,7 +4,7 @@
 # This docker-compose.yml provides an example configuration for running
 # NesVentory as a self-hosted home inventory management application.
 #
-# Version: 4.x (SQLite-based unified container)
+# Version: 6.0 (SQLite-based unified container)
 # Documentation: https://github.com/tokendad/NesVentory
 # ============================================================================
 services:

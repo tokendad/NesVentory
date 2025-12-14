@@ -5,7 +5,19 @@ All notable changes to this project will be documented in this file.
 
 
 
-
+## [6.0.0] - 2025-12-14
+### Added
+- **Merged 5.0-upgrade branch into main** - Consolidating all 5.x features into version 6.0.0
+  - LLM Plugin System for external AI services
+  - Maintenance tracking and calendar
+  - Video support for items
+  - Enhanced error handling and version detection
+  - System settings consolidation
+  - Unified inventory page
+- **Version 6.0.0 as new main release** - Updated all documentation and workflows to reflect main branch as latest
+  - Updated Docker workflows to publish main branch as "latest" tag
+  - Removed 5.0-specific workflow files
+  - Updated all version references throughout codebase
 
 ## [5.2.0] - 2025-12-14
 ### Added
