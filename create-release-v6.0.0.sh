@@ -174,6 +174,13 @@ use_api() {
         return 1
     fi
     
+    # Check if jq is available
+    if ! command -v jq >/dev/null 2>&1; then
+        print_error "jq is not installed (required for API method)"
+        print_info "Install with: sudo apt-get install jq (or brew install jq on macOS)"
+        return 1
+    fi
+    
     create_tag || return 1
     push_tag || return 1
     

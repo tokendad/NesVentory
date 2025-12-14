@@ -27,13 +27,16 @@ jobs:
         id: check_release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
         run: |
+          # Check for existing release to avoid race conditions
+          # Note: This check is not atomic, but provides reasonable safety for auto-release
           if gh release view v6.0.0 &>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
-            echo "Release v6.0.0 already exists"
+            echo "⚠️  Release v6.0.0 already exists"
           else
             echo "exists=false" >> $GITHUB_OUTPUT
-            echo "Release v6.0.0 does not exist"
+            echo "✓ Release v6.0.0 does not exist yet"
           fi
           
       - name: Check VERSION file

@@ -18,8 +18,10 @@ WORKFLOW_FILE = "release-workflow.yml"
 REF = "main"  # Branch to run the workflow on
 
 # Release information for v6.0.0
+# Note: This script is for reference. Since v6.0.0 is already prepared,
+# use publish-v6.0.0.yml workflow instead of release-workflow.yml
 WORKFLOW_INPUTS = {
-    "bump_type": "patch",  # Since we're at 6.0.0, this would create 6.0.1, but we'll document the manual approach
+    "bump_type": "patch",  # Would bump to 6.0.1 - use publish-v6.0.0.yml instead
     "release_title": "Major Release - Plugin Support, Maintenance, and Video Features",
     "release_notes": """This release consolidates all features from the 5.0 series:
 
@@ -95,6 +97,9 @@ def main():
     print("=" * 60)
     print("NesVentory Release Workflow Trigger")
     print("=" * 60)
+    print()
+    print("⚠️  WARNING: This triggers release-workflow.yml which bumps version.")
+    print("   For v6.0.0, use publish-v6.0.0.yml workflow instead!")
     print()
     print(f"Repository: {REPO_OWNER}/{REPO_NAME}")
     print(f"Workflow: {WORKFLOW_FILE}")
