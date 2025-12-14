@@ -10,6 +10,7 @@ from pathlib import Path
 import os
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from werkzeug.utils import secure_filename
 
 from .. import auth, models
 from ..config import settings as app_settings
@@ -318,9 +319,13 @@ async def get_log_content(
     # Validate lines parameter
     lines = min(max(1, lines), 1000)
     
-    # Security: ensure filename is safe and within log directory
-    normalized_name = os.path.normpath(file_name)
-    # Reject absolute paths and path traversal outside log directory
+    # Security: sanitize user-supplied filename to avoid path traversal and other issues
+    safe_name = secure_filename(file_name)
+    if not safe_name:
+        raise HTTPException(status_code=400, detail="Invalid file name")
+    
+    normalized_name = os.path.normpath(safe_name)
+    # Reject absolute paths and path traversal outside log directory (defense in depth)
     if os.path.isabs(normalized_name) or normalized_name.startswith("..") or any(part == ".." for part in Path(normalized_name).parts):
         raise HTTPException(status_code=400, detail="Invalid file name")
     filepath = LOG_DIR / normalized_name
