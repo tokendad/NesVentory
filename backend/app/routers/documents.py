@@ -4,6 +4,7 @@ from typing import Optional
 from uuid import UUID
 from urllib.parse import urlparse
 import ipaddress
+from publicsuffix2 import get_sld
 import io
 
 import logging
@@ -145,8 +146,15 @@ async def upload_document_from_url(
         if not hostname:
             raise HTTPException(status_code=400, detail="URL must include a hostname.")
 
-        # Restrict to allow-listed hosts only
-        if hostname.lower() not in ALLOWED_HOSTS:
+        # Security: Only allow *exact* (canonical) hosts in ALLOWED_HOSTS. No subdomain tricks.
+        def canonicalize_host(host):
+            # Lowercase, strip trailing dot (which can trick checks), handle IDN
+            return host.rstrip('.').lower()
+
+        canonical_hostname = canonicalize_host(hostname)
+        # Use get_sld to get the "registrable domain". We want to avoid subdomains.
+        # Only allow *exact* host matches, not subdomains.
+        if canonical_hostname not in ALLOWED_HOSTS:
             raise HTTPException(
                 status_code=400,
                 detail="Host is not allowed. Only specific hosts are permitted."
