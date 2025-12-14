@@ -16,7 +16,7 @@ setup_logging()
 from . import models
 from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
-from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents
+from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins
 
 
 def run_migrations():
@@ -29,11 +29,12 @@ def run_migrations():
     """
     # Whitelist of allowed table and column names for security
     # Only these exact names are permitted in migrations
-    ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks"}
+    ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks", "videos", "plugins"}
     ALLOWED_COLUMNS = {"google_id", "estimated_value_ai_date", "estimated_value_user_date", "estimated_value_user_name",
                        "ai_schedule_enabled", "ai_schedule_interval_days", "ai_schedule_last_run",
-                       "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "document_type"}
-    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "VARCHAR(64)", "BOOLEAN DEFAULT FALSE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT", "JSON"}
+                       "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "document_type", "color", 
+                       "supports_image_processing"}
+    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "VARCHAR(64)", "VARCHAR(7)", "BOOLEAN DEFAULT FALSE", "BOOLEAN DEFAULT TRUE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT", "JSON"}
     
     # Define migrations: (table_name, column_name, column_definition)
     migrations = [
@@ -54,6 +55,10 @@ def run_migrations():
         ("users", "upc_databases", "JSON"),
         # Document model: document_type column for categorizing documents (manuals, attachments, etc.)
         ("documents", "document_type", "VARCHAR(64)"),
+        # MaintenanceTask model: color column for customizing task colors
+        ("maintenance_tasks", "color", "VARCHAR(7)"),
+        # Plugin model: supports_image_processing column for indicating image processing capabilities
+        ("plugins", "supports_image_processing", "BOOLEAN DEFAULT TRUE"),
     ]
     
     with engine.begin() as conn:
@@ -150,6 +155,9 @@ app.include_router(ai.router, prefix="/api")
 app.include_router(gdrive.router, prefix="/api")
 app.include_router(logs.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
+app.include_router(videos.router, prefix="/api")
+app.include_router(maintenance.router)
+app.include_router(plugins.router, prefix="/api")
 
 # Setup uploads directory and mount static files
 # Media files are stored in /app/data/media to ensure they persist with the database
@@ -157,6 +165,7 @@ UPLOAD_DIR = Path("/app/data/media")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 (UPLOAD_DIR / "photos").mkdir(exist_ok=True)
 (UPLOAD_DIR / "documents").mkdir(exist_ok=True)
+(UPLOAD_DIR / "videos").mkdir(exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 # Mount frontend static files (v2.0 unified container)

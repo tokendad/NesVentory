@@ -7,174 +7,40 @@
 # Version: 4.x (SQLite-based unified container)
 # Documentation: https://github.com/tokendad/NesVentory
 # ============================================================================
-
 services:
-  nesventory:
-    # Use the official NesVentory image from Docker Hub
-    # Available tags: latest, 4.4.0, 4.4, etc.
-    # See https://hub.docker.com/r/tokendad/nesventory for all available tags
-    image: tokendad/nesventory:latest
-    
-    # Container name for easier management
-    container_name: nesventory
-    
-    # Restart policy - automatically restart unless explicitly stopped
+  nesventory-local:
+    build: .
+    container_name: nesventory5
     restart: unless-stopped
-    
-    # Port mapping - expose the application on your host
-    # Format: "host_port:container_port"
-    # Change host port (8001) if you need to run on a different port
     ports:
-      - "8001:8001"
-    
-    # Environment variables for configuration
+      - "5151:5151"
     environment:
-      # ======================================================================
-      # REQUIRED SECURITY SETTINGS
-      # ======================================================================
-      # SECURITY WARNING: You MUST change these values before deployment!
-      # Generate secure random keys for production use with:
-      # python -c "import secrets; print(secrets.token_urlsafe(32))"
-      # 
-      # DO NOT deploy with these placeholder values - they are NOT secure!
-      SECRET_KEY: CHANGE_ME_generate_secure_key_see_instructions_above
-      JWT_SECRET_KEY: CHANGE_ME_generate_secure_key_see_instructions_above
-      
-      # ======================================================================
-      # DOCKER USER CONFIGURATION
-      # ======================================================================
-      # Set user and group IDs to match your host user for proper file ownership
-      # Find your IDs with: id -u (for PUID) and id -g (for PGID)
+      # IMPORTANT: Generate secure, random keys for these values before deploying!
+      SECRET_KEY: CHANGE_ME_GENERATE_SECURE_KEY_HERE
+      JWT_SECRET_KEY: CHANGE_ME_GENERATE_SECURE_KEY_HERE
       PUID: 1000
       PGID: 1000
-      
-      # File creation permission mask
-      # 002 = Files: 664 (rw-rw-r--), Directories: 775 (rwxrwxr-x)
-      # 022 = Files: 644 (rw-r--r--), Directories: 755 (rwxr-xr-x)
       UMASK: 002
-      
-      # Timezone configuration
-      # Use IANA timezone names (e.g., America/New_York, Europe/London)
-      # See: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
       TZ: Etc/UTC
-      
-      # ======================================================================
-      # APPLICATION SETTINGS
-      # ======================================================================
-      # APP_PORT is optional - defaults to 8001 inside the container
-      # Most users should change the host port in the ports mapping above instead
-      # Only set APP_PORT if you need the container to run on a different internal port
-      # Example: APP_PORT: 8080
-      
-      # JWT token expiration in minutes
-      # Recommended: 30-60 minutes for better security
-      # Default in config.py is 1440 (24 hours) if not set
+      APP_PORT: 5151
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      
-      # JWT algorithm (recommended: HS256)
       JWT_ALGORITHM: HS256
-      
-      # ======================================================================
-      # OPTIONAL: AI PHOTO DETECTION SETTINGS
-      # ======================================================================
-      # Google Gemini API key for AI-powered item detection from photos
-      # Get your API key from: https://aistudio.google.com/app/apikey
-      # Leave empty to disable AI photo detection feature
       # GEMINI_API_KEY: your-gemini-api-key-here
-      
-      # Gemini model to use (default: gemini-2.0-flash)
-      # Options: gemini-2.0-flash, gemini-1.5-flash, gemini-1.5-pro
       # GEMINI_MODEL: gemini-2.0-flash
-      
-      # Delay between AI requests in seconds (to avoid rate limits)
-      # Free tier: 15 requests/minute, so 4-5 seconds is recommended
-      # Set to 0 for paid tier users
       # GEMINI_REQUEST_DELAY: 4.0
-      
-      # ======================================================================
-      # OPTIONAL: GOOGLE OAUTH SETTINGS
-      # ======================================================================
-      # Enable "Sign in with Google" for SSO login and registration
-      # Setup instructions:
-      # 1. Go to https://console.cloud.google.com/apis/credentials
-      # 2. Create OAuth 2.0 Client ID (Web application)
-      # 3. Add authorized JavaScript origins: http://localhost:8001
-      # 4. Add authorized redirect URIs: http://localhost:8001/postmessage
-      # 5. Copy Client ID and Secret below
-      # Leave empty to disable Google OAuth
       # GOOGLE_CLIENT_ID: your-google-client-id
       # GOOGLE_CLIENT_SECRET: your-google-client-secret
-      
-      # ======================================================================
-      # OPTIONAL: REGISTRATION SETTINGS
-      # ======================================================================
-      # Set to true to disable new user self-registration
-      # When enabled, only admins can create accounts via the Admin panel
-      # Useful for private/family installations
-      # Default: false (registration is enabled)
-      # DISABLE_SIGNUPS: false
-    
-    # Volume mounts for persistent data storage
+      DISABLE_SIGNUPS: true
     volumes:
-      # REQUIRED: Main data volume for SQLite database and uploaded media
-      # This directory contains:
-      #   - nesventory.db (SQLite database)
-      #   - media/photos/ (uploaded item photos)
-      #   - media/documents/ (uploaded warranty documents)
-      #   - logs/ (application logs)
-      # 
-      # IMPORTANT: Change this path to your desired location!
-      # Example: ./nesventory-data:/app/data (relative path in current directory)
-      # Example: /home/user/nesventory-data:/app/data (absolute path)
-      - ./nesventory-data:/app/data
-      
-      # OPTIONAL: Sync container timezone with host system
-      # Alternative to setting TZ environment variable
-      # Uncomment if you prefer to use host timezone file
-      # - /etc/localtime:/etc/localtime:ro
-    
-    # Health check to monitor container status
-    # Uses Python and HTTP library since curl/wget are not available in the container
+      - /data/DockerConfigs/nesventory5-data:/app/data
+      - /etc/localtime:/etc/localtime:ro
+
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/health')"]
+      # Use CMD-SHELL so the container's APP_PORT environment variable is used.
+      # This assumes the container has curl available; if not, switch to python3 or
+      # install curl in the image.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5151/api/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-
-# ============================================================================
-# USAGE INSTRUCTIONS
-# ============================================================================
-# 
-# 1. BEFORE STARTING:
-#    - IMPORTANT: Generate and set secure SECRET_KEY and JWT_SECRET_KEY
-#      Run: python -c "import secrets; print(secrets.token_urlsafe(32))"
-#    - Optional: Update the volume path (default: ./nesventory-data)
-#    - Optional: Set PUID/PGID to match your user (run: id -u && id -g)
-#    - Optional: Adjust TZ to your timezone
-#
-# 2. START THE APPLICATION:
-#    docker compose up -d
-#
-# 3. ACCESS THE APPLICATION:
-#    Open http://localhost:8001 in your browser
-#
-# 4. DEFAULT LOGIN CREDENTIALS (CHANGE THESE IN PRODUCTION!):
-#    Admin:  admin@nesventory.local / admin123
-#    Editor: editor@nesventory.local / editor123
-#    Viewer: viewer@nesventory.local / viewer123
-#
-# 5. VIEW LOGS:
-#    docker compose logs -f
-#
-# 6. STOP THE APPLICATION:
-#    docker compose down
-#
-# 7. STOP AND REMOVE ALL DATA:
-#    docker compose down -v
-#
-# For complete documentation, see:
-# - Installation Guide: INSTALL.txt
-# - README: README.md
-# - GitHub: https://github.com/tokendad/NesVentory
-# ============================================================================

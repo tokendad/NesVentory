@@ -15,6 +15,7 @@ if [ -d "/app/data" ]; then
     # Create media subdirectories for uploads if they don't exist
     mkdir -p /app/data/media/photos
     mkdir -p /app/data/media/documents
+    mkdir -p /app/data/media/videos
     # Create logs subdirectory for application logs
     mkdir -p /app/data/logs
     # Fix ownership of the data directory using PUID/PGID

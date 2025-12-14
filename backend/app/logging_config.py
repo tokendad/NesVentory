@@ -215,6 +215,11 @@ def reconfigure_logging_level(log_level_setting: str) -> None:
         logging.getLogger(logger_name).setLevel(python_log_level)
     
     logger = logging.getLogger(__name__)
-    # Use WARNING level to ensure this message is always logged, even when level is set to warn_error.
-    # This is intentional as log level changes are important operational events that should be tracked.
-    logger.warning(f"Logging level changed to: {log_level_setting}")
+    # Log the log level change as INFO, but ensure it is always emitted by temporarily lowering the logger's level if needed.
+    original_level = logger.level
+    if original_level > logging.INFO:
+        logger.setLevel(logging.INFO)
+        logger.info(f"Logging level changed to: {log_level_setting}")
+        logger.setLevel(original_level)
+    else:
+        logger.info(f"Logging level changed to: {log_level_setting}")

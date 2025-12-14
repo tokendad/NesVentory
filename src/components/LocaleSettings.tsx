@@ -10,9 +10,10 @@ import {
 
 interface LocaleSettingsProps {
   onClose: () => void;
+  embedded?: boolean;
 }
 
-const LocaleSettings: React.FC<LocaleSettingsProps> = ({ onClose }) => {
+const LocaleSettings: React.FC<LocaleSettingsProps> = ({ onClose, embedded = false }) => {
   const [config, setConfig] = useState<LocaleConfig>(getLocaleConfig());
   const [saved, setSaved] = useState(false);
 
@@ -20,7 +21,9 @@ const LocaleSettings: React.FC<LocaleSettingsProps> = ({ onClose }) => {
     saveLocaleConfig(config);
     setSaved(true);
     setTimeout(() => {
-      onClose();
+      if (!embedded) {
+        onClose();
+      }
       // Reload page to apply new locale settings
       window.location.reload();
     }, 1000);
@@ -32,23 +35,32 @@ const LocaleSettings: React.FC<LocaleSettingsProps> = ({ onClose }) => {
     setConfig(resetConfig);
   };
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+  const content = (
+    <>
+      {!embedded && (
         <div className="modal-header">
           <h2>Locale & Currency Settings</h2>
           <button className="modal-close" onClick={onClose}>
             ✕
           </button>
         </div>
+      )}
 
-        {saved && (
-          <div className="success-banner">
-            Settings saved! Reloading to apply changes...
+      {embedded && (
+        <section className="panel">
+          <div className="panel-header">
+            <h3>Locale & Currency Settings</h3>
           </div>
-        )}
+        </section>
+      )}
 
-        <div className="settings-form">
+      {saved && (
+        <div className="success-banner">
+          Settings saved! Reloading to apply changes...
+        </div>
+      )}
+
+      <div className="settings-form" style={embedded ? { padding: "1rem" } : undefined}>
           <div className="form-group">
             <label htmlFor="locale">Display Language & Format</label>
             <select
@@ -122,14 +134,27 @@ const LocaleSettings: React.FC<LocaleSettingsProps> = ({ onClose }) => {
             Reset to Browser Default
           </button>
           <div style={{ marginLeft: "auto", display: "flex", gap: "0.75rem" }}>
-            <button className="btn-outline" onClick={onClose} disabled={saved}>
-              Cancel
-            </button>
+            {!embedded && (
+              <button className="btn-outline" onClick={onClose} disabled={saved}>
+                Cancel
+              </button>
+            )}
             <button className="btn-primary" onClick={handleSave} disabled={saved}>
               {saved ? "Saved!" : "Save & Apply"}
             </button>
           </div>
         </div>
+      </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        {content}
       </div>
     </div>
   );

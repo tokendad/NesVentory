@@ -1,8 +1,8 @@
-# NesVentory v4.9.0 - Updated Bugs 
+# NesVentory v5.2.0 - Features added
 
 ## Overview
 
-Version 4.9.0 release.
+Version 5.2.0 release.
 
 ---
 

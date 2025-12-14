@@ -328,11 +328,9 @@ If you see foreign key or type mismatch errors:
 Port Already in Use:
 --------------------
 If port 8001 is already in use:
-  - Option 1 (Recommended): Change the host port in docker-compose.yml ports section
-    Example: Change "8001:8001" to "8080:8001" to run on host port 8080
-  - Option 2 (Advanced): Set APP_PORT environment variable to change the container's internal port
-    Note: APP_PORT is optional and defaults to 8001 inside the container
-  - Restart services after making changes
+  - Change the host port in docker-compose.yml ports section
+  - Update APP_PORT environment variable to match
+  - Restart services
 
 Frontend Cannot Connect to Backend:
 ------------------------------------

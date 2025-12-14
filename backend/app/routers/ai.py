@@ -122,6 +122,8 @@ class AIStatusResponse(BaseModel):
     """Schema for AI feature status."""
     enabled: bool
     model: Optional[str] = None
+    plugins_enabled: bool = False
+    plugin_count: int = 0
 
 
 class DataTagInfo(BaseModel):
@@ -429,19 +431,27 @@ def parse_data_tag_response(response_text: str) -> DataTagInfo:
 def get_ai_status(db: Session = Depends(get_db)):
     """
     Check if AI detection feature is enabled and configured.
-    Checks both environment variables and database settings.
+    Checks both environment variables and database settings, as well as custom LLM plugins.
     """
     gemini_api_key = get_effective_gemini_api_key(db)
     is_enabled = bool(gemini_api_key)
+    
+    # Check for enabled plugins
+    from ..plugin_service import get_enabled_ai_scan_plugins
+    plugins = get_enabled_ai_scan_plugins(db)
+    
     return AIStatusResponse(
-        enabled=is_enabled,
-        model=settings.GEMINI_MODEL if is_enabled else None
+        enabled=is_enabled or len(plugins) > 0,  # Enabled if Gemini OR plugins are configured
+        model=settings.GEMINI_MODEL if is_enabled else None,
+        plugins_enabled=len(plugins) > 0,
+        plugin_count=len(plugins)
     )
 
 
 @router.post("/detect-items", response_model=DetectionResult)
 async def detect_items(
     file: UploadFile = File(..., description="Image file to analyze for items"),
+    use_plugin: bool = True,  # Parameter to enable/disable plugin usage
     db: Session = Depends(get_db)
 ):
     """
@@ -449,7 +459,39 @@ async def detect_items(
     
     Returns a list of detected items with names, descriptions, and estimated values.
     These can be used to create inventory items.
+    
+    If custom LLM plugins are enabled for AI scan, they will be tried first
+    before falling back to the default Gemini AI.
     """
+    # Try custom LLM plugins first if enabled
+    if use_plugin:
+        from ..plugin_service import get_enabled_ai_scan_plugins, detect_items_with_plugin
+        
+        # Get plugins that support image processing for item detection
+        plugins = get_enabled_ai_scan_plugins(db, requires_image_processing=True)
+        
+        if plugins:
+            # Read the image data once
+            image_data = await file.read()
+            
+            # Try each plugin in priority order
+            for plugin in plugins:
+                logger.info(f"Trying plugin: {plugin.name} for item detection")
+                result = await detect_items_with_plugin(plugin, image_data, file.content_type or "image/jpeg")
+                
+                if result and "items" in result:
+                    # Convert plugin result to DetectionResult
+                    # The plugin should return data in a compatible format
+                    items = [DetectedItem(**item) for item in result.get("items", [])]
+                    return DetectionResult(
+                        items=items,
+                        raw_response=result.get("raw_response")
+                    )
+            
+            logger.info("All plugins failed, falling back to Gemini AI")
+            # Reset file position for Gemini fallback
+            await file.seek(0)
+    
     # Check if Gemini API is configured (env or database)
     gemini_api_key = get_effective_gemini_api_key(db)
     if not gemini_api_key:
@@ -547,6 +589,7 @@ Return an empty array [] if no identifiable items are found."""
 @router.post("/parse-data-tag", response_model=DataTagInfo)
 async def parse_data_tag(
     file: UploadFile = File(..., description="Image of a data tag/label to parse"),
+    use_plugin: bool = True,  # New parameter to enable/disable plugin usage
     db: Session = Depends(get_db)
 ):
     """
@@ -554,7 +597,36 @@ async def parse_data_tag(
     
     Extracts manufacturer, serial number, model number, and production date
     from product data tags, labels, or identification plates.
+    
+    If custom LLM plugins are enabled for AI scan, they will be tried first
+    before falling back to the default Gemini AI.
     """
+    # Try custom LLM plugins first if enabled
+    if use_plugin:
+        from ..plugin_service import get_enabled_ai_scan_plugins, parse_data_tag_with_plugin
+        
+        # Get plugins that support image processing for data tag parsing
+        plugins = get_enabled_ai_scan_plugins(db, requires_image_processing=True)
+        
+        if plugins:
+            # Read the image data once
+            image_data = await file.read()
+            
+            # Try each plugin in priority order
+            for plugin in plugins:
+                logger.info(f"Trying plugin: {plugin.name} for data tag parsing")
+                result = await parse_data_tag_with_plugin(plugin, image_data, file.content_type or "image/jpeg")
+                
+                if result:
+                    # Convert plugin result to DataTagInfo
+                    # The plugin should return data in a compatible format
+                    data_tag_info = DataTagInfo(**result)
+                    return data_tag_info
+            
+            logger.info("All plugins failed, falling back to Gemini AI")
+            # Reset file position for Gemini fallback
+            await file.seek(0)
+    
     # Check if Gemini API is configured (env or database)
     gemini_api_key = get_effective_gemini_api_key(db)
     if not gemini_api_key:
@@ -759,12 +831,14 @@ def parse_barcode_lookup_response(response_text: str) -> BarcodeLookupResult:
 @router.post("/barcode-lookup", response_model=BarcodeLookupResult)
 async def lookup_barcode(
     request: BarcodeLookupRequest,
+    use_plugin: bool = True,  # New parameter to enable/disable plugin usage
     db: Session = Depends(get_db)
 ):
     """
     Look up product information using a barcode/UPC code.
     
-    Uses Gemini AI to identify the product and provide details like:
+    Uses custom LLM plugins (if configured) or Gemini AI to identify the product 
+    and provide details like:
     - Product name
     - Brand/Manufacturer
     - Description
@@ -774,14 +848,6 @@ async def lookup_barcode(
     Note: This uses AI to look up products based on UPC codes. Results
     may vary in accuracy as the AI uses its training data to identify products.
     """
-    # Check if Gemini API is configured (env or database)
-    gemini_api_key = get_effective_gemini_api_key(db)
-    if not gemini_api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment or configure it in the admin panel."
-        )
-    
     # Validate UPC format (basic validation)
     upc = request.upc.strip()
     if not upc:
@@ -802,6 +868,32 @@ async def lookup_barcode(
         raise HTTPException(
             status_code=400,
             detail="Invalid UPC code format. UPC should be 6-14 digits."
+        )
+    
+    # Try custom LLM plugins first if enabled
+    if use_plugin:
+        from ..plugin_service import get_enabled_ai_scan_plugins, lookup_barcode_with_plugin
+        
+        plugins = get_enabled_ai_scan_plugins(db)
+        
+        if plugins:
+            # Try each plugin in priority order
+            for plugin in plugins:
+                logger.info(f"Trying plugin: {plugin.name} for barcode lookup")
+                result = await lookup_barcode_with_plugin(plugin, upc_clean)
+                
+                if result and result.get('found'):
+                    # Convert plugin result to BarcodeLookupResult
+                    return BarcodeLookupResult(**result)
+            
+            logger.info("All plugins failed, falling back to Gemini AI")
+    
+    # Check if Gemini API is configured (env or database)
+    gemini_api_key = get_effective_gemini_api_key(db)
+    if not gemini_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment or configure it in the admin panel."
         )
     
     try:

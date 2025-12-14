@@ -234,16 +234,17 @@ async def delete_log_files(
     
     for filename in request.file_names:
         # Security: ensure filename is safe and within log directory
-        # Normalize filename
+        # Normalize filename and prevent absolute paths
         norm_filename = os.path.normpath(filename)
+        if os.path.isabs(norm_filename) or norm_filename.startswith("..") or os.path.sep in norm_filename and ("/" in norm_filename or "\\" in norm_filename):
+            continue
         
         filepath = LOG_DIR / norm_filename
         
         # Verify the file is within LOG_DIR (prevent path traversal)
         try:
-            resolved = filepath.resolve()
-            resolved.relative_to(LOG_DIR.resolve())
-        except (ValueError, RuntimeError):
+            filepath.resolve().relative_to(LOG_DIR.resolve())
+        except ValueError:
             continue
         
         # Don't allow deleting the settings file
@@ -324,12 +325,9 @@ async def get_log_content(
         raise HTTPException(status_code=400, detail="Invalid file name")
     filepath = LOG_DIR / normalized_name
     
-    # Resolve both paths first
-    resolved_log_dir = LOG_DIR.resolve()
-    resolved_filepath = filepath.resolve(strict=False)
-    # Verify the resolved file is within the resolved LOG_DIR (prevent path traversal via symlinks/tricks)
+    # Verify the file is within LOG_DIR (prevent path traversal)
     try:
-        resolved_filepath.relative_to(resolved_log_dir)
+        filepath.resolve().relative_to(LOG_DIR.resolve())
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid file path")
     
