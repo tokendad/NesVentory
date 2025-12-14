@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file.
 
 
 
+
+## [5.2.0] - 2025-12-14
+### Added
 ## [5.1.0] - 2025-12-11
 ### Added
 ## [5.0.0] - 2025-12-02
