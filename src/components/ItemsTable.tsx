@@ -150,7 +150,28 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
 
   return (
     <section className="panel">
-      <div className="panel-header panel-header-left">
+      <div className="panel-header">
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap", flex: 1 }}>
+          <div className="search-bar" style={{ flex: "1 1 300px", maxWidth: "500px", margin: 0 }}>
+            <input
+              type="text"
+              placeholder="Search items by name, brand, model, serial, tags..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input"
+            />
+            {searchQuery && (
+              <button
+                className="search-clear"
+                onClick={() => setSearchQuery("")}
+                title="Clear search"
+              >
+                ×
+              </button>
+            )}
+          </div>
+          <h2 style={{ margin: 0, fontSize: "1rem", fontWeight: 500 }}>Items</h2>
+        </div>
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
           {isSomeSelected && (
             <>
@@ -195,25 +216,6 @@ const ItemsTable: React.FC<ItemsTableProps> = ({
             Add Item
           </button>
         </div>
-        <h2>Items</h2>
-      </div>
-      <div className="search-bar">
-        <input
-          type="text"
-          placeholder="Search items by name, brand, model, serial, tags..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="search-input"
-        />
-        {searchQuery && (
-          <button
-            className="search-clear"
-            onClick={() => setSearchQuery("")}
-            title="Clear search"
-          >
-            ×
-          </button>
-        )}
       </div>
       {error && <div className="error-banner">{error}</div>}
       <div className="table-wrapper">

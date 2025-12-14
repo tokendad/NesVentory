@@ -23,7 +23,7 @@ COPY index.html tsconfig.json vite.config.ts ./
 RUN npm run build
 
 # Stage 2: Build the backend runtime
-FROM python:3.14-slim
+FROM python:3.13-slim
 
 # Environment variables
 ARG PUID=1000
@@ -41,9 +41,11 @@ WORKDIR /app
 
 # Install only essential runtime dependencies
 # gosu is needed for the entrypoint to switch from root to nesventory user
+# curl is needed for healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata \
     gosu \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -65,7 +67,7 @@ COPY --from=frontend-builder --chown=nesventory:nesventory /frontend/dist /app/s
 # Create necessary directories
 # Media files are stored in /app/data/media to persist with the database
 # Logs are stored in /app/data/logs for log persistence across restarts
-RUN mkdir -p /app/data/media/photos /app/data/media/documents /app/data/logs && \
+RUN mkdir -p /app/data/media/photos /app/data/media/documents /app/data/media/videos /app/data/logs && \
     chown -R nesventory:nesventory /app/data
 
 # Copy entrypoint script

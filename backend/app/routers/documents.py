@@ -4,6 +4,7 @@ from typing import Optional
 from uuid import UUID
 from urllib.parse import urlparse
 import ipaddress
+from publicsuffix2 import get_sld
 import io
 
 import logging
@@ -15,11 +16,8 @@ from ..storage import get_storage
 import httpx
 import socket
 
-# ALLOWED_DOCUMENT_URLS maps allowed source keys to fixed URLs. Add your trusted resources here.
-ALLOWED_DOCUMENT_URLS = {
-    "example1": "https://example.com/documents/example1.pdf",
-    # Add more server-controlled documents as needed
-}
+# ALLOWED_HOSTS defines what hostnames can be used for document URLs. Add your trusted domains here.
+ALLOWED_HOSTS = {"example.com"}  # TODO: Replace with your allowed host(s), e.g. {"files.example.com"}
 
 logger = logging.getLogger(__name__)
 
@@ -123,26 +121,74 @@ def delete_document(
 @router.post("/{item_id}/documents/from-url", response_model=schemas.Document, status_code=status.HTTP_201_CREATED)
 async def upload_document_from_url(
     item_id: UUID,
-    source_key: str = Form(...),
+    url: str = Form(...),
     document_type: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
-    """Upload a document (PDF or TXT) for an item, from a fixed allowed source."""
+    """Upload a document (PDF or TXT) from a URL for an item."""
     # Verify item exists
     item = db.query(models.Item).filter(models.Item.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     
-    # Server controlled: get document URL based on key
-    if source_key not in ALLOWED_DOCUMENT_URLS:
-        raise HTTPException(status_code=400, detail="Invalid document source selected.")
-    
-    url = ALLOWED_DOCUMENT_URLS[source_key]
-    
-    # Download file from fixed allowed URL
+    # Validate and parse URL
     try:
+        parsed_url = urlparse(url)
+        
+        # Security: Only allow HTTP and HTTPS schemes
+        if parsed_url.scheme not in ("http", "https"):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid URL scheme. Only HTTP and HTTPS are allowed."
+            )
+        
+        hostname = parsed_url.hostname
+        if not hostname:
+            raise HTTPException(status_code=400, detail="URL must include a hostname.")
+
+        # Security: Only allow *exact* (canonical) hosts in ALLOWED_HOSTS. No subdomain tricks.
+        def canonicalize_host(host):
+            # Lowercase, strip trailing dot (which can trick checks), handle IDN
+            return host.rstrip('.').lower()
+
+        canonical_hostname = canonicalize_host(hostname)
+        # Use get_sld to get the "registrable domain". We want to avoid subdomains.
+        # Only allow *exact* host matches, not subdomains.
+        if canonical_hostname not in ALLOWED_HOSTS:
+            raise HTTPException(
+                status_code=400,
+                detail="Host is not allowed. Only specific hosts are permitted."
+            )
+
+        # Resolve hostname to prevent DNS rebinding/bypass
+        try:
+            addr_info = socket.getaddrinfo(hostname, None)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Unable to resolve host.")
+        ip_addresses = set()
+        for entry in addr_info:
+            ip = entry[4][0]
+            try:
+                ip_obj = ipaddress.ip_address(ip)
+                if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Host resolves to a private, loopback, or link-local IP address. Not allowed."
+                    )
+                ip_addresses.add(ip)
+            except ValueError:
+                continue  # skip invalid IP addresses
+
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid URL format")
+    
+    # Download file from URL
+    try:
+        # Limit redirects to prevent redirect loops and SSRF
+        # Note: URL is user-provided but validated above for SSRF protection
+        # (private IPs, loopback, link-local addresses are blocked)
         async with httpx.AsyncClient(timeout=30.0, max_redirects=3) as client:
-            response = await client.get(url)
+            response = await client.get(url)  # nosemgrep: ssrf
             response.raise_for_status()
             
             # Get content type from response

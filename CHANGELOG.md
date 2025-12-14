@@ -5,18 +5,83 @@ All notable changes to this project will be documented in this file.
 
 
 
-
-
-
-
-## [4.9.0] - 2025-12-14
+## [6.0.0] - 2025-12-14
 ### Added
-## [4.8.2] - 2025-12-11
-### Fixed
-- Updated workdflows
+- **Merged 5.0-upgrade branch into main** - Consolidating all 5.x features into version 6.0.0
+  - LLM Plugin System for external AI services
+  - Maintenance tracking and calendar
+  - Video support for items
+  - Enhanced error handling and version detection
+  - System settings consolidation
+  - Unified inventory page
+- **Version 6.0.0 as new main release** - Updated all documentation and workflows to reflect main branch as latest
+  - Updated Docker workflows to publish main branch as "latest" tag
+  - Removed 5.0-specific workflow files
+  - Updated all version references throughout codebase
+
+## [5.2.0] - 2025-12-14
+### Added
+## [5.1.0] - 2025-12-11
+### Added
+## [5.0.0] - 2025-12-02
+### Major UI Redesign
+This is a major release with a complete redesign of the user interface.
+
+#### Added
+- **New Unified Inventory Page** - Merged Dashboard, Items, and Locations into a single comprehensive view
+  - Stats section showing Total Items, Locations, and System Status
+  - Interactive Locations browser with dynamic location selection
+  - Settings icon on location bubbles for quick editing
+  - Items list filtered by selected location
+  - Configurable item display count (10, 25, 50, 100, All)
+  - Customizable column selection for items table
+  - Items now clickable to view details (preview removed)
+
+- **Redesigned Sidebar Navigation**
+  - 📦 Inventory - New unified inventory page (replaces Dashboard, Items, Locations)
+  - 👤 User Settings - Dedicated user settings page
+  - 📅 Maintenance Calendar - Monthly calendar view (settings coming in future release)
+  - ⚙️ System Settings - Consolidated Theme, Locale & Currency, and Service Status
+  - 🔐 Admin - Admin section (shown only for admin users)
+  - Logout button moved to bottom of sidebar
+  - Removed locations tree from sidebar
+
+- **Enhanced Header**
+  - NesVentory logo and name prominently displayed
+  - Global search functionality for items
+  - Cleaner, more streamlined design
+
+- **Footer**
+  - Version display on all pages
+  - Link to GitHub repository
+
+- **New Components**
+  - Calendar component for maintenance scheduling
+  - SystemSettings component with tabbed interface
+  - InventoryPage component for unified inventory view
+
+#### Changed
+- Updated navigation structure with emoji icons for better visual clarity
+- Moved Theme and Locale settings to System Settings page
+- Removed theme/locale icons from header
+- Enhanced mobile responsiveness across all new views
+- Updated version to 5.0.0
+
+#### Removed
+- Separate Dashboard, Items, and Locations pages (merged into Inventory)
+- Separate Status page (moved to System Settings)
+- Locations tree from sidebar
+- Theme and Locale buttons from header
+
+
 ## [4.8.1] - 2025-12-04
-### Fixed
-- Upgrades to packages
+### Added
+- New video upload feature
+
+### Changed
+- Downgraded Python version from 3.14 to 3.11
+- Upgraded React from 19.2.0 to 19.2.1
+- Upgraded FastAPI from 0.123.3 to 0.123.7
 ## [4.8.0] - 2025-12-02
 ### Added
 - Upgraded dependencies,  added docker compose

@@ -15,18 +15,10 @@
 
 ## Supported Tags
 
-- `latest` - Latest stable release
-- `4.4.0`, `4.4` - Current version
-- `4.x.x` - Specific version tags
-
-## Recent Changes
-
-**December 2025 - Simplified Docker Configuration:**
-- The `APP_PORT` environment variable is now optional in docker-compose.yml examples
-- Application defaults to port 8001 inside the container (no configuration needed)
-- To run on a different host port, simply change the left side of the ports mapping (e.g., `"8080:8001"`)
-- Advanced users can still override the internal container port by setting `APP_PORT` if needed
-- This change reduces configuration complexity for typical Docker Compose users
+- `latest` - Latest stable release (6.0.0)
+- `6.0.0`, `6.0`, `6` - Version 6.0.0 with merged 5.0 features
+- `5.x.x` - Version 5 series tags
+- `4.x.x` - Version 4 series tags (legacy)
 
 ## What is NesVentory?
 
@@ -88,13 +80,12 @@ services:
       TZ: America/New_York
       SECRET_KEY: <generate-secure-key>
       JWT_SECRET_KEY: <generate-secure-key>
-      # APP_PORT is optional - application defaults to port 8001
-      # To change the host port, edit the ports mapping below instead
+      APP_PORT: 8001
     volumes:
       - /path/to/nesventory_data:/app/data
       - /etc/localtime:/etc/localtime:ro
     ports:
-      - "8001:8001"  # Change host port (left side) to run on a different port
+      - "8001:8001"
 ```
 
 Then run:
@@ -119,29 +110,43 @@ The application comes with pre-seeded test users:
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SECRET_KEY` | **Required** | Application secret key (generate a secure random string) |
-| `JWT_SECRET_KEY` | **Required** | JWT token signing key (generate a secure random string) |
-| `APP_PORT` | `8001` | Application port (optional for advanced users - defaults to 8001 inside container) |
-| `PUID` | `1000` | User ID for file ownership |
-| `PGID` | `1000` | Group ID for file ownership |
-| `UMASK` | `002` | File permission mask |
-| `TZ` | `Etc/UTC` | Timezone (e.g., `America/New_York`) |
-| `DB_PATH` | `/app/data/nesventory.db` | SQLite database path |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | JWT token expiration in minutes |
-| `JWT_ALGORITHM` | `HS256` | JWT algorithm (recommended: HS256) |
-| `GEMINI_API_KEY` | | Google Gemini API key for AI photo detection |
-| `GEMINI_MODEL` | `gemini-2.0-flash` | Gemini model (default: `gemini-2.0-flash`) |
-| `GEMINI_REQUEST_DELAY` | `4.0` | Delay between AI requests in seconds (to avoid rate limits on free tier) |
-| `GOOGLE_CLIENT_ID` | | Google OAuth Client ID |
-| `GOOGLE_CLIENT_SECRET` | | Google OAuth Client Secret |
-| `DISABLE_SIGNUPS` | `false` | Set to `true` to disable new user self-registration |
+### Required Security Settings
+
+| Variable | Description |
+|----------|-------------|
+| `SECRET_KEY` | Application secret key (generate a secure random string) |
+| `JWT_SECRET_KEY` | JWT token signing key (generate a secure random string) |
 
 Generate secure keys with:
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
+
+### Optional Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `APP_PORT` | `8001` | Application port |
+| `PUID` | `1000` | User ID for file ownership |
+| `PGID` | `1000` | Group ID for file ownership |
+| `UMASK` | `002` | File permission mask |
+| `TZ` | `Etc/UTC` | Timezone (e.g., `America/New_York`) |
+| `DB_PATH` | `/app/data/nesventory.db` | SQLite database path |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | JWT token expiration |
+
+### AI Features (Optional)
+
+| Variable | Description |
+|----------|-------------|
+| `GEMINI_API_KEY` | Google Gemini API key for AI photo detection |
+| `GEMINI_MODEL` | Gemini model (default: `gemini-2.0-flash`) |
+
+### Google OAuth (Optional)
+
+| Variable | Description |
+|----------|-------------|
+| `GOOGLE_CLIENT_ID` | Google OAuth Client ID |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth Client Secret |
 
 ## Volumes
 
@@ -158,6 +163,30 @@ The `/app/data` volume contains:
 | Port | Description |
 |------|-------------|
 | `8001` | Web UI and API (configurable via `APP_PORT`) |
+
+## Health Check
+
+```bash
+curl http://localhost:8001/api/health
+# Response: {"status":"healthy"}
+
+curl http://localhost:8001/api/version
+# Response: {"name":"NesVentory","version":"4.4.0"}
+```
+
+## User/Group Identifiers
+
+To avoid permission issues with bind mounts, you can specify the user and group IDs:
+
+```bash
+# Find your user ID
+id -u
+
+# Find your group ID
+id -g
+```
+
+Set `PUID` and `PGID` environment variables to match your host user.
 
 ## License
 

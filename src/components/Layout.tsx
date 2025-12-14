@@ -8,13 +8,22 @@ interface LayoutProps {
   userEmail?: string;
   userName?: string;
   onUserClick?: () => void;
-  onLocaleClick?: () => void;
-  onThemeClick?: () => void;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
 }
 
 export { useIsMobile };
 
-const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail, userName, onUserClick, onLocaleClick, onThemeClick }) => {
+const Layout: React.FC<LayoutProps> = ({ 
+  sidebar, 
+  children, 
+  onLogout, 
+  userEmail, 
+  userName, 
+  onUserClick,
+  searchQuery = "",
+  onSearchChange,
+}) => {
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -45,26 +54,18 @@ const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail,
             </button>
           )}
           <img src="/logo.png" alt="NesVentory" className="app-logo" />
+          {onSearchChange && (
+            <div className="header-search">
+              <input
+                type="text"
+                placeholder="🔍 Search items..."
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+              />
+            </div>
+          )}
         </div>
         <div className="app-header-right">
-          {onThemeClick && (
-            <button 
-              className="btn-outline" 
-              onClick={onThemeClick}
-              title="Theme Settings"
-            >
-              🎨
-            </button>
-          )}
-          {onLocaleClick && (
-            <button 
-              className="btn-outline" 
-              onClick={onLocaleClick}
-              title="Locale & Currency Settings"
-            >
-              🌐
-            </button>
-          )}
           {!isMobile && (userName || userEmail) && (
             <span 
               className="user-email" 
@@ -74,11 +75,6 @@ const Layout: React.FC<LayoutProps> = ({ sidebar, children, onLogout, userEmail,
             >
               {userName || userEmail}
             </span>
-          )}
-          {!isMobile && (
-            <button className="btn-outline" onClick={onLogout}>
-              Logout
-            </button>
           )}
         </div>
       </header>

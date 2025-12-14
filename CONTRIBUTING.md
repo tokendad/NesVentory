@@ -13,46 +13,40 @@ Thank you for your interest in contributing to NesVentory! This document outline
 
 ## 🌳 Branching Strategy
 
-NesVentory follows a **dev → main → stable** workflow:
+NesVentory uses **main** as the primary branch for releases and deployments:
 
 ```
-dev (development) → main (integration) → stable (production)
+Feature branches → main (production)
 ```
 
 ### Branch Descriptions
 
 | Branch | Purpose | Protected |
 |--------|---------|-----------|
-| `dev` | Active development branch for new features and fixes | No |
-| `main` | Integration branch for tested changes ready for release | Yes |
-| `stable` | Production-ready releases, deployed to Docker Hub | Yes |
+| `main` | Primary production branch for releases | Yes |
+| `feature/*` | Development branches for new features and fixes | No |
 
 ### Branch Flow Diagram
 
 ```
-Feature branches     dev          main         stable
-      │               │             │             │
-      ├──────────────►│             │             │
-      │               │             │             │
-      │               ├────────────►│             │
-      │               │   PR + CI   │             │
-      │               │             │             │
-      │               │             ├────────────►│
-      │               │             │  Release PR │
-      │               │             │             │
-      │               │             │             ▼
-      │               │             │     Docker Hub
-      │               │             │     GitHub Release
+Feature branches           main
+      │                     │
+      ├────────────────────►│
+      │         PR + CI     │
+      │                     │
+      │                     ▼
+      │              Docker Hub (latest)
+      │              GitHub Release
 ```
 
 ## 💻 Development Workflow
 
 ### Starting New Work
 
-1. **Create a feature branch** from `dev`:
+1. **Create a feature branch** from `main`:
    ```bash
-   git checkout dev
-   git pull origin dev
+   git checkout main
+   git pull origin main
    git checkout -b feature/your-feature-name
    ```
 
@@ -63,16 +57,16 @@ Feature branches     dev          main         stable
    git commit -m "feat(component): add new feature"
    ```
 
-4. **Push and create a PR** to `dev`:
+4. **Push and create a PR** to `main`:
    ```bash
    git push origin feature/your-feature-name
    ```
 
-### Merging to Main
+### Releasing
 
-When features in `dev` are ready for release:
+When features are ready for release:
 
-1. Create a PR from `dev` → `main`
+1. Create a PR from feature branch → `main`
 2. Ensure all CI checks pass
 3. Add appropriate labels:
    - `enhancement` or `feature` → Minor version bump
@@ -81,20 +75,9 @@ When features in `dev` are ready for release:
 4. Get code review approval
 5. Merge the PR
 
-**After merge:** Version is automatically bumped based on labels, and CHANGELOG is updated.
-
-### Releasing to Stable
-
-When `main` is ready for production:
-
-1. Create a PR from `main` → `stable`
-2. Use the release PR template
-3. Verify all checklist items
-4. Merge the PR
-
 **After merge:**
-- GitHub Release is automatically created
-- Docker image is pushed to Docker Hub with version tags
+- Use the manual Release Workflow to create a new release
+- Docker image can be published to Docker Hub with version tags using the docker-publish workflow
 
 ## 📝 Commit Guidelines
 
@@ -142,7 +125,7 @@ git commit -m "feat(api)!: remove deprecated endpoints"
 
 ## 🔄 Pull Request Process
 
-### For Feature/Bug PRs (to `dev` or `main`)
+### For Feature/Bug PRs (to `main`)
 
 1. Fill out the PR template
 2. Add appropriate labels
@@ -150,15 +133,6 @@ git commit -m "feat(api)!: remove deprecated endpoints"
 4. Address review feedback
 5. Ensure all CI checks pass
 6. Squash and merge
-
-### For Release PRs (`main` → `stable`)
-
-1. Use the release PR template
-2. Complete the pre-release checklist
-3. Summarize all changes being released
-4. Note any breaking changes
-5. Get maintainer approval
-6. Merge (creates release automatically)
 
 ### Required Labels
 
@@ -219,9 +193,9 @@ PR merged
        ↓
     Tags created:
     - latest
-    - 4.5.0 (full version)
-    - 4.5 (major.minor)
-    - 4 (major)
+    - 6.0.0 (full version)
+    - 6.0 (major.minor)
+    - 6 (major)
 ```
 
 ### Docker Hub Tags
@@ -230,10 +204,10 @@ Each release creates these Docker tags:
 
 | Tag | Description |
 |-----|-------------|
-| `latest` | Most recent stable release |
-| `4.5.0` | Specific version |
-| `4.5` | Latest patch for this minor |
-| `4` | Latest for this major version |
+| `latest` | Most recent release from main branch |
+| `6.0.0` | Specific version |
+| `6.0` | Latest patch for this minor |
+| `6` | Latest for this major version |
 
 ### Release Notes
 
