@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file.
 
 
 
+
+## [4.9.0] - 2025-12-14
+### Added
 ## [4.8.2] - 2025-12-11
 ### Fixed
 - Updated workdflows
