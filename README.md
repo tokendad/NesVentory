@@ -54,80 +54,6 @@ This is a major release consolidating the 5.0 upgrade into the main branch with 
 - All system configuration in one place
 - Better organization and discoverability
 
-## 🚀 What's New in Version 4.4.0
-
-This release introduces a tabbed Edit Item interface for better organization and adds warranty management capabilities.
-
-### ✨ Key Features in v4.4
-
-📋 **Tabbed Edit Item Interface**
-- New tabbed layout replaces scrolling form for non-living items
-- **Basic Info Tab**: Name, brand, serial, model, retailer, purchase price, purchase date, primary photo, location
-- **Warranty Tab**: Add and manage manufacturer and extended warranties with provider, policy number, duration, expiration date, and notes
-- **Media Tab**: All photos including data tag with AI scan, receipts, warranty documents, and additional photos
-- AI Scan buttons included where backend support exists (data tag scanning, barcode lookup)
-
-🛡️ **Enhanced Warranty Management**
-- Add multiple manufacturer and extended warranties per item
-- Track warranty provider, policy number, duration, and expiration
-- Upload and manage warranty document photos
-- Notes field for contact info and additional details
-
-🤖 **AI Scan Integration**
-- AI Scan button on barcode/UPC field for automatic product lookup
-- AI Scan button on data tag photo upload for automatic field extraction
-- Consistent AI scanning experience across all supported fields
-
-## 🚀 What's New in Version 4.3.0
-
-This is a major release preparing NesVentory for public release with comprehensive features, improved security, and a polished user experience.
-
-### ✨ Key Features in v4.0
-
-🎨 **Logo & Branding Support**
-- Application logo displayed in header and login screen
-- Customizable branding for deployments
-
-📷 **AI Photo Detection** (Google Gemini Powered)
-- Take a photo of any room and AI will detect items automatically
-- Advanced object recognition for furniture, electronics, appliances, and more
-- Get estimated values and descriptions for detected items
-- Bulk add detected items to your inventory
-- Mobile device camera support
-
-🤖 **AI Data Tag Parsing**
-- Extract item information from data tag photos using AI
-- Automatically parse manufacturer, model, serial number, and more
-- Quick inventory creation from product labels
-
-💰 **AI Value Estimation**
-- Set estimated values using AI with source tracking
-- Track when values were estimated and by whom
-
-🎨 **Theme & Color Support**
-- Customizable theme settings in user preferences
-- Dark/light mode support
-
-📍 **Hierarchical Location Browser**
-- Interactive clickable location navigation
-- Visual location tree with expand/collapse functionality
-
-👥 **Enhanced User Management**
-- Google OAuth SSO for login and registration
-- Admin user creation and approval workflow
-- Role-based access control (Admin, Editor, Viewer)
-- Location-based access restrictions
-
-📦 **Bulk Operations**
-- Multi-select items for bulk actions
-- Bulk delete, tag update, and location assignment
-- Left-aligned action bars for better UX
-
-📥 **Encircle Import**
-- Import items and photos from Encircle XLSX exports
-- Parent/sub-location hierarchy support
-- Automatic location creation from import files
-
 ## Features
 
 - 📦 **Inventory Management** - Track all your household items with detailed information
@@ -229,25 +155,6 @@ We use **main** as the primary branch:
 |--------|---------|
 | `main` | Primary production branch |
 | `feature/*` | Development branches for new features |
-
-### Commit Message Guidelines
-
-This project uses [Conventional Commits](https://www.conventionalcommits.org/) to standardize commit messages. All commits in pull requests are automatically checked.
-
-Please use one of the following prefixes for your commit messages:
-
-- `feat:` - A new feature (e.g., `feat: add user profile page`)
-- `fix:` - A bug fix (e.g., `fix: resolve login timeout issue`)
-- `docs:` - Documentation changes (e.g., `docs: update installation guide`)
-- `chore:` - Maintenance tasks (e.g., `chore: update dependencies`)
-- `BREAKING CHANGE:` - A breaking API change (can also be indicated with `!` after the type, e.g., `feat!: remove legacy API`)
-
-Other valid prefixes include: `style:`, `refactor:`, `perf:`, `test:`, `build:`, `ci:`, `revert:`
-
-### Release Process
-
-- Use the Release Workflow to create new versions
-- Docker images are published to Docker Hub with version tags and "latest" for main branch
 
 ## 📞 Support
 
