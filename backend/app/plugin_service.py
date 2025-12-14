@@ -364,7 +364,7 @@ async def test_plugin_connection(plugin: models.Plugin) -> Dict[str, Any]:
         if 'name resolution' in error_str.lower() or 'errno -3' in error_str.lower():
             return {
                 'success': False,
-                'message': f'Cannot resolve hostname: {error_str}. The containers may be on different Docker networks. Solutions: (1) Use host machine IP like "http://192.168.1.100:8002", (2) Use "docker network connect" to connect both containers to the same network, (3) Use "host.docker.internal" (Docker Desktop)',
+                'message': 'Cannot resolve plugin hostname. The containers may be on different Docker networks. Solutions: (1) Use host machine IP like "http://192.168.1.100:8002", (2) Use "docker network connect" to connect both containers to the same network, (3) Use "host.docker.internal" (Docker Desktop)',
                 'status_code': None
             }
         
@@ -372,19 +372,19 @@ async def test_plugin_connection(plugin: models.Plugin) -> Dict[str, Any]:
         if _is_localhost_url(plugin.endpoint_url):
             return {
                 'success': False,
-                'message': f'Connection failed: {error_str}. NOTE: If running in Docker, "localhost" refers to the container itself. Use the host machine IP (e.g., "http://192.168.1.100:8002") instead. Run "ip addr" or "ifconfig" to find your IP.',
+                'message': 'Connection failed. NOTE: If running in Docker, "localhost" refers to the container itself. Use the host machine IP (e.g., "http://192.168.1.100:8002") instead. Run "ip addr" or "ifconfig" to find your IP.',
                 'status_code': None
             }
         
         return {
             'success': False,
-            'message': f'Connection failed: {error_str}',
+            'message': 'Connection failed. Please check the plugin endpoint URL and your network connection.',
             'status_code': None
         }
     except Exception as e:
         logger.error(f"Unexpected error testing plugin {plugin.name}: {e}")
         return {
             'success': False,
-            'message': f'Error: {str(e)}',
+            'message': "An unexpected error occurred during plugin connection test.",
             'status_code': None
         }
