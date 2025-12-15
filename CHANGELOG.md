@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 
 
 
+
+## [6.0.1] - 2025-12-15
+### Fixed
 ## [6.0.0] - 2025-12-14
 ### Added
 - **Merged 5.0-upgrade branch into main** - Consolidating all 5.x features into version 6.0.0
