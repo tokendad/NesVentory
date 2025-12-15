@@ -170,6 +170,26 @@ export interface InsuranceInfo {
   notes?: string;
 }
 
+export interface Video {
+  id: string;
+  location_id: string;
+  filename: string;
+  mime_type?: string | null;
+  path: string;
+  video_type?: string | null;
+  uploaded_at: string;
+}
+
+export interface LocationPhoto {
+  id: string;
+  location_id: string;
+  filename: string;
+  mime_type?: string | null;
+  path: string;
+  photo_type?: string | null;
+  uploaded_at: string;
+}
+
 export interface Location {
   id: number | string;
   name: string;
@@ -187,6 +207,8 @@ export interface Location {
   estimated_value_with_items?: number | null;
   location_type?: string | null;
   children?: Location[];
+  videos?: Video[];
+  location_photos?: LocationPhoto[];
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -300,6 +322,88 @@ export async function updateLocation(locationId: string, location: Partial<Locat
 
 export async function deleteLocation(locationId: string): Promise<void> {
   const res = await fetch(`${API_BASE_URL}/api/locations/${locationId}`, {
+    method: "DELETE",
+    headers: {
+      ...authHeaders(),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text;
+    try {
+      const data = JSON.parse(text);
+      message = (data.detail as string) || JSON.stringify(data);
+    } catch {
+      // ignore
+    }
+    throw new Error(message || `HTTP ${res.status}`);
+  }
+}
+
+export async function uploadLocationPhoto(
+  locationId: string,
+  file: File,
+  photoType?: string
+): Promise<LocationPhoto> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (photoType) {
+    formData.append("photo_type", photoType);
+  }
+
+  const res = await fetch(`${API_BASE_URL}/api/locations/${locationId}/photos`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+    },
+    body: formData,
+  });
+  return handleResponse<LocationPhoto>(res);
+}
+
+export async function deleteLocationPhoto(locationId: string, photoId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/locations/${locationId}/photos/${photoId}`, {
+    method: "DELETE",
+    headers: {
+      ...authHeaders(),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text;
+    try {
+      const data = JSON.parse(text);
+      message = (data.detail as string) || JSON.stringify(data);
+    } catch {
+      // ignore
+    }
+    throw new Error(message || `HTTP ${res.status}`);
+  }
+}
+
+export async function uploadLocationVideo(
+  locationId: string,
+  file: File,
+  videoType?: string
+): Promise<Video> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (videoType) {
+    formData.append("video_type", videoType);
+  }
+
+  const res = await fetch(`${API_BASE_URL}/api/locations/${locationId}/videos`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+    },
+    body: formData,
+  });
+  return handleResponse<Video>(res);
+}
+
+export async function deleteLocationVideo(locationId: string, videoId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/locations/${locationId}/videos/${videoId}`, {
     method: "DELETE",
     headers: {
       ...authHeaders(),

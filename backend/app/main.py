@@ -16,7 +16,7 @@ setup_logging()
 from . import models
 from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
-from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins
+from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins, location_photos
 
 
 def run_migrations():
@@ -158,6 +158,7 @@ app.include_router(documents.router, prefix="/api")
 app.include_router(videos.router, prefix="/api")
 app.include_router(maintenance.router)
 app.include_router(plugins.router, prefix="/api")
+app.include_router(location_photos.router, prefix="/api")
 
 # Setup uploads directory and mount static files
 # Media files are stored in /app/data/media to ensure they persist with the database
@@ -166,6 +167,7 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 (UPLOAD_DIR / "photos").mkdir(exist_ok=True)
 (UPLOAD_DIR / "documents").mkdir(exist_ok=True)
 (UPLOAD_DIR / "videos").mkdir(exist_ok=True)
+(UPLOAD_DIR / "location_photos").mkdir(exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 # Mount frontend static files (v2.0 unified container)
