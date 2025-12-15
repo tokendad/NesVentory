@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
@@ -173,8 +173,18 @@ async def root_login(
 ):
     """
     OAuth2 compatible token login endpoint at root level.
-    This endpoint provides backward compatibility for mobile apps.
-    The same functionality is also available at /api/token.
+    
+    This endpoint provides backward compatibility for mobile apps that expect
+    the token endpoint at the root path. The same functionality is also available
+    at /api/token for consistency with other API endpoints.
+    
+    Accepts OAuth2PasswordRequestForm with:
+    - username: User's email address
+    - password: User's password
+    
+    Returns:
+    - access_token: JWT access token
+    - token_type: "bearer"
     """
     return perform_password_login(db, form_data.username, form_data.password)
 
