@@ -124,6 +124,9 @@ def update_photo(
     if not photo:
         raise HTTPException(status_code=404, detail="Photo not found")
     
+    # Determine the target item_id (either the new one or the current one)
+    target_item_id = photo_update.item_id if photo_update.item_id is not None else photo.item_id
+    
     # If updating item_id, verify new item exists
     if photo_update.item_id is not None:
         new_item = db.query(models.Item).filter(models.Item.id == photo_update.item_id).first()
@@ -135,7 +138,7 @@ def update_photo(
     if photo_update.is_primary is not None:
         if photo_update.is_primary:
             db.query(models.Photo).filter(
-                models.Photo.item_id == photo.item_id,
+                models.Photo.item_id == target_item_id,
                 models.Photo.is_primary == True,
                 models.Photo.id != photo_id
             ).update({"is_primary": False})
@@ -145,7 +148,7 @@ def update_photo(
     if photo_update.is_data_tag is not None:
         if photo_update.is_data_tag:
             db.query(models.Photo).filter(
-                models.Photo.item_id == photo.item_id,
+                models.Photo.item_id == target_item_id,
                 models.Photo.is_data_tag == True,
                 models.Photo.id != photo_id
             ).update({"is_data_tag": False})

@@ -48,7 +48,7 @@ const PhotoModal: React.FC<PhotoModalProps> = ({
         updates.is_data_tag = isDataTag;
       }
       if (photoType !== (photo.photo_type || "")) {
-        updates.photo_type = photoType || null;
+        updates.photo_type = photoType === "" ? null : photoType;
       }
       if (selectedItemId !== photo.item_id) {
         updates.item_id = selectedItemId;
@@ -69,8 +69,6 @@ const PhotoModal: React.FC<PhotoModalProps> = ({
     const parts = path.split("/");
     return parts[parts.length - 1];
   };
-
-  const currentItem = allItems.find((item) => item.id.toString() === photo.item_id);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
