@@ -204,6 +204,13 @@ class Photo(PhotoBase):
         from_attributes = True
 
 
+class PhotoUpdate(BaseModel):
+    item_id: Optional[UUID] = None
+    is_primary: Optional[bool] = None
+    is_data_tag: Optional[bool] = None
+    photo_type: Optional[str] = None
+
+
 # --- Document Schemas ---
 
 class DocumentBase(BaseModel):

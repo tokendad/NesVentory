@@ -450,9 +450,11 @@ const App: React.FC = () => {
           <ItemDetails
             item={selectedItem}
             locations={locations}
+            allItems={items}
             onEdit={handleEditClick}
             onDelete={handleDeleteItem}
             onClose={() => setSelectedItem(null)}
+            onPhotoUpdated={loadItems}
           />
         )}
         {selectedItem && editingItem && (

@@ -1,16 +1,19 @@
 import React, { useState } from "react";
-import type { Item, Location } from "../lib/api";
+import type { Item, Location, Photo } from "../lib/api";
 import { getApiBaseUrl } from "../lib/api";
 import { formatPhotoType, formatCurrency, formatDate, formatDateTime, getLocationPath } from "../lib/utils";
 import { RELATIONSHIP_LABELS, LIVING_TAG_NAME, DOCUMENT_TYPES } from "../lib/constants";
 import MaintenanceTab from "./MaintenanceTab";
+import PhotoModal from "./PhotoModal";
 
 interface ItemDetailsProps {
   item: Item;
   locations: Location[];
+  allItems: Item[];
   onEdit: () => void;
   onDelete: () => Promise<void>;
   onClose: () => void;
+  onPhotoUpdated: () => void;
 }
 
 type TabType = 'details' | 'maintenance';
@@ -18,13 +21,16 @@ type TabType = 'details' | 'maintenance';
 const ItemDetails: React.FC<ItemDetailsProps> = ({
   item,
   locations,
+  allItems,
   onEdit,
   onDelete,
   onClose,
+  onPhotoUpdated,
 }) => {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('details');
+  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
 
   const location = locations.find(
     (loc) => loc.id.toString() === item.location_id?.toString()
@@ -301,7 +307,12 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
                   else if (photo.photo_type === 'profile') badgeText = 'Profile';
                   
                   return (
-                    <div key={photo.id} className="photo-item">
+                    <div 
+                      key={photo.id} 
+                      className="photo-item clickable"
+                      onClick={() => setSelectedPhoto(photo)}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <img 
                         src={`${getApiBaseUrl()}${photo.path}`} 
                         alt={`${item.name} - ${badgeText}`}
@@ -386,6 +397,16 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Photo Modal */}
+      {selectedPhoto && (
+        <PhotoModal
+          photo={selectedPhoto}
+          allItems={allItems}
+          onClose={() => setSelectedPhoto(null)}
+          onPhotoUpdated={onPhotoUpdated}
+        />
+      )}
     </section>
   );
 };
