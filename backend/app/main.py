@@ -1,11 +1,15 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.security import OAuth2PasswordRequestForm
 from pathlib import Path
 from werkzeug.utils import secure_filename
 from sqlalchemy import text, inspect
+from sqlalchemy.orm import Session
 from .config import settings
+from .deps import get_db
+from .schemas import Token
 import re
 
 # 🔥 Setup logging FIRST before any other imports that might use logging
@@ -17,6 +21,7 @@ from . import models
 from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
 from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins, location_photos
+from .routers.auth import perform_password_login
 
 
 def run_migrations():
@@ -159,6 +164,29 @@ app.include_router(videos.router, prefix="/api")
 app.include_router(maintenance.router)
 app.include_router(plugins.router, prefix="/api")
 app.include_router(location_photos.router, prefix="/api")
+
+# Root-level /token endpoint for backward compatibility with mobile apps
+@app.post("/token", response_model=Token)
+async def root_login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    """
+    OAuth2 compatible token login endpoint at root level.
+    
+    This endpoint provides backward compatibility for mobile apps that expect
+    the token endpoint at the root path. The same functionality is also available
+    at /api/token for consistency with other API endpoints.
+    
+    Accepts OAuth2PasswordRequestForm with:
+    - username: User's email address
+    - password: User's password
+    
+    Returns:
+    - access_token: JWT access token
+    - token_type: "bearer"
+    """
+    return perform_password_login(db, form_data.username, form_data.password)
 
 # Setup uploads directory and mount static files
 # Media files are stored in /app/data/media to ensure they persist with the database
