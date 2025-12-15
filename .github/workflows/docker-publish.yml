@@ -18,6 +18,8 @@ on:
 env:
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
+  # Docker Hub image name (defaults to lowercase repository name)
+  DOCKERHUB_IMAGE: tokendad/nesventory
 
 
 jobs:
@@ -65,6 +67,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
         with:
+          registry: docker.io
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
@@ -76,7 +79,7 @@ jobs:
         with:
           images: |
             ghcr.io/${{ env.IMAGE_NAME }}
-            tokendad/nesventory
+            ${{ env.DOCKERHUB_IMAGE }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
