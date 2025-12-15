@@ -1,7 +1,16 @@
 import React, { useState, useMemo, useCallback } from "react";
-import type { Item, Location, Tag } from "../lib/api";
+import type { Item, Location, Tag, Video, LocationPhoto } from "../lib/api";
 import { getLocationPath } from "../lib/utils";
-import { updateLocation, createLocation, deleteLocation } from "../lib/api";
+import { 
+  updateLocation, 
+  createLocation, 
+  deleteLocation,
+  uploadLocationPhoto,
+  deleteLocationPhoto,
+  uploadLocationVideo,
+  deleteLocationVideo,
+  fetchLocations
+} from "../lib/api";
 import QRLabelPrint, { PRINT_MODE_OPTIONS, type PrintMode } from "./QRLabelPrint";
 
 interface InventoryPageProps {
@@ -95,6 +104,12 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
   // QR Label printing
   const [showQRPrint, setShowQRPrint] = useState<Location | null>(null);
   const [printModeFromEdit, setPrintModeFromEdit] = useState<PrintMode>("qr_with_items");
+  // Location Settings tabs
+  const [locationSettingsTab, setLocationSettingsTab] = useState<"details" | "media">("details");
+  // Media upload/display state
+  const [locationPhotos, setLocationPhotos] = useState<LocationPhoto[]>([]);
+  const [locationVideos, setLocationVideos] = useState<Video[]>([]);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
 
   // Get child locations for a given parent ID
   const getChildLocations = useCallback((parentId: string | number | null): Location[] => {
@@ -322,6 +337,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
           onClick={(e) => {
             e.stopPropagation();
             setShowLocationSettings(loc);
+            setLocationSettingsTab("details"); // Reset to details tab
             setEditFormData({
               name: loc.name,
               friendly_name: loc.friendly_name || "",
@@ -334,6 +350,9 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
               estimated_property_value: loc.estimated_property_value?.toString() ?? "",
               estimated_value_with_items: loc.estimated_value_with_items?.toString() ?? "",
             });
+            // Load media for the location
+            setLocationPhotos(loc.location_photos || []);
+            setLocationVideos(loc.videos || []);
           }}
           title="Location Settings"
           style={{
@@ -407,6 +426,80 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
     }
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!showLocationSettings || showLocationSettings === "create") return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingMedia(true);
+    try {
+      const locationId = showLocationSettings.id.toString();
+      for (const file of Array.from(files)) {
+        const photo = await uploadLocationPhoto(locationId, file);
+        setLocationPhotos(prev => [...prev, photo]);
+      }
+      // Refresh locations to get updated data
+      onRefreshLocations();
+    } catch (err: any) {
+      alert(`Failed to upload photo: ${err.message}`);
+    } finally {
+      setUploadingMedia(false);
+      // Reset the input so the same file can be selected again
+      e.target.value = "";
+    }
+  };
+
+  const handlePhotoDelete = async (photoId: string) => {
+    if (!showLocationSettings || showLocationSettings === "create") return;
+    if (!confirm("Are you sure you want to delete this photo?")) return;
+
+    try {
+      const locationId = showLocationSettings.id.toString();
+      await deleteLocationPhoto(locationId, photoId);
+      setLocationPhotos(prev => prev.filter(p => p.id !== photoId));
+      onRefreshLocations();
+    } catch (err: any) {
+      alert(`Failed to delete photo: ${err.message}`);
+    }
+  };
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!showLocationSettings || showLocationSettings === "create") return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingMedia(true);
+    try {
+      const locationId = showLocationSettings.id.toString();
+      for (const file of Array.from(files)) {
+        const video = await uploadLocationVideo(locationId, file);
+        setLocationVideos(prev => [...prev, video]);
+      }
+      // Refresh locations to get updated data
+      onRefreshLocations();
+    } catch (err: any) {
+      alert(`Failed to upload video: ${err.message}`);
+    } finally {
+      setUploadingMedia(false);
+      // Reset the input so the same file can be selected again
+      e.target.value = "";
+    }
+  };
+
+  const handleVideoDelete = async (videoId: string) => {
+    if (!showLocationSettings || showLocationSettings === "create") return;
+    if (!confirm("Are you sure you want to delete this video?")) return;
+
+    try {
+      const locationId = showLocationSettings.id.toString();
+      await deleteLocationVideo(locationId, videoId);
+      setLocationVideos(prev => prev.filter(v => v.id !== videoId));
+      onRefreshLocations();
+    } catch (err: any) {
+      alert(`Failed to delete video: ${err.message}`);
+    }
+  };
+
   return (
     <>
       {/* Stats Section */}
@@ -454,6 +547,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
               className="btn-primary"
               onClick={() => {
                 setShowLocationSettings("create");
+                setLocationSettingsTab("details"); // Always start on details tab for new locations
                 setEditFormData({
                   name: "",
                   friendly_name: "",
@@ -466,6 +560,9 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                   estimated_property_value: "",
                   estimated_value_with_items: "",
                 });
+                // Clear media for new location
+                setLocationPhotos([]);
+                setLocationVideos([]);
               }}
             >
               Add Location
@@ -724,6 +821,29 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                 ✕
               </button>
             </div>
+
+            {/* Tabs - only show for existing locations */}
+            {showLocationSettings !== "create" && (
+              <div className="item-details-tabs">
+                <button
+                  type="button"
+                  className={`tab-button ${locationSettingsTab === "details" ? "active" : ""}`}
+                  onClick={() => setLocationSettingsTab("details")}
+                >
+                  Details
+                </button>
+                <button
+                  type="button"
+                  className={`tab-button ${locationSettingsTab === "media" ? "active" : ""}`}
+                  onClick={() => setLocationSettingsTab("media")}
+                >
+                  Media
+                </button>
+              </div>
+            )}
+
+            {/* Details Tab */}
+            {locationSettingsTab === "details" && (
             <form onSubmit={handleLocationUpdate} className="item-form">
               <div className="form-group">
                 <label htmlFor="name">Name *</label>
@@ -942,6 +1062,174 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                 </button>
               </div>
             </form>
+            )}
+
+            {/* Media Tab */}
+            {locationSettingsTab === "media" && showLocationSettings !== "create" && (
+              <div className="item-form" style={{ padding: "1.5rem" }}>
+                <div style={{ marginBottom: "2rem" }}>
+                  <h3 style={{ marginBottom: "1rem", fontSize: "1.1rem", fontWeight: 600 }}>📸 Photos</h3>
+                  
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label htmlFor="photo-upload" className="btn-primary" style={{ cursor: "pointer", display: "inline-block" }}>
+                      {uploadingMedia ? "Uploading..." : "Upload Photos"}
+                      <input
+                        id="photo-upload"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handlePhotoUpload}
+                        disabled={uploadingMedia}
+                        style={{ display: "none" }}
+                      />
+                    </label>
+                  </div>
+
+                  {locationPhotos.length === 0 ? (
+                    <p style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
+                      No photos uploaded yet. Add photos to document this location.
+                    </p>
+                  ) : (
+                    <div style={{ 
+                      display: "grid", 
+                      gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", 
+                      gap: "1rem" 
+                    }}>
+                      {locationPhotos.map((photo) => (
+                        <div key={photo.id} style={{ 
+                          position: "relative", 
+                          borderRadius: "0.5rem", 
+                          overflow: "hidden",
+                          border: "1px solid var(--border-color)"
+                        }}>
+                          <img
+                            src={photo.path}
+                            alt={photo.filename}
+                            style={{ 
+                              width: "100%", 
+                              height: "150px", 
+                              objectFit: "cover",
+                              display: "block"
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handlePhotoDelete(photo.id)}
+                            style={{
+                              position: "absolute",
+                              top: "0.5rem",
+                              right: "0.5rem",
+                              background: "rgba(220, 38, 38, 0.9)",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "50%",
+                              width: "28px",
+                              height: "28px",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "1.1rem",
+                              fontWeight: "bold"
+                            }}
+                            title="Delete photo"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h3 style={{ marginBottom: "1rem", fontSize: "1.1rem", fontWeight: 600 }}>🎥 Videos</h3>
+                  
+                  <div style={{ marginBottom: "1rem" }}>
+                    <label htmlFor="video-upload" className="btn-primary" style={{ cursor: "pointer", display: "inline-block" }}>
+                      {uploadingMedia ? "Uploading..." : "Upload Videos"}
+                      <input
+                        id="video-upload"
+                        type="file"
+                        accept="video/*"
+                        multiple
+                        onChange={handleVideoUpload}
+                        disabled={uploadingMedia}
+                        style={{ display: "none" }}
+                      />
+                    </label>
+                  </div>
+
+                  {locationVideos.length === 0 ? (
+                    <p style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
+                      No videos uploaded yet. Add videos to document this location.
+                    </p>
+                  ) : (
+                    <div style={{ 
+                      display: "grid", 
+                      gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", 
+                      gap: "1rem" 
+                    }}>
+                      {locationVideos.map((video) => (
+                        <div key={video.id} style={{ 
+                          position: "relative", 
+                          borderRadius: "0.5rem", 
+                          overflow: "hidden",
+                          border: "1px solid var(--border-color)"
+                        }}>
+                          <video
+                            src={video.path}
+                            controls
+                            style={{ 
+                              width: "100%", 
+                              height: "200px", 
+                              objectFit: "cover",
+                              display: "block",
+                              background: "#000"
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleVideoDelete(video.id)}
+                            style={{
+                              position: "absolute",
+                              top: "0.5rem",
+                              right: "0.5rem",
+                              background: "rgba(220, 38, 38, 0.9)",
+                              color: "white",
+                              border: "none",
+                              borderRadius: "50%",
+                              width: "28px",
+                              height: "28px",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "1.1rem",
+                              fontWeight: "bold",
+                              zIndex: 1
+                            }}
+                            title="Delete video"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="form-actions" style={{ marginTop: "2rem" }}>
+                  <button
+                    type="button"
+                    className="btn-outline"
+                    onClick={() => setShowLocationSettings(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
