@@ -134,8 +134,10 @@ def setup_logging() -> None:
     create_log_file()
     
     # Configure root logger
+    # Set root logger to DEBUG so all messages can flow through to handlers
+    # Handlers will filter messages based on their configured level
     root_logger = logging.getLogger()
-    root_logger.setLevel(python_log_level)
+    root_logger.setLevel(logging.DEBUG)
     
     # Remove existing handlers to avoid duplicates on reload
     for handler in root_logger.handlers[:]:
@@ -201,9 +203,10 @@ def reconfigure_logging_level(log_level_setting: str) -> None:
     """
     python_log_level = get_python_log_level(log_level_setting)
     
-    # Update root logger
+    # Keep root logger at DEBUG to allow all messages to flow through
+    # Handlers will filter based on their configured level
     root_logger = logging.getLogger()
-    root_logger.setLevel(python_log_level)
+    root_logger.setLevel(logging.DEBUG)
     
     # Update file handlers and console handlers
     for handler in root_logger.handlers:
