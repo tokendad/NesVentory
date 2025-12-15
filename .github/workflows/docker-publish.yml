@@ -19,7 +19,7 @@ env:
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
   # Docker Hub image name (defaults to lowercase repository name)
-  DOCKERHUB_IMAGE: tokendad/nesventory
+  DOCKERHUB_IMAGE: neuman1812/nesventory
 
 
 jobs:
