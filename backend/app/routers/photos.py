@@ -90,6 +90,77 @@ async def upload_photo(
     return photo
 
 
+@router.get("/{item_id}/photos/{photo_id}", response_model=schemas.Photo)
+def get_photo(
+    item_id: UUID,
+    photo_id: UUID,
+    db: Session = Depends(get_db)
+):
+    """Get details of a specific photo."""
+    photo = db.query(models.Photo).filter(
+        models.Photo.id == photo_id,
+        models.Photo.item_id == item_id
+    ).first()
+    
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    
+    return photo
+
+
+@router.patch("/{item_id}/photos/{photo_id}", response_model=schemas.Photo)
+def update_photo(
+    item_id: UUID,
+    photo_id: UUID,
+    photo_update: schemas.PhotoUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update photo metadata (tags, item association)."""
+    photo = db.query(models.Photo).filter(
+        models.Photo.id == photo_id,
+        models.Photo.item_id == item_id
+    ).first()
+    
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    
+    # If updating item_id, verify new item exists
+    if photo_update.item_id is not None:
+        new_item = db.query(models.Item).filter(models.Item.id == photo_update.item_id).first()
+        if not new_item:
+            raise HTTPException(status_code=404, detail="New item not found")
+        photo.item_id = photo_update.item_id
+    
+    # If setting as primary, unset other primary photos for the target item
+    if photo_update.is_primary is not None:
+        if photo_update.is_primary:
+            db.query(models.Photo).filter(
+                models.Photo.item_id == photo.item_id,
+                models.Photo.is_primary == True,
+                models.Photo.id != photo_id
+            ).update({"is_primary": False})
+        photo.is_primary = photo_update.is_primary
+    
+    # If setting as data tag, unset other data tag photos for the target item
+    if photo_update.is_data_tag is not None:
+        if photo_update.is_data_tag:
+            db.query(models.Photo).filter(
+                models.Photo.item_id == photo.item_id,
+                models.Photo.is_data_tag == True,
+                models.Photo.id != photo_id
+            ).update({"is_data_tag": False})
+        photo.is_data_tag = photo_update.is_data_tag
+    
+    # Update photo_type if provided
+    if photo_update.photo_type is not None:
+        photo.photo_type = photo_update.photo_type
+    
+    db.commit()
+    db.refresh(photo)
+    
+    return photo
+
+
 @router.delete("/{item_id}/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_photo(
     item_id: UUID,

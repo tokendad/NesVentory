@@ -618,6 +618,39 @@ export async function deletePhoto(itemId: string, photoId: string): Promise<void
   }
 }
 
+export async function getPhoto(itemId: string, photoId: string): Promise<Photo> {
+  const res = await fetch(`${API_BASE_URL}/api/items/${itemId}/photos/${photoId}`, {
+    method: "GET",
+    headers: {
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<Photo>(res);
+}
+
+export interface PhotoUpdate {
+  item_id?: string;
+  is_primary?: boolean;
+  is_data_tag?: boolean;
+  photo_type?: string;
+}
+
+export async function updatePhoto(
+  itemId: string,
+  photoId: string,
+  updates: PhotoUpdate
+): Promise<Photo> {
+  const res = await fetch(`${API_BASE_URL}/api/items/${itemId}/photos/${photoId}`, {
+    method: "PATCH",
+    headers: {
+      ...authHeaders(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(updates),
+  });
+  return handleResponse<Photo>(res);
+}
+
 export async function uploadDocument(
   itemId: string,
   file: File,
