@@ -176,7 +176,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get the previous tag
+          # Get the previous tag (same logic as get_prs step)
           PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           
           if [[ -z "$PREV_TAG" ]]; then
@@ -187,7 +187,7 @@ jobs:
           echo "Previous tag/commit: $PREV_TAG"
           
           # Get commits since last tag
-          # Fallback to recent commits if no previous tag range can be determined
+          # If no range can be determined, fallback to last 20 commits
           COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"%s" 2>/dev/null || git log --pretty=format:"%s" -20)
           
           # Categorize commits
