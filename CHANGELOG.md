@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 
 
 
+## [6.0.2] - 2025-12-15
+### Added
+- QR label printing option in Location Settings details page
+  - Print option now available when editing a location marked as container
+  - Conditional display only when "📦 Container (Box/Bin/Case with multiple items)" is checked
+  - Users can select print mode and generate QR labels directly from the settings modal
 
 ## [6.0.1] - 2025-12-15
 ### Fixed
