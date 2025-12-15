@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import type { Photo, Item } from "../lib/api";
 import { getApiBaseUrl, updatePhoto, PhotoUpdate } from "../lib/api";
-import { formatPhotoType } from "../lib/utils";
+import { PHOTO_TYPES } from "../lib/constants";
 
 interface PhotoModalProps {
   photo: Photo;
@@ -141,10 +141,11 @@ const PhotoModal: React.FC<PhotoModalProps> = ({
                   onChange={(e) => setPhotoType(e.target.value)}
                 >
                   <option value="">Default</option>
-                  <option value="receipt">Receipt</option>
-                  <option value="warranty">Warranty</option>
-                  <option value="optional">Optional</option>
-                  <option value="profile">Profile</option>
+                  <option value={PHOTO_TYPES.DATA_TAG}>Data Tag</option>
+                  <option value={PHOTO_TYPES.RECEIPT}>Receipt</option>
+                  <option value={PHOTO_TYPES.WARRANTY}>Warranty</option>
+                  <option value={PHOTO_TYPES.OPTIONAL}>Optional</option>
+                  <option value={PHOTO_TYPES.PROFILE}>Profile</option>
                 </select>
               </div>
 
