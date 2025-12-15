@@ -17,6 +17,44 @@ settings = get_settings()
 router = APIRouter()
 
 
+def perform_password_login(db: Session, username: str, password: str) -> dict:
+    """
+    Shared authentication logic for password-based login.
+    
+    Args:
+        db: Database session
+        username: User's email address
+        password: User's password
+        
+    Returns:
+        Dict with access_token and token_type
+        
+    Raises:
+        HTTPException: If authentication fails or user is not approved
+    """
+    user = authenticate_user(db, email=username, password=password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Check if user is approved
+    if not user.is_approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is pending approval by an administrator",
+        )
+    
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user.id)}, expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
 class GoogleAuthRequest(BaseModel):
     """Request model for Google OAuth authentication."""
     credential: str
@@ -177,24 +215,4 @@ async def login(
     Accepts username (email) and password, returns access_token and token_type.
     Unapproved users are blocked from logging in.
     """
-    user = authenticate_user(db, email=form_data.username, password=form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Check if user is approved
-    if not user.is_approved:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your account is pending approval by an administrator",
-        )
-    
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": str(user.id)}, expires_delta=access_token_expires
-    )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+    return perform_password_login(db, form_data.username, form_data.password)
