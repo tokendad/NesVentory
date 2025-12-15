@@ -1,11 +1,17 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.security import OAuth2PasswordRequestForm
 from pathlib import Path
 from werkzeug.utils import secure_filename
 from sqlalchemy import text, inspect
+from sqlalchemy.orm import Session
+from datetime import timedelta
 from .config import settings
+from .deps import get_db
+from .auth import authenticate_user, create_access_token
+from .schemas import Token
 import re
 
 # 🔥 Setup logging FIRST before any other imports that might use logging
@@ -159,6 +165,39 @@ app.include_router(videos.router, prefix="/api")
 app.include_router(maintenance.router)
 app.include_router(plugins.router, prefix="/api")
 app.include_router(location_photos.router, prefix="/api")
+
+# Root-level /token endpoint for backward compatibility with mobile apps
+@app.post("/token", response_model=Token)
+async def root_login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    """
+    OAuth2 compatible token login endpoint at root level.
+    This endpoint provides backward compatibility for mobile apps.
+    The same functionality is also available at /api/token.
+    """
+    user = authenticate_user(db, email=form_data.username, password=form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Check if user is approved
+    if not user.is_approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is pending approval by an administrator",
+        )
+    
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user.id)}, expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
 
 # Setup uploads directory and mount static files
 # Media files are stored in /app/data/media to ensure they persist with the database
