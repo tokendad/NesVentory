@@ -166,6 +166,74 @@ jobs:
 
           echo "Found PRs for release notes"
 
+      - name: Ensure release directory exists
+        run: |
+          mkdir -p docs/releases
+          echo "Created docs/releases directory"
+
+      - name: Get commit information
+        id: get_commits
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get the previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [[ -z "$PREV_TAG" ]]; then
+            echo "No previous tag found, collecting all commits"
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          
+          echo "Previous tag/commit: $PREV_TAG"
+          
+          # Get commits since last tag
+          COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"%s" 2>/dev/null || git log --pretty=format:"%s" -20)
+          
+          # Categorize commits
+          FEATURES=""
+          FIXES=""
+          CHANGES=""
+          OTHERS=""
+          
+          while IFS= read -r commit; do
+            if [[ "$commit" =~ ^(feat|feature|add|added)[\(:] ]] || [[ "$commit" =~ [Ff]eat ]]; then
+              FEATURES="${FEATURES}- ${commit}\n"
+            elif [[ "$commit" =~ ^(fix|fixed|bugfix)[\(:] ]] || [[ "$commit" =~ [Ff]ix ]]; then
+              FIXES="${FIXES}- ${commit}\n"
+            elif [[ "$commit" =~ ^(update|upgrade|change|improve|refactor)[\(:] ]] || [[ "$commit" =~ [Uu]pdate|[Uu]pgrade|[Cc]hange ]]; then
+              CHANGES="${CHANGES}- ${commit}\n"
+            else
+              OTHERS="${OTHERS}- ${commit}\n"
+            fi
+          done <<< "$COMMITS"
+          
+          # Save to output
+          {
+            echo "features<<EOF"
+            echo -e "$FEATURES"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          
+          {
+            echo "fixes<<EOF"
+            echo -e "$FIXES"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          
+          {
+            echo "changes<<EOF"
+            echo -e "$CHANGES"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          
+          {
+            echo "others<<EOF"
+            echo -e "$OTHERS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          
+          echo "Categorized commits for release notes"
+
       - name: Generate release documentation
         id: generate_docs
         env:
@@ -176,6 +244,10 @@ jobs:
           UPGRADE_NOTES: ${{ inputs.upgrade_notes }}
           REPO: ${{ github.repository }}
           PR_NOTES: ${{ steps.get_prs.outputs.pr_notes }}
+          COMMIT_FEATURES: ${{ steps.get_commits.outputs.features }}
+          COMMIT_FIXES: ${{ steps.get_commits.outputs.fixes }}
+          COMMIT_CHANGES: ${{ steps.get_commits.outputs.changes }}
+          COMMIT_OTHERS: ${{ steps.get_commits.outputs.others }}
         run: |
           RELEASE_FILE="docs/releases/RELEASE_NOTES_v${NEW_VERSION}.md"
 
@@ -198,6 +270,31 @@ jobs:
             if [[ -n "$PR_NOTES" ]]; then
               echo "## Merged Pull Requests"
               echo "${PR_NOTES}"
+              echo ""
+            fi
+
+            # Add commit information by category
+            if [[ -n "$COMMIT_FEATURES" ]]; then
+              echo "## Features from Commits"
+              echo -e "${COMMIT_FEATURES}"
+              echo ""
+            fi
+
+            if [[ -n "$COMMIT_FIXES" ]]; then
+              echo "## Bug Fixes from Commits"
+              echo -e "${COMMIT_FIXES}"
+              echo ""
+            fi
+
+            if [[ -n "$COMMIT_CHANGES" ]]; then
+              echo "## Changes and Updates from Commits"
+              echo -e "${COMMIT_CHANGES}"
+              echo ""
+            fi
+
+            if [[ -n "$COMMIT_OTHERS" ]]; then
+              echo "## Other Commits"
+              echo -e "${COMMIT_OTHERS}"
               echo ""
             fi
 
