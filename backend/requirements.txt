@@ -1,8 +1,8 @@
-fastapi==0.123.7
+fastapi==0.124.4
 publicsuffix2==2.20191221
 werkzeug==3.1.4
 uvicorn[standard]==0.38.0
-SQLAlchemy==2.0.44
+SQLAlchemy==2.0.45
 psycopg2-binary==2.9.11
 asyncpg==0.31.0
 python-jose[cryptography]==3.5.0
@@ -16,10 +16,10 @@ httpx==0.28.1
 openpyxl==3.1.5
 # Pin transitive dependencies to avoid backtracking during pip resolution
 # protobuf 5.x is required by grpcio-status >= 1.68, but compatible with all Google packages
-protobuf==5.29.5
-googleapis-common-protos==1.65.0
-grpcio==1.68.1
-grpcio-status==1.68.1
+protobuf==6.33.2
+googleapis-common-protos==1.72.0
+grpcio==1.76.0
+grpcio-status==1.76.0
 google-generativeai==0.8.5
 google-api-python-client==2.187.0
 google-auth-oauthlib==1.2.3
