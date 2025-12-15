@@ -187,6 +187,7 @@ jobs:
           echo "Previous tag/commit: $PREV_TAG"
           
           # Get commits since last tag
+          # Fallback to recent commits if no previous tag range can be determined
           COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"%s" 2>/dev/null || git log --pretty=format:"%s" -20)
           
           # Categorize commits
@@ -197,13 +198,13 @@ jobs:
           
           while IFS= read -r commit; do
             if [[ "$commit" =~ ^(feat|feature|add|added)[\(:] ]] || [[ "$commit" =~ [Ff]eat ]]; then
-              FEATURES="${FEATURES}- ${commit}\n"
+              FEATURES="${FEATURES}- ${commit}"$'\n'
             elif [[ "$commit" =~ ^(fix|fixed|bugfix)[\(:] ]] || [[ "$commit" =~ [Ff]ix ]]; then
-              FIXES="${FIXES}- ${commit}\n"
-            elif [[ "$commit" =~ ^(update|upgrade|change|improve|refactor)[\(:] ]] || [[ "$commit" =~ [Uu]pdate|[Uu]pgrade|[Cc]hange ]]; then
-              CHANGES="${CHANGES}- ${commit}\n"
+              FIXES="${FIXES}- ${commit}"$'\n'
+            elif [[ "$commit" =~ ^(update|upgrade|change|improve|refactor)[\(:] ]] || [[ "$commit" =~ (Update|Upgrade|Change) ]]; then
+              CHANGES="${CHANGES}- ${commit}"$'\n'
             else
-              OTHERS="${OTHERS}- ${commit}\n"
+              OTHERS="${OTHERS}- ${commit}"$'\n'
             fi
           done <<< "$COMMITS"
           
