@@ -100,3 +100,6 @@ jobs:
           repository: ${{ env.IMAGE_NAME }}
           readme-filepath: ./DOCKERHUB.md
           short-description: "NesVentory - Modern home inventory management system"
+        continue-on-error: false
+        env:
+          LOG_LEVEL: debug
