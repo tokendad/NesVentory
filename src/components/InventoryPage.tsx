@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from "react";
 import type { Item, Location, Tag } from "../lib/api";
 import { getLocationPath } from "../lib/utils";
 import { updateLocation, createLocation, deleteLocation } from "../lib/api";
+import QRLabelPrint, { PRINT_MODE_OPTIONS, type PrintMode } from "./QRLabelPrint";
 
 interface InventoryPageProps {
   items: Item[];
@@ -91,6 +92,9 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
   // Track the location navigation path for breadcrumb navigation
   const [locationPath, setLocationPath] = useState<Location[]>([]);
   const [showDeleteLocationConfirm, setShowDeleteLocationConfirm] = useState(false);
+  // QR Label printing
+  const [showQRPrint, setShowQRPrint] = useState<Location | null>(null);
+  const [printModeFromEdit, setPrintModeFromEdit] = useState<PrintMode>("qr_with_items");
 
   // Get child locations for a given parent ID
   const getChildLocations = useCallback((parentId: string | number | null): Location[] => {
@@ -815,6 +819,52 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                 </span>
               </div>
 
+              {/* Print Label Section - Only show when editing and is_container is checked */}
+              {showLocationSettings !== "create" && editFormData?.is_container && (
+                <div className="form-group" style={{ 
+                  marginTop: "1rem", 
+                  padding: "1rem", 
+                  borderRadius: "0.5rem",
+                  background: "rgba(78, 205, 196, 0.1)",
+                  border: "1px solid rgba(78, 205, 196, 0.3)"
+                }}>
+                  <label style={{ fontWeight: 500, marginBottom: "0.5rem", display: "block" }}>
+                    🖨️ Print Label
+                  </label>
+                  <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-end" }}>
+                    <div style={{ flex: 1 }}>
+                      <select
+                        id="printMode"
+                        value={printModeFromEdit}
+                        onChange={(e) => setPrintModeFromEdit(e.target.value as PrintMode)}
+                        style={{ width: "100%" }}
+                      >
+                        {PRINT_MODE_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-outline"
+                      onClick={() => {
+                        if (showLocationSettings !== "create") {
+                          setShowQRPrint(showLocationSettings);
+                        }
+                      }}
+                      style={{ whiteSpace: "nowrap" }}
+                    >
+                      🖨️ Print
+                    </button>
+                  </div>
+                  <span className="help-text" style={{ marginTop: "0.5rem", display: "block" }}>
+                    Print a label for this container with your selected content
+                  </span>
+                </div>
+              )}
+
               <div className="form-group">
                 <label htmlFor="address">Address</label>
                 <input
@@ -1038,6 +1088,16 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* QR Label Print Modal */}
+      {showQRPrint && (
+        <QRLabelPrint
+          location={showQRPrint}
+          items={items.filter(item => item.location_id?.toString() === showQRPrint.id.toString())}
+          onClose={() => setShowQRPrint(null)}
+          initialPrintMode={printModeFromEdit}
+        />
       )}
     </>
   );
