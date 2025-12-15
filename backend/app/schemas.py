@@ -173,9 +173,12 @@ class Location(LocationBase):
     full_path: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+    videos: List['Video'] = []
+    location_photos: List['LocationPhoto'] = []
 
     class Config:
         from_attributes = True
+
 
 
 # --- Photo Schemas ---
@@ -238,6 +241,28 @@ class VideoCreate(VideoBase):
 
 
 class Video(VideoBase):
+    id: UUID
+    uploaded_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# --- LocationPhoto Schemas ---
+
+class LocationPhotoBase(BaseModel):
+    location_id: UUID
+    filename: str
+    mime_type: Optional[str] = None
+    path: str
+    photo_type: Optional[str] = None
+
+
+class LocationPhotoCreate(LocationPhotoBase):
+    pass
+
+
+class LocationPhoto(LocationPhotoBase):
     id: UUID
     uploaded_at: datetime
 
