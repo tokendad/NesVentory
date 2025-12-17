@@ -1,12 +1,8 @@
-# NesVentory v6.0.4 - Updated features 
+# NesVentory v6.1.0 - Added CSV import option
 
 ## Overview
 
-Version 6.0.4 release.
-
-## New Features
-
-Updated how AI scan works.  Minor Patches Bump
+Version 6.1.0 release.
 
 ---
 
