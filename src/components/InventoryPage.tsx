@@ -23,7 +23,8 @@ interface InventoryPageProps {
   onRefreshLocations: () => void;
   onItemClick: (item: Item) => void;
   onAddItem?: () => void;
-  onImport?: () => void;
+  onImportEncircle?: () => void;
+  onImportCSV?: () => void;
   onAIScan?: () => void;
   onBulkDelete?: (itemIds: string[]) => Promise<void>;
   onBulkUpdateTags?: (itemIds: string[], tagIds: string[], mode: "replace" | "add" | "remove") => Promise<void>;
@@ -73,7 +74,8 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
   onRefreshLocations,
   onItemClick,
   onAddItem,
-  onImport,
+  onImportEncircle,
+  onImportCSV,
   onAIScan,
   onBulkDelete,
   onBulkUpdateTags,
@@ -83,6 +85,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
 }) => {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [itemLimit, setItemLimit] = useState<number>(10);
+  const [showImportMenu, setShowImportMenu] = useState(false);
   const [columns, setColumns] = useState<ColumnConfig[]>(
     () => {
       const saved = localStorage.getItem("NesVentory_itemColumns");
@@ -695,10 +698,80 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                 📷 AI Scan
               </button>
             )}
-            {onImport && (
-              <button className="btn-outline" onClick={onImport}>
-                Import from Encircle
-              </button>
+            {(onImportEncircle || onImportCSV) && (
+              <div style={{ position: 'relative', display: 'inline-block' }}>
+                <button 
+                  className="btn-outline" 
+                  onClick={() => setShowImportMenu(!showImportMenu)}
+                  onBlur={() => setTimeout(() => setShowImportMenu(false), 200)}
+                >
+                  📥 Import {showImportMenu ? '▲' : '▼'}
+                </button>
+                {showImportMenu && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    marginTop: '4px',
+                    backgroundColor: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '6px',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                    zIndex: 1000,
+                    minWidth: '180px',
+                    overflow: 'hidden'
+                  }}>
+                    {onImportCSV && (
+                      <button
+                        style={{
+                          display: 'block',
+                          width: '100%',
+                          padding: '10px 16px',
+                          textAlign: 'left',
+                          border: 'none',
+                          background: 'transparent',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          color: 'var(--text)',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-elevated-softer)'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        onClick={() => {
+                          setShowImportMenu(false);
+                          onImportCSV();
+                        }}
+                      >
+                        📄 Import from CSV
+                      </button>
+                    )}
+                    {onImportEncircle && (
+                      <button
+                        style={{
+                          display: 'block',
+                          width: '100%',
+                          padding: '10px 16px',
+                          textAlign: 'left',
+                          border: 'none',
+                          background: 'transparent',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          color: 'var(--text)',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-elevated-softer)'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        onClick={() => {
+                          setShowImportMenu(false);
+                          onImportEncircle();
+                        }}
+                      >
+                        📦 Import from Encircle
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
             {onAddItem && (
               <button className="btn-primary" onClick={onAddItem}>

@@ -20,7 +20,7 @@ setup_logging()
 from . import models
 from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
-from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins, location_photos
+from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins, location_photos, csv_import
 from .routers.auth import perform_password_login
 
 
@@ -164,6 +164,7 @@ app.include_router(videos.router, prefix="/api")
 app.include_router(maintenance.router)
 app.include_router(plugins.router, prefix="/api")
 app.include_router(location_photos.router, prefix="/api")
+app.include_router(csv_import.router, prefix="/api")
 
 # Root-level /token endpoint for backward compatibility with mobile apps
 @app.post("/token", response_model=Token)

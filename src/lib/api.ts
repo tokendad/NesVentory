@@ -979,6 +979,42 @@ export async function importEncircle(
   return handleResponse<EncircleImportResult>(res);
 }
 
+// --- CSV Import ---
+
+export interface CSVImportResult {
+  message: string;
+  items_created: number;
+  photos_attached: number;
+  photos_failed: number;
+  locations_created: number;
+  log: string[];
+  warnings?: string[];
+}
+
+export async function importCSV(
+  csvFile: File,
+  parentLocationId: string | null = null,
+  createLocations: boolean = true
+): Promise<CSVImportResult> {
+  const formData = new FormData();
+  formData.append("csv_file", csvFile);
+  formData.append("create_locations", createLocations.toString());
+  
+  if (parentLocationId) {
+    formData.append("parent_location_id", parentLocationId);
+  }
+
+  const res = await fetch(`${API_BASE_URL}/api/import/csv`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+    },
+    body: formData,
+  });
+
+  return handleResponse<CSVImportResult>(res);
+}
+
 // --- API Key Management ---
 
 export async function generateApiKey(): Promise<User> {

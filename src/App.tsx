@@ -20,6 +20,7 @@ import InventoryPage from "./components/InventoryPage";
 import ItemForm from "./components/ItemForm";
 import ItemDetails from "./components/ItemDetails";
 import EncircleImport from "./components/EncircleImport";
+import CSVImport from "./components/CSVImport";
 import AIDetection from "./components/AIDetection";
 import {
   fetchItems,
@@ -75,6 +76,7 @@ const App: React.FC = () => {
   const [editingItem, setEditingItem] = useState(false);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
   const [showEncircleImport, setShowEncircleImport] = useState(false);
+  const [showCSVImport, setShowCSVImport] = useState(false);
   const [showAIDetection, setShowAIDetection] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -404,7 +406,8 @@ const App: React.FC = () => {
             onRefreshLocations={loadLocations}
             onItemClick={handleItemClick}
             onAddItem={() => setShowItemForm(true)}
-            onImport={() => setShowEncircleImport(true)}
+            onImportEncircle={() => setShowEncircleImport(true)}
+            onImportCSV={() => setShowCSVImport(true)}
             onAIScan={() => setShowAIDetection(true)}
             onBulkDelete={handleBulkDelete}
             onBulkUpdateTags={handleBulkUpdateTags}
@@ -474,6 +477,15 @@ const App: React.FC = () => {
         {showEncircleImport && (
           <EncircleImport
             onClose={() => setShowEncircleImport(false)}
+            onSuccess={() => {
+              loadItems();
+              loadLocations();
+            }}
+          />
+        )}
+        {showCSVImport && (
+          <CSVImport
+            onClose={() => setShowCSVImport(false)}
             onSuccess={() => {
               loadItems();
               loadLocations();
