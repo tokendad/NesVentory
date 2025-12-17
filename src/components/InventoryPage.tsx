@@ -63,6 +63,7 @@ const LOCATION_TYPES = [
 ];
 
 const SHOW_ALL_ITEMS = -1; // Special value to indicate showing all items
+const MENU_BLUR_DELAY = 200; // Delay in ms before closing dropdown menu on blur
 
 const InventoryPage: React.FC<InventoryPageProps> = ({
   items,
@@ -703,7 +704,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                 <button 
                   className="btn-outline" 
                   onClick={() => setShowImportMenu(!showImportMenu)}
-                  onBlur={() => setTimeout(() => setShowImportMenu(false), 200)}
+                  onBlur={() => setTimeout(() => setShowImportMenu(false), MENU_BLUR_DELAY)}
                 >
                   📥 Import {showImportMenu ? '▲' : '▼'}
                 </button>

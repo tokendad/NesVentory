@@ -22,6 +22,7 @@ import tempfile
 from datetime import datetime, date
 from io import StringIO, BytesIO
 import httpx
+import re
 
 from .. import models, schemas
 from ..deps import get_db
@@ -128,7 +129,6 @@ def parse_currency(value: str) -> Optional[float]:
     val_str = value.strip()
     
     # Remove currency symbols and commas
-    import re
     val_str = re.sub(r'[^\d.-]', '', val_str)
     
     if val_str and val_str != '.' and val_str != '-':
@@ -148,7 +148,6 @@ def parse_warranty_duration(value: str) -> Optional[int]:
     val_str = value.strip().lower()
     
     # Try to extract number
-    import re
     match = re.search(r'(\d+)', val_str)
     if not match:
         return None
