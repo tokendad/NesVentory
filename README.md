@@ -65,6 +65,7 @@ This is a major release consolidating the 5.0 upgrade into the main branch with 
 - 📦 **Container Support** - Mark locations as boxes/bins for seasonal storage
 - 🏘️ **Multi-Property Support** - Manage multiple homes and multi-family properties
 - 👥 **Landlord/Tenant Management** - Track landlord and tenant info for rental properties
+- 📥 **CSV Import** - Import items from CSV files with support for image URLs
 - 📥 **Encircle Import** - Import items and photos from Encircle XLSX exports
 - 🔐 **Multi-user Support** - Role-based access control (Admin, Editor, Viewer)
 - 🔑 **Google OAuth SSO** - Sign in with Google for easy authentication
@@ -137,6 +138,7 @@ The application comes with pre-seeded test users:
 - **[INSTALL.txt](INSTALL.txt)** - Comprehensive installation guide with Docker Compose and CLI commands
 - **[SEEDING.md](SEEDING.md)** - Details about pre-seeded test data and how to customize it
 - **[INTERNATIONALIZATION.md](INTERNATIONALIZATION.md)** - Guide to international format support for dates and currencies
+- **[CSV_IMPORT.md](CSV_IMPORT.md)** - Guide for importing inventory from CSV files with image URLs
 - **[PLUGINS.md](PLUGINS.md)** - Guide for creating and configuring custom LLM plugins
 
 ## 📄 License
