@@ -21,6 +21,7 @@ from ..config import settings
 from ..deps import get_db
 from .. import models, schemas, auth
 from ..settings_service import get_effective_gemini_api_key
+from ..plugin_service import get_enabled_ai_scan_plugins, detect_items_with_plugin, parse_data_tag_with_plugin, lookup_barcode_with_plugin, scan_barcode_with_plugin
 
 logger = logging.getLogger(__name__)
 
@@ -465,8 +466,6 @@ async def detect_items(
     """
     # Try custom LLM plugins first if enabled
     if use_plugin:
-        from ..plugin_service import get_enabled_ai_scan_plugins, detect_items_with_plugin
-        
         # Get plugins that support image processing for item detection
         plugins = get_enabled_ai_scan_plugins(db, requires_image_processing=True)
         
@@ -603,8 +602,6 @@ async def parse_data_tag(
     """
     # Try custom LLM plugins first if enabled
     if use_plugin:
-        from ..plugin_service import get_enabled_ai_scan_plugins, parse_data_tag_with_plugin
-        
         # Get plugins that support image processing for data tag parsing
         plugins = get_enabled_ai_scan_plugins(db, requires_image_processing=True)
         
@@ -872,8 +869,6 @@ async def lookup_barcode(
     
     # Try custom LLM plugins first if enabled
     if use_plugin:
-        from ..plugin_service import get_enabled_ai_scan_plugins, lookup_barcode_with_plugin
-        
         plugins = get_enabled_ai_scan_plugins(db)
         
         if plugins:
@@ -1182,7 +1177,8 @@ def parse_barcode_scan_response(response_text: str) -> BarcodeScanResult:
 @router.post("/scan-barcode", response_model=BarcodeScanResult)
 async def scan_barcode_image(
     file: UploadFile = File(..., description="Image of a barcode to scan"),
-    use_plugin: bool = True,  # Parameter to enable/disable plugin usage
+    # Parameter to enable/disable plugin usage
+    use_plugin: bool = True,
     db: Session = Depends(get_db)
 ):
     """
@@ -1205,8 +1201,6 @@ async def scan_barcode_image(
     """
     # Try custom LLM plugins first if enabled
     if use_plugin:
-        from ..plugin_service import get_enabled_ai_scan_plugins, scan_barcode_with_plugin
-        
         # Get plugins that support image processing for barcode scanning
         plugins = get_enabled_ai_scan_plugins(db, requires_image_processing=True)
         
