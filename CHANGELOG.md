@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 
 
 
+
+## [6.0.4] - 2025-12-17
+### Fixed
+- Updated how AI scan works.  Minor Patches Bump
 ## [6.0.3] - 2025-12-16
 ### Fixed
 ## [6.0.2] - 2025-12-15

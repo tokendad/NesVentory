@@ -1,8 +1,12 @@
-# NesVentory v6.0.3 - Updated dependencies,  Fix bugs
+# NesVentory v6.0.4 - Updated features 
 
 ## Overview
 
-Version 6.0.3 release.
+Version 6.0.4 release.
+
+## New Features
+
+Updated how AI scan works.  Minor Patches Bump
 
 ---
 
