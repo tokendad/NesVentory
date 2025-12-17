@@ -21,6 +21,7 @@ from ..config import settings
 from ..deps import get_db
 from .. import models, schemas, auth
 from ..settings_service import get_effective_gemini_api_key
+from ..plugin_service import get_enabled_ai_scan_plugins, detect_items_with_plugin, parse_data_tag_with_plugin, lookup_barcode_with_plugin, scan_barcode_with_plugin
 
 logger = logging.getLogger(__name__)
 
@@ -465,8 +466,6 @@ async def detect_items(
     """
     # Try custom LLM plugins first if enabled
     if use_plugin:
-        from ..plugin_service import get_enabled_ai_scan_plugins, detect_items_with_plugin
-        
         # Get plugins that support image processing for item detection
         plugins = get_enabled_ai_scan_plugins(db, requires_image_processing=True)
         
@@ -603,8 +602,6 @@ async def parse_data_tag(
     """
     # Try custom LLM plugins first if enabled
     if use_plugin:
-        from ..plugin_service import get_enabled_ai_scan_plugins, parse_data_tag_with_plugin
-        
         # Get plugins that support image processing for data tag parsing
         plugins = get_enabled_ai_scan_plugins(db, requires_image_processing=True)
         
@@ -872,8 +869,6 @@ async def lookup_barcode(
     
     # Try custom LLM plugins first if enabled
     if use_plugin:
-        from ..plugin_service import get_enabled_ai_scan_plugins, lookup_barcode_with_plugin
-        
         plugins = get_enabled_ai_scan_plugins(db)
         
         if plugins:
@@ -1182,14 +1177,17 @@ def parse_barcode_scan_response(response_text: str) -> BarcodeScanResult:
 @router.post("/scan-barcode", response_model=BarcodeScanResult)
 async def scan_barcode_image(
     file: UploadFile = File(..., description="Image of a barcode to scan"),
+    # Parameter to enable/disable plugin usage
+    use_plugin: bool = True,
     db: Session = Depends(get_db)
 ):
     """
     Scan a barcode image and extract the UPC/barcode number.
     
-    Uses Gemini AI to read the barcode from an uploaded image and return
-    the UPC/barcode digits. This is useful for mobile devices where users
-    can take a photo of a barcode to automatically fill in the UPC field.
+    Uses custom LLM plugins (if configured) or Gemini AI to read the barcode 
+    from an uploaded image and return the UPC/barcode digits. This is useful 
+    for mobile devices where users can take a photo of a barcode to automatically 
+    fill in the UPC field.
     
     Supported barcode types:
     - UPC-A (12 digits)
@@ -1197,7 +1195,32 @@ async def scan_barcode_image(
     - EAN-8 (8 digits)
     - EAN-13 (13 digits)
     - GTIN-14 (14 digits)
+    
+    If custom LLM plugins are enabled for AI scan, they will be tried first
+    before falling back to the default Gemini AI.
     """
+    # Try custom LLM plugins first if enabled
+    if use_plugin:
+        # Get plugins that support image processing for barcode scanning
+        plugins = get_enabled_ai_scan_plugins(db, requires_image_processing=True)
+        
+        if plugins:
+            # Read the image data once
+            image_data = await file.read()
+            
+            # Try each plugin in priority order
+            for plugin in plugins:
+                logger.info(f"Trying plugin: {plugin.name} for barcode scanning")
+                result = await scan_barcode_with_plugin(plugin, image_data, file.content_type or "image/jpeg")
+                
+                if result and result.get("found"):
+                    # Convert plugin result to BarcodeScanResult
+                    return BarcodeScanResult(**result)
+            
+            logger.info("All plugins failed, falling back to Gemini AI")
+            # Reset file position for Gemini fallback
+            await file.seek(0)
+    
     # Check if Gemini API is configured (env or database)
     gemini_api_key = get_effective_gemini_api_key(db)
     if not gemini_api_key:

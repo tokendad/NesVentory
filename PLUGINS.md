@@ -122,7 +122,40 @@ All fields are optional. Return `null` or omit fields that cannot be determined 
 
 Return an empty array `[]` if no items are detected.
 
-### 3. Lookup Barcode
+### 3. Scan Barcode (Image Processing)
+
+**Endpoint**: `POST /scan-barcode`
+
+**Request**: Multipart form data with a file field
+- Field name: `file`
+- Content: Image file (JPEG, PNG, GIF, or WebP) containing a barcode
+
+**Note**: This endpoint requires image processing capabilities. Plugins must have "Supports Image Processing" enabled to be used for this operation.
+
+**Response**: JSON object
+```json
+{
+  "found": true,
+  "upc": "012345678901",
+  "raw_response": "Optional raw response text"
+}
+```
+
+**Fields:**
+- `found` (required): Boolean indicating if a barcode was successfully read
+- `upc` (optional): The barcode digits (numbers only, no hyphens or spaces)
+- `raw_response` (optional): Raw response text for debugging
+
+If no barcode is found or the barcode is unreadable, set `found` to `false` and `upc` to `null`.
+
+**Supported barcode types:**
+- UPC-A (12 digits)
+- UPC-E (6-8 digits)
+- EAN-8 (8 digits)
+- EAN-13 (13 digits)
+- GTIN-14 (14 digits)
+
+### 4. Lookup Barcode
 
 **Endpoint**: `POST /lookup-barcode`
 

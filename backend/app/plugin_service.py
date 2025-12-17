@@ -267,6 +267,44 @@ async def detect_items_with_plugin(
         return None
 
 
+async def scan_barcode_with_plugin(
+    plugin: models.Plugin,
+    image_data: bytes,
+    mime_type: str
+) -> Optional[Dict[str, Any]]:
+    """
+    Scan a barcode from an image using a custom LLM plugin.
+    
+    Args:
+        plugin: The Plugin model instance
+        image_data: The image bytes
+        mime_type: The MIME type of the image
+        
+    Returns:
+        Barcode scan result with found and upc fields, or None if scanning failed
+    """
+    try:
+        # Prepare the files dict for multipart upload
+        files = {
+            'file': ('image', image_data, mime_type)
+        }
+        
+        # Call the plugin endpoint
+        result = await call_plugin_endpoint(
+            plugin,
+            '/scan-barcode',
+            files=files,
+            timeout=30.0  # Barcode scanning should be relatively fast
+        )
+        
+        logger.info(f"Successfully scanned barcode using plugin: {plugin.name}")
+        return result
+        
+    except Exception as e:
+        _log_plugin_error(plugin, '/scan-barcode', e)
+        return None
+
+
 async def test_plugin_connection(plugin: models.Plugin) -> Dict[str, Any]:
     """
     Test the connection to a plugin by calling a health check endpoint.
