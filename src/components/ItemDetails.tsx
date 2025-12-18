@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import type { Item, Location, Photo } from "../lib/api";
-import { getApiBaseUrl } from "../lib/api";
+import type { Item, Location, Photo, EnrichedItemData } from "../lib/api";
+import { getApiBaseUrl, enrichItem } from "../lib/api";
 import { formatPhotoType, formatCurrency, formatDate, formatDateTime, getLocationPath } from "../lib/utils";
 import { RELATIONSHIP_LABELS, LIVING_TAG_NAME, DOCUMENT_TYPES } from "../lib/constants";
 import MaintenanceTab from "./MaintenanceTab";
 import PhotoModal from "./PhotoModal";
+import EnrichmentModal from "./EnrichmentModal";
 
 interface ItemDetailsProps {
   item: Item;
@@ -31,6 +32,9 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('details');
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichmentError, setEnrichmentError] = useState<string | null>(null);
+  const [enrichmentData, setEnrichmentData] = useState<EnrichedItemData[] | null>(null);
 
   const location = locations.find(
     (loc) => loc.id.toString() === item.location_id?.toString()
@@ -52,6 +56,25 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
     } catch (err: any) {
       setDeleteError(err.message || "Failed to delete item");
       setDeleting(false);
+    }
+  };
+
+  const handleEnrich = async () => {
+    setEnriching(true);
+    setEnrichmentError(null);
+    setEnrichmentData(null);
+
+    try {
+      const result = await enrichItem(item.id.toString());
+      if (result.enriched_data && result.enriched_data.length > 0) {
+        setEnrichmentData(result.enriched_data);
+      } else {
+        setEnrichmentError(result.message || "No enrichment data available");
+      }
+    } catch (err: any) {
+      setEnrichmentError(err.message || "Failed to enrich item data");
+    } finally {
+      setEnriching(false);
     }
   };
 
@@ -388,7 +411,15 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
         >
           {deleting ? "Deleting..." : "Delete"}
         </button>
-        <div style={{ marginLeft: "auto", display: "flex", gap: "0.75rem" }}>
+        <button
+          className="btn-outline"
+          onClick={handleEnrich}
+          disabled={enriching}
+          style={{ marginLeft: "auto" }}
+        >
+          {enriching ? "Enriching..." : "Enrich Data"}
+        </button>
+        <div style={{ display: "flex", gap: "0.75rem" }}>
           <button className="btn-outline" onClick={onClose}>
             Close
           </button>
@@ -406,6 +437,36 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
           onClose={() => setSelectedPhoto(null)}
           onPhotoUpdated={onPhotoUpdated}
         />
+      )}
+
+      {/* Enrichment Modal */}
+      {enrichmentData && (
+        <EnrichmentModal
+          item={item}
+          enrichmentData={enrichmentData}
+          onClose={() => setEnrichmentData(null)}
+          onItemUpdated={onPhotoUpdated}
+        />
+      )}
+
+      {/* Enrichment Error Message */}
+      {enrichmentError && !enriching && (
+        <div className="modal-overlay" onClick={() => setEnrichmentError(null)}>
+          <section className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Enrichment Error</h2>
+              <button className="modal-close" onClick={() => setEnrichmentError(null)}>
+                ✕
+              </button>
+            </div>
+            <p>{enrichmentError}</p>
+            <div className="modal-actions">
+              <button className="btn-outline" onClick={() => setEnrichmentError(null)}>
+                Close
+              </button>
+            </div>
+          </section>
+        </div>
       )}
     </section>
   );
