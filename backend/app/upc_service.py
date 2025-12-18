@@ -454,7 +454,7 @@ class BarcodeLookupDatabase(UPCDatabase):
         
         # Check if the response contains products
         products = data.get("products", [])
-        if not products or len(products) == 0:
+        if not products:
             result.raw_response = json.dumps(data)
             return result
         
@@ -468,9 +468,6 @@ class BarcodeLookupDatabase(UPCDatabase):
         result.brand = product.get("brand") or product.get("manufacturer")
         result.model_number = product.get("model")
         result.category = product.get("category")
-        
-        # Barcode Lookup doesn't provide price/value information in the standard response
-        # but we keep this structure for consistency
         
         return result
 
