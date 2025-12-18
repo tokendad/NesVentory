@@ -13,7 +13,6 @@ on:
       - '**.md'
       - 'docs/**'
       - '.github/**'
-      - '!.github/workflows/dockerhub-demo.yml'
 
 env:
   IMAGE_NAME: neuman1812/nesventory

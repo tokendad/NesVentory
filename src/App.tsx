@@ -50,7 +50,7 @@ type View = "inventory" | "user-settings" | "calendar" | "system-settings" | "ad
 
 const App: React.FC = () => {
   const isMobile = useIsMobile();
-  const [appVersion, setAppVersion] = useState<string>("6.1.0-demo");
+  const [appVersion, setAppVersion] = useState<string>("Loading...");
   const [token, setToken] = useState<string | null>(
     () => localStorage.getItem("NesVentory_token")
   );
