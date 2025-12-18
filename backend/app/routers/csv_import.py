@@ -52,14 +52,14 @@ MIME_TYPES = {
 # CSV column mappings (case-insensitive)
 CSV_COLUMNS = {
     # Required
-    "name": ["name", "item", "item_name", "description"],
+    "name": ["name", "item", "item_name"],
     # Location
     "location": ["location", "location_name", "room", "place"],
     # Item details
     "brand": ["brand", "manufacturer"],
     "model": ["model", "model_number", "model_no"],
     "serial": ["serial", "serial_number", "serial_no", "sn"],
-    "description": ["notes", "desc", "details", "item_description"],
+    "description": ["description", "notes", "desc", "details", "item_description"],
     # Purchase info
     "purchase_price": ["purchase_price", "price", "cost", "purchase_cost"],
     "purchase_date": ["purchase_date", "date_purchased", "bought_date"],
@@ -83,13 +83,21 @@ def get_mime_type(path: Path) -> str:
 
 def normalize_column_name(name: str) -> Optional[str]:
     """
-    Normalize a CSV column name to a standard field name.
+    Normalize a CSV column name to a standard field name with priority handling.
+    Prioritizes exact matches over aliases to avoid ambiguity.
     Returns the standard field name or None if not recognized.
     """
     name_lower = name.strip().lower()
+    
+    # Priority 1: Check for exact matches first (column name matches field name)
+    if name_lower in CSV_COLUMNS:
+        return name_lower
+    
+    # Priority 2: Check aliases
     for standard_name, aliases in CSV_COLUMNS.items():
         if name_lower in aliases:
             return standard_name
+    
     return None
 
 
@@ -455,12 +463,12 @@ async def import_csv(
     The CSV file should contain at minimum a 'name' or 'item' column.
     
     Supported columns (case-insensitive, multiple aliases supported):
-    - name, item, item_name, description
+    - name, item, item_name
     - location, location_name, room, place
     - brand, manufacturer
     - model, model_number, model_no
     - serial, serial_number, serial_no, sn
-    - notes, desc, details, item_description
+    - description, notes, desc, details, item_description
     - purchase_price, price, cost
     - purchase_date, date_purchased, bought_date
     - retailer, store, vendor, seller

@@ -10,15 +10,14 @@ The CSV file must contain at least one of the following columns for item names:
 - `name`
 - `item`
 - `item_name`
-- `description`
 
 ### Supported Columns
 
 The import feature recognizes the following columns (case-insensitive). Multiple aliases are supported for each field:
 
 #### Basic Item Information
-- **Name**: `name`, `item`, `item_name`, `description`
-- **Description/Notes**: `notes`, `desc`, `details`, `item_description`
+- **Name**: `name`, `item`, `item_name`
+- **Description/Notes**: `description`, `notes`, `desc`, `details`, `item_description`
 - **Brand**: `brand`, `manufacturer`
 - **Model**: `model`, `model_number`, `model_no`
 - **Serial Number**: `serial`, `serial_number`, `serial_no`, `sn`
