@@ -41,7 +41,7 @@ class Settings(BaseSettings):
 
     # AI Photo Detection settings (Gemini)
     GEMINI_API_KEY: Optional[str] = None
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-2.0-flash-exp"
     # Delay between AI requests in seconds (to avoid rate limits on free tier)
     # Free tier allows 15 requests per minute, so 4-5 seconds delay is recommended
     GEMINI_REQUEST_DELAY: float = 4.0
@@ -52,6 +52,37 @@ class Settings(BaseSettings):
 
     # Registration settings
     DISABLE_SIGNUPS: bool = False
+
+
+# Available Gemini models for selection
+# Updated from https://ai.google.dev/gemini-api/docs/models
+AVAILABLE_GEMINI_MODELS = [
+    {
+        "id": "gemini-2.0-flash-exp",
+        "name": "Gemini 2.0 Flash (Experimental)",
+        "description": "Latest experimental flash model with improved speed and intelligence"
+    },
+    {
+        "id": "gemini-1.5-flash",
+        "name": "Gemini 1.5 Flash",
+        "description": "Fast and efficient for high-throughput tasks"
+    },
+    {
+        "id": "gemini-1.5-flash-8b",
+        "name": "Gemini 1.5 Flash-8B",
+        "description": "Smaller, faster version for simple tasks with tight latency requirements"
+    },
+    {
+        "id": "gemini-1.5-pro",
+        "name": "Gemini 1.5 Pro",
+        "description": "Best for complex reasoning tasks, long context understanding"
+    },
+    {
+        "id": "gemini-exp-1206",
+        "name": "Gemini Experimental (1206)",
+        "description": "Latest experimental model with cutting-edge features"
+    }
+]
 
 
     @field_validator("CORS_ORIGINS", mode="before")

@@ -26,7 +26,13 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
       JWT_ALGORITHM: HS256
       # GEMINI_API_KEY: your-gemini-api-key-here
-      # GEMINI_MODEL: gemini-2.0-flash
+      # GEMINI_MODEL: gemini-2.0-flash-exp
+      # Available models:
+      #   - gemini-2.0-flash-exp (recommended, latest experimental)
+      #   - gemini-1.5-flash (fast and efficient)
+      #   - gemini-1.5-flash-8b (smaller, faster)
+      #   - gemini-1.5-pro (best for complex tasks)
+      #   - gemini-exp-1206 (cutting-edge experimental)
       # GEMINI_REQUEST_DELAY: 4.0
       # GOOGLE_CLIENT_ID: your-google-client-id
       # GOOGLE_CLIENT_SECRET: your-google-client-secret

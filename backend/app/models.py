@@ -419,6 +419,8 @@ class SystemSettings(Base):
     
     # Google Gemini AI settings (only used if GEMINI_API_KEY env var is not set)
     gemini_api_key = Column(String(255), nullable=True)
+    # Gemini model selection (only used if GEMINI_MODEL env var is not set)
+    gemini_model = Column(String(100), nullable=True)
     
     # Google OAuth settings (only used if GOOGLE_CLIENT_ID/SECRET env vars are not set)
     google_client_id = Column(String(255), nullable=True)

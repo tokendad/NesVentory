@@ -74,3 +74,39 @@ def is_google_oauth_from_env() -> bool:
         settings.GOOGLE_CLIENT_ID.strip() and 
         settings.GOOGLE_CLIENT_SECRET.strip()
     )
+
+
+def get_effective_gemini_model(db: Session) -> str:
+    """
+    Get the effective Gemini model to use.
+    
+    Priority:
+    1. Environment variable GEMINI_MODEL
+    2. Database SystemSettings.gemini_model
+    3. Default from config (gemini-2.0-flash-exp)
+    
+    Returns:
+        The model name to use.
+    """
+    import os
+    
+    # Check environment first - use os.environ to check if explicitly set
+    if 'GEMINI_MODEL' in os.environ:
+        env_model = os.environ.get('GEMINI_MODEL', '').strip()
+        if env_model:
+            return env_model
+    
+    # Fall back to database
+    db_settings = db.query(models.SystemSettings).first()
+    if db_settings and db_settings.gemini_model and db_settings.gemini_model.strip():
+        return db_settings.gemini_model.strip()
+    
+    # Return default
+    return settings.GEMINI_MODEL
+
+
+def is_gemini_model_from_env() -> bool:
+    """Check if Gemini model is explicitly set via environment variable (not default)."""
+    import os
+    # Check if the env var is explicitly set (not just using the default from config)
+    return 'GEMINI_MODEL' in os.environ
