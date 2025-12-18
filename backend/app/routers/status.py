@@ -22,14 +22,17 @@ class ConfigStatusResponse(BaseModel):
     gemini_configured: bool
     gemini_api_key_masked: Optional[str] = None  # Masked API key for display
     gemini_model: Optional[str] = None
+    available_gemini_models: Optional[list] = None  # List of available Gemini models
     # Indicate if keys are from environment (read-only) or database (editable)
     gemini_from_env: bool = False
+    gemini_model_from_env: bool = False  # Indicate if model is from env (read-only)
     google_from_env: bool = False
 
 
 class ApiKeysUpdate(BaseModel):
     """Request model for updating API keys via the admin panel."""
     gemini_api_key: Optional[str] = None
+    gemini_model: Optional[str] = None  # Add Gemini model selection
     google_client_id: Optional[str] = None
     google_client_secret: Optional[str] = None
     
@@ -256,8 +259,12 @@ async def get_config_status(
     Also indicates whether the settings are from environment (read-only) or database (editable).
     This endpoint requires authentication.
     """
+    from ..settings_service import get_effective_gemini_model, is_gemini_model_from_env
+    from ..config import AVAILABLE_GEMINI_MODELS
+    
     # Check if environment variables are set
     gemini_from_env = bool(settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.strip())
+    gemini_model_from_env = is_gemini_model_from_env()
     google_from_env = bool(
         settings.GOOGLE_CLIENT_ID and 
         settings.GOOGLE_CLIENT_SECRET and 
@@ -281,14 +288,19 @@ async def get_config_status(
         google_client_secret.strip()
     )
     
+    # Get the effective Gemini model
+    gemini_model = get_effective_gemini_model(db) if gemini_configured else None
+    
     return ConfigStatusResponse(
         google_oauth_configured=google_oauth_configured,
         google_client_id=google_client_id if google_oauth_configured else None,
         google_client_secret_masked=mask_secret(google_client_secret) if google_oauth_configured else None,
         gemini_configured=gemini_configured,
         gemini_api_key_masked=mask_secret(gemini_api_key) if gemini_configured else None,
-        gemini_model=settings.GEMINI_MODEL if gemini_configured else None,
+        gemini_model=gemini_model,
+        available_gemini_models=AVAILABLE_GEMINI_MODELS,
         gemini_from_env=gemini_from_env,
+        gemini_model_from_env=gemini_model_from_env,
         google_from_env=google_from_env
     )
 
@@ -306,12 +318,16 @@ async def update_api_keys(
     Keys can only be updated if they are NOT set via environment variables.
     Environment variables always take priority - this is a security feature.
     """
+    from ..settings_service import is_gemini_model_from_env
+    from ..config import AVAILABLE_GEMINI_MODELS
+    
     # Only admins can update API keys
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only administrators can update API keys")
     
     # Check if environment variables are set
     gemini_from_env = bool(settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.strip())
+    gemini_model_from_env = is_gemini_model_from_env()
     google_from_env = bool(
         settings.GOOGLE_CLIENT_ID and 
         settings.GOOGLE_CLIENT_SECRET and 
@@ -325,6 +341,21 @@ async def update_api_keys(
             status_code=400, 
             detail="Cannot update Gemini API key - it is set via environment variable"
         )
+    
+    if api_keys.gemini_model is not None and gemini_model_from_env:
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot update Gemini model - it is set via GEMINI_MODEL environment variable"
+        )
+    
+    # Validate Gemini model if provided
+    if api_keys.gemini_model is not None:
+        valid_model_ids = [model["id"] for model in AVAILABLE_GEMINI_MODELS]
+        if api_keys.gemini_model and api_keys.gemini_model not in valid_model_ids:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid Gemini model. Must be one of: {', '.join(valid_model_ids)}"
+            )
     
     if (api_keys.google_client_id is not None or api_keys.google_client_secret is not None) and google_from_env:
         raise HTTPException(
@@ -341,6 +372,9 @@ async def update_api_keys(
     # Update the settings
     if api_keys.gemini_api_key is not None:
         db_settings.gemini_api_key = api_keys.gemini_api_key if api_keys.gemini_api_key else None
+    
+    if api_keys.gemini_model is not None:
+        db_settings.gemini_model = api_keys.gemini_model if api_keys.gemini_model else None
     
     if api_keys.google_client_id is not None:
         db_settings.google_client_id = api_keys.google_client_id if api_keys.google_client_id else None

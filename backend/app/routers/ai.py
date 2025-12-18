@@ -434,6 +434,8 @@ def get_ai_status(db: Session = Depends(get_db)):
     Check if AI detection feature is enabled and configured.
     Checks both environment variables and database settings, as well as custom LLM plugins.
     """
+    from ..settings_service import get_effective_gemini_model
+    
     gemini_api_key = get_effective_gemini_api_key(db)
     is_enabled = bool(gemini_api_key)
     
@@ -441,9 +443,12 @@ def get_ai_status(db: Session = Depends(get_db)):
     from ..plugin_service import get_enabled_ai_scan_plugins
     plugins = get_enabled_ai_scan_plugins(db)
     
+    # Get the effective model
+    gemini_model = get_effective_gemini_model(db) if is_enabled else None
+    
     return AIStatusResponse(
         enabled=is_enabled or len(plugins) > 0,  # Enabled if Gemini OR plugins are configured
-        model=settings.GEMINI_MODEL if is_enabled else None,
+        model=gemini_model,
         plugins_enabled=len(plugins) > 0,
         plugin_count=len(plugins)
     )
@@ -464,6 +469,8 @@ async def detect_items(
     If custom LLM plugins are enabled for AI scan, they will be tried first
     before falling back to the default Gemini AI.
     """
+    from ..settings_service import get_effective_gemini_model
+    
     # Try custom LLM plugins first if enabled
     if use_plugin:
         # Get plugins that support image processing for item detection
@@ -517,8 +524,9 @@ async def detect_items(
         image_data = await file.read()
         image_base64 = base64.b64encode(image_data).decode("utf-8")
         
-        # Create the model
-        model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        # Create the model with effective model selection
+        gemini_model = get_effective_gemini_model(db)
+        model = genai.GenerativeModel(gemini_model)
         
         # Construct the prompt
         prompt = """Analyze this image and identify all visible household items, furniture, electronics, 
@@ -643,6 +651,9 @@ async def parse_data_tag(
         # Import Gemini SDK
         import google.generativeai as genai
         
+        # Get the effective Gemini model
+        from ..settings_service import get_effective_gemini_model
+        
         # Configure the API with effective key
         genai.configure(api_key=gemini_api_key)
         
@@ -650,8 +661,9 @@ async def parse_data_tag(
         image_data = await file.read()
         image_base64 = base64.b64encode(image_data).decode("utf-8")
         
-        # Create the model
-        model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        # Create the model with effective model selection
+        gemini_model = get_effective_gemini_model(db)
+        model = genai.GenerativeModel(gemini_model)
         
         # Construct the prompt for data tag parsing
         prompt = """Analyze this image of a product data tag, label, or identification plate.
@@ -895,14 +907,18 @@ async def lookup_barcode(
         # Import Gemini SDK
         import google.generativeai as genai
         
+        # Get the effective Gemini model
+        from ..settings_service import get_effective_gemini_model
+        
         # Throttle requests to avoid rate limits
         throttle_ai_request()
         
         # Configure the API with effective key
         genai.configure(api_key=gemini_api_key)
         
-        # Create the model
-        model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        # Create the model with effective model selection
+        gemini_model = get_effective_gemini_model(db)
+        model = genai.GenerativeModel(gemini_model)
         
         # Construct the prompt for barcode lookup
         prompt = f"""Look up the product associated with this UPC/barcode: {upc_clean}
@@ -1240,6 +1256,9 @@ async def scan_barcode_image(
         # Import Gemini SDK
         import google.generativeai as genai
         
+        # Get the effective Gemini model
+        from ..settings_service import get_effective_gemini_model
+        
         # Throttle requests to avoid rate limits
         throttle_ai_request()
         
@@ -1250,8 +1269,9 @@ async def scan_barcode_image(
         image_data = await file.read()
         image_base64 = base64.b64encode(image_data).decode("utf-8")
         
-        # Create the model
-        model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        # Create the model with effective model selection
+        gemini_model = get_effective_gemini_model(db)
+        model = genai.GenerativeModel(gemini_model)
         
         # Construct the prompt for barcode scanning
         prompt = """Analyze this image and look for any barcode or UPC code.
@@ -1325,7 +1345,7 @@ Important:
         )
 
 
-def estimate_item_value_with_ai(item: models.Item, gemini_api_key: str) -> Optional[float]:
+def estimate_item_value_with_ai(item: models.Item, gemini_api_key: str, db: Session) -> Optional[float]:
     """
     Use AI to estimate the value of a single item based on its details.
     Returns the estimated value in USD, or None if estimation fails.
@@ -1336,9 +1356,11 @@ def estimate_item_value_with_ai(item: models.Item, gemini_api_key: str) -> Optio
     Args:
         item: The item to estimate value for
         gemini_api_key: The Gemini API key to use
+        db: Database session for getting effective model
     """
     try:
         import google.generativeai as genai
+        from ..settings_service import get_effective_gemini_model
         
         # Throttle requests to avoid rate limits
         throttle_ai_request()
@@ -1346,8 +1368,9 @@ def estimate_item_value_with_ai(item: models.Item, gemini_api_key: str) -> Optio
         # Configure the API with provided key
         genai.configure(api_key=gemini_api_key)
         
-        # Create the model
-        model = genai.GenerativeModel(settings.GEMINI_MODEL)
+        # Create the model with effective model selection
+        gemini_model = get_effective_gemini_model(db)
+        model = genai.GenerativeModel(gemini_model)
         
         # Build item description for AI
         item_details = []
@@ -1481,7 +1504,7 @@ async def run_ai_valuation(
         
         # Try to estimate the value using AI
         try:
-            estimated_value = estimate_item_value_with_ai(item, gemini_api_key)
+            estimated_value = estimate_item_value_with_ai(item, gemini_api_key, db)
             
             if estimated_value is not None:
                 item.estimated_value = estimated_value
@@ -1524,7 +1547,8 @@ async def run_ai_valuation(
 def enrich_item_from_data_tag_photo(
     item: models.Item, 
     photo_path: str,
-    gemini_api_key: str
+    gemini_api_key: str,
+    db: Session
 ) -> Tuple[bool, Optional[str], Optional[str], Optional[str], Optional[float]]:
     """
     Use AI to analyze a data tag photo and extract item details.
@@ -1537,9 +1561,11 @@ def enrich_item_from_data_tag_photo(
         item: The item to enrich
         photo_path: Path to the data tag photo
         gemini_api_key: The Gemini API key to use
+        db: Database session for getting effective model
     """
     try:
         import google.generativeai as genai
+        from ..settings_service import get_effective_gemini_model
         
         # Resolve the photo path
         # Photos are stored with paths like "/uploads/photos/filename.jpg"
@@ -1559,7 +1585,9 @@ def enrich_item_from_data_tag_photo(
         # Configure the API with provided key
         genai.configure(api_key=gemini_api_key)
         
-        # Create the model
+        # Create the model with effective model selection
+        gemini_model = get_effective_gemini_model(db)
+        model = genai.GenerativeModel(gemini_model)
         model = genai.GenerativeModel(settings.GEMINI_MODEL)
         
         # Read and encode the image
@@ -1712,7 +1740,7 @@ async def enrich_items_from_data_tags(
         for photo in data_tag_photos:
             try:
                 success, brand, model_number, serial_number, estimated_value = enrich_item_from_data_tag_photo(
-                    item, photo.path, gemini_api_key
+                    item, photo.path, gemini_api_key, db
                 )
                 
                 if success:
