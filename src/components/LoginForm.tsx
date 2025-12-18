@@ -139,6 +139,22 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick }) => 
           <img src="/logo.png" alt="NesVentory" className="login-logo" />
           <p className="muted">Sign in to your home inventory</p>
         </div>
+        <div style={{
+          backgroundColor: "#2196f3",
+          color: "white",
+          padding: "1rem",
+          borderRadius: "4px",
+          marginBottom: "1rem",
+          textAlign: "center"
+        }}>
+          <div style={{ fontWeight: "bold", marginBottom: "0.5rem" }}>🎭 DEMO ENVIRONMENT</div>
+          <div style={{ fontSize: "0.9rem" }}>
+            Try it out with Editor credentials:<br />
+            <code style={{ backgroundColor: "rgba(255,255,255,0.2)", padding: "2px 6px", borderRadius: "3px" }}>
+              editor@nesventory.local / editor123
+            </code>
+          </div>
+        </div>
         <form onSubmit={handleSubmit} className="login-form">
           <label className="field">
             <span>Username or Email</span>

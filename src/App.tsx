@@ -36,6 +36,7 @@ import {
   bulkDeleteItems,
   bulkUpdateTags,
   bulkUpdateLocation,
+  fetchStatus,
   type Item,
   type ItemCreate,
   type Location,
@@ -47,10 +48,9 @@ import type { PhotoUpload, DocumentUpload } from "./lib/types";
 
 type View = "inventory" | "user-settings" | "calendar" | "system-settings" | "admin";
 
-const APP_VERSION = "5.0.0";
-
 const App: React.FC = () => {
   const isMobile = useIsMobile();
+  const [appVersion, setAppVersion] = useState<string>("6.1.0-demo");
   const [token, setToken] = useState<string | null>(
     () => localStorage.getItem("NesVentory_token")
   );
@@ -135,6 +135,21 @@ const App: React.FC = () => {
       console.error("Failed to load current user:", err);
     }
   }
+
+  async function loadVersion() {
+    try {
+      const status = await fetchStatus();
+      setAppVersion(status.application.version);
+    } catch (err: any) {
+      console.error("Failed to load version:", err);
+      // Keep default version if fetch fails
+    }
+  }
+
+  useEffect(() => {
+    // Load version on app start
+    loadVersion();
+  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -436,7 +451,7 @@ const App: React.FC = () => {
         
         {/* Footer with version */}
         <footer className="app-footer">
-          NesVentory v{APP_VERSION} | <a href="https://github.com/tokendad/NesVentory" target="_blank" rel="noopener noreferrer">GitHub</a>
+          NesVentory v{appVersion} | <a href="https://github.com/tokendad/NesVentory" target="_blank" rel="noopener noreferrer">GitHub</a>
         </footer>
 
         {/* Modals */}
