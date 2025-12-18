@@ -37,7 +37,7 @@ def run_migrations():
     ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks", "videos", "plugins", "system_settings"}
     ALLOWED_COLUMNS = {"google_id", "estimated_value_ai_date", "estimated_value_user_date", "estimated_value_user_name",
                        "ai_schedule_enabled", "ai_schedule_interval_days", "ai_schedule_last_run",
-                       "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "document_type", "color", 
+                       "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "ai_providers", "document_type", "color", 
                        "supports_image_processing", "gemini_model"}
     ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "VARCHAR(64)", "VARCHAR(7)", "VARCHAR(100)", "BOOLEAN DEFAULT FALSE", "BOOLEAN DEFAULT TRUE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT", "JSON"}
     
@@ -58,6 +58,8 @@ def run_migrations():
         ("users", "gdrive_last_backup", "TIMESTAMP"),
         # User model: UPC database configuration (JSON array with priority order)
         ("users", "upc_databases", "JSON"),
+        # User model: AI provider configuration (JSON array with priority)
+        ("users", "ai_providers", "JSON"),
         # Document model: document_type column for categorizing documents (manuals, attachments, etc.)
         ("documents", "document_type", "VARCHAR(64)"),
         # MaintenanceTask model: color column for customizing task colors
