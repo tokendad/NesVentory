@@ -316,16 +316,19 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
       if (userSettings.ai_providers && userSettings.ai_providers.length > 0) {
         setAiProviders(userSettings.ai_providers);
       } else {
-        // Default configuration
+        // Default configuration - first provider enabled, others disabled
         setAiProviders(available.providers.map((provider, index) => ({
           id: provider.id,
-          enabled: provider.id === 'gemini',  // Only Gemini enabled by default
+          enabled: index === 0,  // First provider (typically Gemini) enabled by default
           priority: index + 1,
           api_key: null
         })));
       }
-    } catch {
-      // Silently fail
+    } catch (err: unknown) {
+      // Log error for debugging
+      const errorMessage = err instanceof Error ? err.message : "Failed to load AI providers";
+      console.error("Error loading AI providers:", errorMessage);
+      setAiProvidersError(errorMessage);
     } finally {
       setAiProvidersLoading(false);
     }

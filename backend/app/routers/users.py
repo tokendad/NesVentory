@@ -21,7 +21,7 @@ def generate_api_key() -> str:
 
 
 def get_user_with_locations(user: models.User) -> dict:
-    """Helper to serialize user with allowed_location_ids, api_key, is_approved, AI settings, AI providers, and UPC databases."""
+    """Helper to serialize user with allowed_location_ids, api_key, is_approved, AI schedule settings, AI provider settings, and UPC databases."""
     return {
         "id": user.id,
         "email": user.email,
