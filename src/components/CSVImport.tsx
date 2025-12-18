@@ -166,7 +166,7 @@ const CSVImport: React.FC<CSVImportProps> = ({ onClose, onSuccess }) => {
                 You can also include columns for location, brand, model, serial number, purchase information, and image URLs.
               </p>
               <p className="help-text">
-                <strong>Supported columns:</strong> name, location, brand, model, serial, description, 
+                <strong>Supported columns:</strong> name, description, location, brand, model, serial, 
                 purchase_price, purchase_date, retailer, estimated_value, image_url, image_urls, upc, warranty_duration
               </p>
               <p className="help-text">
