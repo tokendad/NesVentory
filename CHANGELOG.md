@@ -9,6 +9,9 @@ All notable changes to this project will be documented in this file.
 
 
 
+
+## [6.1.2] - 2025-12-18
+### Fixed
 ## [6.1.1] - 2025-12-18
 ### Fixed
 - Enhancements to GUI

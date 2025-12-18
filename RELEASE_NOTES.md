@@ -1,12 +1,8 @@
-# NesVentory v6.1.1 - Updated features
+# NesVentory v6.1.2 - Enchanements & Fix bugs
 
 ## Overview
 
-Version 6.1.1 release.
-
-## New Features
-
-Enhancements to GUI
+Version 6.1.2 release.
 
 ---
 
