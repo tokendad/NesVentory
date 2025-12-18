@@ -50,12 +50,17 @@ def get_available_providers() -> List[dict]:
 def get_default_ai_provider_config() -> List[dict]:
     """
     Get default AI provider configuration.
-    All providers are enabled by default, with priority based on order.
+    First provider (Gemini) is enabled by default, others are disabled.
+    Priority is assigned based on order in the list.
     """
     return [
-        {"id": "gemini", "enabled": True, "priority": 1, "api_key": None},
-        {"id": "chatgpt", "enabled": False, "priority": 2, "api_key": None},
-        {"id": "alexa_plus", "enabled": False, "priority": 3, "api_key": None},
+        {
+            "id": provider["id"],
+            "enabled": index == 0,  # Only first provider enabled by default
+            "priority": index + 1,
+            "api_key": None
+        }
+        for index, provider in enumerate(AVAILABLE_AI_PROVIDERS)
     ]
 
 

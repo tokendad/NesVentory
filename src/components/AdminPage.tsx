@@ -319,7 +319,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
         // Default configuration - first provider enabled, others disabled
         setAiProviders(available.providers.map((provider, index) => ({
           id: provider.id,
-          enabled: index === 0,  // First provider (typically Gemini) enabled by default
+          enabled: index === 0,  // First provider in list enabled by default
           priority: index + 1,
           api_key: null
         })));
