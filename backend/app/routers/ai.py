@@ -1588,7 +1588,6 @@ def enrich_item_from_data_tag_photo(
         # Create the model with effective model selection
         gemini_model = get_effective_gemini_model(db)
         model = genai.GenerativeModel(gemini_model)
-        model = genai.GenerativeModel(settings.GEMINI_MODEL)
         
         # Read and encode the image
         with open(actual_path, "rb") as f:

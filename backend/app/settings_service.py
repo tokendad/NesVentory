@@ -88,10 +88,13 @@ def get_effective_gemini_model(db: Session) -> str:
     Returns:
         The model name to use.
     """
-    # Check environment first (config settings reads from env)
-    if hasattr(settings, 'GEMINI_MODEL') and settings.GEMINI_MODEL and settings.GEMINI_MODEL.strip():
-        # If GEMINI_MODEL is not the default, it means it was set via environment
-        return settings.GEMINI_MODEL.strip()
+    import os
+    
+    # Check environment first - use os.environ to check if explicitly set
+    if 'GEMINI_MODEL' in os.environ:
+        env_model = os.environ.get('GEMINI_MODEL', '').strip()
+        if env_model:
+            return env_model
     
     # Fall back to database
     db_settings = db.query(models.SystemSettings).first()

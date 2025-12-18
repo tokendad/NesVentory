@@ -1954,11 +1954,18 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                     Gemini Model
                   </label>
                   <select
-                    value={geminiModelInput || configStatus?.gemini_model || ""}
+                    value={geminiModelInput || configStatus?.gemini_model || (configStatus?.available_gemini_models?.[0]?.id || "")}
                     onChange={(e) => setGeminiModelInput(e.target.value)}
                     style={{ width: "100%", padding: "0.5rem" }}
                     disabled={configStatus?.gemini_model_from_env}
                   >
+                    {/* Add current model if it's not in the available list (e.g., deprecated model from env) */}
+                    {configStatus?.gemini_model && 
+                     !configStatus?.available_gemini_models?.find(m => m.id === configStatus.gemini_model) && (
+                      <option value={configStatus.gemini_model}>
+                        {configStatus.gemini_model} (current)
+                      </option>
+                    )}
                     {configStatus?.available_gemini_models?.map((model) => (
                       <option key={model.id} value={model.id}>
                         {model.name}
@@ -1966,7 +1973,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                     ))}
                   </select>
                   <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block", marginTop: "0.25rem" }}>
-                    {configStatus?.available_gemini_models?.find(m => m.id === (geminiModelInput || configStatus?.gemini_model))?.description}
+                    {configStatus?.available_gemini_models?.find(m => m.id === (geminiModelInput || configStatus?.gemini_model))?.description || 
+                     (configStatus?.gemini_model && !configStatus?.available_gemini_models?.find(m => m.id === configStatus.gemini_model) ? 
+                      "⚠️ Current model may be deprecated or custom" : "")}
                   </small>
                   {configStatus?.gemini_model_from_env && (
                     <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block", marginTop: "0.25rem" }}>
