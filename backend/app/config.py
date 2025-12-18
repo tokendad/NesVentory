@@ -53,6 +53,17 @@ class Settings(BaseSettings):
     # Registration settings
     DISABLE_SIGNUPS: bool = False
 
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v):
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
 
 # Available Gemini models for selection
 # Updated from https://ai.google.dev/gemini-api/docs/models
@@ -83,18 +94,6 @@ AVAILABLE_GEMINI_MODELS = [
         "description": "Latest experimental model with cutting-edge features"
     }
 ]
-
-
-    @field_validator("CORS_ORIGINS", mode="before")
-    @classmethod
-    def assemble_cors_origins(cls, v):
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
 
 
 settings = Settings()
