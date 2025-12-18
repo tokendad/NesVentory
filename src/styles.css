@@ -1037,6 +1037,7 @@ tbody tr:hover {
 @media (max-width: 600px) {
   .form-row {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
   }
 
   .details-grid {
@@ -1044,7 +1045,7 @@ tbody tr:hover {
   }
 
   .modal-content {
-    padding: 1.2rem;
+    padding: 0.75rem;
   }
 }
 
@@ -2152,24 +2153,29 @@ tbody tr:hover {
   .modal-overlay {
     padding: 0.5rem;
     align-items: flex-start;
-    padding-top: 1rem;
+    padding-top: 0.5rem;
   }
   
   .modal-content {
     max-width: 100%;
-    max-height: calc(100vh - 2rem);
-    padding: 1rem;
+    max-height: calc(100vh - 1rem);
+    padding: 0.75rem;
     margin: 0;
     border-radius: 0.75rem;
   }
 
   .modal-content.large {
     max-width: 100%;
-    padding: 1rem;
+    padding: 0.75rem;
+  }
+  
+  .modal-header {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
   }
   
   .modal-header h2 {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
   }
 
   /* AI Detection modal specific mobile fixes */
@@ -2194,22 +2200,32 @@ tbody tr:hover {
     gap: 0.75rem;
   }
   
+  /* Reduce spacing in form groups for mobile */
   .modal-content .form-group {
-    gap: 0.2rem;
+    gap: 0.15rem;
   }
   
   .modal-content .form-group label {
     font-size: 0.8rem;
   }
   
-  .modal-content .form-group input {
+  .modal-content .form-group input,
+  .modal-content .form-group select,
+  .modal-content .form-group textarea {
     padding: 0.5rem;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+  }
+  
+  /* Reduce textarea height on mobile */
+  .modal-content .form-group textarea {
+    min-height: 60px;
   }
   
   .modal-content .form-actions {
     flex-direction: column-reverse;
     gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
   }
   
   .modal-content .form-actions button {
@@ -2226,6 +2242,39 @@ tbody tr:hover {
   .modal-content .form-group > div > input[type="password"] {
     width: 100%;
     min-width: 0;
+  }
+  
+  /* Item form specific mobile adjustments */
+  .modal-content .item-form {
+    gap: 0.75rem;
+  }
+  
+  /* Form sections have too much spacing on mobile */
+  .modal-content .form-section {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+  }
+  
+  .modal-content .form-section h3 {
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .modal-content .form-section h4 {
+    font-size: 0.85rem;
+    margin: 0.75rem 0 0.4rem 0;
+  }
+  
+  /* Help text should be more compact */
+  .modal-content .help-text {
+    font-size: 0.75rem;
+    margin-top: 0.15rem;
+  }
+  
+  /* Checkbox labels more compact */
+  .modal-content .checkbox-label {
+    gap: 0.4rem;
+    font-size: 0.85rem;
   }
 }
 
@@ -2600,12 +2649,14 @@ tbody tr:hover {
     width: 100%;
     margin: 0.5rem;
     max-height: calc(100vh - 1rem);
+    padding: 0.75rem;
   }
 
   .tab-navigation {
     overflow-x: auto;
     flex-wrap: nowrap;
     gap: 0;
+    margin-bottom: 0.75rem;
   }
 
   .tab-button {
@@ -2621,12 +2672,42 @@ tbody tr:hover {
   .warranty-add-buttons button {
     width: 100%;
   }
+  
+  /* Reduce spacing in tabbed forms on mobile */
+  .item-form-tabbed {
+    gap: 0.75rem;
+  }
+  
+  .tab-content {
+    gap: 0.75rem;
+  }
+  
+  /* Form row should remain stacked on tablets/mobile */
+  .tab-content .form-row {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
 }
 
 @media (max-width: 480px) {
+  .modal-content-wide {
+    padding: 0.75rem;
+    margin: 0.5rem;
+    max-height: calc(100vh - 1rem);
+  }
+  
   .tab-button {
     padding: 0.5rem 0.75rem;
     font-size: 0.75rem;
+  }
+  
+  .modal-header {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+  }
+  
+  .modal-header h2 {
+    font-size: 1rem;
   }
 }
 
