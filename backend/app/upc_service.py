@@ -81,6 +81,13 @@ AVAILABLE_UPC_DATABASES = [
         "description": "upcdatabase.org - Free UPC lookup database",
         "requires_api_key": True,
         "api_key_url": "https://upcdatabase.org/api"
+    },
+    {
+        "id": "barcodelookup",
+        "name": "Barcode Lookup",
+        "description": "barcodelookup.com - UPC/EAN barcode database (30-day free trial with 50 API calls)",
+        "requires_api_key": True,
+        "api_key_url": "https://www.barcodelookup.com/api"
     }
 ]
 
@@ -92,10 +99,11 @@ def get_available_databases() -> List[dict]:
 
 def get_default_upc_config() -> List[dict]:
     """Get the default UPC database configuration for new users."""
-    # Default: Gemini first (if configured), then UPC Database
+    # Default: Gemini first (if configured), then UPC Database, then Barcode Lookup
     return [
         {"id": "gemini", "enabled": True, "api_key": None},
-        {"id": "upcdatabase", "enabled": True, "api_key": None}
+        {"id": "upcdatabase", "enabled": True, "api_key": None},
+        {"id": "barcodelookup", "enabled": True, "api_key": None}
     ]
 
 
@@ -356,12 +364,120 @@ class UPCDatabaseOrg(UPCDatabase):
         return result
 
 
+class BarcodeLookupDatabase(UPCDatabase):
+    """UPC lookup using barcodelookup.com API."""
+    
+    BASE_URL = "https://api.barcodelookup.com/v3/products"
+    
+    def __init__(self, api_key: Optional[str] = None):
+        self.api_key = api_key
+    
+    def is_available(self) -> bool:
+        """Check if API key is configured."""
+        return bool(self.api_key and self.api_key.strip())
+    
+    def lookup(self, upc: str) -> UPCLookupResult:
+        """Look up product using barcodelookup.com API."""
+        if not self.is_available():
+            return UPCLookupResult(
+                found=False, 
+                source="barcodelookup", 
+                raw_response="API key not configured for barcodelookup.com"
+            )
+        
+        try:
+            params = {
+                "barcode": upc,
+                "key": self.api_key
+            }
+            
+            with httpx.Client(timeout=UPC_API_TIMEOUT) as client:
+                response = client.get(self.BASE_URL, params=params)
+            
+            if response.status_code == 404:
+                return UPCLookupResult(
+                    found=False,
+                    source="barcodelookup",
+                    raw_response="Product not found in barcodelookup.com"
+                )
+            
+            if response.status_code != 200:
+                return UPCLookupResult(
+                    found=False,
+                    source="barcodelookup",
+                    raw_response=f"API error: HTTP {response.status_code}"
+                )
+            
+            data = response.json()
+            return self._parse_response(data)
+            
+        except httpx.TimeoutException:
+            logger.warning("Timeout during barcodelookup.com lookup")
+            return UPCLookupResult(
+                found=False,
+                source="barcodelookup",
+                raw_response="Request timeout"
+            )
+        except Exception as e:
+            logger.exception("Error during barcodelookup.com UPC lookup")
+            return UPCLookupResult(
+                found=False,
+                source="barcodelookup",
+                raw_response=f"Error: {str(e)}"
+            )
+    
+    def _parse_response(self, data: dict) -> UPCLookupResult:
+        """
+        Parse the barcodelookup.com API response.
+        
+        Expected response format:
+        {
+            "products": [
+                {
+                    "barcode_number": "012345678901",
+                    "barcode_type": "UPC",
+                    "barcode_formats": "UPC 012345678901",
+                    "product_name": "Product Name",
+                    "title": "Product Title",
+                    "description": "Product description",
+                    "brand": "Brand Name",
+                    "manufacturer": "Manufacturer Name",
+                    "model": "Model Number",
+                    "category": "Product Category",
+                    "stores": [...],
+                    ...
+                }
+            ]
+        }
+        """
+        result = UPCLookupResult(found=False, source="barcodelookup")
+        
+        # Check if the response contains products
+        products = data.get("products", [])
+        if not products:
+            result.raw_response = json.dumps(data)
+            return result
+        
+        # Get the first product from the results
+        product = products[0]
+        result.found = True
+        
+        # Map barcodelookup.com fields to our result structure
+        result.name = product.get("title") or product.get("product_name")
+        result.description = product.get("description")
+        result.brand = product.get("brand") or product.get("manufacturer")
+        result.model_number = product.get("model")
+        result.category = product.get("category")
+        
+        return result
+
+
 def get_database_instance(db_id: str, api_key: Optional[str] = None) -> Optional[UPCDatabase]:
     """
     Get an instance of a UPC database by its ID.
     
     Args:
-        db_id: The database identifier (e.g., 'gemini', 'upcdatabase')
+        db_id: The database identifier (e.g., 'gemini', 'upcdatabase', 'barcodelookup')
         api_key: Optional API key for databases that require one
         
     Returns:
@@ -371,6 +487,8 @@ def get_database_instance(db_id: str, api_key: Optional[str] = None) -> Optional
         return GeminiUPCDatabase()
     elif db_id == "upcdatabase":
         return UPCDatabaseOrg(api_key=api_key)
+    elif db_id == "barcodelookup":
+        return BarcodeLookupDatabase(api_key=api_key)
     else:
         logger.warning(f"Unknown UPC database ID: {db_id}")
         return None
