@@ -2212,7 +2212,7 @@ tbody tr:hover {
   .modal-content .form-group input,
   .modal-content .form-group select,
   .modal-content .form-group textarea {
-    padding: 0.45rem 0.6rem;
+    padding: 0.5rem;
     font-size: 0.85rem;
   }
   
@@ -2267,8 +2267,8 @@ tbody tr:hover {
   
   /* Help text should be more compact */
   .modal-content .help-text {
-    font-size: 0.7rem;
-    margin-top: 0.1rem;
+    font-size: 0.75rem;
+    margin-top: 0.15rem;
   }
   
   /* Checkbox labels more compact */
@@ -2691,19 +2691,19 @@ tbody tr:hover {
 
 @media (max-width: 480px) {
   .modal-content-wide {
-    padding: 0.6rem;
-    margin: 0.4rem;
-    max-height: calc(100vh - 0.8rem);
+    padding: 0.75rem;
+    margin: 0.5rem;
+    max-height: calc(100vh - 1rem);
   }
   
   .tab-button {
-    padding: 0.5rem 0.7rem;
+    padding: 0.5rem 0.75rem;
     font-size: 0.75rem;
   }
   
   .modal-header {
-    margin-bottom: 0.6rem;
-    padding-bottom: 0.4rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
   }
   
   .modal-header h2 {
