@@ -478,6 +478,18 @@ export async function deleteItem(itemId: string): Promise<void> {
   }
 }
 
+export async function enrichItem(itemId: string): Promise<ItemEnrichmentResult> {
+  const res = await fetch(`${API_BASE_URL}/api/items/${itemId}/enrich`, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<ItemEnrichmentResult>(res);
+}
+
+
 // --- Bulk Operations ---
 
 export interface BulkDeleteResponse {
@@ -1084,6 +1096,23 @@ export interface BarcodeLookupResult {
   estimation_date?: string | null;  // Date when AI estimated the value (MM/DD/YY format)
   category?: string | null;
   raw_response?: string | null;
+}
+
+export interface EnrichedItemData {
+  description?: string | null;
+  brand?: string | null;
+  model_number?: string | null;
+  serial_number?: string | null;
+  estimated_value?: number | null;
+  estimated_value_ai_date?: string | null;
+  confidence?: number | null;
+  source: string;
+}
+
+export interface ItemEnrichmentResult {
+  item_id: string;
+  enriched_data: EnrichedItemData[];
+  message: string;
 }
 
 export async function getAIStatus(): Promise<AIStatusResponse> {

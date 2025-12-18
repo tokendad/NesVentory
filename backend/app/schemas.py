@@ -104,6 +104,27 @@ class AIEnrichmentRunResponse(BaseModel):
     message: str
 
 
+# --- Item Enrichment Schemas ---
+
+class EnrichedItemData(BaseModel):
+    """Enriched data for a single item from an AI provider."""
+    description: Optional[str] = None
+    brand: Optional[str] = None
+    model_number: Optional[str] = None
+    serial_number: Optional[str] = None
+    estimated_value: Optional[Decimal] = None
+    estimated_value_ai_date: Optional[str] = None  # Date when AI estimated (MM/DD/YY format)
+    confidence: Optional[float] = None  # Confidence score 0.0 to 1.0
+    source: str  # Which AI provider provided this data
+
+
+class ItemEnrichmentResult(BaseModel):
+    """Result of enriching a single item with AI."""
+    item_id: UUID
+    enriched_data: List[EnrichedItemData]  # Multiple results sorted by confidence
+    message: str
+
+
 # --- AI Provider Configuration Schemas ---
 
 class AIProviderConfig(BaseModel):
