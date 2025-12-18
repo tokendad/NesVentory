@@ -1558,6 +1558,12 @@ export async function getIssueReportData(): Promise<IssueReportData> {
 
 // --- Config Status APIs ---
 
+export interface GeminiModel {
+  id: string;
+  name: string;
+  description: string;
+}
+
 export interface ConfigStatusResponse {
   google_oauth_configured: boolean;
   google_client_id: string | null;
@@ -1565,12 +1571,15 @@ export interface ConfigStatusResponse {
   gemini_configured: boolean;
   gemini_api_key_masked: string | null;
   gemini_model: string | null;
+  available_gemini_models: GeminiModel[] | null;
   gemini_from_env: boolean;
+  gemini_model_from_env: boolean;
   google_from_env: boolean;
 }
 
 export interface ApiKeysUpdate {
   gemini_api_key?: string | null;
+  gemini_model?: string | null;
   google_client_id?: string | null;
   google_client_secret?: string | null;
 }

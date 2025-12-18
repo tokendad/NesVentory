@@ -154,6 +154,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
   // API Keys editing states
   const [editingGeminiKey, setEditingGeminiKey] = useState(false);
   const [geminiApiKeyInput, setGeminiApiKeyInput] = useState("");
+  const [geminiModelInput, setGeminiModelInput] = useState("");
   const [editingGoogleOAuth, setEditingGoogleOAuth] = useState(false);
   const [googleClientIdInput, setGoogleClientIdInput] = useState("");
   const [googleSecretInput, setGoogleSecretInput] = useState("");
@@ -884,14 +885,18 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     setApiKeysSaving(true);
     setServerError(null);
     try {
-      await updateApiKeys({ gemini_api_key: geminiApiKeyInput || null });
-      setServerSuccess("Gemini API key updated successfully!");
+      await updateApiKeys({ 
+        gemini_api_key: geminiApiKeyInput || null,
+        gemini_model: geminiModelInput || null
+      });
+      setServerSuccess("Gemini settings updated successfully!");
       setEditingGeminiKey(false);
       setGeminiApiKeyInput("");
+      setGeminiModelInput("");
       await loadConfigStatus(); // Refresh status
       setTimeout(() => setServerSuccess(null), 3000);
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to update Gemini API key";
+      const errorMessage = err instanceof Error ? err.message : "Failed to update Gemini settings";
       setServerError(errorMessage);
     } finally {
       setApiKeysSaving(false);
@@ -923,6 +928,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
   function handleCancelGeminiEdit() {
     setEditingGeminiKey(false);
     setGeminiApiKeyInput("");
+    setGeminiModelInput("");
   }
 
   function handleCancelGoogleOAuthEdit() {
@@ -1939,9 +1945,34 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                     type="password"
                     value={geminiApiKeyInput}
                     onChange={(e) => setGeminiApiKeyInput(e.target.value)}
-                    placeholder="Enter Gemini API Key"
+                    placeholder="Enter Gemini API Key (leave blank to keep current)"
                     style={{ width: "100%", fontFamily: "monospace" }}
                   />
+                </div>
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={{ fontSize: "0.85rem", marginBottom: "0.25rem", display: "block" }}>
+                    Gemini Model
+                  </label>
+                  <select
+                    value={geminiModelInput || configStatus?.gemini_model || ""}
+                    onChange={(e) => setGeminiModelInput(e.target.value)}
+                    style={{ width: "100%", padding: "0.5rem" }}
+                    disabled={configStatus?.gemini_model_from_env}
+                  >
+                    {configStatus?.available_gemini_models?.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.name}
+                      </option>
+                    ))}
+                  </select>
+                  <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block", marginTop: "0.25rem" }}>
+                    {configStatus?.available_gemini_models?.find(m => m.id === (geminiModelInput || configStatus?.gemini_model))?.description}
+                  </small>
+                  {configStatus?.gemini_model_from_env && (
+                    <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block", marginTop: "0.25rem" }}>
+                      ⚠️ Model is set via GEMINI_MODEL environment variable (read-only)
+                    </small>
+                  )}
                 </div>
                 <div style={{ display: "flex", gap: "0.5rem" }}>
                   <button
@@ -2000,41 +2031,45 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                   </small>
                 </div>
                 
+                {/* Gemini Model Display */}
+                {configStatus?.gemini_configured && configStatus?.gemini_model && (
+                  <div style={{ marginBottom: "0.75rem" }}>
+                    <label style={{ fontSize: "0.85rem", marginBottom: "0.25rem", display: "block" }}>
+                      Gemini Model
+                    </label>
+                    <input
+                      type="text"
+                      value={configStatus?.available_gemini_models?.find(m => m.id === configStatus.gemini_model)?.name || configStatus.gemini_model}
+                      readOnly
+                      style={{ 
+                        width: "100%", 
+                        backgroundColor: "var(--bg-elevated-softer)", 
+                        color: "var(--text-primary)", 
+                        cursor: "not-allowed"
+                      }}
+                    />
+                    <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block", marginTop: "0.25rem" }}>
+                      {configStatus?.available_gemini_models?.find(m => m.id === configStatus.gemini_model)?.description}
+                      {configStatus?.gemini_model_from_env && " • Set via GEMINI_MODEL environment variable"}
+                    </small>
+                  </div>
+                )}
+                
                 {/* Edit button - only show if not from env */}
                 {!configStatus?.gemini_from_env && (
                   <button
                     type="button"
                     className="btn-outline"
-                    onClick={() => setEditingGeminiKey(true)}
+                    onClick={() => {
+                      setEditingGeminiKey(true);
+                      setGeminiModelInput(configStatus?.gemini_model || "");
+                    }}
                     style={{ marginBottom: "0.75rem" }}
                   >
-                    ✏️ {configStatus?.gemini_configured ? "Edit" : "Configure"} Gemini API Key
+                    ✏️ {configStatus?.gemini_configured ? "Edit" : "Configure"} Gemini Settings
                   </button>
                 )}
               </>
-            )}
-            
-            {/* Gemini Model */}
-            {configStatus?.gemini_configured && configStatus?.gemini_model && (
-              <div style={{ marginBottom: "0.75rem" }}>
-                <label style={{ fontSize: "0.85rem", marginBottom: "0.25rem", display: "block" }}>
-                  Gemini Model
-                </label>
-                <input
-                  type="text"
-                  value={configStatus.gemini_model}
-                  readOnly
-                  style={{ 
-                    width: "100%", 
-                    backgroundColor: "var(--bg-elevated-softer)", 
-                    color: "var(--text-primary)", 
-                    cursor: "not-allowed"
-                  }}
-                />
-                <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block", marginTop: "0.25rem" }}>
-                  Change via GEMINI_MODEL environment variable
-                </small>
-              </div>
             )}
             
             <div style={{ 
@@ -2048,8 +2083,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
               <ol style={{ margin: "0.5rem 0 0 1rem", padding: 0 }}>
                 <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>Google AI Studio</a></li>
                 <li>Create an API key</li>
-                <li>Enter the key above or set GEMINI_API_KEY in your .env file</li>
-                <li>Optionally set GEMINI_MODEL (default: gemini-2.0-flash)</li>
+                <li>Configure the API key and model above, or set GEMINI_API_KEY and GEMINI_MODEL in your .env file</li>
+                <li>Select your preferred model from the dropdown (default: gemini-2.0-flash-exp)</li>
               </ol>
             </div>
           </div>
