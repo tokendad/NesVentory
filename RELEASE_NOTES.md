@@ -1,8 +1,8 @@
-# NesVentory v6.1.2 - Enchanements & Fix bugs
+# NesVentory v6.1.3 - Release
 
 ## Overview
 
-Version 6.1.2 release.
+Version 6.1.3 release.
 
 ---
 
