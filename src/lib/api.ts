@@ -1193,6 +1193,25 @@ export interface AvailableUPCDatabasesResponse {
   databases: AvailableUPCDatabase[];
 }
 
+export interface AIProviderConfig {
+  id: string;
+  enabled: boolean;
+  priority: number;
+  api_key?: string | null;
+}
+
+export interface AvailableAIProvider {
+  id: string;
+  name: string;
+  description: string;
+  requires_api_key: boolean;
+  api_key_url?: string | null;
+}
+
+export interface AvailableAIProvidersResponse {
+  providers: AvailableAIProvider[];
+}
+
 export async function lookupBarcodeMulti(upc: string, databaseId?: string | null): Promise<MultiBarcodeLookupResult> {
   const res = await fetch(`${API_BASE_URL}/api/ai/barcode-lookup-multi`, {
     method: "POST",
@@ -1235,6 +1254,39 @@ export async function updateUPCDatabaseSettings(upcDatabases: UPCDatabaseConfig[
       ...authHeaders(),
     },
     body: JSON.stringify({ upc_databases: upcDatabases }),
+  });
+  return handleResponse<User>(res);
+}
+
+export async function getAvailableAIProviders(): Promise<AvailableAIProvidersResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/ai/ai-providers`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<AvailableAIProvidersResponse>(res);
+}
+
+export async function getAIProviderSettings(): Promise<{ ai_providers: AIProviderConfig[] }> {
+  const res = await fetch(`${API_BASE_URL}/api/users/me/ai-providers`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<{ ai_providers: AIProviderConfig[] }>(res);
+}
+
+export async function updateAIProviderSettings(aiProviders: AIProviderConfig[]): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/users/me/ai-providers`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ ai_providers: aiProviders }),
   });
   return handleResponse<User>(res);
 }

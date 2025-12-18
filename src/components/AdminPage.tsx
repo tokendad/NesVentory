@@ -27,6 +27,9 @@ import {
   getAvailableUPCDatabases,
   getUPCDatabaseSettings,
   updateUPCDatabaseSettings,
+  getAvailableAIProviders,
+  getAIProviderSettings,
+  updateAIProviderSettings,
   updateApiKeys,
   fetchPlugins,
   createPlugin,
@@ -48,6 +51,8 @@ import {
   type AIEnrichmentRunResponse,
   type AvailableUPCDatabase,
   type UPCDatabaseConfig,
+  type AvailableAIProvider,
+  type AIProviderConfig,
   type Plugin,
   type PluginCreate,
   type PluginUpdate,
@@ -85,7 +90,7 @@ interface GoogleWindow extends Window {
   };
 }
 
-type MainTabType = 'users' | 'logs' | 'server' | 'plugins';
+type MainTabType = 'users' | 'logs' | 'server' | 'ai-settings' | 'plugins';
 type UserSubTabType = 'all' | 'pending' | 'create';
 
 const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded = false }) => {
@@ -188,6 +193,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
   const [upcSaveSuccess, setUpcSaveSuccess] = useState(false);
   const [editingUpcDb, setEditingUpcDb] = useState<string | null>(null);
   const [editingApiKey, setEditingApiKey] = useState("");
+  
+  // AI Provider states
+  const [availableAiProviders, setAvailableAiProviders] = useState<AvailableAIProvider[]>([]);
+  const [aiProviders, setAiProviders] = useState<AIProviderConfig[]>([]);
+  const [aiProvidersLoading, setAiProvidersLoading] = useState(false);
+  const [aiProvidersSaving, setAiProvidersSaving] = useState(false);
+  const [aiProvidersSaveSuccess, setAiProvidersSaveSuccess] = useState(false);
+  const [editingAiProvider, setEditingAiProvider] = useState<string | null>(null);
+  const [editingProviderApiKey, setEditingProviderApiKey] = useState("");
+  const [aiProvidersError, setAiProvidersError] = useState<string | null>(null);
+  const [aiProvidersSuccess, setAiProvidersSuccess] = useState<string | null>(null);
 
   // Plugin states
   const [plugins, setPlugins] = useState<Plugin[]>([]);

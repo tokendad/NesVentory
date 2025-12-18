@@ -69,13 +69,6 @@ def validate_upc(upc: str) -> tuple[bool, str]:
 # Available UPC database definitions
 AVAILABLE_UPC_DATABASES = [
     {
-        "id": "gemini",
-        "name": "Gemini AI",
-        "description": "Google's Gemini AI for intelligent product identification",
-        "requires_api_key": False,  # Uses global GEMINI_API_KEY from environment
-        "api_key_url": None
-    },
-    {
         "id": "upcdatabase",
         "name": "UPC Database",
         "description": "upcdatabase.org - Free UPC lookup database",
@@ -99,9 +92,8 @@ def get_available_databases() -> List[dict]:
 
 def get_default_upc_config() -> List[dict]:
     """Get the default UPC database configuration for new users."""
-    # Default: Gemini first (if configured), then UPC Database, then Barcode Lookup
+    # Default: UPC Database first, then Barcode Lookup
     return [
-        {"id": "gemini", "enabled": True, "api_key": None},
         {"id": "upcdatabase", "enabled": True, "api_key": None},
         {"id": "barcodelookup", "enabled": True, "api_key": None}
     ]
