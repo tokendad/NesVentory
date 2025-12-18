@@ -21,7 +21,7 @@ def generate_api_key() -> str:
 
 
 def get_user_with_locations(user: models.User) -> dict:
-    """Serialize user object with all related configuration including locations, API keys, and settings."""
+    """Serialize user object with locations, API keys, AI providers, and all related configuration."""
     return {
         "id": user.id,
         "email": user.email,
