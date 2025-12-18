@@ -1,8 +1,12 @@
-# NesVentory v6.1.0 - Added CSV import option
+# NesVentory v6.1.1 - Updated features
 
 ## Overview
 
-Version 6.1.0 release.
+Version 6.1.1 release.
+
+## New Features
+
+Enhancements to GUI
 
 ---
 
