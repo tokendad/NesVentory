@@ -44,6 +44,8 @@ class User(UserBase):
     ai_schedule_last_run: Optional[datetime] = None
     # UPC Database Configuration
     upc_databases: Optional[List[dict]] = None
+    # AI Provider Configuration
+    ai_providers: Optional[List[dict]] = None
 
     class Config:
         from_attributes = True
@@ -65,6 +67,8 @@ class UserRead(UserBase):
     ai_schedule_last_run: Optional[datetime] = None
     # UPC Database Configuration
     upc_databases: Optional[List[dict]] = None
+    # AI Provider Configuration
+    ai_providers: Optional[List[dict]] = None
 
     class Config:
         from_attributes = True
@@ -98,6 +102,35 @@ class AIEnrichmentRunResponse(BaseModel):
     items_with_data_tags: int
     quota_exceeded: bool = False
     message: str
+
+
+# --- AI Provider Configuration Schemas ---
+
+class AIProviderConfig(BaseModel):
+    """Configuration for a single AI provider."""
+    id: str  # Provider identifier (e.g., 'gemini', 'chatgpt', 'alexa_plus')
+    enabled: bool = True
+    priority: int = 100  # Lower number = higher priority
+    api_key: Optional[str] = None  # API key for the provider
+
+
+class AIProviderConfigUpdate(BaseModel):
+    """Schema for updating AI provider configurations."""
+    ai_providers: List[AIProviderConfig]
+
+
+class AvailableAIProvider(BaseModel):
+    """Information about an available AI provider."""
+    id: str
+    name: str
+    description: str
+    requires_api_key: bool
+    api_key_url: Optional[str] = None  # URL where user can get an API key
+
+
+class AvailableAIProvidersResponse(BaseModel):
+    """Response containing available AI providers."""
+    providers: List[AvailableAIProvider]
 
 
 # --- UPC Database Configuration Schemas ---

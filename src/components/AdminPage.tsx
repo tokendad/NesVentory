@@ -27,6 +27,9 @@ import {
   getAvailableUPCDatabases,
   getUPCDatabaseSettings,
   updateUPCDatabaseSettings,
+  getAvailableAIProviders,
+  getAIProviderSettings,
+  updateAIProviderSettings,
   updateApiKeys,
   fetchPlugins,
   createPlugin,
@@ -48,6 +51,8 @@ import {
   type AIEnrichmentRunResponse,
   type AvailableUPCDatabase,
   type UPCDatabaseConfig,
+  type AvailableAIProvider,
+  type AIProviderConfig,
   type Plugin,
   type PluginCreate,
   type PluginUpdate,
@@ -85,7 +90,7 @@ interface GoogleWindow extends Window {
   };
 }
 
-type MainTabType = 'users' | 'logs' | 'server' | 'plugins';
+type MainTabType = 'users' | 'logs' | 'server' | 'ai-settings' | 'plugins';
 type UserSubTabType = 'all' | 'pending' | 'create';
 
 const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded = false }) => {
@@ -188,6 +193,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
   const [upcSaveSuccess, setUpcSaveSuccess] = useState(false);
   const [editingUpcDb, setEditingUpcDb] = useState<string | null>(null);
   const [editingApiKey, setEditingApiKey] = useState("");
+  
+  // AI Provider states
+  const [availableAiProviders, setAvailableAiProviders] = useState<AvailableAIProvider[]>([]);
+  const [aiProviders, setAiProviders] = useState<AIProviderConfig[]>([]);
+  const [aiProvidersLoading, setAiProvidersLoading] = useState(false);
+  const [aiProvidersSaving, setAiProvidersSaving] = useState(false);
+  const [aiProvidersSaveSuccess, setAiProvidersSaveSuccess] = useState(false);
+  const [editingAiProvider, setEditingAiProvider] = useState<string | null>(null);
+  const [editingProviderApiKey, setEditingProviderApiKey] = useState("");
+  const [aiProvidersError, setAiProvidersError] = useState<string | null>(null);
+  const [aiProvidersSuccess, setAiProvidersSuccess] = useState<string | null>(null);
 
   // Plugin states
   const [plugins, setPlugins] = useState<Plugin[]>([]);
@@ -289,6 +305,35 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     }
   }
   
+  async function loadAiProviders() {
+    setAiProvidersLoading(true);
+    try {
+      const [available, userSettings] = await Promise.all([
+        getAvailableAIProviders(),
+        getAIProviderSettings()
+      ]);
+      setAvailableAiProviders(available.providers);
+      if (userSettings.ai_providers && userSettings.ai_providers.length > 0) {
+        setAiProviders(userSettings.ai_providers);
+      } else {
+        // Default configuration - first provider enabled, others disabled
+        setAiProviders(available.providers.map((provider, index) => ({
+          id: provider.id,
+          enabled: index === 0,  // First provider in list enabled by default
+          priority: index + 1,
+          api_key: null
+        })));
+      }
+    } catch (err: unknown) {
+      // Log error for debugging
+      const errorMessage = err instanceof Error ? err.message : "Failed to load AI providers";
+      console.error("Error loading AI providers:", errorMessage);
+      setAiProvidersError(errorMessage);
+    } finally {
+      setAiProvidersLoading(false);
+    }
+  }
+  
   async function loadGDriveBackups() {
     if (!gdriveStatus?.connected) return;
     setGdriveBackupsLoading(true);
@@ -347,6 +392,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     }
     if (mainTab === 'server') {
       loadConfigStatus();
+    }
+    if (mainTab === 'ai-settings') {
+      loadAiProviders();
+      loadConfigStatus(); // Also load config status for Gemini key display
     }
     if (mainTab === 'plugins') {
       loadPlugins();
@@ -869,6 +918,64 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
   function getUpcDatabaseInfo(dbId: string): AvailableUPCDatabase | undefined {
     return availableUpcDatabases.find(db => db.id === dbId);
   }
+  
+  // AI Provider handlers
+  async function handleSaveAiProviders() {
+    setAiProvidersSaving(true);
+    setAiProvidersError(null);
+    setAiProvidersSaveSuccess(false);
+    try {
+      await updateAIProviderSettings(aiProviders);
+      setAiProvidersSaveSuccess(true);
+      setAiProvidersSuccess("AI provider settings saved successfully!");
+      setTimeout(() => {
+        setAiProvidersSaveSuccess(false);
+        setAiProvidersSuccess(null);
+      }, 3000);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to save AI provider settings";
+      setAiProvidersError(errorMessage);
+    } finally {
+      setAiProvidersSaving(false);
+    }
+  }
+
+  function handleAiProviderToggle(providerId: string, enabled: boolean) {
+    setAiProviders(prev => 
+      prev.map(p => p.id === providerId ? { ...p, enabled } : p)
+    );
+  }
+
+  function handleAiProviderApiKeyEdit(providerId: string) {
+    const provider = aiProviders.find(p => p.id === providerId);
+    setEditingAiProvider(providerId);
+    setEditingProviderApiKey(provider?.api_key || "");
+  }
+
+  function handleAiProviderApiKeySave() {
+    if (editingAiProvider) {
+      setAiProviders(prev => 
+        prev.map(p => p.id === editingAiProvider ? { ...p, api_key: editingProviderApiKey || null } : p)
+      );
+      setEditingAiProvider(null);
+      setEditingProviderApiKey("");
+    }
+  }
+
+  function handleAiProviderApiKeyCancel() {
+    setEditingAiProvider(null);
+    setEditingProviderApiKey("");
+  }
+
+  function handleAiProviderPriorityChange(providerId: string, priority: number) {
+    setAiProviders(prev => 
+      prev.map(p => p.id === providerId ? { ...p, priority } : p)
+    );
+  }
+
+  function getAiProviderInfo(providerId: string): AvailableAIProvider | undefined {
+    return availableAiProviders.find(p => p.id === providerId);
+  }
 
   function formatLastRun(dateStr: string | null | undefined): string {
     if (!dateStr) return "Never";
@@ -945,6 +1052,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     setLogSuccess(null);
     setServerError(null);
     setServerSuccess(null);
+    setAiProvidersError(null);
+    setAiProvidersSuccess(null);
     setMainTab(tab);
   }
 
@@ -2538,6 +2647,198 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     </div>
   );
 
+  const renderAISettingsTab = () => (
+    <div className="tab-content">
+      {aiProvidersLoading && <p>Loading AI providers...</p>}
+      {aiProvidersError && <p className="error-message">{aiProvidersError}</p>}
+      {aiProvidersSuccess && <p style={{ color: "var(--success)", marginBottom: "1rem" }}>{aiProvidersSuccess}</p>}
+      
+      {!aiProvidersLoading && (
+        <>
+          {/* AI Provider Configuration */}
+          <div className="form-group" style={{ paddingBottom: "1rem", marginBottom: "1rem" }}>
+            <label>🤖 AI Provider Settings</label>
+            <small style={{ color: "var(--muted)", fontSize: "0.875rem", display: "block", marginBottom: "0.75rem" }}>
+              Configure AI providers for intelligent features like barcode lookup, image analysis, and item valuation. 
+              Each provider can be enabled/disabled and prioritized (lower number = higher priority).
+            </small>
+            
+            {/* Provider List */}
+            <div style={{ 
+              border: "1px solid var(--border-subtle)", 
+              borderRadius: "4px",
+              marginBottom: "0.75rem"
+            }}>
+              {aiProviders
+                .sort((a, b) => a.priority - b.priority)
+                .map((provider, index) => {
+                const providerInfo = getAiProviderInfo(provider.id);
+                const isEditing = editingAiProvider === provider.id;
+                
+                return (
+                  <div 
+                    key={provider.id}
+                    style={{
+                      padding: "0.75rem",
+                      borderBottom: index < aiProviders.length - 1 ? "1px solid var(--border-subtle)" : "none",
+                      backgroundColor: provider.enabled ? "transparent" : "var(--bg-elevated-softer)"
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+                      {/* Enable/Disable Toggle */}
+                      <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={provider.enabled}
+                          onChange={(e) => handleAiProviderToggle(provider.id, e.target.checked)}
+                          style={{ marginRight: "0.5rem" }}
+                        />
+                      </label>
+                      
+                      {/* Provider Info */}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 500, fontSize: "0.95rem", marginBottom: "0.25rem" }}>
+                          {providerInfo?.name || provider.id}
+                        </div>
+                        <div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
+                          {providerInfo?.description}
+                        </div>
+                      </div>
+                      
+                      {/* Priority Input */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                        <label style={{ fontSize: "0.8rem", color: "var(--muted)" }}>Priority:</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={99}
+                          value={provider.priority}
+                          onChange={(e) => handleAiProviderPriorityChange(provider.id, parseInt(e.target.value) || 1)}
+                          style={{ width: "60px", fontSize: "0.85rem", padding: "0.25rem" }}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* API Key Section */}
+                    {providerInfo?.requires_api_key && (
+                      <div style={{ marginTop: "0.5rem", marginLeft: "1.5rem" }}>
+                        {isEditing ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                            <input
+                              type="password"
+                              value={editingProviderApiKey}
+                              onChange={(e) => setEditingProviderApiKey(e.target.value)}
+                              placeholder={`Enter API key for ${providerInfo.name}`}
+                              style={{ flex: 1, fontSize: "0.85rem" }}
+                            />
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              onClick={handleAiProviderApiKeySave}
+                              style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem" }}
+                            >
+                              Save
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-outline"
+                              onClick={handleAiProviderApiKeyCancel}
+                              style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem" }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                            <span style={{ 
+                              fontSize: "0.75rem", 
+                              color: provider.api_key ? "#2e7d32" : "#e65100",
+                              backgroundColor: provider.api_key ? "#e8f5e9" : "#fff3e0",
+                              padding: "0.25rem 0.5rem",
+                              borderRadius: "4px"
+                            }}>
+                              {provider.api_key ? "✓ API Key Configured" : "⚠ No API Key"}
+                            </span>
+                            <button
+                              type="button"
+                              className="btn-outline"
+                              onClick={() => handleAiProviderApiKeyEdit(provider.id)}
+                              style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem" }}
+                            >
+                              {provider.api_key ? "Edit Key" : "Add Key"}
+                            </button>
+                            {providerInfo.api_key_url && (
+                              <a
+                                href={providerInfo.api_key_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ 
+                                  fontSize: "0.75rem", 
+                                  color: "var(--accent)",
+                                  textDecoration: "none"
+                                }}
+                              >
+                                Get API Key →
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Special handling for Gemini - show info about global config */}
+                    {provider.id === 'gemini' && configStatus?.gemini_configured && (
+                      <div style={{ 
+                        marginTop: "0.5rem",
+                        marginLeft: "1.5rem",
+                        padding: "0.5rem",
+                        backgroundColor: "#e8f5e9",
+                        borderRadius: "4px",
+                        fontSize: "0.8rem",
+                        color: "#2e7d32"
+                      }}>
+                        ℹ️ Gemini is configured globally in Server Settings. 
+                        Model: {configStatus.gemini_model || 'default'}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Save Button */}
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleSaveAiProviders}
+              disabled={aiProvidersSaving}
+              style={{ width: "100%", marginBottom: "1rem" }}
+            >
+              {aiProvidersSaving ? "Saving..." : aiProvidersSaveSuccess ? "✓ Saved!" : "Save AI Provider Settings"}
+            </button>
+            
+            {/* Help Text */}
+            <div style={{ 
+              padding: "0.75rem",
+              backgroundColor: "var(--bg-elevated-softer)",
+              borderRadius: "0.5rem",
+              fontSize: "0.85rem",
+              color: "var(--muted)"
+            }}>
+              <strong>How AI providers work:</strong>
+              <ul style={{ margin: "0.5rem 0 0 1.5rem", padding: 0 }}>
+                <li>Enabled providers are used in priority order (lower number = higher priority)</li>
+                <li>For barcode lookups, the system tries each enabled provider until one succeeds</li>
+                <li>API keys are stored securely and used to authenticate requests</li>
+                <li>Disable providers you don't need to reduce unnecessary API calls</li>
+              </ul>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   const renderPluginsTab = () => (
     <div className="admin-section">
       <h3>Plugin Management</h3>
@@ -3060,6 +3361,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
         </button>
         <button
           type="button"
+          className={`tab-button ${mainTab === 'ai-settings' ? 'active' : ''}`}
+          onClick={() => handleMainTabChange('ai-settings')}
+        >
+          🤖 AI Settings
+        </button>
+        <button
+          type="button"
           className={`tab-button ${mainTab === 'plugins' ? 'active' : ''}`}
           onClick={() => handleMainTabChange('plugins')}
         >
@@ -3072,6 +3380,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
         {mainTab === 'users' && renderUserAdminTab()}
         {mainTab === 'logs' && renderLogSettingsTab()}
         {mainTab === 'server' && renderServerSettingsTab()}
+        {mainTab === 'ai-settings' && renderAISettingsTab()}
         {mainTab === 'plugins' && renderPluginsTab()}
       </div>
     </>

@@ -105,6 +105,11 @@ class User(Base):
     # Format: [{"id": "gemini", "enabled": true, "api_key": null}, {"id": "upcdatabase", "enabled": true, "api_key": "..."}, ...]
     # The order of items in the array determines the lookup priority (first = highest priority)
     upc_databases = Column(JSON, nullable=True)
+    
+    # AI Provider Configuration - stored as JSON array with priority
+    # Format: [{"id": "gemini", "enabled": true, "priority": 1, "api_key": "..."}, {"id": "chatgpt", "enabled": false, "priority": 2, "api_key": null}, ...]
+    # Lower priority number = higher priority
+    ai_providers = Column(JSON, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

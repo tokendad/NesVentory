@@ -1137,6 +1137,24 @@ async def get_upc_databases(
     )
 
 
+@router.get("/ai-providers", response_model=schemas.AvailableAIProvidersResponse)
+async def get_ai_providers(
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """
+    Get list of available AI providers.
+    
+    Returns information about all supported AI providers that can be configured
+    in user settings.
+    """
+    from ..ai_provider_service import get_available_providers
+    
+    providers = get_available_providers()
+    return schemas.AvailableAIProvidersResponse(
+        providers=[schemas.AvailableAIProvider(**provider) for provider in providers]
+    )
+
+
 def parse_barcode_scan_response(response_text: str) -> BarcodeScanResult:
     """
     Parse the Gemini response text for barcode scan (reading barcode from image).

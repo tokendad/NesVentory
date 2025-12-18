@@ -21,7 +21,7 @@ def generate_api_key() -> str:
 
 
 def get_user_with_locations(user: models.User) -> dict:
-    """Helper to serialize user with allowed_location_ids, api_key, is_approved, AI settings, and UPC databases."""
+    """Serialize user object with locations, API keys, AI providers, and all related configuration."""
     return {
         "id": user.id,
         "email": user.email,
@@ -35,7 +35,8 @@ def get_user_with_locations(user: models.User) -> dict:
         "ai_schedule_enabled": user.ai_schedule_enabled,
         "ai_schedule_interval_days": user.ai_schedule_interval_days,
         "ai_schedule_last_run": user.ai_schedule_last_run,
-        "upc_databases": user.upc_databases
+        "upc_databases": user.upc_databases,
+        "ai_providers": user.ai_providers
     }
 
 
@@ -368,6 +369,62 @@ def update_upc_database_settings(
     current_user.upc_databases = [
         {"id": db.id, "enabled": db.enabled, "api_key": db.api_key}
         for db in config.upc_databases
+    ]
+    
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    return get_user_with_locations(current_user)
+
+
+@router.get("/users/me/ai-providers", response_model=schemas.AIProviderConfigUpdate)
+def get_ai_provider_settings(
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """
+    Get the AI provider configuration for the current user.
+    Returns the list of AI providers in priority order with their enabled status and API keys.
+    """
+    from ..ai_provider_service import get_default_ai_provider_config
+    
+    ai_providers = current_user.ai_providers
+    if ai_providers is None:
+        ai_providers = get_default_ai_provider_config()
+    
+    return schemas.AIProviderConfigUpdate(
+        ai_providers=[schemas.AIProviderConfig(**provider) for provider in ai_providers]
+    )
+
+
+@router.put("/users/me/ai-providers", response_model=schemas.UserRead)
+def update_ai_provider_settings(
+    config: schemas.AIProviderConfigUpdate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Update the AI provider configuration for the current user.
+    
+    The priority value determines the order in which providers are tried
+    (lower number = higher priority).
+    
+    Each provider can be enabled/disabled and have an API key configured.
+    """
+    from ..ai_provider_service import get_available_providers
+    
+    # Validate that all provider IDs are valid
+    available_ids = {provider["id"] for provider in get_available_providers()}
+    for provider_config in config.ai_providers:
+        if provider_config.id not in available_ids:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown provider ID: {provider_config.id}. Valid IDs: {', '.join(available_ids)}"
+            )
+    
+    # Convert to dict format for storage
+    current_user.ai_providers = [
+        {"id": p.id, "enabled": p.enabled, "priority": p.priority, "api_key": p.api_key}
+        for p in config.ai_providers
     ]
     
     db.add(current_user)
