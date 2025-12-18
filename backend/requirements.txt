@@ -1,4 +1,4 @@
-fastapi==0.124.4
+fastapi==0.125.0
 publicsuffix2==2.20191221
 werkzeug==3.1.4
 uvicorn[standard]==0.38.0
@@ -10,7 +10,7 @@ bcrypt==5.0.0
 pydantic==2.12.5
 pydantic-settings==2.12.0
 email-validator==2.3.0
-python-multipart==0.0.20
+python-multipart==0.0.21
 python-dotenv==1.2.1
 httpx==0.28.1
 openpyxl==3.1.5
@@ -22,7 +22,7 @@ openpyxl==3.1.5
 googleapis-common-protos
 grpcio
 grpcio-status
-google-generativeai==0.8.5
+google-generativeai==0.8.6
 google-api-python-client==2.187.0
 google-auth-oauthlib==1.2.3
 boto3>=1.35.0
