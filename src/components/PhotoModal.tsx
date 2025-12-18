@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import type { Photo, Item } from "../lib/api";
-import { getApiBaseUrl, updatePhoto, PhotoUpdate } from "../lib/api";
+import { getApiBaseUrl, updatePhoto, PhotoUpdate, deletePhoto } from "../lib/api";
 import { PHOTO_TYPES } from "../lib/constants";
 
 interface PhotoModalProps {
@@ -21,6 +21,7 @@ const PhotoModal: React.FC<PhotoModalProps> = ({
   const [photoType, setPhotoType] = useState(photo.photo_type || "");
   const [selectedItemId, setSelectedItemId] = useState(photo.item_id);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -61,6 +62,25 @@ const PhotoModal: React.FC<PhotoModalProps> = ({
       setError(err.message || "Failed to update photo");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this photo? This action cannot be undone.")) {
+      return;
+    }
+
+    setDeleting(true);
+    setError(null);
+
+    try {
+      await deletePhoto(photo.item_id, photo.id);
+      onPhotoUpdated();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || "Failed to delete photo");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -175,16 +195,25 @@ const PhotoModal: React.FC<PhotoModalProps> = ({
         </div>
 
         <div className="modal-actions">
-          <button className="btn-outline" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            className="btn-primary"
-            onClick={handleSave}
-            disabled={saving || !hasChanges}
+          <button 
+            className="btn-danger" 
+            onClick={handleDelete}
+            disabled={deleting || saving}
           >
-            {saving ? "Saving..." : "Save Changes"}
+            {deleting ? "Deleting..." : "Delete Photo"}
           </button>
+          <div style={{ marginLeft: "auto", display: "flex", gap: "0.75rem" }}>
+            <button className="btn-outline" onClick={onClose}>
+              Cancel
+            </button>
+            <button
+              className="btn-primary"
+              onClick={handleSave}
+              disabled={saving || deleting || !hasChanges}
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
