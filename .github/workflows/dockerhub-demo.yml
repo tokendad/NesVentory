@@ -1,5 +1,5 @@
 # DockerHub Demo Publish Workflow
-# Builds from main branch and publishes to DockerHub with 'demo' tag
+# Builds from demo branch and publishes to DockerHub with 'demo' tag
 # This is for the demo branch display updates
 
 name: DockerHub Demo Publish
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main
+      - demo
     paths-ignore:
       - '**.md'
       - 'docs/**'
@@ -25,10 +25,10 @@ jobs:
       contents: read
     
     steps:
-      - name: Checkout main branch
+      - name: Checkout demo branch
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: demo
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
