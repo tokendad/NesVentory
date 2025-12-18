@@ -32,7 +32,8 @@ const EnrichmentModal: React.FC<EnrichmentModalProps> = ({
     try {
       const updates: any = {};
 
-      // Only update fields that have new data and are not already set
+      // Only update fields that have new data
+      // Note: We only fill empty fields to avoid overwriting user-provided data
       if (currentData.description && !item.description) {
         updates.description = currentData.description;
       }
@@ -45,9 +46,19 @@ const EnrichmentModal: React.FC<EnrichmentModalProps> = ({
       if (currentData.serial_number && !item.serial_number) {
         updates.serial_number = currentData.serial_number;
       }
+      // For estimated value, only update if no value exists or if no user-supplied value exists
       if (currentData.estimated_value !== undefined && currentData.estimated_value !== null) {
-        updates.estimated_value = currentData.estimated_value;
-        updates.estimated_value_ai_date = currentData.estimated_value_ai_date;
+        // Only update if there's no existing value or if existing value is from AI (can be replaced)
+        if (!item.estimated_value || (item.estimated_value && !item.estimated_value_user_date)) {
+          updates.estimated_value = currentData.estimated_value;
+          updates.estimated_value_ai_date = currentData.estimated_value_ai_date;
+        }
+      }
+
+      if (Object.keys(updates).length === 0) {
+        setError("No new data to apply. All suggested fields already have values.");
+        setAccepting(false);
+        return;
       }
 
       await updateItem(item.id.toString(), updates);
@@ -144,11 +155,21 @@ const EnrichmentModal: React.FC<EnrichmentModalProps> = ({
 
         <div className="details-section">
           <h3>Suggested Enrichments</h3>
+          {/* Show note about which fields will be updated */}
+          <div style={{ fontSize: "0.9rem", color: "#666", marginBottom: "1rem", padding: "0.5rem", backgroundColor: "#f5f5f5", borderRadius: "4px" }}>
+            ℹ️ Only empty fields will be filled. Existing values will not be overwritten.
+          </div>
           <div className="details-grid">
             {currentData.description && (
               <div className="detail-item full-width">
                 <span className="detail-label">Description:</span>
-                <span className="detail-value">{currentData.description}</span>
+                <span className="detail-value" style={{ 
+                  color: item.description ? "#999" : "inherit",
+                  fontStyle: item.description ? "italic" : "normal"
+                }}>
+                  {currentData.description}
+                  {item.description && " (will not be applied - field already has value)"}
+                </span>
                 {item.description && (
                   <div style={{ fontSize: "0.85rem", color: "#666", marginTop: "0.25rem" }}>
                     Current: {item.description}
@@ -159,7 +180,13 @@ const EnrichmentModal: React.FC<EnrichmentModalProps> = ({
             {currentData.brand && (
               <div className="detail-item">
                 <span className="detail-label">Brand:</span>
-                <span className="detail-value">{currentData.brand}</span>
+                <span className="detail-value" style={{ 
+                  color: item.brand ? "#999" : "inherit",
+                  fontStyle: item.brand ? "italic" : "normal"
+                }}>
+                  {currentData.brand}
+                  {item.brand && " (will not be applied)"}
+                </span>
                 {item.brand && (
                   <div style={{ fontSize: "0.85rem", color: "#666", marginTop: "0.25rem" }}>
                     Current: {item.brand}
@@ -170,7 +197,13 @@ const EnrichmentModal: React.FC<EnrichmentModalProps> = ({
             {currentData.model_number && (
               <div className="detail-item">
                 <span className="detail-label">Model Number:</span>
-                <span className="detail-value">{currentData.model_number}</span>
+                <span className="detail-value" style={{ 
+                  color: item.model_number ? "#999" : "inherit",
+                  fontStyle: item.model_number ? "italic" : "normal"
+                }}>
+                  {currentData.model_number}
+                  {item.model_number && " (will not be applied)"}
+                </span>
                 {item.model_number && (
                   <div style={{ fontSize: "0.85rem", color: "#666", marginTop: "0.25rem" }}>
                     Current: {item.model_number}
@@ -181,7 +214,13 @@ const EnrichmentModal: React.FC<EnrichmentModalProps> = ({
             {currentData.serial_number && (
               <div className="detail-item">
                 <span className="detail-label">Serial Number:</span>
-                <span className="detail-value">{currentData.serial_number}</span>
+                <span className="detail-value" style={{ 
+                  color: item.serial_number ? "#999" : "inherit",
+                  fontStyle: item.serial_number ? "italic" : "normal"
+                }}>
+                  {currentData.serial_number}
+                  {item.serial_number && " (will not be applied)"}
+                </span>
                 {item.serial_number && (
                   <div style={{ fontSize: "0.85rem", color: "#666", marginTop: "0.25rem" }}>
                     Current: {item.serial_number}
@@ -192,12 +231,18 @@ const EnrichmentModal: React.FC<EnrichmentModalProps> = ({
             {currentData.estimated_value !== undefined && currentData.estimated_value !== null && (
               <div className="detail-item">
                 <span className="detail-label">Estimated Value:</span>
-                <span className="detail-value">
+                <span className="detail-value" style={{ 
+                  color: (item.estimated_value && item.estimated_value_user_date) ? "#999" : "inherit",
+                  fontStyle: (item.estimated_value && item.estimated_value_user_date) ? "italic" : "normal"
+                }}>
                   {formatCurrency(Number(currentData.estimated_value))}
+                  {item.estimated_value && item.estimated_value_user_date && " (will not be applied - user value)"}
                 </span>
                 {item.estimated_value && (
                   <div style={{ fontSize: "0.85rem", color: "#666", marginTop: "0.25rem" }}>
                     Current: {formatCurrency(Number(item.estimated_value))}
+                    {item.estimated_value_user_date && " (user-supplied)"}
+                    {item.estimated_value_ai_date && !item.estimated_value_user_date && " (AI-estimated, can be replaced)"}
                   </div>
                 )}
               </div>

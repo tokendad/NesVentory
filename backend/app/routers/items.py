@@ -329,13 +329,23 @@ Important:
         response = model.generate_content(prompt)
         response_text = response.text
         
-        # Parse JSON response
-        json_match = re.search(r'\{[\s\S]*\}', response_text)
-        if not json_match:
-            logger.warning(f"Could not find JSON in Gemini response for item {item.id}")
-            return None
-        
-        parsed = json.loads(json_match.group())
+        # Parse JSON response with better error handling
+        # Try to find the first complete JSON object
+        try:
+            # First, try to parse the entire response as JSON
+            parsed = json.loads(response_text)
+        except json.JSONDecodeError:
+            # If that fails, extract JSON object using regex
+            json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response_text)
+            if not json_match:
+                logger.warning(f"Could not find JSON in Gemini response for item {item.id}")
+                return None
+            
+            try:
+                parsed = json.loads(json_match.group())
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse extracted JSON for item {item.id}: {e}")
+                return None
         
         # Extract fields
         description = parsed.get("description")
@@ -357,14 +367,21 @@ Important:
             except (ValueError, TypeError):
                 pass
         
-        # Parse confidence
+        # Parse confidence with better validation
         confidence = parsed.get("confidence")
         if confidence is not None:
             try:
                 confidence = float(confidence)
-                # Normalize to 0-1 if given as percentage
-                if confidence > 1:
+                # Validate confidence is in a reasonable range
+                if confidence < 0:
+                    confidence = 0.0
+                elif confidence > 100:
+                    confidence = 1.0  # Assume very high values are errors
+                elif confidence > 1:
+                    # Assume it's a percentage if > 1 but <= 100
                     confidence = confidence / 100
+                # Clamp to [0, 1] range
+                confidence = max(0.0, min(1.0, confidence))
             except (ValueError, TypeError):
                 confidence = 0.5  # Default moderate confidence
         else:
