@@ -2006,207 +2006,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
             </div>
           </div>
 
-          {/* Gemini AI Settings */}
-          <div className="form-group">
-            <label>🤖 Google Gemini AI</label>
-            <small style={{ color: "var(--muted)", fontSize: "0.875rem", display: "block", marginBottom: "0.75rem" }}>
-              Gemini AI powers item detection from photos, barcode lookup, and AI valuation.
-              {configStatus?.gemini_from_env ? " Configured via environment variable (read-only)." : " Configure below or in your .env file."}
-              {aiStatus?.plugins_enabled && (
-                <span style={{ display: 'block', marginTop: '0.25rem', color: 'var(--color-success, #28a745)' }}>
-                  ✓ {aiStatus.plugin_count} custom LLM plugin{aiStatus.plugin_count !== 1 ? 's' : ''} enabled for AI scan operations
-                </span>
-              )}
-            </small>
-            
-            {/* Status Indicator */}
-            <div style={{ 
-              backgroundColor: configStatus?.gemini_configured ? "#e8f5e9" : "#fff3e0", 
-              border: `1px solid ${configStatus?.gemini_configured ? "#81c784" : "#ffb74d"}`, 
-              borderRadius: "4px", 
-              padding: "0.75rem",
-              marginBottom: "1rem"
-            }}>
-              <strong style={{ color: configStatus?.gemini_configured ? "#2e7d32" : "#e65100" }}>
-                {configStatus?.gemini_configured ? "✓ Configured" : "⚠️ Not Configured"}
-                {configStatus?.gemini_from_env && " (via environment)"}
-              </strong>
-              {configStatus?.gemini_configured && configStatus?.gemini_model && (
-                <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.875rem", color: "#2e7d32" }}>
-                  Model: {configStatus.gemini_model}
-                </p>
-              )}
-              {!configStatus?.gemini_configured && !configStatus?.gemini_from_env && (
-                <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.875rem", color: "#e65100" }}>
-                  Configure below or set GEMINI_API_KEY in your environment.
-                </p>
-              )}
-            </div>
-            
-            {/* Editing mode for Gemini */}
-            {editingGeminiKey && !configStatus?.gemini_from_env ? (
-              <div style={{ marginBottom: "1rem", padding: "1rem", backgroundColor: "var(--bg-elevated-softer)", borderRadius: "0.5rem" }}>
-                <div style={{ marginBottom: "0.75rem" }}>
-                  <label style={{ fontSize: "0.85rem", marginBottom: "0.25rem", display: "block" }}>
-                    Gemini API Key
-                  </label>
-                  <input
-                    type="password"
-                    value={geminiApiKeyInput}
-                    onChange={(e) => setGeminiApiKeyInput(e.target.value)}
-                    placeholder="Enter Gemini API Key (leave blank to keep current)"
-                    style={{ width: "100%", fontFamily: "monospace" }}
-                  />
-                </div>
-                <div style={{ marginBottom: "0.75rem" }}>
-                  <label style={{ fontSize: "0.85rem", marginBottom: "0.25rem", display: "block" }}>
-                    Gemini Model
-                  </label>
-                  <select
-                    value={geminiModelInput || configStatus?.gemini_model || (configStatus?.available_gemini_models?.[0]?.id || "")}
-                    onChange={(e) => setGeminiModelInput(e.target.value)}
-                    style={{ width: "100%", padding: "0.5rem" }}
-                    disabled={configStatus?.gemini_model_from_env}
-                  >
-                    {/* Add current model if it's not in the available list (e.g., deprecated model from env) */}
-                    {configStatus?.gemini_model && 
-                     !configStatus?.available_gemini_models?.find(m => m.id === configStatus.gemini_model) && (
-                      <option value={configStatus.gemini_model}>
-                        {configStatus.gemini_model} (current)
-                      </option>
-                    )}
-                    {configStatus?.available_gemini_models?.map((model) => (
-                      <option key={model.id} value={model.id}>
-                        {model.name}
-                      </option>
-                    ))}
-                  </select>
-                  <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block", marginTop: "0.25rem" }}>
-                    {configStatus?.available_gemini_models?.find(m => m.id === (geminiModelInput || configStatus?.gemini_model))?.description || 
-                     (configStatus?.gemini_model && !configStatus?.available_gemini_models?.find(m => m.id === configStatus.gemini_model) ? 
-                      "⚠️ Current model may be deprecated or custom" : "")}
-                  </small>
-                  {configStatus?.gemini_model_from_env && (
-                    <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block", marginTop: "0.25rem" }}>
-                      ⚠️ Model is set via GEMINI_MODEL environment variable (read-only)
-                    </small>
-                  )}
-                </div>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={handleSaveGeminiApiKey}
-                    disabled={apiKeysSaving}
-                  >
-                    {apiKeysSaving ? "Saving..." : "Save"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-outline"
-                    onClick={handleCancelGeminiEdit}
-                    disabled={apiKeysSaving}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Gemini API Key Display */}
-                <div style={{ marginBottom: "0.75rem" }}>
-                  <label style={{ fontSize: "0.85rem", marginBottom: "0.25rem", display: "block" }}>
-                    Gemini API Key
-                  </label>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                    <input
-                      type="password"
-                      value={showGeminiKey ? (configStatus?.gemini_api_key_masked || "Not configured") : (configStatus?.gemini_api_key_masked ? "••••••••••••" : "Not configured")}
-                      readOnly
-                      style={{ 
-                        flex: 1, 
-                        backgroundColor: "var(--bg-elevated-softer)", 
-                        color: "var(--text-primary)", 
-                        fontFamily: "monospace",
-                        cursor: "not-allowed"
-                      }}
-                    />
-                    {configStatus?.gemini_api_key_masked && (
-                      <button
-                        type="button"
-                        className="btn-outline"
-                        onClick={() => setShowGeminiKey(!showGeminiKey)}
-                        style={{ padding: "0.5rem", minWidth: "60px" }}
-                        aria-label={showGeminiKey ? "Hide API Key" : "Show API Key"}
-                        title={showGeminiKey ? "Hide" : "Show"}
-                      >
-                        {showGeminiKey ? "👁️" : "👁️‍🗨️"}
-                      </button>
-                    )}
-                  </div>
-                  <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block", marginTop: "0.25rem" }}>
-                    API key is partially masked for security
-                  </small>
-                </div>
-                
-                {/* Gemini Model Display */}
-                {configStatus?.gemini_configured && configStatus?.gemini_model && (
-                  <div style={{ marginBottom: "0.75rem" }}>
-                    <label style={{ fontSize: "0.85rem", marginBottom: "0.25rem", display: "block" }}>
-                      Gemini Model
-                    </label>
-                    <input
-                      type="text"
-                      value={configStatus?.available_gemini_models?.find(m => m.id === configStatus.gemini_model)?.name || configStatus.gemini_model}
-                      readOnly
-                      style={{ 
-                        width: "100%", 
-                        backgroundColor: "var(--bg-elevated-softer)", 
-                        color: "var(--text-primary)", 
-                        cursor: "not-allowed"
-                      }}
-                    />
-                    <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block", marginTop: "0.25rem" }}>
-                      {configStatus?.available_gemini_models?.find(m => m.id === configStatus.gemini_model)?.description}
-                      {configStatus?.gemini_model_from_env && " • Set via GEMINI_MODEL environment variable"}
-                    </small>
-                  </div>
-                )}
-                
-                {/* Edit button - only show if not from env */}
-                {!configStatus?.gemini_from_env && (
-                  <button
-                    type="button"
-                    className="btn-outline"
-                    onClick={() => {
-                      setEditingGeminiKey(true);
-                      setGeminiModelInput(configStatus?.gemini_model || "");
-                    }}
-                    style={{ marginBottom: "0.75rem" }}
-                  >
-                    ✏️ {configStatus?.gemini_configured ? "Edit" : "Configure"} Gemini Settings
-                  </button>
-                )}
-              </>
-            )}
-            
-            <div style={{ 
-              padding: "0.75rem",
-              backgroundColor: "var(--bg-elevated-softer)",
-              borderRadius: "0.5rem",
-              fontSize: "0.8rem",
-              color: "var(--muted)"
-            }}>
-              <strong>How to configure:</strong>
-              <ol style={{ margin: "0.5rem 0 0 1rem", padding: 0 }}>
-                <li>Go to <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>Google AI Studio</a></li>
-                <li>Create an API key</li>
-                <li>Configure the API key and model above, or set GEMINI_API_KEY and GEMINI_MODEL in your .env file</li>
-                <li>Select your preferred model from the dropdown (default: gemini-2.0-flash-exp)</li>
-              </ol>
-            </div>
-          </div>
-          
           {/* Google Drive Backup Section */}
           {configStatus?.google_oauth_configured && (
             <div className="form-group" style={{ paddingBottom: "1rem", marginBottom: "1rem", borderBottom: "1px solid var(--border-subtle)" }}>
@@ -2786,19 +2585,166 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                       </div>
                     )}
                     
-                    {/* Special handling for Gemini - show info about global config */}
-                    {provider.id === 'gemini' && configStatus?.gemini_configured && (
-                      <div style={{ 
-                        marginTop: "0.5rem",
-                        marginLeft: "1.5rem",
-                        padding: "0.5rem",
-                        backgroundColor: "#e8f5e9",
-                        borderRadius: "4px",
-                        fontSize: "0.8rem",
-                        color: "#2e7d32"
-                      }}>
-                        ℹ️ Gemini is configured globally in Server Settings. 
-                        Model: {configStatus.gemini_model || 'default'}
+                    {/* Special handling for Gemini - show model configuration */}
+                    {provider.id === 'gemini' && (
+                      <div style={{ marginTop: "0.5rem", marginLeft: "1.5rem" }}>
+                        {/* Gemini API Key Input when editing */}
+                        {editingGeminiKey && !configStatus?.gemini_from_env && (
+                          <div style={{ marginBottom: "0.75rem" }}>
+                            <label style={{ fontSize: "0.8rem", color: "var(--muted)", display: "block", marginBottom: "0.25rem" }}>
+                              Gemini API Key:
+                            </label>
+                            <input
+                              type="password"
+                              value={geminiApiKeyInput}
+                              onChange={(e) => setGeminiApiKeyInput(e.target.value)}
+                              placeholder="Enter Gemini API Key (leave blank to keep current)"
+                              style={{ width: "100%", fontFamily: "monospace", fontSize: "0.85rem", padding: "0.5rem" }}
+                            />
+                            <small style={{ color: "var(--muted)", fontSize: "0.7rem", display: "block", marginTop: "0.25rem" }}>
+                              Leave blank to keep existing API key
+                            </small>
+                          </div>
+                        )}
+                        
+                        {/* Display API key status when not editing */}
+                        {!editingGeminiKey && (
+                          <div style={{ marginBottom: "0.5rem" }}>
+                            <label style={{ fontSize: "0.8rem", color: "var(--muted)", display: "block", marginBottom: "0.25rem" }}>
+                              API Key Status:
+                            </label>
+                            <span style={{ 
+                              fontSize: "0.75rem", 
+                              color: configStatus?.gemini_configured ? "#2e7d32" : "#e65100",
+                              backgroundColor: configStatus?.gemini_configured ? "#e8f5e9" : "#fff3e0",
+                              padding: "0.25rem 0.5rem",
+                              borderRadius: "4px",
+                              display: "inline-block"
+                            }}>
+                              {configStatus?.gemini_configured ? "✓ Configured" : "⚠ Not Configured"}
+                              {configStatus?.gemini_from_env && " (via environment)"}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Gemini Model Selection */}
+                        <div style={{ marginBottom: "0.5rem" }}>
+                          <label style={{ fontSize: "0.8rem", color: "var(--muted)", display: "block", marginBottom: "0.25rem" }}>
+                            Gemini Model:
+                          </label>
+                          {editingGeminiKey ? (
+                            <div>
+                              <select
+                                value={geminiModelInput || configStatus?.gemini_model || (configStatus?.available_gemini_models?.[0]?.id || "")}
+                                onChange={(e) => setGeminiModelInput(e.target.value)}
+                                style={{ width: "100%", padding: "0.5rem", fontSize: "0.85rem" }}
+                                disabled={configStatus?.gemini_model_from_env}
+                              >
+                                {/* Add current model if it's not in the available list (e.g., deprecated model from env) */}
+                                {configStatus?.gemini_model && 
+                                 !configStatus?.available_gemini_models?.find(m => m.id === configStatus.gemini_model) && (
+                                  <option value={configStatus.gemini_model}>
+                                    {configStatus.gemini_model} (current)
+                                  </option>
+                                )}
+                                {configStatus?.available_gemini_models?.map((model) => (
+                                  <option key={model.id} value={model.id}>
+                                    {model.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <small style={{ color: "var(--muted)", fontSize: "0.7rem", display: "block", marginTop: "0.25rem" }}>
+                                {configStatus?.available_gemini_models?.find(m => m.id === (geminiModelInput || configStatus?.gemini_model))?.description || 
+                                 (configStatus?.gemini_model && !configStatus?.available_gemini_models?.find(m => m.id === configStatus.gemini_model) ? 
+                                  "⚠️ Current model may be deprecated or custom" : "")}
+                              </small>
+                              {configStatus?.gemini_model_from_env && (
+                                <small style={{ color: "var(--muted)", fontSize: "0.7rem", display: "block", marginTop: "0.25rem" }}>
+                                  ⚠️ Model is set via GEMINI_MODEL environment variable (read-only)
+                                </small>
+                              )}
+                            </div>
+                          ) : (
+                            <div>
+                              <div style={{ 
+                                fontSize: "0.85rem", 
+                                padding: "0.5rem",
+                                backgroundColor: "var(--bg-elevated-softer)",
+                                borderRadius: "4px",
+                                marginBottom: "0.25rem"
+                              }}>
+                                {configStatus?.gemini_configured && configStatus?.gemini_model ? (
+                                  configStatus?.available_gemini_models?.find(m => m.id === configStatus.gemini_model)?.name || configStatus.gemini_model
+                                ) : (
+                                  "Not configured"
+                                )}
+                              </div>
+                              {configStatus?.gemini_configured && configStatus?.gemini_model && (
+                                <small style={{ color: "var(--muted)", fontSize: "0.7rem", display: "block" }}>
+                                  {configStatus?.available_gemini_models?.find(m => m.id === configStatus.gemini_model)?.description}
+                                  {configStatus?.gemini_model_from_env && " • Set via GEMINI_MODEL environment variable"}
+                                </small>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Edit button for Gemini config */}
+                        {!isEditing && !editingGeminiKey && !configStatus?.gemini_from_env && (
+                          <button
+                            type="button"
+                            className="btn-outline"
+                            onClick={() => {
+                              setEditingGeminiKey(true);
+                              setGeminiApiKeyInput("");
+                              setGeminiModelInput(configStatus?.gemini_model || "");
+                            }}
+                            style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", marginTop: "0.5rem" }}
+                          >
+                            ✏️ {configStatus?.gemini_configured ? "Edit" : "Configure"} Gemini Settings
+                          </button>
+                        )}
+                        
+                        {/* Save/Cancel buttons when editing Gemini */}
+                        {editingGeminiKey && !configStatus?.gemini_from_env && (
+                          <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              onClick={handleSaveGeminiApiKey}
+                              disabled={apiKeysSaving}
+                              style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem" }}
+                            >
+                              {apiKeysSaving ? "Saving..." : "Save Gemini Config"}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-outline"
+                              onClick={handleCancelGeminiEdit}
+                              disabled={apiKeysSaving}
+                              style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem" }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                        
+                        {/* Configuration instructions */}
+                        <div style={{ 
+                          marginTop: "0.75rem",
+                          padding: "0.5rem",
+                          backgroundColor: "var(--bg-elevated-softer)",
+                          borderRadius: "0.25rem",
+                          fontSize: "0.7rem",
+                          color: "var(--muted)"
+                        }}>
+                          <strong>Gemini Configuration:</strong>
+                          <ul style={{ margin: "0.25rem 0 0 1rem", padding: 0 }}>
+                            <li>Get your API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>Google AI Studio</a></li>
+                            <li>Select your preferred model from the dropdown</li>
+                            <li>Or set GEMINI_API_KEY and GEMINI_MODEL in your .env file</li>
+                          </ul>
+                        </div>
                       </div>
                     )}
                   </div>
