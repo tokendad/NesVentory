@@ -11,6 +11,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/items", tags=["items"])
 
+# Constants for error handling
+MAX_ERROR_MESSAGE_LENGTH = 100
+
 
 @router.get("/", response_model=List[schemas.Item])
 def list_items(db: Session = Depends(get_db)):
@@ -237,14 +240,25 @@ async def enrich_item(
         except Exception as e:
             # Check for specific Google API exceptions
             error_str = str(e)
+            exception_type = type(e).__name__
+            
+            # Check for expired or invalid API key
             if "API key expired" in error_str or "API_KEY_INVALID" in error_str:
                 last_error_message = "Your Gemini API key has expired. Please renew your API key in the settings."
                 logger.warning(f"Gemini API key expired for item {item_id}")
-            elif "InvalidArgument" in error_str or "400" in error_str:
-                last_error_message = f"Invalid API request: {error_str.split(':')[0] if ':' in error_str else 'Please check your API configuration.'}"
+            # Check for invalid argument errors (400 errors)
+            elif "InvalidArgument" in exception_type or "400" in error_str:
+                # Extract a more readable error message
+                if ":" in error_str:
+                    # Get the first part before the colon, or the full message if split fails
+                    error_parts = error_str.split(":", 1)
+                    readable_error = error_parts[0].strip() if error_parts else error_str
+                else:
+                    readable_error = "Please check your API configuration."
+                last_error_message = f"Invalid API request: {readable_error[:MAX_ERROR_MESSAGE_LENGTH]}"
                 logger.warning(f"Invalid API request for item {item_id}: {e}")
             else:
-                last_error_message = f"AI enrichment failed: {error_str[:100]}"
+                last_error_message = f"AI enrichment failed: {error_str[:MAX_ERROR_MESSAGE_LENGTH]}"
                 logger.warning(f"Failed to enrich item with provider {provider_id}: {e}")
             continue
     
@@ -423,9 +437,15 @@ Important:
     except Exception as e:
         # Re-raise Google API exceptions so they can be caught and handled with user-friendly messages
         error_str = str(e)
-        if "API key expired" in error_str or "API_KEY_INVALID" in error_str or "InvalidArgument" in str(type(e)):
+        exception_type = type(e).__name__
+        
+        # Check if this is a Google API error that should be shown to the user
+        if ("API key expired" in error_str or 
+            "API_KEY_INVALID" in error_str or 
+            "InvalidArgument" in exception_type):
             logger.exception(f"Error enriching item {item.id} with Gemini: {e}")
             raise  # Re-raise to be caught by the outer exception handler
+        
         # For other exceptions, log and return None
         logger.exception(f"Error enriching item {item.id} with Gemini: {e}")
         return None
