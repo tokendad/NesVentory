@@ -497,13 +497,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
       return;
     }
     
-    // Validate password - always required
-    if (createPassword) {
-      const validation = validatePassword(createPassword);
-      if (!validation.isValid) {
-        setPasswordValidationError(validation.error);
-        return;
-      }
+    // Validate password (we know it exists due to check above)
+    const validation = validatePassword(createPassword);
+    if (!validation.isValid) {
+      setPasswordValidationError(validation.error);
+      return;
     }
     
     setCreateLoading(true);

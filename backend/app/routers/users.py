@@ -94,31 +94,21 @@ def admin_create_user(
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
-    # Validate password if provided
-    if user_in.password:
-        is_valid, error_msg = auth.validate_password(user_in.password)
-        if not is_valid:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
+    # Password is always required
+    if not user_in.password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password is required. Use a temporary password when 'Set password on Login' is enabled."
+        )
+    
+    # Validate password
+    is_valid, error_msg = auth.validate_password(user_in.password)
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
     # Handle password based on require_password_change flag
-    if user_in.require_password_change:
-        # When require_password_change is True, password is required as a temporary password
-        if not user_in.password:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Temporary password is required when 'Set password on Login' is enabled. User will be forced to change it on first login."
-            )
-        password_hash = auth.get_password_hash(user_in.password)
-        must_change_password = True
-    else:
-        # Normal case: password required, no forced change
-        if not user_in.password:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password is required"
-            )
-        password_hash = auth.get_password_hash(user_in.password)
-        must_change_password = False
+    password_hash = auth.get_password_hash(user_in.password)
+    must_change_password = user_in.require_password_change
 
     try:
         role = models.UserRole(user_in.role)
