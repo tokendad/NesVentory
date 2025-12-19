@@ -6,6 +6,7 @@ import InsuranceTab from "./InsuranceTab";
 interface LocationDetailsModalProps {
   location: Location;
   items: Item[];
+  allLocations: Location[];
   onClose: () => void;
   onUpdate: () => void;
 }
@@ -26,6 +27,7 @@ const LOCATION_TYPES = [
 const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
   location,
   items,
+  allLocations,
   onClose,
   onUpdate,
 }) => {
@@ -273,7 +275,7 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
         {/* Insurance Tab - Only for primary locations */}
         {activeTab === "insurance" && location.is_primary_location && (
           <div style={{ maxHeight: "70vh", overflowY: "auto", padding: "0.5rem" }}>
-            <InsuranceTab location={location} items={items} onUpdate={onUpdate} />
+            <InsuranceTab location={location} items={items} allLocations={allLocations} onUpdate={onUpdate} />
           </div>
         )}
       </div>

@@ -1,14 +1,15 @@
 import React, { useState, useMemo } from "react";
 import type { Location, Item, InsuranceInfo, PolicyHolder } from "../lib/api";
-import { updateLocation } from "../lib/api";
+import { updateLocation, getApiBaseUrl } from "../lib/api";
 
 interface InsuranceTabProps {
   location: Location;
   items: Item[];
+  allLocations?: Location[];
   onUpdate: () => void;
 }
 
-const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, onUpdate }) => {
+const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocations = [], onUpdate }) => {
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,8 +38,22 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, onUpdate }
 
   // Calculate total values
   const calculatedValues = useMemo(() => {
+    // Get all descendant location IDs
+    const getAllDescendantLocationIds = (locId: string): string[] => {
+      const ids = [locId];
+      const children = allLocations.filter(
+        (loc) => loc.parent_id?.toString() === locId
+      );
+      children.forEach((child) => {
+        ids.push(...getAllDescendantLocationIds(child.id.toString()));
+      });
+      return ids;
+    };
+
+    const relevantLocationIds = getAllDescendantLocationIds(location.id.toString());
+    
     const itemsAtLocation = items.filter(
-      (item) => item.location_id?.toString() === location.id.toString()
+      (item) => relevantLocationIds.includes(item.location_id?.toString() || "")
     );
     
     const totalPurchasePrice = itemsAtLocation.reduce(
@@ -58,7 +73,7 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, onUpdate }
       totalValueWithItems: propertyPurchasePrice + totalPurchasePrice,
       estimatedValueWithItems: propertyValue + totalEstimatedValue,
     };
-  }, [items, location, insuranceInfo.purchase_price]);
+  }, [items, location, insuranceInfo.purchase_price, allLocations]);
 
   const handleSave = async () => {
     setLoading(true);
@@ -116,13 +131,39 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, onUpdate }
   };
 
   const handlePrintBasic = () => {
+    // Get all descendant location IDs for recursive item gathering
+    const getAllDescendantLocationIds = (locId: string): string[] => {
+      const ids = [locId];
+      const children = allLocations.filter(
+        (loc) => loc.parent_id?.toString() === locId
+      );
+      children.forEach((child) => {
+        ids.push(...getAllDescendantLocationIds(child.id.toString()));
+      });
+      return ids;
+    };
+
+    const relevantLocationIds = getAllDescendantLocationIds(location.id.toString());
+    
     // Create a printable HTML document for basic insurance report
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
     const itemsAtLocation = items.filter(
-      (item) => item.location_id?.toString() === location.id.toString()
+      (item) => relevantLocationIds.includes(item.location_id?.toString() || "")
     );
+
+    // Group items by room
+    const itemsByRoom = new Map<string, Item[]>();
+    itemsAtLocation.forEach(item => {
+      const itemLocation = allLocations.find(loc => loc.id.toString() === item.location_id?.toString());
+      const roomName = itemLocation ? (itemLocation.friendly_name || itemLocation.name) : location.name;
+      
+      if (!itemsByRoom.has(roomName)) {
+        itemsByRoom.set(roomName, []);
+      }
+      itemsByRoom.get(roomName)!.push(item);
+    });
 
     const coverSheet = `
       <div class="cover-page">
@@ -147,16 +188,32 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, onUpdate }
       </div>
     `;
 
-    const itemPages = itemsAtLocation.map((item) => `
+    const roomPages = Array.from(itemsByRoom.entries()).map(([roomName, roomItems]) => `
       <div class="item-page">
-        <h2>${location.name}</h2>
+        <h2>${roomName}</h2>
         <table>
-          <tr><th>Item Name</th><td>${item.name}</td></tr>
-          <tr><th>Model #</th><td>${item.model_number || "N/A"}</td></tr>
-          <tr><th>Serial #</th><td>${item.serial_number || "N/A"}</td></tr>
-          <tr><th>Purchase Price</th><td>${item.purchase_price ? "$" + item.purchase_price.toLocaleString() : "N/A"}</td></tr>
-          <tr><th>Purchase Date</th><td>${item.purchase_date || "N/A"}</td></tr>
-          <tr><th>Retailer</th><td>${item.retailer || "N/A"}</td></tr>
+          <thead>
+            <tr>
+              <th>Item Name</th>
+              <th>Model #</th>
+              <th>Serial #</th>
+              <th>Purchase Price</th>
+              <th>Purchase Date</th>
+              <th>Retailer</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${roomItems.map(item => `
+              <tr>
+                <td>${item.name}</td>
+                <td>${item.model_number || "N/A"}</td>
+                <td>${item.serial_number || "N/A"}</td>
+                <td>${item.purchase_price ? "$" + item.purchase_price.toLocaleString() : "N/A"}</td>
+                <td>${item.purchase_date || "N/A"}</td>
+                <td>${item.retailer || "N/A"}</td>
+              </tr>
+            `).join("")}
+          </tbody>
         </table>
       </div>
     `).join("");
@@ -173,9 +230,9 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, onUpdate }
             h1 { font-size: 32px; margin-bottom: 10px; }
             h2 { font-size: 24px; margin-top: 30px; margin-bottom: 15px; }
             h3 { font-size: 18px; margin-top: 25px; margin-bottom: 10px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-            th { font-weight: bold; width: 30%; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 10px; }
+            th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+            th { font-weight: bold; background: #f5f5f5; }
           }
           @media screen {
             body { margin: 20px; padding: 20px; font-family: Arial, sans-serif; background: #f5f5f5; }
@@ -185,13 +242,13 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, onUpdate }
             h3 { font-size: 18px; margin-top: 25px; margin-bottom: 10px; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
             th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-            th { font-weight: bold; width: 30%; }
+            th { font-weight: bold; background: #f5f5f5; }
           }
         </style>
       </head>
       <body>
         ${coverSheet}
-        ${itemPages}
+        ${roomPages}
         <script>window.print();</script>
       </body>
       </html>
@@ -202,13 +259,39 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, onUpdate }
   };
 
   const handlePrintComprehensive = async () => {
+    // Get all descendant location IDs for recursive item gathering
+    const getAllDescendantLocationIds = (locId: string): string[] => {
+      const ids = [locId];
+      const children = allLocations.filter(
+        (loc) => loc.parent_id?.toString() === locId
+      );
+      children.forEach((child) => {
+        ids.push(...getAllDescendantLocationIds(child.id.toString()));
+      });
+      return ids;
+    };
+
+    const relevantLocationIds = getAllDescendantLocationIds(location.id.toString());
+    
     // Create a printable HTML document for comprehensive insurance report with images
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
     const itemsAtLocation = items.filter(
-      (item) => item.location_id?.toString() === location.id.toString()
+      (item) => relevantLocationIds.includes(item.location_id?.toString() || "")
     );
+
+    // Group items by room
+    const itemsByRoom = new Map<string, Item[]>();
+    itemsAtLocation.forEach(item => {
+      const itemLocation = allLocations.find(loc => loc.id.toString() === item.location_id?.toString());
+      const roomName = itemLocation ? (itemLocation.friendly_name || itemLocation.name) : location.name;
+      
+      if (!itemsByRoom.has(roomName)) {
+        itemsByRoom.set(roomName, []);
+      }
+      itemsByRoom.get(roomName)!.push(item);
+    });
 
     const coverSheet = `
       <div class="cover-page">
@@ -233,35 +316,40 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, onUpdate }
       </div>
     `;
 
-    const itemPages = itemsAtLocation.map((item) => {
-      // Get primary photo and data tag photo for comprehensive print
-      const primaryPhoto = item.photos?.find(p => p.is_primary);
-      const dataTagPhoto = item.photos?.find(p => p.is_data_tag);
-      
-      const photosHtml = [];
-      if (primaryPhoto) {
-        photosHtml.push(`<img src="/api/${primaryPhoto.path}" alt="Primary Photo" style="max-width: 300px; max-height: 300px; margin: 10px;" />`);
-      }
-      if (dataTagPhoto && dataTagPhoto.id !== primaryPhoto?.id) {
-        photosHtml.push(`<img src="/api/${dataTagPhoto.path}" alt="Data Tag" style="max-width: 300px; max-height: 300px; margin: 10px;" />`);
-      }
-      
-      return `
-        <div class="item-page">
-          <h2>${location.name}</h2>
-          ${photosHtml.length > 0 ? `<div class="photos">${photosHtml.join("")}</div>` : ""}
-          <table>
-            <tr><th>Item Name</th><td>${item.name}</td></tr>
-            <tr><th>Model #</th><td>${item.model_number || "N/A"}</td></tr>
-            <tr><th>Serial #</th><td>${item.serial_number || "N/A"}</td></tr>
-            <tr><th>Purchase Price</th><td>${item.purchase_price ? "$" + item.purchase_price.toLocaleString() : "N/A"}</td></tr>
-            <tr><th>Estimated Value</th><td>${item.estimated_value ? "$" + item.estimated_value.toLocaleString() : "N/A"}</td></tr>
-            <tr><th>Purchase Date</th><td>${item.purchase_date || "N/A"}</td></tr>
-            <tr><th>Retailer</th><td>${item.retailer || "N/A"}</td></tr>
-          </table>
-        </div>
-      `;
-    }).join("");
+    const apiBaseUrl = getApiBaseUrl();
+    const roomPages = Array.from(itemsByRoom.entries()).map(([roomName, roomItems]) => `
+      <div class="room-page">
+        <h2>${roomName}</h2>
+        ${roomItems.map((item) => {
+          // Get primary photo and data tag photo for comprehensive print
+          const primaryPhoto = item.photos?.find(p => p.is_primary);
+          const dataTagPhoto = item.photos?.find(p => p.is_data_tag);
+          
+          const photosHtml = [];
+          if (primaryPhoto) {
+            photosHtml.push(`<img src="${apiBaseUrl}/api/${primaryPhoto.path}" alt="Primary Photo" style="max-width: 300px; max-height: 300px; margin: 10px;" onerror="this.style.display='none'" />`);
+          }
+          if (dataTagPhoto && dataTagPhoto.id !== primaryPhoto?.id) {
+            photosHtml.push(`<img src="${apiBaseUrl}/api/${dataTagPhoto.path}" alt="Data Tag" style="max-width: 300px; max-height: 300px; margin: 10px;" onerror="this.style.display='none'" />`);
+          }
+          
+          return `
+            <div class="item-section">
+              ${photosHtml.length > 0 ? `<div class="photos">${photosHtml.join("")}</div>` : ""}
+              <table>
+                <tr><th>Item Name</th><td>${item.name}</td></tr>
+                <tr><th>Model #</th><td>${item.model_number || "N/A"}</td></tr>
+                <tr><th>Serial #</th><td>${item.serial_number || "N/A"}</td></tr>
+                <tr><th>Purchase Price</th><td>${item.purchase_price ? "$" + item.purchase_price.toLocaleString() : "N/A"}</td></tr>
+                <tr><th>Estimated Value</th><td>${item.estimated_value ? "$" + item.estimated_value.toLocaleString() : "N/A"}</td></tr>
+                <tr><th>Purchase Date</th><td>${item.purchase_date || "N/A"}</td></tr>
+                <tr><th>Retailer</th><td>${item.retailer || "N/A"}</td></tr>
+              </table>
+            </div>
+          `;
+        }).join("<hr style='margin: 30px 0; border: 1px solid #ddd;' />")}
+      </div>
+    `).join("");
 
     const html = `
       <!DOCTYPE html>
@@ -271,7 +359,8 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, onUpdate }
         <style>
           @media print {
             body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
-            .cover-page, .item-page { page-break-after: always; padding: 40px; }
+            .cover-page, .room-page { page-break-after: always; padding: 40px; }
+            .item-section { page-break-inside: avoid; margin-bottom: 30px; }
             h1 { font-size: 32px; margin-bottom: 10px; }
             h2 { font-size: 24px; margin-top: 30px; margin-bottom: 15px; }
             h3 { font-size: 18px; margin-top: 25px; margin-bottom: 10px; }
@@ -283,7 +372,8 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, onUpdate }
           }
           @media screen {
             body { margin: 20px; padding: 20px; font-family: Arial, sans-serif; background: #f5f5f5; }
-            .cover-page, .item-page { background: white; padding: 40px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .cover-page, .room-page { background: white; padding: 40px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .item-section { margin-bottom: 30px; }
             h1 { font-size: 32px; margin-bottom: 10px; }
             h2 { font-size: 24px; margin-top: 30px; margin-bottom: 15px; }
             h3 { font-size: 18px; margin-top: 25px; margin-bottom: 10px; }
@@ -297,8 +387,15 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, onUpdate }
       </head>
       <body>
         ${coverSheet}
-        ${itemPages}
-        <script>window.print();</script>
+        ${roomPages}
+        <script>
+          // Wait for images to load before printing
+          window.addEventListener('load', function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          });
+        </script>
       </body>
       </html>
     `;
@@ -308,21 +405,35 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, onUpdate }
   };
 
   const handleExportCSV = () => {
+    // Get all descendant location IDs
+    const getAllDescendantLocationIds = (locId: string): string[] => {
+      const ids = [locId];
+      const children = allLocations.filter(
+        (loc) => loc.parent_id?.toString() === locId
+      );
+      children.forEach((child) => {
+        ids.push(...getAllDescendantLocationIds(child.id.toString()));
+      });
+      return ids;
+    };
+
+    const relevantLocationIds = getAllDescendantLocationIds(location.id.toString());
+    
     // Create CSV content
     const headers = ["Room", "Item Name", "Model #", "Serial #", "Purchase Price", "Purchase Date", "Retailer", "Estimated Value"];
     const rows = [headers];
     
-    // Get all items in location and sub-locations
-    const allLocationIds = [location.id.toString()];
-    // TODO: Add recursive sub-location gathering if needed
-    
     const relevantItems = items.filter(item => 
-      allLocationIds.includes(item.location_id?.toString() || "")
+      relevantLocationIds.includes(item.location_id?.toString() || "")
     );
     
     relevantItems.forEach(item => {
+      // Find the location name for this item
+      const itemLocation = allLocations.find(loc => loc.id.toString() === item.location_id?.toString());
+      const roomName = itemLocation ? (itemLocation.friendly_name || itemLocation.name) : location.name;
+      
       rows.push([
-        location.name,
+        roomName,
         item.name,
         item.model_number || "",
         item.serial_number || "",

@@ -697,6 +697,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
         <LocationDetailsModal
           location={viewingLocation}
           items={items}
+          allLocations={locations}
           onClose={() => setViewingLocation(null)}
           onUpdate={() => {
             setViewingLocation(null);
