@@ -204,6 +204,7 @@ async def enrich_item(
         )
     
     enriched_results = []
+    last_error_message = None
     
     # Try each provider in priority order
     for provider_config in enabled_providers:
@@ -219,6 +220,7 @@ async def enrich_item(
                 
                 if not api_key:
                     logger.warning(f"Gemini provider enabled but no API key configured")
+                    last_error_message = "Gemini AI provider is enabled but no API key is configured. Please add a Gemini API key in your settings."
                     continue
                 
                 # Try to enrich the item using Gemini
@@ -233,17 +235,29 @@ async def enrich_item(
             #         enriched_results.append(result)
                         
         except Exception as e:
-            logger.warning(f"Failed to enrich item with provider {provider_id}: {e}")
+            # Check for specific Google API exceptions
+            error_str = str(e)
+            if "API key expired" in error_str or "API_KEY_INVALID" in error_str:
+                last_error_message = "Your Gemini API key has expired. Please renew your API key in the settings."
+                logger.warning(f"Gemini API key expired for item {item_id}")
+            elif "InvalidArgument" in error_str or "400" in error_str:
+                last_error_message = f"Invalid API request: {error_str.split(':')[0] if ':' in error_str else 'Please check your API configuration.'}"
+                logger.warning(f"Invalid API request for item {item_id}: {e}")
+            else:
+                last_error_message = f"AI enrichment failed: {error_str[:100]}"
+                logger.warning(f"Failed to enrich item with provider {provider_id}: {e}")
             continue
     
     # Sort results by confidence (highest first)
     enriched_results.sort(key=lambda x: x.confidence or 0.0, reverse=True)
     
     if not enriched_results:
+        # Use the last error message if we have one, otherwise use generic message
+        message = last_error_message or "No enrichment data available. Please check your AI provider configuration."
         return schemas.ItemEnrichmentResult(
             item_id=item_id,
             enriched_data=[],
-            message="No enrichment data available. Please check your AI provider configuration."
+            message=message
         )
     
     return schemas.ItemEnrichmentResult(
