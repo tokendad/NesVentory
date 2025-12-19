@@ -539,3 +539,10 @@ class PluginConnectionTestResult(BaseModel):
     success: bool
     message: str
     status_code: Optional[int] = None
+
+
+# --- Media Management Schemas ---
+
+class MediaBulkDeleteRequest(BaseModel):
+    media_ids: List[str]
+    media_types: List[str]  # Corresponding types: 'photo', 'video', 'location_photo'
