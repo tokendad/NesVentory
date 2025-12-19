@@ -336,10 +336,11 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
           
           const photosHtml = [];
           if (primaryPhoto) {
-            photosHtml.push(`<img src="${escapeHtml(apiBaseUrl)}/api/${escapeHtml(primaryPhoto.path)}" alt="Primary Photo" style="max-width: 300px; max-height: 300px; margin: 10px;" onerror="this.style.display='none'" />`);
+            // Photo paths are internal API paths and should not be HTML-escaped as they contain slashes
+            photosHtml.push(`<img src="${apiBaseUrl}/api/${primaryPhoto.path}" alt="Primary Photo" style="max-width: 300px; max-height: 300px; margin: 10px;" onerror="this.style.display='none'" />`);
           }
           if (dataTagPhoto && dataTagPhoto.id !== primaryPhoto?.id) {
-            photosHtml.push(`<img src="${escapeHtml(apiBaseUrl)}/api/${escapeHtml(dataTagPhoto.path)}" alt="Data Tag" style="max-width: 300px; max-height: 300px; margin: 10px;" onerror="this.style.display='none'" />`);
+            photosHtml.push(`<img src="${apiBaseUrl}/api/${dataTagPhoto.path}" alt="Data Tag" style="max-width: 300px; max-height: 300px; margin: 10px;" onerror="this.style.display='none'" />`);
           }
           
           return `

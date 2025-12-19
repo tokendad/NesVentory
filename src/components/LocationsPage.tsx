@@ -306,6 +306,15 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
               >
                 <div 
                   onClick={() => handleLocationClick(loc)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleLocationClick(loc);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Navigate to ${loc.friendly_name || loc.name}`}
                   style={{ flex: 1, cursor: "pointer" }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
