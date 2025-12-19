@@ -1,8 +1,8 @@
-# NesVentory v6.1.3 - Release
+# NesVentory v6.2.0 - Added Media Management
 
 ## Overview
 
-Version 6.1.3 release.
+Version 6.2.0 release.
 
 ---
 
