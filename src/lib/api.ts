@@ -162,9 +162,36 @@ export interface OwnerInfo {
   notes?: string;
 }
 
+export interface PolicyHolder {
+  name?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+}
+
 export interface InsuranceInfo {
+  // Insurance Company Details
   company_name?: string;
+  company_address?: string;
+  company_email?: string;
+  company_phone?: string;
+  agent_name?: string;
+  
+  // Policy Details
   policy_number?: string;
+  
+  // Primary Policy Holder
+  primary_holder?: PolicyHolder;
+  
+  // Additional Policy Holders
+  additional_holders?: PolicyHolder[];
+  
+  // Property Details
+  purchase_date?: string;
+  purchase_price?: number;
+  build_date?: string;
+  
+  // Legacy fields (kept for backward compatibility)
   contact_info?: string;
   coverage_amount?: number;
   notes?: string;
