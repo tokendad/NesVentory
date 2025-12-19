@@ -4,9 +4,37 @@
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
-## 🚀 What's New in Version 6.0.0
+## 🚀 What's New in Version 6.2.0
 
-This is a major release consolidating the 5.0 upgrade into the main branch with enhanced plugin support, maintenance tracking, and video support.
+NesVentory continues to evolve with powerful new features for managing your inventory, including enhanced media management, AI capabilities, and improved workflows.
+
+### ✨ Recent Updates (v6.0 - v6.2)
+
+📸 **Media Management Dashboard** (v6.2.0)
+- Centralized dashboard for viewing all inventory photos and videos
+- Browse and manage media across your entire inventory
+- Quick access to items associated with each media file
+
+🤖 **Enhanced AI Capabilities** (v6.1.x)
+- **AI-powered item enrichment** with confidence-based accept/reject flow
+- **Barcode lookup integration** with barcodelookup.com UPC database
+- **Multi-provider AI configuration** in Admin Panel
+- **Gemini model selection** via GUI and environment variables
+- **Plugin support for barcode scanning** for extended functionality
+
+📥 **Advanced Import & Export** (v6.1.0)
+- **CSV import with image URL download** - Import items with automatic image fetching from URLs
+- Enhanced data import workflows
+
+📷 **Photo Management** (v6.1.2)
+- **Photo metadata editing** and item reassignment
+- **Delete photo functionality** in Photo Details modal
+- Better organization and control of your media
+
+📍 **Enhanced Location Features** (v6.0.2 - v6.0.3)
+- **QR label printing in Location Settings** for containers
+- **Media upload support** for locations
+- Print QR labels directly from the settings modal when editing container locations
 
 ### ✨ Key Features in v6.0
 
@@ -57,16 +85,22 @@ This is a major release consolidating the 5.0 upgrade into the main branch with 
 ## Features
 
 - 📦 **Inventory Management** - Track all your household items with detailed information
+- 📸 **Media Management Dashboard** - Centralized view of all photos and videos across your inventory
 - 📷 **AI Photo Detection** - Scan rooms with AI to detect and add items automatically
 - 🤖 **AI Data Tag Parsing** - Extract product info from data tag photos
+- 🧠 **AI Item Enrichment** - Automatically enhance item details with confidence-based review
+- 🔍 **Barcode Lookup** - UPC database integration with barcodelookup.com
 - 🧩 **Custom LLM Plugins** - Integrate specialized AI models for enhanced scanning accuracy
+- ⚙️ **AI Provider Configuration** - Multi-provider AI settings in Admin Panel
 - 📍 **Location Hierarchy** - Organize items by rooms and sub-locations
-- 📱 **QR Code Labels** - Print QR labels for locations and containers
+- 📱 **QR Code Labels** - Print QR labels for locations and containers (including from Location Settings)
 - 📦 **Container Support** - Mark locations as boxes/bins for seasonal storage
 - 🏘️ **Multi-Property Support** - Manage multiple homes and multi-family properties
 - 👥 **Landlord/Tenant Management** - Track landlord and tenant info for rental properties
-- 📥 **CSV Import** - Import items from CSV files with support for image URLs
+- 📥 **CSV Import** - Import items from CSV files with automatic image URL download
 - 📥 **Encircle Import** - Import items and photos from Encircle XLSX exports
+- 🖼️ **Photo Management** - Edit photo metadata, reassign photos to items, and delete photos
+- 📍 **Location Media** - Upload and manage media directly on locations
 - 🔐 **Multi-user Support** - Role-based access control (Admin, Editor, Viewer)
 - 🔑 **Google OAuth SSO** - Sign in with Google for easy authentication
 - 🔒 **Location Access Control** - Restrict user access to specific properties
