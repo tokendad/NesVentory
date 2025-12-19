@@ -6,6 +6,7 @@ const API_BASE_URL =
 export interface LoginResponse {
   access_token: string;
   token_type: string;
+  must_change_password?: boolean;  // Flag indicating user must change password
 }
 
 export interface Warranty {
@@ -255,6 +256,23 @@ async function handleResponse<T>(res: Response): Promise<T> {
 
 export function getApiBaseUrl() {
   return API_BASE_URL;
+}
+
+/**
+ * Validate password meets requirements:
+ * - Minimum 8 characters
+ * - At least 1 number
+ */
+export function validatePassword(password: string): { isValid: boolean; error: string } {
+  if (password.length < 8) {
+    return { isValid: false, error: "Password must be at least 8 characters long" };
+  }
+  
+  if (!/\d/.test(password)) {
+    return { isValid: false, error: "Password must contain at least 1 number" };
+  }
+  
+  return { isValid: true, error: "" };
 }
 
 export async function login(
@@ -760,6 +778,7 @@ export interface User {
   full_name?: string | null;
   role: string;
   is_approved: boolean;
+  must_change_password?: boolean;  // User must change password on next login
   created_at: string;
   updated_at: string;
   allowed_location_ids?: string[] | null;
@@ -780,10 +799,11 @@ export interface UserCreate {
 
 export interface AdminUserCreate {
   email: string;
-  password: string;
+  password: string;  // Always required - temporary password when require_password_change is true
   full_name?: string | null;
   role?: string;
   is_approved?: boolean;
+  require_password_change?: boolean;  // If true, user must change password on first login
 }
 
 export interface AIScheduleSettings {
@@ -839,6 +859,19 @@ export async function getCurrentUser(): Promise<User> {
       "Accept": "application/json",
       ...authHeaders(),
     },
+  });
+  return handleResponse<User>(res);
+}
+
+export async function setPassword(newPassword: string): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/users/me/set-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ new_password: newPassword }),
   });
   return handleResponse<User>(res);
 }

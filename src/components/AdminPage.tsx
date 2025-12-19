@@ -6,6 +6,7 @@ import {
   fetchLocations, 
   updateUserLocationAccess, 
   adminCreateUser, 
+  validatePassword,
   getLogSettings,
   updateLogSettings,
   deleteLogFiles,
@@ -117,8 +118,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
   const [createFullName, setCreateFullName] = useState("");
   const [createRole, setCreateRole] = useState("viewer");
   const [createApproved, setCreateApproved] = useState(true);
+  const [createRequirePasswordChange, setCreateRequirePasswordChange] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [createSuccess, setCreateSuccess] = useState<string | null>(null);
+  const [passwordValidationError, setPasswordValidationError] = useState<string | null>(null);
   
   // Pending user approval role selections (userId -> role)
   const [pendingRoles, setPendingRoles] = useState<Record<string, string>>({});
@@ -477,9 +480,27 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     e.preventDefault();
     setUpdateError(null);
     setCreateSuccess(null);
+    setPasswordValidationError(null);
     
-    if (!createEmail || !createPassword) {
-      setUpdateError("Email and password are required");
+    if (!createEmail) {
+      setUpdateError("Email is required");
+      return;
+    }
+    
+    // Password is always required - either as permanent or temporary
+    if (!createPassword) {
+      if (createRequirePasswordChange) {
+        setUpdateError("Temporary password is required. User will be forced to change it on first login.");
+      } else {
+        setUpdateError("Password is required");
+      }
+      return;
+    }
+    
+    // Validate password (we know it exists due to check above)
+    const validation = validatePassword(createPassword);
+    if (!validation.isValid) {
+      setPasswordValidationError(validation.error);
       return;
     }
     
@@ -491,6 +512,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
         full_name: createFullName || undefined,
         role: createRole,
         is_approved: createApproved,
+        require_password_change: createRequirePasswordChange,
       };
       const createdUser = await adminCreateUser(newUser);
       setUsers([...users, createdUser]);
@@ -499,6 +521,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
       setCreateFullName("");
       setCreateRole("viewer");
       setCreateApproved(true);
+      setCreateRequirePasswordChange(false);
+      setPasswordValidationError(null);
       setCreateSuccess(`User "${createdUser.email}" created successfully!`);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
@@ -1132,16 +1156,47 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
             />
           </div>
           <div className="form-group">
-            <label htmlFor="create-password">Password *</label>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+              <input
+                type="checkbox"
+                checked={createRequirePasswordChange}
+                onChange={(e) => {
+                  setCreateRequirePasswordChange(e.target.checked);
+                  setPasswordValidationError(null);
+                }}
+              />
+              Set password on Login
+            </label>
+            <small style={{ color: "var(--muted)", fontSize: "0.875rem", display: "block", marginBottom: "0.5rem" }}>
+              When enabled, user must change the temporary password on first login
+            </small>
+          </div>
+          <div className="form-group">
+            <label htmlFor="create-password">
+              {createRequirePasswordChange ? "Temporary Password *" : "Password *"}
+            </label>
             <input
               id="create-password"
               type="password"
               value={createPassword}
-              onChange={(e) => setCreatePassword(e.target.value)}
+              onChange={(e) => {
+                setCreatePassword(e.target.value);
+                setPasswordValidationError(null);
+              }}
               required
               autoComplete="new-password"
-              minLength={6}
+              minLength={8}
             />
+            {passwordValidationError && (
+              <small style={{ color: "var(--error, #dc3545)", fontSize: "0.875rem", display: "block", marginTop: "0.25rem" }}>
+                {passwordValidationError}
+              </small>
+            )}
+            <small style={{ color: "var(--muted)", fontSize: "0.875rem", display: "block", marginTop: "0.25rem" }}>
+              {createRequirePasswordChange 
+                ? "Temporary password - user will be forced to change on first login. Must be at least 8 characters with 1 number." 
+                : "Must be at least 8 characters with 1 number"}
+            </small>
           </div>
           <div className="form-group">
             <label htmlFor="create-fullname">Full Name</label>
