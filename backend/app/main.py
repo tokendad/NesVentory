@@ -38,7 +38,7 @@ def run_migrations():
     ALLOWED_COLUMNS = {"google_id", "estimated_value_ai_date", "estimated_value_user_date", "estimated_value_user_name",
                        "ai_schedule_enabled", "ai_schedule_interval_days", "ai_schedule_last_run",
                        "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "ai_providers", "document_type", "color", 
-                       "supports_image_processing", "gemini_model"}
+                       "supports_image_processing", "gemini_model", "must_change_password"}
     ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "VARCHAR(64)", "VARCHAR(7)", "VARCHAR(100)", "BOOLEAN DEFAULT FALSE", "BOOLEAN DEFAULT TRUE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT", "JSON"}
     
     # Define migrations: (table_name, column_name, column_definition)
@@ -68,6 +68,8 @@ def run_migrations():
         ("plugins", "supports_image_processing", "BOOLEAN DEFAULT TRUE"),
         # SystemSettings model: gemini_model column for storing user-selected Gemini model
         ("system_settings", "gemini_model", "VARCHAR(100)"),
+        # User model: must_change_password flag for forcing password change on first login
+        ("users", "must_change_password", "BOOLEAN DEFAULT FALSE"),
     ]
     
     with engine.begin() as conn:

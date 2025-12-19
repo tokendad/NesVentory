@@ -28,6 +28,7 @@ def get_user_with_locations(user: models.User) -> dict:
         "full_name": user.full_name,
         "role": user.role,
         "is_approved": user.is_approved,
+        "must_change_password": user.must_change_password,
         "created_at": user.created_at,
         "updated_at": user.updated_at,
         "allowed_location_ids": [loc.id for loc in user.allowed_locations] if user.allowed_locations else [],
@@ -82,6 +83,9 @@ def admin_create_user(
     """
     Create a new user as admin. Allows setting custom role and approval status.
     Admin-only endpoint.
+    
+    If require_password_change is True, the password is optional and the user will be
+    forced to set their password on first login.
     """
     if current_user.role != models.UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
@@ -89,6 +93,30 @@ def admin_create_user(
     existing = db.query(models.User).filter(models.User.email == user_in.email).first()
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+
+    # Validate password if provided
+    if user_in.password:
+        is_valid, error_msg = auth.validate_password(user_in.password)
+        if not is_valid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
+
+    # If require_password_change is True and no password provided, set must_change_password
+    if user_in.require_password_change and not user_in.password:
+        password_hash = None
+        must_change_password = True
+    elif user_in.require_password_change and user_in.password:
+        # Password provided but require change - set a temporary password and force change
+        password_hash = auth.get_password_hash(user_in.password)
+        must_change_password = True
+    elif user_in.password:
+        # Normal case: password provided, no forced change
+        password_hash = auth.get_password_hash(user_in.password)
+        must_change_password = False
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Password is required when require_password_change is False"
+        )
 
     try:
         role = models.UserRole(user_in.role)
@@ -98,9 +126,10 @@ def admin_create_user(
     user = models.User(
         email=user_in.email,
         full_name=user_in.full_name,
-        password_hash=auth.get_password_hash(user_in.password),
+        password_hash=password_hash,
         role=role,
         is_approved=user_in.is_approved,
+        must_change_password=must_change_password,
     )
     db.add(user)
     db.commit()
@@ -150,7 +179,13 @@ def update_user(
         user.full_name = user_in["full_name"]
 
     if "password" in user_in and user_in["password"]:
+        # Validate password
+        is_valid, error_msg = auth.validate_password(user_in["password"])
+        if not is_valid:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
         user.password_hash = auth.get_password_hash(user_in["password"])
+        # Clear the must_change_password flag when password is successfully changed
+        user.must_change_password = False
 
     if "role" in user_in and user_in["role"] is not None and current_user.role == models.UserRole.ADMIN:
         try:
@@ -285,6 +320,31 @@ def revoke_user_api_key(
     Returns the updated user with the API key removed.
     """
     current_user.api_key = None
+    db.add(current_user)
+    db.commit()
+    db.refresh(current_user)
+    return get_user_with_locations(current_user)
+
+
+@router.post("/users/me/set-password", response_model=schemas.UserRead)
+def set_password_on_login(
+    password_data: schemas.SetPasswordRequest,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Set password for users who were created with require_password_change flag.
+    This endpoint allows users to set their password on first login.
+    """
+    # Validate password
+    is_valid, error_msg = auth.validate_password(password_data.new_password)
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
+    
+    # Set the password and clear the must_change_password flag
+    current_user.password_hash = auth.get_password_hash(password_data.new_password)
+    current_user.must_change_password = False
+    
     db.add(current_user)
     db.commit()
     db.refresh(current_user)

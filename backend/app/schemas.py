@@ -25,15 +25,17 @@ class UserCreate(UserBase):
 
 # Schema for admin to create users with custom role and approval status
 class AdminUserCreate(UserBase):
-    password: str
+    password: Optional[str] = None  # Optional when require_password_change is True
     role: str = "viewer"
     is_approved: bool = True
+    require_password_change: bool = False  # If True, user must set password on first login
 
 
 class User(UserBase):
     id: UUID
     role: str
     is_approved: bool = False
+    must_change_password: bool = False  # User must change password on next login
     created_at: datetime
     updated_at: datetime
     allowed_location_ids: Optional[List[UUID]] = None
@@ -57,6 +59,7 @@ class UserRead(UserBase):
     id: UUID
     role: str
     is_approved: bool = False
+    must_change_password: bool = False  # User must change password on next login
     created_at: datetime
     updated_at: datetime
     allowed_location_ids: Optional[List[UUID]] = None
@@ -77,6 +80,11 @@ class UserRead(UserBase):
 # Schema for updating user location access
 class UserLocationAccess(BaseModel):
     location_ids: List[UUID]
+
+
+# Schema for first-time password change
+class SetPasswordRequest(BaseModel):
+    new_password: str
 
 
 # Schema for AI schedule settings

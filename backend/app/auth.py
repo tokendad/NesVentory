@@ -30,6 +30,24 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     )
 
 
+def validate_password(password: str) -> tuple[bool, str]:
+    """
+    Validate password meets the requirements:
+    - Minimum 8 characters
+    - At least 1 number
+    
+    Returns:
+        tuple[bool, str]: (is_valid, error_message)
+    """
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    
+    if not any(char.isdigit() for char in password):
+        return False, "Password must contain at least 1 number"
+    
+    return True, ""
+
+
 def get_password_hash(password: str) -> str:
     """Hash a password using bcrypt."""
     return bcrypt.hashpw(

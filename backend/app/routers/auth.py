@@ -27,7 +27,7 @@ def perform_password_login(db: Session, username: str, password: str) -> dict:
         password: User's password
         
     Returns:
-        Dict with access_token and token_type
+        Dict with access_token, token_type, and must_change_password flag
         
     Raises:
         HTTPException: If authentication fails or user is not approved
@@ -52,7 +52,11 @@ def perform_password_login(db: Session, username: str, password: str) -> dict:
         data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
     
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "must_change_password": user.must_change_password
+    }
 
 
 class GoogleAuthRequest(BaseModel):

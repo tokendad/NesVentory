@@ -92,6 +92,9 @@ class User(Base):
     # Approval status for new users (admins must approve before they can access the system)
     is_approved = Column(Boolean, default=False, nullable=False)
     
+    # Password management - force user to change password on first login
+    must_change_password = Column(Boolean, default=False, nullable=False)
+    
     # AI Valuation Schedule Settings
     ai_schedule_enabled = Column(Boolean, default=False, nullable=False)
     ai_schedule_interval_days = Column(Integer, default=7, nullable=False)  # Default: 1 week
