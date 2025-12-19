@@ -333,14 +333,23 @@ const MediaManagement: React.FC<MediaManagementProps> = ({ onClose }) => {
                   style={{
                     width: "100%",
                     height: "100%",
-                    objectFit: "cover"
+                    objectFit: "cover",
+                    display: "block"
                   }}
                   onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                    (e.target as HTMLImageElement).parentElement!.innerHTML = `
-                      <div style="color: white; font-size: 2rem;">📷</div>
-                      <div style="color: white; font-size: 0.875rem;">Image not found</div>
-                    `;
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = "none";
+                    const parent = target.parentElement;
+                    if (parent) {
+                      const fallback = document.createElement("div");
+                      fallback.style.cssText = "color: white; font-size: 2rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;";
+                      fallback.innerHTML = "📷";
+                      const caption = document.createElement("div");
+                      caption.style.cssText = "color: white; font-size: 0.875rem;";
+                      caption.textContent = "Image not found";
+                      fallback.appendChild(caption);
+                      parent.appendChild(fallback);
+                    }
                   }}
                 />
               )}

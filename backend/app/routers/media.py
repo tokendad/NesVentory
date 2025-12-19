@@ -190,11 +190,13 @@ def list_media(
 
 @router.delete("/bulk-delete", status_code=status.HTTP_204_NO_CONTENT)
 async def bulk_delete_media(
-    media_ids: List[str],
-    media_types: List[str],  # Corresponding types: 'photo', 'video', 'location_photo'
+    request: schemas.MediaBulkDeleteRequest,
     db: Session = Depends(get_db)
 ):
     """Bulk delete media files."""
+    media_ids = request.media_ids
+    media_types = request.media_types
+    
     if len(media_ids) != len(media_types):
         raise HTTPException(
             status_code=400,
