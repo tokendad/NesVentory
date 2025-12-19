@@ -7,8 +7,9 @@ name: DockerHub Publish
 
 on:
   schedule:
-    # Runs at 2am EST (7am UTC during EST, 6am UTC during EDT)
-    # Using 7am UTC to ensure it runs at 2am EST year-round
+    # Runs at 2am EST (7am UTC). Note: During EDT (daylight saving time),
+    # this will run at 3am EDT. For consistent 2am local time year-round,
+    # the schedule would need to be adjusted twice yearly.
     - cron: '0 7 * * *'
   workflow_dispatch:
 
@@ -54,9 +55,12 @@ jobs:
           echo "Found PRs: ${PRS}"
           
           # Check if any PRs have code changes (exclude docs, markdown, etc.)
-          HAS_CODE_CHANGES=$(echo "${PRS}" | jq '[.[] | .files[] | select((.path | test(".md$")) or (.path | test("^docs/")) or (.path | test("^CHANGELOG")) or (.path | test("^README")) or (.path | test("^CONTRIBUTING")) or (.path | test("^LICENSE")) or (.path | test("^RELEASE_NOTES")) | not)] | length > 0')
+          # First, extract all file paths from all PRs
+          # Then filter out documentation files
+          # If any files remain, we have code changes
+          CODE_FILES=$(echo "${PRS}" | jq -r '[.[] | .files[]? | .path] | unique | .[]' | grep -v -E '(\.md$|^docs/|^CHANGELOG|^README|^CONTRIBUTING|^LICENSE|^RELEASE_NOTES)')
           
-          if [ "${HAS_CODE_CHANGES}" == "true" ]; then
+          if [ -n "${CODE_FILES}" ]; then
             echo "Found merged PRs with code changes in the last 24 hours - will publish"
             echo "should_publish=true" >> "$GITHUB_OUTPUT"
           else
