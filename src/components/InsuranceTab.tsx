@@ -2,6 +2,19 @@ import React, { useState, useMemo } from "react";
 import type { Location, Item, InsuranceInfo, PolicyHolder } from "../lib/api";
 import { updateLocation, getApiBaseUrl } from "../lib/api";
 
+// Helper function to escape HTML to prevent XSS
+const escapeHtml = (text: string | null | undefined): string => {
+  if (!text) return "";
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+};
+
 interface InsuranceTabProps {
   location: Location;
   items: Item[];
@@ -168,19 +181,19 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
     const coverSheet = `
       <div class="cover-page">
         <h1>Insurance Documentation</h1>
-        <h2>${location.friendly_name || location.name}</h2>
-        <p><strong>Property Address:</strong> ${location.address || "N/A"}</p>
-        <p><strong>Report Date:</strong> ${new Date().toLocaleDateString()}</p>
+        <h2>${escapeHtml(location.friendly_name || location.name)}</h2>
+        <p><strong>Property Address:</strong> ${escapeHtml(location.address) || "N/A"}</p>
+        <p><strong>Report Date:</strong> ${escapeHtml(new Date().toLocaleDateString())}</p>
         
         <h3>Policy Information</h3>
-        <p><strong>Insurance Company:</strong> ${insuranceInfo.company_name || "N/A"}</p>
-        <p><strong>Policy Number:</strong> ${insuranceInfo.policy_number || "N/A"}</p>
-        <p><strong>Agent:</strong> ${insuranceInfo.agent_name || "N/A"}</p>
+        <p><strong>Insurance Company:</strong> ${escapeHtml(insuranceInfo.company_name) || "N/A"}</p>
+        <p><strong>Policy Number:</strong> ${escapeHtml(insuranceInfo.policy_number) || "N/A"}</p>
+        <p><strong>Agent:</strong> ${escapeHtml(insuranceInfo.agent_name) || "N/A"}</p>
         
         <h3>Policy Holder</h3>
-        <p><strong>Name:</strong> ${insuranceInfo.primary_holder?.name || "N/A"}</p>
-        <p><strong>Phone:</strong> ${insuranceInfo.primary_holder?.phone || "N/A"}</p>
-        <p><strong>Email:</strong> ${insuranceInfo.primary_holder?.email || "N/A"}</p>
+        <p><strong>Name:</strong> ${escapeHtml(insuranceInfo.primary_holder?.name) || "N/A"}</p>
+        <p><strong>Phone:</strong> ${escapeHtml(insuranceInfo.primary_holder?.phone) || "N/A"}</p>
+        <p><strong>Email:</strong> ${escapeHtml(insuranceInfo.primary_holder?.email) || "N/A"}</p>
         
         <h3>Property Values</h3>
         <p><strong>Total Value:</strong> $${calculatedValues.totalValueWithItems.toLocaleString()}</p>
@@ -190,7 +203,7 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
 
     const roomPages = Array.from(itemsByRoom.entries()).map(([roomName, roomItems]) => `
       <div class="item-page">
-        <h2>${roomName}</h2>
+        <h2>${escapeHtml(roomName)}</h2>
         <table>
           <thead>
             <tr>
@@ -205,12 +218,12 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
           <tbody>
             ${roomItems.map(item => `
               <tr>
-                <td>${item.name}</td>
-                <td>${item.model_number || "N/A"}</td>
-                <td>${item.serial_number || "N/A"}</td>
+                <td>${escapeHtml(item.name)}</td>
+                <td>${escapeHtml(item.model_number) || "N/A"}</td>
+                <td>${escapeHtml(item.serial_number) || "N/A"}</td>
                 <td>${item.purchase_price ? "$" + item.purchase_price.toLocaleString() : "N/A"}</td>
-                <td>${item.purchase_date || "N/A"}</td>
-                <td>${item.retailer || "N/A"}</td>
+                <td>${escapeHtml(item.purchase_date) || "N/A"}</td>
+                <td>${escapeHtml(item.retailer) || "N/A"}</td>
               </tr>
             `).join("")}
           </tbody>
@@ -222,7 +235,7 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Insurance Report - ${location.name}</title>
+        <title>Insurance Report - ${escapeHtml(location.name)}</title>
         <style>
           @media print {
             body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
@@ -296,19 +309,19 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
     const coverSheet = `
       <div class="cover-page">
         <h1>Comprehensive Insurance Documentation</h1>
-        <h2>${location.friendly_name || location.name}</h2>
-        <p><strong>Property Address:</strong> ${location.address || "N/A"}</p>
-        <p><strong>Report Date:</strong> ${new Date().toLocaleDateString()}</p>
+        <h2>${escapeHtml(location.friendly_name || location.name)}</h2>
+        <p><strong>Property Address:</strong> ${escapeHtml(location.address) || "N/A"}</p>
+        <p><strong>Report Date:</strong> ${escapeHtml(new Date().toLocaleDateString())}</p>
         
         <h3>Policy Information</h3>
-        <p><strong>Insurance Company:</strong> ${insuranceInfo.company_name || "N/A"}</p>
-        <p><strong>Policy Number:</strong> ${insuranceInfo.policy_number || "N/A"}</p>
-        <p><strong>Agent:</strong> ${insuranceInfo.agent_name || "N/A"}</p>
+        <p><strong>Insurance Company:</strong> ${escapeHtml(insuranceInfo.company_name) || "N/A"}</p>
+        <p><strong>Policy Number:</strong> ${escapeHtml(insuranceInfo.policy_number) || "N/A"}</p>
+        <p><strong>Agent:</strong> ${escapeHtml(insuranceInfo.agent_name) || "N/A"}</p>
         
         <h3>Policy Holder</h3>
-        <p><strong>Name:</strong> ${insuranceInfo.primary_holder?.name || "N/A"}</p>
-        <p><strong>Phone:</strong> ${insuranceInfo.primary_holder?.phone || "N/A"}</p>
-        <p><strong>Email:</strong> ${insuranceInfo.primary_holder?.email || "N/A"}</p>
+        <p><strong>Name:</strong> ${escapeHtml(insuranceInfo.primary_holder?.name) || "N/A"}</p>
+        <p><strong>Phone:</strong> ${escapeHtml(insuranceInfo.primary_holder?.phone) || "N/A"}</p>
+        <p><strong>Email:</strong> ${escapeHtml(insuranceInfo.primary_holder?.email) || "N/A"}</p>
         
         <h3>Property Values</h3>
         <p><strong>Total Value:</strong> $${calculatedValues.totalValueWithItems.toLocaleString()}</p>
@@ -319,7 +332,7 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
     const apiBaseUrl = getApiBaseUrl();
     const roomPages = Array.from(itemsByRoom.entries()).map(([roomName, roomItems]) => `
       <div class="room-page">
-        <h2>${roomName}</h2>
+        <h2>${escapeHtml(roomName)}</h2>
         ${roomItems.map((item) => {
           // Get primary photo and data tag photo for comprehensive print
           const primaryPhoto = item.photos?.find(p => p.is_primary);
@@ -327,23 +340,23 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
           
           const photosHtml = [];
           if (primaryPhoto) {
-            photosHtml.push(`<img src="${apiBaseUrl}/api/${primaryPhoto.path}" alt="Primary Photo" style="max-width: 300px; max-height: 300px; margin: 10px;" onerror="this.style.display='none'" />`);
+            photosHtml.push(`<img src="${escapeHtml(apiBaseUrl)}/api/${escapeHtml(primaryPhoto.path)}" alt="Primary Photo" style="max-width: 300px; max-height: 300px; margin: 10px;" onerror="this.style.display='none'" />`);
           }
           if (dataTagPhoto && dataTagPhoto.id !== primaryPhoto?.id) {
-            photosHtml.push(`<img src="${apiBaseUrl}/api/${dataTagPhoto.path}" alt="Data Tag" style="max-width: 300px; max-height: 300px; margin: 10px;" onerror="this.style.display='none'" />`);
+            photosHtml.push(`<img src="${escapeHtml(apiBaseUrl)}/api/${escapeHtml(dataTagPhoto.path)}" alt="Data Tag" style="max-width: 300px; max-height: 300px; margin: 10px;" onerror="this.style.display='none'" />`);
           }
           
           return `
             <div class="item-section">
               ${photosHtml.length > 0 ? `<div class="photos">${photosHtml.join("")}</div>` : ""}
               <table>
-                <tr><th>Item Name</th><td>${item.name}</td></tr>
-                <tr><th>Model #</th><td>${item.model_number || "N/A"}</td></tr>
-                <tr><th>Serial #</th><td>${item.serial_number || "N/A"}</td></tr>
+                <tr><th>Item Name</th><td>${escapeHtml(item.name)}</td></tr>
+                <tr><th>Model #</th><td>${escapeHtml(item.model_number) || "N/A"}</td></tr>
+                <tr><th>Serial #</th><td>${escapeHtml(item.serial_number) || "N/A"}</td></tr>
                 <tr><th>Purchase Price</th><td>${item.purchase_price ? "$" + item.purchase_price.toLocaleString() : "N/A"}</td></tr>
                 <tr><th>Estimated Value</th><td>${item.estimated_value ? "$" + item.estimated_value.toLocaleString() : "N/A"}</td></tr>
-                <tr><th>Purchase Date</th><td>${item.purchase_date || "N/A"}</td></tr>
-                <tr><th>Retailer</th><td>${item.retailer || "N/A"}</td></tr>
+                <tr><th>Purchase Date</th><td>${escapeHtml(item.purchase_date) || "N/A"}</td></tr>
+                <tr><th>Retailer</th><td>${escapeHtml(item.retailer) || "N/A"}</td></tr>
               </table>
             </div>
           `;
@@ -355,7 +368,7 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Comprehensive Insurance Report - ${location.name}</title>
+        <title>Comprehensive Insurance Report - ${escapeHtml(location.name)}</title>
         <style>
           @media print {
             body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
