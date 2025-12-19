@@ -15,6 +15,38 @@ const escapeHtml = (text: string | null | undefined): string => {
   return text.replace(/[&<>"']/g, (m) => map[m]);
 };
 
+// Helper function to escape CSV values per RFC 4180
+const escapeCsv = (text: string | null | undefined): string => {
+  if (!text) return "";
+  const str = String(text);
+  // If the value contains quotes, commas, or newlines, wrap in quotes and escape quotes
+  if (str.includes('"') || str.includes(',') || str.includes('\n') || str.includes('\r')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+};
+
+// Helper function to sanitize filename
+const sanitizeFilename = (text: string): string => {
+  // Remove or replace characters that are invalid in filenames
+  return text.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').trim();
+};
+
+// Helper function to get all descendant location IDs recursively
+const getAllDescendantLocationIds = (
+  locationId: string, 
+  allLocations: Location[]
+): string[] => {
+  const ids = [locationId];
+  const children = allLocations.filter(
+    (loc) => loc.parent_id?.toString() === locationId
+  );
+  children.forEach((child) => {
+    ids.push(...getAllDescendantLocationIds(child.id.toString(), allLocations));
+  });
+  return ids;
+};
+
 interface InsuranceTabProps {
   location: Location;
   items: Item[];
@@ -51,19 +83,7 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
 
   // Calculate total values
   const calculatedValues = useMemo(() => {
-    // Get all descendant location IDs
-    const getAllDescendantLocationIds = (locId: string): string[] => {
-      const ids = [locId];
-      const children = allLocations.filter(
-        (loc) => loc.parent_id?.toString() === locId
-      );
-      children.forEach((child) => {
-        ids.push(...getAllDescendantLocationIds(child.id.toString()));
-      });
-      return ids;
-    };
-
-    const relevantLocationIds = getAllDescendantLocationIds(location.id.toString());
+    const relevantLocationIds = getAllDescendantLocationIds(location.id.toString(), allLocations);
     
     const itemsAtLocation = items.filter(
       (item) => relevantLocationIds.includes(item.location_id?.toString() || "")
@@ -144,19 +164,7 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
   };
 
   const handlePrintBasic = () => {
-    // Get all descendant location IDs for recursive item gathering
-    const getAllDescendantLocationIds = (locId: string): string[] => {
-      const ids = [locId];
-      const children = allLocations.filter(
-        (loc) => loc.parent_id?.toString() === locId
-      );
-      children.forEach((child) => {
-        ids.push(...getAllDescendantLocationIds(child.id.toString()));
-      });
-      return ids;
-    };
-
-    const relevantLocationIds = getAllDescendantLocationIds(location.id.toString());
+    const relevantLocationIds = getAllDescendantLocationIds(location.id.toString(), allLocations);
     
     // Create a printable HTML document for basic insurance report
     const printWindow = window.open("", "_blank");
@@ -272,19 +280,7 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
   };
 
   const handlePrintComprehensive = async () => {
-    // Get all descendant location IDs for recursive item gathering
-    const getAllDescendantLocationIds = (locId: string): string[] => {
-      const ids = [locId];
-      const children = allLocations.filter(
-        (loc) => loc.parent_id?.toString() === locId
-      );
-      children.forEach((child) => {
-        ids.push(...getAllDescendantLocationIds(child.id.toString()));
-      });
-      return ids;
-    };
-
-    const relevantLocationIds = getAllDescendantLocationIds(location.id.toString());
+    const relevantLocationIds = getAllDescendantLocationIds(location.id.toString(), allLocations);
     
     // Create a printable HTML document for comprehensive insurance report with images
     const printWindow = window.open("", "_blank");
@@ -418,23 +414,11 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
   };
 
   const handleExportCSV = () => {
-    // Get all descendant location IDs
-    const getAllDescendantLocationIds = (locId: string): string[] => {
-      const ids = [locId];
-      const children = allLocations.filter(
-        (loc) => loc.parent_id?.toString() === locId
-      );
-      children.forEach((child) => {
-        ids.push(...getAllDescendantLocationIds(child.id.toString()));
-      });
-      return ids;
-    };
-
-    const relevantLocationIds = getAllDescendantLocationIds(location.id.toString());
+    const relevantLocationIds = getAllDescendantLocationIds(location.id.toString(), allLocations);
     
-    // Create CSV content
+    // Create CSV content with proper escaping
     const headers = ["Room", "Item Name", "Model #", "Serial #", "Purchase Price", "Purchase Date", "Retailer", "Estimated Value"];
-    const rows = [headers];
+    const rows = [headers.join(",")];
     
     const relevantItems = items.filter(item => 
       relevantLocationIds.includes(item.location_id?.toString() || "")
@@ -445,24 +429,26 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
       const itemLocation = allLocations.find(loc => loc.id.toString() === item.location_id?.toString());
       const roomName = itemLocation ? (itemLocation.friendly_name || itemLocation.name) : location.name;
       
-      rows.push([
-        roomName,
-        item.name,
-        item.model_number || "",
-        item.serial_number || "",
-        item.purchase_price?.toString() || "",
-        item.purchase_date || "",
-        item.retailer || "",
-        item.estimated_value?.toString() || "",
-      ]);
+      const row = [
+        escapeCsv(roomName),
+        escapeCsv(item.name),
+        escapeCsv(item.model_number),
+        escapeCsv(item.serial_number),
+        escapeCsv(item.purchase_price?.toString()),
+        escapeCsv(item.purchase_date),
+        escapeCsv(item.retailer),
+        escapeCsv(item.estimated_value?.toString()),
+      ];
+      rows.push(row.join(","));
     });
     
-    const csvContent = rows.map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
+    const csvContent = rows.join("\n");
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `insurance_${location.name}_${new Date().toISOString().split('T')[0]}.csv`;
+    const safeFilename = sanitizeFilename(location.name);
+    a.download = `insurance_${safeFilename}_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
