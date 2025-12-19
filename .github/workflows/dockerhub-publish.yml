@@ -1,19 +1,74 @@
 # DockerHub Publish Workflow
-# Manually triggered workflow to publish Docker images to DockerHub
+# Runs nightly at 2am EST if there are merged PRs with code changes in the last 24 hours
+# Can also be manually triggered to force a push
 # Publishes only the 'latest' tag from the main branch
 
 name: DockerHub Publish
 
 on:
+  schedule:
+    # Runs at 2am EST (7am UTC during EST, 6am UTC during EDT)
+    # Using 7am UTC to ensure it runs at 2am EST year-round
+    - cron: '0 7 * * *'
   workflow_dispatch:
 
 env:
   IMAGE_NAME: neuman1812/nesventory
 
 jobs:
+  check-prs:
+    name: Check for Recent PRs with Code Changes
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.check.outputs.should_publish }}
+    permissions:
+      contents: read
+      pull-requests: read
+    
+    steps:
+      - name: Check for merged PRs with code changes in last 24 hours
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # If manually triggered, always publish
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "Manual trigger detected - will publish"
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          
+          # Get merged PRs from the last 24 hours
+          SINCE=$(date -u -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ')
+          echo "Checking for merged PRs since: ${SINCE}"
+          
+          # Query for merged PRs in the last 24 hours
+          PRS=$(gh pr list \
+            --repo ${{ github.repository }} \
+            --state merged \
+            --base main \
+            --limit 100 \
+            --json number,mergedAt,files \
+            --jq "[.[] | select(.mergedAt >= \"${SINCE}\")]")
+          
+          echo "Found PRs: ${PRS}"
+          
+          # Check if any PRs have code changes (exclude docs, markdown, etc.)
+          HAS_CODE_CHANGES=$(echo "${PRS}" | jq '[.[] | select(.files | any(.path | test("^(?!.*(\\.md$|^docs/|^CHANGELOG|^README|^CONTRIBUTING|^LICENSE|^RELEASE_NOTES))")))) ] | length > 0')
+          
+          if [ "${HAS_CODE_CHANGES}" == "true" ]; then
+            echo "Found merged PRs with code changes in the last 24 hours - will publish"
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No merged PRs with code changes in the last 24 hours - skipping publish"
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
   publish:
     name: Publish to DockerHub
     runs-on: ubuntu-latest
+    needs: check-prs
+    if: needs.check-prs.outputs.should_publish == 'true'
     permissions:
       contents: read
     
