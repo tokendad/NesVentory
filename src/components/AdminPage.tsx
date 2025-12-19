@@ -487,13 +487,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
       return;
     }
     
-    // If require_password_change is OFF, password is required
-    if (!createRequirePasswordChange && !createPassword) {
-      setUpdateError("Password is required when 'Set password on Login' is not enabled");
+    // Password is always required - either as permanent or temporary
+    if (!createPassword) {
+      if (createRequirePasswordChange) {
+        setUpdateError("Temporary password is required. User will be forced to change it on first login.");
+      } else {
+        setUpdateError("Password is required");
+      }
       return;
     }
     
-    // Validate password if provided
+    // Validate password - always required
     if (createPassword) {
       const validation = validatePassword(createPassword);
       if (!validation.isValid) {
@@ -506,7 +510,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     try {
       const newUser: AdminUserCreate = {
         email: createEmail,
-        password: createPassword || undefined,
+        password: createPassword,
         full_name: createFullName || undefined,
         role: createRole,
         is_approved: createApproved,
@@ -1161,21 +1165,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                 onChange={(e) => {
                   setCreateRequirePasswordChange(e.target.checked);
                   setPasswordValidationError(null);
-                  // Clear password when toggling on
-                  if (e.target.checked) {
-                    setCreatePassword("");
-                  }
                 }}
               />
               Set password on Login
             </label>
             <small style={{ color: "var(--muted)", fontSize: "0.875rem", display: "block", marginBottom: "0.5rem" }}>
-              When enabled, user must set their own password on first login
+              When enabled, user must change the temporary password on first login
             </small>
           </div>
           <div className="form-group">
             <label htmlFor="create-password">
-              Password {!createRequirePasswordChange && "*"}
+              {createRequirePasswordChange ? "Temporary Password *" : "Password *"}
             </label>
             <input
               id="create-password"
@@ -1185,10 +1185,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                 setCreatePassword(e.target.value);
                 setPasswordValidationError(null);
               }}
-              required={!createRequirePasswordChange}
+              required
               autoComplete="new-password"
               minLength={8}
-              disabled={createRequirePasswordChange && !createPassword}
             />
             {passwordValidationError && (
               <small style={{ color: "var(--error, #dc3545)", fontSize: "0.875rem", display: "block", marginTop: "0.25rem" }}>
@@ -1196,7 +1195,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
               </small>
             )}
             <small style={{ color: "var(--muted)", fontSize: "0.875rem", display: "block", marginTop: "0.25rem" }}>
-              {createRequirePasswordChange ? "Optional: Leave blank to force user to set password on first login" : "Must be at least 8 characters with 1 number"}
+              {createRequirePasswordChange 
+                ? "Temporary password - user will be forced to change on first login. Must be at least 8 characters with 1 number." 
+                : "Must be at least 8 characters with 1 number"}
             </small>
           </div>
           <div className="form-group">

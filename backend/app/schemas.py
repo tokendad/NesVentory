@@ -25,10 +25,10 @@ class UserCreate(UserBase):
 
 # Schema for admin to create users with custom role and approval status
 class AdminUserCreate(UserBase):
-    password: Optional[str] = None  # Optional when require_password_change is True
+    password: str  # Always required - temporary password when require_password_change is True
     role: str = "viewer"
     is_approved: bool = True
-    require_password_change: bool = False  # If True, user must set password on first login
+    require_password_change: bool = False  # If True, user must change password on first login
 
 
 class User(UserBase):

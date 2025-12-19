@@ -799,11 +799,11 @@ export interface UserCreate {
 
 export interface AdminUserCreate {
   email: string;
-  password?: string;  // Optional when require_password_change is true
+  password: string;  // Always required - temporary password when require_password_change is true
   full_name?: string | null;
   role?: string;
   is_approved?: boolean;
-  require_password_change?: boolean;  // If true, user must set password on first login
+  require_password_change?: boolean;  // If true, user must change password on first login
 }
 
 export interface AIScheduleSettings {
