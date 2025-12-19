@@ -249,7 +249,7 @@ const MediaManagement: React.FC<MediaManagementProps> = ({ onClose }) => {
           >
             <option value="">All Locations</option>
             {locations.map((location) => (
-              <option key={location.id} value={location.name}>
+              <option key={location.id} value={location.id.toString()}>
                 {getLocationPath(location.id, locations)}
               </option>
             ))}
