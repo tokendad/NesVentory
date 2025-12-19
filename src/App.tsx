@@ -11,6 +11,7 @@
 import React, { useEffect, useState } from "react";
 import LoginForm from "./components/LoginForm";
 import RegisterForm from "./components/RegisterForm";
+import SetPasswordModal from "./components/SetPasswordModal";
 import UserSettings from "./components/UserSettings";
 import SystemSettings from "./components/SystemSettings";
 import Calendar from "./components/Calendar";
@@ -76,6 +77,7 @@ const App: React.FC = () => {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [editingItem, setEditingItem] = useState(false);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
+  const [showSetPassword, setShowSetPassword] = useState(false);
   const [showEncircleImport, setShowEncircleImport] = useState(false);
   const [showCSVImport, setShowCSVImport] = useState(false);
   const [showAIDetection, setShowAIDetection] = useState(false);
@@ -301,7 +303,15 @@ const App: React.FC = () => {
   if (!token) {
     return (
       <div className="app-root">
-        {showRegisterForm ? (
+        {showSetPassword ? (
+          <SetPasswordModal
+            onSuccess={() => {
+              setShowSetPassword(false);
+              // Reload user data after password is set
+              loadCurrentUser();
+            }}
+          />
+        ) : showRegisterForm ? (
           <RegisterForm
             onSuccess={() => {
               setShowRegisterForm(false);
@@ -336,6 +346,9 @@ const App: React.FC = () => {
               onRegisterClick={() => {
                 setShowRegisterForm(true);
                 setRegistrationSuccess(false);
+              }}
+              onMustChangePassword={() => {
+                setShowSetPassword(true);
               }}
             />
           </div>

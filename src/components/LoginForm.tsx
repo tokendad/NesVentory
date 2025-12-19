@@ -4,9 +4,10 @@ import { login, getGoogleOAuthStatus, googleAuth, getRegistrationStatus } from "
 interface LoginFormProps {
   onSuccess: (token: string, email: string) => void;
   onRegisterClick?: () => void;
+  onMustChangePassword?: () => void;  // Callback when user must change password
 }
 
-const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick }) => {
+const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick, onMustChangePassword }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -103,6 +104,13 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick }) => 
       const resp = await login(email, password);
       localStorage.setItem("NesVentory_token", resp.access_token);
       localStorage.setItem("NesVentory_user_email", email);
+      
+      // Check if user must change password
+      if (resp.must_change_password && onMustChangePassword) {
+        onMustChangePassword();
+        return;
+      }
+      
       onSuccess(resp.access_token, email);
     } catch (err: any) {
       setError(err.message || "Login failed");
