@@ -81,6 +81,8 @@ const MediaManagement: React.FC<MediaManagementProps> = ({ onClose }) => {
       setLocations(locationsData);
     } catch (err: any) {
       console.error("Failed to load locations:", err);
+      // Set empty locations array on error so dropdown still shows but is empty
+      setLocations([]);
     }
   }
 
@@ -249,7 +251,7 @@ const MediaManagement: React.FC<MediaManagementProps> = ({ onClose }) => {
           >
             <option value="">All Locations</option>
             {locations.map((location) => (
-              <option key={location.id} value={location.id.toString()}>
+              <option key={location.id} value={String(location.id)}>
                 {getLocationPath(location.id, locations)}
               </option>
             ))}
