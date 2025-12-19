@@ -55,12 +55,10 @@ jobs:
           echo "Found PRs: ${PRS}"
           
           # Check if any PRs have code changes (exclude docs, markdown, etc.)
-          # First, extract all file paths from all PRs
-          # Then filter out documentation files
-          # If any files remain, we have code changes
-          CODE_FILES=$(echo "${PRS}" | jq -r '[.[] | .files[]? | .path] | unique | .[]' | grep -v -E '(\.md$|^docs/|^CHANGELOG|^README|^CONTRIBUTING|^LICENSE|^RELEASE_NOTES)')
+          # Extract file paths that are NOT documentation files
+          CODE_FILE_COUNT=$(echo "${PRS}" | jq '[.[] | .files[]? | select(.path | test("\\.md$|^docs/|^CHANGELOG|^README|^CONTRIBUTING|^LICENSE|^RELEASE_NOTES") | not) | .path] | unique | length')
           
-          if [ -n "${CODE_FILES}" ]; then
+          if [ "${CODE_FILE_COUNT}" -gt 0 ]; then
             echo "Found merged PRs with code changes in the last 24 hours - will publish"
             echo "should_publish=true" >> "$GITHUB_OUTPUT"
           else
