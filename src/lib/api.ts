@@ -1889,3 +1889,111 @@ export async function testPluginConnection(pluginId: string): Promise<PluginConn
   return handleResponse<PluginConnectionTestResult>(res);
 }
 
+// --- Media Management APIs ---
+
+export interface MediaStats {
+  total_photos: number;
+  total_videos: number;
+  total_storage_bytes: number;
+  total_storage_mb: number;
+  directories: string[];
+}
+
+export interface MediaItem {
+  id: string;
+  type: 'photo' | 'video' | 'location_photo';
+  path: string;
+  mime_type?: string | null;
+  uploaded_at: string;
+  item_id?: string | null;
+  item_name?: string | null;
+  location_id?: string | null;
+  location_name?: string | null;
+  is_primary?: boolean;
+  is_data_tag?: boolean;
+  photo_type?: string | null;
+  filename?: string;
+  video_type?: string | null;
+}
+
+export interface MediaListResponse {
+  media: MediaItem[];
+}
+
+export async function getMediaStats(): Promise<MediaStats> {
+  const res = await fetch(`${API_BASE_URL}/api/media/stats`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<MediaStats>(res);
+}
+
+export async function listMedia(
+  locationFilter?: string,
+  mediaType?: 'photo' | 'video',
+  unassignedOnly?: boolean
+): Promise<MediaListResponse> {
+  const params = new URLSearchParams();
+  if (locationFilter) params.append('location_filter', locationFilter);
+  if (mediaType) params.append('media_type', mediaType);
+  if (unassignedOnly) params.append('unassigned_only', 'true');
+  
+  const url = `${API_BASE_URL}/api/media/list${params.toString() ? '?' + params.toString() : ''}`;
+  const res = await fetch(url, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<MediaListResponse>(res);
+}
+
+export async function bulkDeleteMedia(mediaIds: string[], mediaTypes: string[]): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/media/bulk-delete`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ media_ids: mediaIds, media_types: mediaTypes }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    let message = text;
+    try {
+      const data = JSON.parse(text);
+      message = (data.detail as string) || JSON.stringify(data);
+    } catch {
+      // ignore
+    }
+    throw new Error(message || `HTTP ${res.status}`);
+  }
+}
+
+export async function updateMedia(
+  mediaId: string,
+  mediaType: string,
+  updates: {
+    item_id?: string;
+    photo_type?: string;
+    unassign?: boolean;
+  }
+): Promise<MediaItem> {
+  const params = new URLSearchParams();
+  params.append('media_type', mediaType);
+  if (updates.item_id) params.append('item_id', updates.item_id);
+  if (updates.photo_type !== undefined) params.append('photo_type', updates.photo_type);
+  if (updates.unassign) params.append('unassign', 'true');
+  
+  const res = await fetch(`${API_BASE_URL}/api/media/${mediaId}?${params.toString()}`, {
+    method: "PATCH",
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<MediaItem>(res);
+}
+

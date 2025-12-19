@@ -22,6 +22,7 @@ import ItemDetails from "./components/ItemDetails";
 import EncircleImport from "./components/EncircleImport";
 import CSVImport from "./components/CSVImport";
 import AIDetection from "./components/AIDetection";
+import MediaManagement from "./components/MediaManagement";
 import {
   fetchItems,
   fetchLocations,
@@ -45,7 +46,7 @@ import {
 import { PHOTO_TYPES } from "./lib/constants";
 import type { PhotoUpload, DocumentUpload } from "./lib/types";
 
-type View = "inventory" | "user-settings" | "calendar" | "system-settings" | "admin";
+type View = "inventory" | "media" | "user-settings" | "calendar" | "system-settings" | "admin";
 
 const APP_VERSION = "5.0.0";
 
@@ -352,6 +353,12 @@ const App: React.FC = () => {
         📦 Inventory
       </button>
       <button
+        className={view === "media" ? "nav-link active" : "nav-link"}
+        onClick={() => setView("media")}
+      >
+        📸 Media
+      </button>
+      <button
         className={view === "user-settings" ? "nav-link active" : "nav-link"}
         onClick={() => setView("user-settings")}
       >
@@ -416,6 +423,7 @@ const App: React.FC = () => {
             isMobile={isMobile}
           />
         )}
+        {view === "media" && <MediaManagement />}
         {view === "user-settings" && currentUser && (
           <UserSettings
             user={currentUser}
