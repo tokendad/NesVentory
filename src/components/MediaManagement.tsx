@@ -5,10 +5,13 @@ import {
   bulkDeleteMedia,
   updateMedia,
   fetchItems,
+  fetchLocations,
   type MediaStats,
   type MediaItem,
   type Item,
+  type Location,
 } from "../lib/api";
+import { getLocationPath } from "../lib/utils";
 
 interface MediaManagementProps {
   onClose?: () => void;
@@ -24,10 +27,12 @@ const MediaManagement: React.FC<MediaManagementProps> = ({ onClose }) => {
   const [mediaTypeFilter, setMediaTypeFilter] = useState<"" | "photo" | "video">("");
   const [showMediaModal, setShowMediaModal] = useState<MediaItem | null>(null);
   const [items, setItems] = useState<Item[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
 
   useEffect(() => {
     loadData();
     loadItems();
+    loadLocations();
   }, []);
 
   useEffect(() => {
@@ -67,6 +72,17 @@ const MediaManagement: React.FC<MediaManagementProps> = ({ onClose }) => {
       setItems(itemsData);
     } catch (err: any) {
       console.error("Failed to load items:", err);
+    }
+  }
+
+  async function loadLocations() {
+    try {
+      const locationsData = await fetchLocations();
+      setLocations(locationsData);
+    } catch (err: any) {
+      console.error("Failed to load locations:", err);
+      // Set empty locations array on error so dropdown still shows but is empty
+      setLocations([]);
     }
   }
 
@@ -228,13 +244,18 @@ const MediaManagement: React.FC<MediaManagementProps> = ({ onClose }) => {
         </button>
         
         <div style={{ marginLeft: "auto", display: "flex", gap: "0.5rem", alignItems: "center" }}>
-          <input
-            type="text"
-            placeholder="Filter by location..."
+          <select
             value={locationFilter}
             onChange={(e) => setLocationFilter(e.target.value)}
             style={{ padding: "0.5rem", minWidth: "200px" }}
-          />
+          >
+            <option value="">All Locations</option>
+            {locations.map((location) => (
+              <option key={location.id} value={String(location.id)}>
+                {getLocationPath(location.id, locations)}
+              </option>
+            ))}
+          </select>
           <select
             value={mediaTypeFilter}
             onChange={(e) => setMediaTypeFilter(e.target.value as "" | "photo" | "video")}
