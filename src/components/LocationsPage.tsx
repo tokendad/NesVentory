@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from "react";
 import type { Location, LocationCreate, Item } from "../lib/api";
 import { createLocation, updateLocation, deleteLocation } from "../lib/api";
 import QRLabelPrint, { PRINT_MODE_OPTIONS, type PrintMode } from "./QRLabelPrint";
+import LocationDetailsModal from "./LocationDetailsModal";
 import { getLocationPath } from "../lib/utils";
 
 interface LocationsPageProps {
@@ -36,6 +37,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingLocation, setEditingLocation] = useState<Location | null>(null);
+  const [viewingLocation, setViewingLocation] = useState<Location | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -301,46 +303,69 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
               <div
                 key={loc.id}
                 className="location-card"
-                onClick={() => handleLocationClick(loc)}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                  <span style={{ fontSize: "1.1rem", fontWeight: 500 }}>
-                    {loc.friendly_name || loc.name}
-                  </span>
-                  {loc.is_primary_location && (
-                    <span className="location-badge home">HOME</span>
+                <div 
+                  onClick={() => handleLocationClick(loc)}
+                  style={{ flex: 1, cursor: "pointer" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                    <span style={{ fontSize: "1.1rem", fontWeight: 500 }}>
+                      {loc.friendly_name || loc.name}
+                    </span>
+                    {loc.is_primary_location && (
+                      <span className="location-badge home">HOME</span>
+                    )}
+                    {loc.is_container && (
+                      <span className="location-badge container">BOX</span>
+                    )}
+                  </div>
+                  {loc.location_type && (
+                    <div style={{ 
+                      fontSize: "0.75rem", 
+                      color: "var(--muted)", 
+                      marginBottom: "0.5rem" 
+                    }}>
+                      {getLocationTypeLabel(loc.location_type)}
+                    </div>
                   )}
-                  {loc.is_container && (
-                    <span className="location-badge container">BOX</span>
-                  )}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: "0.75rem", fontSize: "0.8rem", color: "var(--muted)" }}>
+                      {childCount > 0 && (
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                          <span style={{ color: "var(--accent)" }} role="img" aria-label="Rooms">📁</span>
+                          {childCount} {childCount === 1 ? "room" : "rooms"}
+                        </span>
+                      )}
+                      {itemCount > 0 && (
+                        <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                          <span style={{ color: "var(--accent)" }} role="img" aria-label="Items">📦</span>
+                          {itemCount} {itemCount === 1 ? "item" : "items"}
+                        </span>
+                      )}
+                      {childCount === 0 && itemCount === 0 && (
+                        <span>Click to explore</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                {loc.location_type && (
-                  <div style={{ 
-                    fontSize: "0.75rem", 
-                    color: "var(--muted)", 
-                    marginBottom: "0.5rem" 
-                  }}>
-                    {getLocationTypeLabel(loc.location_type)}
-                  </div>
-                )}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ display: "flex", gap: "0.75rem", fontSize: "0.8rem", color: "var(--muted)" }}>
-                    {childCount > 0 && (
-                      <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                        <span style={{ color: "var(--accent)" }} role="img" aria-label="Rooms">📁</span>
-                        {childCount} {childCount === 1 ? "room" : "rooms"}
-                      </span>
-                    )}
-                    {itemCount > 0 && (
-                      <span style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                        <span style={{ color: "var(--accent)" }} role="img" aria-label="Items">📦</span>
-                        {itemCount} {itemCount === 1 ? "item" : "items"}
-                      </span>
-                    )}
-                    {childCount === 0 && itemCount === 0 && (
-                      <span>Click to explore</span>
-                    )}
-                  </div>
+                <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+                  <button
+                    className="btn-outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewingLocation(loc);
+                    }}
+                    style={{ 
+                      fontSize: "0.7rem", 
+                      padding: "0.2rem 0.5rem",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.25rem"
+                    }}
+                    title="View/Edit Location"
+                  >
+                    ⚙️ Settings
+                  </button>
                   <button
                     className="btn-outline"
                     onClick={(e) => {
@@ -664,6 +689,19 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
           items={getItemsAtLocation(showQRPrint.id)}
           onClose={() => setShowQRPrint(null)}
           initialPrintMode={printModeFromEdit}
+        />
+      )}
+
+      {/* Location Details Modal (with Insurance tab for primary locations) */}
+      {viewingLocation && (
+        <LocationDetailsModal
+          location={viewingLocation}
+          items={items}
+          onClose={() => setViewingLocation(null)}
+          onUpdate={() => {
+            setViewingLocation(null);
+            onRefresh();
+          }}
         />
       )}
     </>
