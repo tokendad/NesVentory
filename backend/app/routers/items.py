@@ -250,15 +250,21 @@ async def enrich_item(
             elif "InvalidArgument" in exception_type or "400" in error_str:
                 # Extract a more readable error message
                 if ":" in error_str:
-                    # Get the first part before the colon, or the full message if split fails
+                    # Get the first part before the colon
                     error_parts = error_str.split(":", 1)
-                    readable_error = error_parts[0].strip() if error_parts else error_str
+                    readable_error = error_parts[0].strip()
                 else:
                     readable_error = "Please check your API configuration."
-                last_error_message = f"Invalid API request: {readable_error[:MAX_ERROR_MESSAGE_LENGTH]}"
+                # Truncate the error message, accounting for the prefix length
+                prefix = "Invalid API request: "
+                max_readable_length = MAX_ERROR_MESSAGE_LENGTH - len(prefix)
+                last_error_message = f"{prefix}{readable_error[:max_readable_length]}"
                 logger.warning(f"Invalid API request for item {item_id}: {e}")
             else:
-                last_error_message = f"AI enrichment failed: {error_str[:MAX_ERROR_MESSAGE_LENGTH]}"
+                # Truncate the error message, accounting for the prefix length
+                prefix = "AI enrichment failed: "
+                max_error_length = MAX_ERROR_MESSAGE_LENGTH - len(prefix)
+                last_error_message = f"{prefix}{error_str[:max_error_length]}"
                 logger.warning(f"Failed to enrich item with provider {provider_id}: {e}")
             continue
     
