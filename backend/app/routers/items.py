@@ -421,6 +421,12 @@ Important:
         logger.error("google-generativeai package not installed")
         return None
     except Exception as e:
+        # Re-raise Google API exceptions so they can be caught and handled with user-friendly messages
+        error_str = str(e)
+        if "API key expired" in error_str or "API_KEY_INVALID" in error_str or "InvalidArgument" in str(type(e)):
+            logger.exception(f"Error enriching item {item.id} with Gemini: {e}")
+            raise  # Re-raise to be caught by the outer exception handler
+        # For other exceptions, log and return None
         logger.exception(f"Error enriching item {item.id} with Gemini: {e}")
         return None
 
