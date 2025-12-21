@@ -11,6 +11,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/items", tags=["items"])
 
+# Constants for error handling
+MAX_ERROR_MESSAGE_LENGTH = 100
+
 
 @router.get("/", response_model=List[schemas.Item])
 def list_items(db: Session = Depends(get_db)):
@@ -204,6 +207,7 @@ async def enrich_item(
         )
     
     enriched_results = []
+    last_error_message = None
     
     # Try each provider in priority order
     for provider_config in enabled_providers:
@@ -219,6 +223,7 @@ async def enrich_item(
                 
                 if not api_key:
                     logger.warning(f"Gemini provider enabled but no API key configured")
+                    last_error_message = "Gemini AI provider is enabled but no API key is configured. Please add a Gemini API key in your settings."
                     continue
                 
                 # Try to enrich the item using Gemini
@@ -233,17 +238,46 @@ async def enrich_item(
             #         enriched_results.append(result)
                         
         except Exception as e:
-            logger.warning(f"Failed to enrich item with provider {provider_id}: {e}")
+            # Check for specific Google API exceptions
+            error_str = str(e)
+            exception_type = type(e).__name__
+            
+            # Check for expired or invalid API key
+            if "API key expired" in error_str or "API_KEY_INVALID" in error_str:
+                last_error_message = "Your Gemini API key has expired. Please renew your API key in the settings."
+                logger.warning(f"Gemini API key expired for item {item_id}")
+            # Check for invalid argument errors (400 errors)
+            elif "InvalidArgument" in exception_type or "400" in error_str:
+                # Extract a more readable error message
+                if ":" in error_str:
+                    # Get the first part before the colon
+                    error_parts = error_str.split(":", 1)
+                    readable_error = error_parts[0].strip()
+                else:
+                    readable_error = "Please check your API configuration."
+                # Truncate the error message, accounting for the prefix length
+                prefix = "Invalid API request: "
+                max_readable_length = MAX_ERROR_MESSAGE_LENGTH - len(prefix)
+                last_error_message = f"{prefix}{readable_error[:max_readable_length]}"
+                logger.warning(f"Invalid API request for item {item_id}: {e}")
+            else:
+                # Truncate the error message, accounting for the prefix length
+                prefix = "AI enrichment failed: "
+                max_error_length = MAX_ERROR_MESSAGE_LENGTH - len(prefix)
+                last_error_message = f"{prefix}{error_str[:max_error_length]}"
+                logger.warning(f"Failed to enrich item with provider {provider_id}: {e}")
             continue
     
     # Sort results by confidence (highest first)
     enriched_results.sort(key=lambda x: x.confidence or 0.0, reverse=True)
     
     if not enriched_results:
+        # Use the last error message if we have one, otherwise use generic message
+        message = last_error_message or "No enrichment data available. Please check your AI provider configuration."
         return schemas.ItemEnrichmentResult(
             item_id=item_id,
             enriched_data=[],
-            message="No enrichment data available. Please check your AI provider configuration."
+            message=message
         )
     
     return schemas.ItemEnrichmentResult(
@@ -407,6 +441,18 @@ Important:
         logger.error("google-generativeai package not installed")
         return None
     except Exception as e:
+        # Re-raise Google API exceptions so they can be caught and handled with user-friendly messages
+        error_str = str(e)
+        exception_type = type(e).__name__
+        
+        # Check if this is a Google API error that should be shown to the user
+        if ("API key expired" in error_str or 
+            "API_KEY_INVALID" in error_str or 
+            "InvalidArgument" in exception_type):
+            logger.exception(f"Error enriching item {item.id} with Gemini: {e}")
+            raise  # Re-raise to be caught by the outer exception handler
+        
+        # For other exceptions, log and return None
         logger.exception(f"Error enriching item {item.id} with Gemini: {e}")
         return None
 
