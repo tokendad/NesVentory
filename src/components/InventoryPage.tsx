@@ -12,6 +12,7 @@ import {
   fetchLocations
 } from "../lib/api";
 import QRLabelPrint, { PRINT_MODE_OPTIONS, type PrintMode } from "./QRLabelPrint";
+import InsuranceTab from "./InsuranceTab";
 
 interface InventoryPageProps {
   items: Item[];
@@ -109,11 +110,19 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
   const [showQRPrint, setShowQRPrint] = useState<Location | null>(null);
   const [printModeFromEdit, setPrintModeFromEdit] = useState<PrintMode>("qr_with_items");
   // Location Settings tabs
-  const [locationSettingsTab, setLocationSettingsTab] = useState<"details" | "media">("details");
+  const [locationSettingsTab, setLocationSettingsTab] = useState<"details" | "media" | "insurance">("details");
   // Media upload/display state
   const [locationPhotos, setLocationPhotos] = useState<LocationPhoto[]>([]);
   const [locationVideos, setLocationVideos] = useState<Video[]>([]);
   const [uploadingMedia, setUploadingMedia] = useState(false);
+
+  // Helper to check if showLocationSettings is a Location (not "create")
+  const isEditingLocation = (loc: Location | "create" | null): loc is Location => {
+    return loc !== null && loc !== "create";
+  };
+
+  // Get the location being edited in settings modal (if any)
+  const editingLocation = isEditingLocation(showLocationSettings) ? showLocationSettings : null;
 
   // Get child locations for a given parent ID
   const getChildLocations = useCallback((parentId: string | number | null): Location[] => {
@@ -913,6 +922,16 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                 >
                   Media
                 </button>
+                {/* Insurance tab - only show for primary locations */}
+                {editingLocation?.is_primary_location && (
+                  <button
+                    type="button"
+                    className={`tab-button ${locationSettingsTab === "insurance" ? "active" : ""}`}
+                    onClick={() => setLocationSettingsTab("insurance")}
+                  >
+                    🏠 Insurance
+                  </button>
+                )}
               </div>
             )}
 
@@ -1302,6 +1321,21 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                     Close
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* Insurance Tab - Only for primary locations */}
+            {locationSettingsTab === "insurance" && editingLocation?.is_primary_location && (
+              <div style={{ maxHeight: "70vh", overflowY: "auto", padding: "0.5rem" }}>
+                <InsuranceTab 
+                  location={editingLocation} 
+                  items={items} 
+                  allLocations={locations} 
+                  onUpdate={() => {
+                    onRefreshLocations();
+                    setShowLocationSettings(null);
+                  }} 
+                />
               </div>
             )}
           </div>
