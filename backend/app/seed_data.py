@@ -124,7 +124,7 @@ def create_locations(db: Session) -> dict:
         full_path="/My Home",
         is_primary_location=True,
         address="123 Main Street, Anytown, ST 12345",
-        location_type="residential",
+        location_type=models.LocationType.RESIDENTIAL,
         description="Primary residence for demo purposes",
     )
     db.add(my_home)

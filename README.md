@@ -4,7 +4,19 @@
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
-## 🚀 What's New in Version 6.2.0
+## 🚀 What's New in Version 6.3.0
+
+### 🏠 **Insurance Documentation** (v6.3.0)
+- **Insurance tab for primary locations** - Manage comprehensive insurance documentation for your home
+- **Policy holder management** - Track primary and additional policy holders with contact information
+- **Automatic value calculation** - Total and estimated values including all items in location
+- **Print functionality** - Basic and comprehensive insurance reports with photos
+- **CSV export** - RFC 4180 compliant export of all items for insurance claims
+- See [Insurance Tab Guide](docs/INSURANCE_TAB_GUIDE.md) for detailed instructions
+
+## 📋 Previous Updates
+
+### Version 6.2.0
 
 NesVentory continues to evolve with powerful new features for managing your inventory, including enhanced media management, AI capabilities, and improved workflows.
 
