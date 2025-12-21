@@ -116,39 +116,59 @@ def create_users(db: Session) -> list:
 
 def create_locations(db: Session) -> dict:
     """Create hierarchical test locations."""
-    # Create root locations (rooms/areas)
+    # Create a primary location (home) first
+    my_home = models.Location(
+        id=uuid.uuid4(),
+        name="My Home",
+        friendly_name="Demo Home",
+        full_path="/My Home",
+        is_primary_location=True,
+        address="123 Main Street, Anytown, ST 12345",
+        location_type="residential",
+        description="Primary residence for demo purposes",
+    )
+    db.add(my_home)
+    
+    db.flush()
+    
+    # Create root locations (rooms/areas) as children of primary location
     living_room = models.Location(
         id=uuid.uuid4(),
         name="Living Room",
-        full_path="/Living Room",
+        parent_id=my_home.id,
+        full_path="/My Home/Living Room",
     )
     db.add(living_room)
 
     bedroom = models.Location(
         id=uuid.uuid4(),
         name="Master Bedroom",
-        full_path="/Master Bedroom",
+        parent_id=my_home.id,
+        full_path="/My Home/Master Bedroom",
     )
     db.add(bedroom)
 
     kitchen = models.Location(
         id=uuid.uuid4(),
         name="Kitchen",
-        full_path="/Kitchen",
+        parent_id=my_home.id,
+        full_path="/My Home/Kitchen",
     )
     db.add(kitchen)
 
     garage = models.Location(
         id=uuid.uuid4(),
         name="Garage",
-        full_path="/Garage",
+        parent_id=my_home.id,
+        full_path="/My Home/Garage",
     )
     db.add(garage)
 
     office = models.Location(
         id=uuid.uuid4(),
         name="Home Office",
-        full_path="/Home Office",
+        parent_id=my_home.id,
+        full_path="/My Home/Home Office",
     )
     db.add(office)
 
@@ -159,7 +179,7 @@ def create_locations(db: Session) -> dict:
         id=uuid.uuid4(),
         name="TV Stand",
         parent_id=living_room.id,
-        full_path="/Living Room/TV Stand",
+        full_path="/My Home/Living Room/TV Stand",
     )
     db.add(tv_stand)
 
@@ -167,7 +187,7 @@ def create_locations(db: Session) -> dict:
         id=uuid.uuid4(),
         name="Closet",
         parent_id=bedroom.id,
-        full_path="/Master Bedroom/Closet",
+        full_path="/My Home/Master Bedroom/Closet",
     )
     db.add(closet)
 
@@ -175,7 +195,7 @@ def create_locations(db: Session) -> dict:
         id=uuid.uuid4(),
         name="Pantry",
         parent_id=kitchen.id,
-        full_path="/Kitchen/Pantry",
+        full_path="/My Home/Kitchen/Pantry",
     )
     db.add(pantry)
 
@@ -183,13 +203,14 @@ def create_locations(db: Session) -> dict:
         id=uuid.uuid4(),
         name="Workbench",
         parent_id=garage.id,
-        full_path="/Garage/Workbench",
+        full_path="/My Home/Garage/Workbench",
     )
     db.add(workbench)
 
     db.flush()
 
     return {
+        "my_home": my_home,
         "living_room": living_room,
         "bedroom": bedroom,
         "kitchen": kitchen,
