@@ -116,6 +116,14 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
   const [locationVideos, setLocationVideos] = useState<Video[]>([]);
   const [uploadingMedia, setUploadingMedia] = useState(false);
 
+  // Helper to check if showLocationSettings is a Location (not "create")
+  const isEditingLocation = (loc: Location | "create" | null): loc is Location => {
+    return loc !== null && loc !== "create";
+  };
+
+  // Get the location being edited in settings modal (if any)
+  const editingLocation = isEditingLocation(showLocationSettings) ? showLocationSettings : null;
+
   // Get child locations for a given parent ID
   const getChildLocations = useCallback((parentId: string | number | null): Location[] => {
     if (parentId === null) {
@@ -915,7 +923,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                   Media
                 </button>
                 {/* Insurance tab - only show for primary locations */}
-                {(showLocationSettings as Location).is_primary_location && (
+                {editingLocation?.is_primary_location && (
                   <button
                     type="button"
                     className={`tab-button ${locationSettingsTab === "insurance" ? "active" : ""}`}
@@ -1317,10 +1325,10 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
             )}
 
             {/* Insurance Tab - Only for primary locations */}
-            {locationSettingsTab === "insurance" && showLocationSettings !== "create" && (showLocationSettings as Location).is_primary_location && (
+            {locationSettingsTab === "insurance" && editingLocation?.is_primary_location && (
               <div style={{ maxHeight: "70vh", overflowY: "auto", padding: "0.5rem" }}>
                 <InsuranceTab 
-                  location={showLocationSettings as Location} 
+                  location={editingLocation} 
                   items={items} 
                   allLocations={locations} 
                   onUpdate={() => {
