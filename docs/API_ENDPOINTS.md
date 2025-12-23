@@ -34,7 +34,7 @@ NesVentory uses JWT (JSON Web Token) based authentication. Most endpoints requir
 
 ### Login (Password-based)
 
-#### POST /token
+#### POST /api/token
 
 OAuth2-compatible token login endpoint.
 
@@ -55,7 +55,7 @@ OAuth2-compatible token login endpoint.
 }
 ```
 
-**Note:** There's also a root-level `/token` endpoint for backward compatibility with mobile apps.
+**Note:** There's also a root-level `POST /token` endpoint (without `/api` prefix) for backward compatibility with mobile apps.
 
 ### Login (Google OAuth)
 
@@ -1190,7 +1190,7 @@ Endpoints for exporting data to Encircle format.
 
 ### Preview Encircle Export
 
-#### POST /api/encircle/preview
+#### POST /api/import/encircle/preview
 
 Preview data in Encircle format without exporting.
 
@@ -1213,7 +1213,7 @@ Preview data in Encircle format without exporting.
 
 ### Export to Encircle
 
-#### POST /api/encircle
+#### POST /api/import/encircle
 
 Export data to Encircle format.
 
@@ -1234,7 +1234,7 @@ Endpoints for importing data from CSV files.
 
 ### Import from CSV
 
-#### POST /api/csv
+#### POST /api/import/csv
 
 Import items from a CSV file.
 
