@@ -1,7 +1,7 @@
-fastapi==0.125.0
+fastapi==0.127.0
 publicsuffix2==2.20191221
 werkzeug==3.1.4
-uvicorn[standard]==0.38.0
+uvicorn[standard]==0.40.0
 SQLAlchemy==2.0.45
 psycopg2-binary==2.9.11
 asyncpg==0.31.0
