@@ -427,19 +427,24 @@ const ItemForm: React.FC<ItemFormProps> = ({
     
     // Use the first detected item
     const item = photoDetectionResult.items[0];
-    setFormData(prev => ({
-      ...prev,
-      name: item.name || prev.name,
-      description: item.description || prev.description,
-      brand: item.brand || prev.brand,
-      // Only apply estimated value if it's provided by AI and there's no existing value
-      estimated_value: item.estimated_value ?? prev.estimated_value,
-      // Set AI date if value came from AI, otherwise preserve existing value
-      estimated_value_ai_date: item.estimated_value ? item.estimation_date : prev.estimated_value_ai_date,
-      // Clear user date if value came from AI
-      estimated_value_user_date: item.estimated_value ? undefined : prev.estimated_value_user_date,
-      estimated_value_user_name: item.estimated_value ? undefined : prev.estimated_value_user_name,
-    }));
+    setFormData(prev => {
+      // Check if we should apply the AI estimated value
+      const shouldApplyAIValue = prev.estimated_value === undefined && item.estimated_value !== undefined && item.estimated_value !== null;
+      
+      return {
+        ...prev,
+        name: item.name || prev.name,
+        description: item.description || prev.description,
+        brand: item.brand || prev.brand,
+        // Only apply estimated value if it's provided by AI and there's no existing value
+        estimated_value: prev.estimated_value !== undefined ? prev.estimated_value : item.estimated_value,
+        // Set AI date only if we're applying the AI value
+        estimated_value_ai_date: shouldApplyAIValue ? item.estimation_date : prev.estimated_value_ai_date,
+        // Clear user date only if we're applying the AI value
+        estimated_value_user_date: shouldApplyAIValue ? undefined : prev.estimated_value_user_date,
+        estimated_value_user_name: shouldApplyAIValue ? undefined : prev.estimated_value_user_name,
+      };
+    });
     // Dismiss the detection result dialog - user can now review and add more info
     setPhotoDetectionResult(null);
   };
