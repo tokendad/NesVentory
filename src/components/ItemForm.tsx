@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, BarcodeScanResult, Warranty, MultiBarcodeLookupResult, Photo, Document } from "../lib/api";
-import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode, scanBarcodeImage, lookupBarcodeMulti, getApiBaseUrl } from "../lib/api";
+import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, BarcodeScanResult, Warranty, MultiBarcodeLookupResult, Photo, Document, DetectionResult } from "../lib/api";
+import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode, scanBarcodeImage, lookupBarcodeMulti, getApiBaseUrl, detectItemsFromImage } from "../lib/api";
 import { formatPhotoType, getLocationPath, getFilenameFromUrl } from "../lib/utils";
 import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES, ALLOWED_DOCUMENT_MIME_TYPES, DOCUMENT_TYPES, LIVING_TAG_NAME, RELATIONSHIP_LABELS } from "../lib/constants";
 import type { PhotoUpload, DocumentUpload } from "../lib/types";
@@ -91,6 +91,10 @@ const ItemForm: React.FC<ItemFormProps> = ({
   // Barcode scanning state (mobile camera)
   const [scanningBarcode, setScanningBarcode] = useState(false);
   const barcodeScanInputRef = useRef<HTMLInputElement>(null);
+
+  // AI Photo Detection state (camera-to-AI processing)
+  const [detectingFromPhoto, setDetectingFromPhoto] = useState(false);
+  const [photoDetectionResult, setPhotoDetectionResult] = useState<DetectionResult | null>(null);
 
   // Tab state for non-mobile view
   const [activeTab, setActiveTab] = useState<TabId>("basic");
@@ -259,7 +263,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
     }
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
     const files = e.target.files;
     if (!files) return;
 
@@ -287,6 +291,27 @@ const ItemForm: React.FC<ItemFormProps> = ({
       });
     } else {
       setPhotos((prev) => [...prev, ...newPhotos]);
+    }
+
+    // Auto-trigger AI detection for default/primary photo if AI is enabled and not editing
+    if (type === PHOTO_TYPES.DEFAULT && !isEditing && aiStatus?.enabled && newPhotos.length > 0) {
+      const file = newPhotos[0].file;
+      setDetectingFromPhoto(true);
+      setError(null);
+      setPhotoDetectionResult(null);
+
+      try {
+        const result = await detectItemsFromImage(file);
+        if (result.items.length > 0) {
+          // Set the result to show the accept/reject dialog
+          setPhotoDetectionResult(result);
+        }
+      } catch (err: any) {
+        // Don't show error for failed AI detection - user can still fill form manually
+        console.warn("AI detection failed:", err.message);
+      } finally {
+        setDetectingFromPhoto(false);
+      }
     }
   };
 
@@ -393,6 +418,33 @@ const ItemForm: React.FC<ItemFormProps> = ({
   // Dismiss data tag result without applying
   const dismissDataTagResult = () => {
     setDataTagResult(null);
+  };
+
+  // Apply AI photo detection result to form fields
+  const applyPhotoDetectionResult = () => {
+    if (!photoDetectionResult || photoDetectionResult.items.length === 0) return;
+    
+    // Use the first detected item
+    const item = photoDetectionResult.items[0];
+    setFormData(prev => ({
+      ...prev,
+      name: item.name || prev.name,
+      description: item.description || prev.description,
+      brand: item.brand || prev.brand,
+      // Only apply estimated value if it's provided by AI and there's no existing value
+      estimated_value: item.estimated_value ?? prev.estimated_value,
+      // Set AI date if value came from AI, otherwise preserve existing value
+      estimated_value_ai_date: item.estimated_value ? item.estimation_date : prev.estimated_value_ai_date,
+      // Clear user date if value came from AI
+      estimated_value_user_date: item.estimated_value ? undefined : prev.estimated_value_user_date,
+      estimated_value_user_name: item.estimated_value ? undefined : prev.estimated_value_user_name,
+    }));
+    setPhotoDetectionResult(null);
+  };
+
+  // Dismiss photo detection result without applying
+  const dismissPhotoDetectionResult = () => {
+    setPhotoDetectionResult(null);
   };
 
   // Handle barcode lookup - uses multi-database flow
@@ -954,6 +1006,62 @@ const ItemForm: React.FC<ItemFormProps> = ({
             </div>
           )}
 
+          {/* Photo Detection Results - AI-powered item detection from camera photo */}
+          {photoDetectionResult && photoDetectionResult.items.length > 0 && (
+            <div className="barcode-lookup-result">
+              <h4>📸 Item Detected from Photo</h4>
+              <p className="help-text">AI detected an item from your photo. Review and accept to auto-fill the form.</p>
+              <div className="barcode-result-fields">
+                {photoDetectionResult.items[0].name && (
+                  <div className="barcode-result-field">
+                    <span className="field-label">Item Name:</span>
+                    <span className="field-value">{photoDetectionResult.items[0].name}</span>
+                  </div>
+                )}
+                {photoDetectionResult.items[0].description && (
+                  <div className="barcode-result-field">
+                    <span className="field-label">Description:</span>
+                    <span className="field-value">{photoDetectionResult.items[0].description}</span>
+                  </div>
+                )}
+                {photoDetectionResult.items[0].brand && (
+                  <div className="barcode-result-field">
+                    <span className="field-label">Brand:</span>
+                    <span className="field-value">{photoDetectionResult.items[0].brand}</span>
+                  </div>
+                )}
+                {photoDetectionResult.items[0].estimated_value != null && (
+                  <div className="barcode-result-field">
+                    <span className="field-label">Est. Value:</span>
+                    <span className="field-value">${photoDetectionResult.items[0].estimated_value.toLocaleString()}</span>
+                  </div>
+                )}
+                {photoDetectionResult.items[0].confidence != null && (
+                  <div className="barcode-result-field">
+                    <span className="field-label">Confidence:</span>
+                    <span className="field-value">{Math.round(photoDetectionResult.items[0].confidence * 100)}%</span>
+                  </div>
+                )}
+              </div>
+              <div className="barcode-result-actions">
+                <button
+                  type="button"
+                  className="btn-outline"
+                  onClick={dismissPhotoDetectionResult}
+                >
+                  Dismiss
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={applyPhotoDetectionResult}
+                >
+                  Accept & Auto-Fill
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="purchase_date">Purchase Date</label>
@@ -1318,9 +1426,14 @@ const ItemForm: React.FC<ItemFormProps> = ({
                     accept="image/*"
                     capture="environment"
                     onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DEFAULT)}
-                    disabled={loading}
+                    disabled={loading || detectingFromPhoto}
                   />
-                  <span className="help-text">Take photo or browse from device</span>
+                  <span className="help-text">
+                    {detectingFromPhoto 
+                      ? "🔄 AI is analyzing your photo..." 
+                      : "Take photo or browse from device"}
+                    {aiStatus?.enabled && !detectingFromPhoto && !isEditing && " — AI will auto-detect item info"}
+                  </span>
                 </div>
 
                 <div className="photo-type-upload">
