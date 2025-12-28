@@ -421,6 +421,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
   };
 
   // Apply AI photo detection result to form fields
+  // User stays on form to review and add more information
   const applyPhotoDetectionResult = () => {
     if (!photoDetectionResult || photoDetectionResult.items.length === 0) return;
     
@@ -439,6 +440,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
       estimated_value_user_date: item.estimated_value ? undefined : prev.estimated_value_user_date,
       estimated_value_user_name: item.estimated_value ? undefined : prev.estimated_value_user_name,
     }));
+    // Dismiss the detection result dialog - user can now review and add more info
     setPhotoDetectionResult(null);
   };
 
@@ -1010,7 +1012,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
           {photoDetectionResult && photoDetectionResult.items.length > 0 && (
             <div className="barcode-lookup-result">
               <h4>📸 Item Detected from Photo</h4>
-              <p className="help-text">AI detected an item from your photo. Review and accept to auto-fill the form.</p>
+              <p className="help-text">AI detected an item from your photo. Accept to pre-fill the form, then review and add any missing details.</p>
               <div className="barcode-result-fields">
                 {photoDetectionResult.items[0].name && (
                   <div className="barcode-result-field">
@@ -1056,7 +1058,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                   className="btn-primary"
                   onClick={applyPhotoDetectionResult}
                 >
-                  Accept & Auto-Fill
+                  Accept & Continue Editing
                 </button>
               </div>
             </div>
