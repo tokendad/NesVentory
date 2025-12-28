@@ -429,7 +429,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
     const item = photoDetectionResult.items[0];
     setFormData(prev => {
       // Check if we should apply the AI estimated value
-      const shouldApplyAIValue = prev.estimated_value === undefined && item.estimated_value !== undefined && item.estimated_value !== null;
+      const shouldApplyAIValue = prev.estimated_value === undefined && item.estimated_value != null;
       
       return {
         ...prev,
