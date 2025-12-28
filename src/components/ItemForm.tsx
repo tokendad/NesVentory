@@ -1195,11 +1195,12 @@ const ItemForm: React.FC<ItemFormProps> = ({
             type="file"
             id="photo-warranty"
             accept="image/*"
+            capture="environment"
             onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.WARRANTY)}
             disabled={loading}
             multiple
           />
-          <span className="help-text">Upload photos of warranty cards, documents, or receipts</span>
+          <span className="help-text">Take photos or browse from device</span>
         </div>
         
         {/* Show warranty photo previews */}
@@ -1286,10 +1287,11 @@ const ItemForm: React.FC<ItemFormProps> = ({
                     type="file"
                     id="photo-profile-media"
                     accept="image/*"
+                    capture="user"
                     onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.PROFILE)}
                     disabled={loading}
                   />
-                  <span className="help-text">Profile photo for this person, pet, or plant</span>
+                  <span className="help-text">Take photo or browse from device</span>
                 </div>
 
                 <div className="photo-type-upload">
@@ -1298,11 +1300,12 @@ const ItemForm: React.FC<ItemFormProps> = ({
                     type="file"
                     id="photo-optional-media"
                     accept="image/*"
+                    capture="environment"
                     onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
                     disabled={loading}
                     multiple
                   />
-                  <span className="help-text">Any additional photos</span>
+                  <span className="help-text">Take photos or browse from device</span>
                 </div>
               </>
             ) : (
@@ -1313,10 +1316,11 @@ const ItemForm: React.FC<ItemFormProps> = ({
                     type="file"
                     id="photo-default-media"
                     accept="image/*"
+                    capture="environment"
                     onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DEFAULT)}
                     disabled={loading}
                   />
-                  <span className="help-text">Primary photo for the item</span>
+                  <span className="help-text">Take photo or browse from device</span>
                 </div>
 
                 <div className="photo-type-upload">
@@ -1444,11 +1448,12 @@ const ItemForm: React.FC<ItemFormProps> = ({
                     type="file"
                     id="photo-receipt-media"
                     accept="image/*"
+                    capture="environment"
                     onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.RECEIPT)}
                     disabled={loading}
                     multiple
                   />
-                  <span className="help-text">Purchase receipt</span>
+                  <span className="help-text">Take photos or browse from device</span>
                 </div>
 
                 <div className="photo-type-upload">
@@ -1457,11 +1462,12 @@ const ItemForm: React.FC<ItemFormProps> = ({
                     type="file"
                     id="photo-warranty-media"
                     accept="image/*"
+                    capture="environment"
                     onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.WARRANTY)}
                     disabled={loading}
                     multiple
                   />
-                  <span className="help-text">Warranty documents or cards</span>
+                  <span className="help-text">Take photos or browse from device</span>
                 </div>
 
                 <div className="photo-type-upload">
@@ -1470,11 +1476,12 @@ const ItemForm: React.FC<ItemFormProps> = ({
                     type="file"
                     id="photo-optional-media"
                     accept="image/*"
+                    capture="environment"
                     onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
                     disabled={loading}
                     multiple
                   />
-                  <span className="help-text">Any additional photos</span>
+                  <span className="help-text">Take photos or browse from device</span>
                 </div>
               </>
             )}
@@ -1806,10 +1813,11 @@ const ItemForm: React.FC<ItemFormProps> = ({
                         type="file"
                         id="photo-profile-living"
                         accept="image/*"
+                        capture="user"
                         onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.PROFILE)}
                         disabled={loading}
                       />
-                      <span className="help-text">Profile photo for this person, pet, or plant</span>
+                      <span className="help-text">Take photo or browse from device</span>
                     </div>
 
                     <div className="photo-type-upload">
@@ -1818,11 +1826,12 @@ const ItemForm: React.FC<ItemFormProps> = ({
                         type="file"
                         id="photo-optional-living"
                         accept="image/*"
+                        capture="environment"
                         onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
                         disabled={loading}
                         multiple
                       />
-                      <span className="help-text">Any additional photos</span>
+                      <span className="help-text">Take photos or browse from device</span>
                     </div>
                   </div>
 
