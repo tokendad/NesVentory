@@ -1330,6 +1330,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                       type="file"
                       id="photo-data-tag-media"
                       accept="image/*"
+                      capture="environment"
                       onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DATA_TAG)}
                       disabled={loading || scanningDataTag}
                     />
@@ -1357,7 +1358,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                     )}
                   </div>
                   <span className="help-text">
-                    Photo of serial number or data tag
+                    Take photo or browse from device
                     {aiStatus?.enabled && " — Use AI Scan to auto-fill manufacturer, model & serial number"}
                   </span>
                 </div>
