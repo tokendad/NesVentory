@@ -141,6 +141,9 @@ body {
   background: radial-gradient(circle at top, var(--bg-body-gradient-start) 0, var(--bg-body-gradient-mid) 50%, var(--bg-body-gradient-mid) 100%);
   color: var(--text);
   min-height: 100vh;
+  /* Prevent text inflation on mobile devices */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 .app-root {
@@ -175,6 +178,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 10;
+  min-height: 60px;
 }
 
 .app-header-left {
@@ -745,62 +749,216 @@ tbody tr:hover {
 }
 
 @media (max-width: 600px) {
+  /* Header optimizations */
   .app-header {
-    padding-inline: 1rem;
+    padding: 0.5rem 0.75rem;
+    min-height: 50px;
   }
 
+  .app-title {
+    font-size: 0.8rem;
+  }
+
+  .app-logo {
+    height: 28px;
+  }
+
+  .logo-dot {
+    width: 12px;
+    height: 12px;
+  }
+
+  .logo-dot.large {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Main content padding */
+  .app-main {
+    padding: 0.75rem 0.75rem 1.5rem;
+  }
+
+  /* Cards grid */
   .cards-grid {
     grid-template-columns: 1fr;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
   }
 
+  .card {
+    padding: 0.5rem 0.65rem;
+  }
+
+  .card-label {
+    font-size: 0.7rem;
+  }
+
+  .card-value {
+    font-size: 1.1rem;
+  }
+
+  .card-footnote {
+    font-size: 0.7rem;
+  }
+
+  /* Login optimizations */
   .login-card {
-    padding-inline: 1.3rem;
+    padding: 1rem 1rem 0.9rem;
+  }
+
+  .login-header h1 {
+    font-size: 1.2rem;
+  }
+
+  .login-header .muted {
+    font-size: 0.8rem;
+  }
+
+  .field {
+    font-size: 0.75rem;
+  }
+
+  .field input {
+    padding: 0.4rem 0.55rem;
+    font-size: 0.8rem;
   }
 
   /* Ensure touch targets are large enough on mobile */
   .nav-link {
-    padding: 0.65rem 0.8rem;
+    padding: 0.6rem 0.75rem;
     min-height: 44px;
+    font-size: 0.8rem;
   }
 
   .btn-primary,
   .btn-outline,
   .btn-danger {
-    padding: 0.5rem 1rem;
+    padding: 0.45rem 0.9rem;
     min-height: 44px;
+    font-size: 0.8rem;
   }
 
   /* Improve table readability on small screens */
   .table-wrapper {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
+    max-height: 350px;
   }
 
   th, td {
-    padding: 0.4rem 0.5rem;
+    padding: 0.35rem 0.4rem;
+    font-size: 0.75rem;
+  }
+
+  th {
+    font-size: 0.7rem;
   }
 
   /* Stack user info on very small screens */
   .app-header-right {
-    gap: 0.5rem;
+    gap: 0.4rem;
+    font-size: 0.75rem;
   }
 
   .user-email {
-    max-width: 100px;
+    max-width: 90px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
+    padding: 0.1rem 0.4rem;
   }
 
   /* Adjust panel padding */
   .panel {
-    padding: 0.75rem;
+    padding: 0.6rem;
+    margin-bottom: 0.75rem;
   }
 
+  .panel-header h2 {
+    font-size: 0.9rem;
+  }
+
+  /* Modal optimizations */
   .modal-content {
     margin: 0.5rem;
     max-height: calc(100vh - 1rem);
     width: calc(100% - 1rem);
+    padding: 1rem 1rem 0.9rem;
+  }
+
+  .modal-header {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .modal-header h2 {
+    font-size: 1rem;
+  }
+
+  .modal-close {
+    font-size: 1.25rem;
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  /* Form optimizations */
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+
+  .form-group {
+    gap: 0.25rem;
+  }
+
+  .form-group label {
+    font-size: 0.8rem;
+  }
+
+  .form-group input,
+  .form-group textarea,
+  .form-group select {
+    padding: 0.45rem 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  .form-group textarea {
+    min-height: 60px;
+  }
+
+  .help-text {
+    font-size: 0.7rem;
+  }
+
+  /* Details grid */
+  .details-grid {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+
+  .detail-label {
+    font-size: 0.7rem;
+  }
+
+  .detail-value {
+    font-size: 0.85rem;
+  }
+
+  /* Search bar */
+  .search-bar {
+    margin-bottom: 0.6rem;
+  }
+
+  .search-input {
+    padding: 0.5rem 2.25rem 0.5rem 0.7rem;
+    font-size: 0.85rem;
+  }
+
+  /* Footer */
+  .app-footer {
+    font-size: 0.7rem;
+    padding: 0.75rem;
+    margin-top: 1.5rem;
   }
 }
 
@@ -1034,20 +1192,8 @@ tbody tr:hover {
   color: var(--text);
 }
 
-@media (max-width: 600px) {
-  .form-row {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
-  }
+/* Removed duplicate - merged into main @media (max-width: 600px) above */
 
-  .details-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .modal-content {
-    padding: 0.75rem;
-  }
-}
 
 /* Warranty Styles */
 .warranty-item {
@@ -1993,11 +2139,18 @@ tbody tr:hover {
   border-bottom: none;
 }
 
+/* Import stats - mobile optimization */
 @media (max-width: 600px) {
   .import-stats {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .stat-card {
+    padding: 0.6rem;
   }
 }
+
 
 /* Living Item Styles */
 .living-section {
@@ -2156,14 +2309,6 @@ tbody tr:hover {
     padding-top: 0.5rem;
   }
   
-  .modal-content {
-    max-width: 100%;
-    max-height: calc(100vh - 1rem);
-    padding: 0.75rem;
-    margin: 0;
-    border-radius: 0.75rem;
-  }
-
   .modal-content.large {
     max-width: 100%;
     padding: 0.75rem;
@@ -2644,29 +2789,32 @@ tbody tr:hover {
 
 /* Responsive Tab Adjustments */
 @media (max-width: 768px) {
+  /* Modal and tab optimizations for tablets */
   .modal-content-wide {
     max-width: 100%;
     width: 100%;
     margin: 0.5rem;
     max-height: calc(100vh - 1rem);
-    padding: 0.6rem;
+    padding: 0.75rem;
   }
 
   .tab-navigation {
     overflow-x: auto;
     flex-wrap: nowrap;
     gap: 0;
-    margin-bottom: 0.6rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0;
   }
 
   .tab-button {
-    padding: 0.5rem 0.8rem;
-    font-size: 0.75rem;
+    padding: 0.6rem 1rem;
+    font-size: 0.8rem;
     white-space: nowrap;
   }
 
   .warranty-add-buttons {
     flex-direction: column;
+    gap: 0.6rem;
   }
 
   .warranty-add-buttons button {
@@ -2675,58 +2823,58 @@ tbody tr:hover {
   
   /* Reduce spacing in tabbed forms on mobile */
   .item-form-tabbed {
-    gap: 0.6rem;
+    gap: 0.75rem;
   }
   
   .tab-content {
-    gap: 0.6rem;
+    gap: 0.75rem;
   }
   
   /* Form row should remain stacked on tablets/mobile */
   .tab-content .form-row {
     grid-template-columns: 1fr;
-    gap: 0.6rem;
+    gap: 0.75rem;
   }
 
   /* Make modal header more compact */
   .modal-header {
-    margin-bottom: 0.6rem;
-    padding-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.6rem;
   }
 
   .modal-header h2 {
-    font-size: 1.05rem;
+    font-size: 1.1rem;
   }
 
   .modal-header-photo {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
   }
 
   /* Compact form sections */
   .item-form-tabbed .form-section {
-    margin-top: 0.6rem;
-    padding-top: 0.6rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
   }
 
   .item-form-tabbed .form-section h3 {
-    font-size: 0.9rem;
-    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+    margin-bottom: 0.6rem;
   }
 
   /* Reduce input sizes */
   .item-form-tabbed .form-group {
-    gap: 0.25rem;
+    gap: 0.3rem;
   }
 
   .item-form-tabbed .form-group label {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
   }
 
   .item-form-tabbed .form-group input,
   .item-form-tabbed .form-group select,
   .item-form-tabbed .form-group textarea {
-    padding: 0.5rem;
+    padding: 0.5rem 0.65rem;
     font-size: 0.85rem;
   }
 
@@ -2736,11 +2884,154 @@ tbody tr:hover {
 
   /* Optimize tab panels height */
   .tab-panels {
-    max-height: calc(100vh - 200px);
+    max-height: calc(100vh - 180px);
+  }
+
+  /* Calendar and other views */
+  .calendar-day {
+    font-size: 0.75rem;
+    min-height: 65px;
+    padding: 0.35rem;
+  }
+
+  .calendar-controls {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.6rem;
+    gap: 0.75rem;
+  }
+
+  .calendar-view-buttons {
+    justify-content: stretch;
+  }
+
+  .calendar-view-btn {
+    flex: 1;
+    min-width: 0;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.8rem;
+  }
+
+  .day-tasks-popup {
+    position: fixed;
+    left: 1rem;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    max-height: 60vh;
+  }
+
+  .weekly-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .yearly-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .settings-tabs {
+    flex-direction: column;
+    padding: 0.75rem;
+    gap: 0.4rem;
+  }
+  
+  .settings-tab {
+    flex: auto;
+    padding: 0.65rem 1.25rem;
+    font-size: 0.8rem;
+  }
+  
+  .header-search {
+    max-width: none;
+    flex: 1;
+  }
+
+  .header-search input {
+    padding: 0.45rem 0.85rem;
+    font-size: 0.8rem;
+  }
+
+  .location-bubble {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+  }
+
+  .cards-grid {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+
+  .panel-header > div {
+    width: 100%;
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .panel-header > div > * {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  /* Mobile sidebar nav adjustments */
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .sidebar-nav .nav-link {
+    padding: 0.8rem 0.9rem;
+    font-size: 0.85rem;
+  }
+
+  /* Maintenance tab */
+  .maintenance-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.85rem;
+  }
+
+  .task-header {
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .task-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  /* Photo modal */
+  .photo-modal {
+    max-width: 95vw;
+    max-height: 95vh;
+  }
+
+  .photo-preview {
+    max-height: 280px;
+  }
+
+  .photo-full-size {
+    max-height: 280px;
+  }
+
+  /* Footer */
+  .app-footer {
+    font-size: 0.7rem;
+    padding: 0.75rem;
+    margin-top: 1.5rem;
   }
 }
 
 @media (max-width: 480px) {
+  /* Ultra-compact mobile optimizations */
   .modal-content-wide {
     padding: 0.5rem;
     margin: 0.25rem;
@@ -2758,7 +3049,7 @@ tbody tr:hover {
   }
   
   .modal-header h2 {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
 
   /* Reduce modal header photo size on mobile */
@@ -2774,13 +3065,13 @@ tbody tr:hover {
   }
 
   .item-form-tabbed .form-section h3 {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     margin-bottom: 0.4rem;
   }
 
   .item-form-tabbed .form-section h4 {
-    font-size: 0.75rem;
-    margin: 0.5rem 0 0.3rem 0;
+    font-size: 0.7rem;
+    margin: 0.4rem 0 0.3rem 0;
   }
 
   /* Make form groups more compact */
@@ -2789,14 +3080,14 @@ tbody tr:hover {
   }
 
   .item-form-tabbed .form-group label {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
   }
 
   .item-form-tabbed .form-group input,
   .item-form-tabbed .form-group select,
   .item-form-tabbed .form-group textarea {
-    padding: 0.4rem;
-    font-size: 0.8rem;
+    padding: 0.35rem 0.45rem;
+    font-size: 0.75rem;
   }
 
   .item-form-tabbed .form-group textarea {
@@ -2805,16 +3096,20 @@ tbody tr:hover {
 
   /* Reduce photo upload section spacing */
   .photo-upload-section {
-    gap: 0.5rem;
+    gap: 0.4rem;
   }
 
   .photo-type-upload {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .photo-type-upload label {
+    font-size: 0.75rem;
   }
 
   /* Make help text smaller */
   .item-form-tabbed .help-text {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     margin-top: 0.1rem;
   }
 
@@ -2826,88 +3121,92 @@ tbody tr:hover {
   }
 
   .item-form-tabbed .form-actions button {
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.8rem;
   }
 
   /* Reduce warranty form spacing */
   .warranty-form-item {
-    padding: 0.6rem;
-    margin-bottom: 0.6rem;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
   }
 
   .warranty-header {
-    margin-bottom: 0.5rem;
-    padding-bottom: 0.4rem;
+    margin-bottom: 0.4rem;
+    padding-bottom: 0.3rem;
   }
 
   .warranty-header h4 {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
   }
 
   /* Compact photo previews */
   .photo-preview-grid {
-    gap: 0.5rem;
-    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 0.4rem;
+    grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
   }
 
   .photo-preview-item img {
-    height: 80px;
+    height: 75px;
   }
 
   /* Reduce existing photos grid size */
   .existing-photos-grid {
-    gap: 0.5rem;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.4rem;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
   }
 
   .existing-photo-image {
-    height: 100px;
+    height: 90px;
   }
 
   .existing-photo-info {
-    padding: 0.3rem;
+    padding: 0.25rem;
+  }
+
+  .photo-filename {
+    font-size: 0.7rem;
   }
 
   /* Compact tab panels */
   .tab-panels {
-    max-height: calc(100vh - 180px);
+    max-height: calc(100vh - 160px);
   }
 
   .tab-content {
-    gap: 0.5rem;
+    gap: 0.4rem;
   }
 
   /* Reduce tags section spacing */
   .tags-selection {
-    gap: 0.4rem;
+    gap: 0.35rem;
   }
 
   .tag-checkbox {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     padding: 0.3rem 0.5rem;
   }
 
   /* Compact new tag input */
   .new-tag-input {
-    gap: 0.4rem;
+    gap: 0.35rem;
   }
 
   .new-tag-input input {
-    padding: 0.4rem;
-    font-size: 0.8rem;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.75rem;
   }
 
   /* Data tag and barcode result boxes */
   .data-tag-result,
   .barcode-lookup-result {
-    padding: 0.6rem;
-    font-size: 0.8rem;
+    padding: 0.5rem;
+    font-size: 0.75rem;
   }
 
   .data-tag-result h4,
   .barcode-lookup-result h4 {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     margin-bottom: 0.4rem;
   }
 
@@ -2918,19 +3217,126 @@ tbody tr:hover {
 
   .data-tag-field,
   .barcode-result-field {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
+  }
+
+  .data-tag-field .field-label,
+  .barcode-result-field .field-label {
+    min-width: 100px;
   }
 
   .data-tag-actions,
   .barcode-result-actions {
-    gap: 0.4rem;
-    margin-top: 0.5rem;
+    gap: 0.35rem;
+    margin-top: 0.4rem;
   }
 
   .data-tag-actions button,
   .barcode-result-actions button {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.75rem;
+  }
+
+  /* Optimize document previews */
+  .document-preview-item {
+    padding: 0.4rem 0.6rem;
+  }
+
+  .document-name {
+    font-size: 0.75rem;
+    max-width: 150px;
+  }
+
+  .document-size {
+    font-size: 0.7rem;
+  }
+
+  /* Compact item details */
+  .item-details-panel {
+    margin-bottom: 1rem;
+  }
+
+  .details-section h3 {
+    font-size: 0.9rem;
+    margin-bottom: 0.6rem;
+  }
+
+  /* Photos grid optimization */
+  .photos-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.6rem;
+  }
+
+  .item-photo {
+    height: 140px;
+  }
+
+  /* Documents list */
+  .documents-list {
+    gap: 0.4rem;
+  }
+
+  .document-item {
+    padding: 0.4rem 0.6rem;
+  }
+
+  .document-link {
+    font-size: 0.75rem;
+  }
+
+  .document-date {
+    font-size: 0.7rem;
+  }
+
+  /* Calendar optimizations */
+  .calendar-day {
+    min-height: 55px;
+    padding: 0.3rem;
+    font-size: 0.7rem;
+  }
+
+  .calendar-header h3 {
+    font-size: 1rem;
+  }
+
+  .calendar-weekdays {
+    font-size: 0.75rem;
+  }
+
+  /* Settings optimizations */
+  .settings-tab {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+  }
+
+  /* Form field optimizations */
+  .form-field label,
+  .form-group label {
+    font-size: 0.7rem;
+  }
+
+  .form-field input,
+  .form-field select,
+  .form-field textarea,
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  /* Modal actions */
+  .modal-actions,
+  .panel-actions {
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+  }
+
+  .modal-actions button,
+  .panel-actions button {
     padding: 0.4rem 0.8rem;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
   }
 }
 
@@ -3001,21 +3407,8 @@ tbody tr:hover {
   max-width: 100%;
 }
 
-@media (max-width: 600px) {
-  .modal-header-photo {
-    width: 40px;
-    height: 40px;
-  }
-  
-  .existing-photos-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 0.75rem;
-  }
-  
-  .existing-photo-image {
-    height: 100px;
-  }
-}
+/* Removed duplicate - merged into main @media (max-width: 600px) above */
+
 
 /* Responsive date input styles - ensure calendar fits on screen */
 input[type="date"] {
@@ -3213,67 +3606,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border-color: var(--accent-border);
 }
 
-/* Mobile adjustments */
-@media (max-width: 768px) {
-  .calendar-day {
-    font-size: 0.75rem;
-  }
-  
-  .settings-tabs {
-    flex-direction: column;
-  }
-  
-  .settings-tab {
-    flex: auto;
-  }
-  
-  .header-search {
-    max-width: none;
-  }
+/* Mobile adjustments - removed duplicate, merged into main @media (max-width: 768px) above */
 
-  .location-bubble {
-    font-size: 0.75rem;
-    padding: 0.375rem 0.75rem;
-  }
-
-  .cards-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .panel-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-  }
-
-  .panel-header > div {
-    width: 100%;
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  .panel-header > div > * {
-    flex: 1;
-  }
-
-  /* Mobile sidebar nav adjustments */
-  .sidebar-nav {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-  }
-
-  .sidebar-nav .nav-link {
-    padding: 0.875rem 1rem;
-    font-size: 0.9rem;
-  }
-
-  /* Footer adjustments */
-  .app-footer {
-    font-size: 0.7rem;
-    padding: 0.75rem;
-  }
-}
 
 
 /* Item Details Tabs */
@@ -3509,23 +3843,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* Responsive adjustments */
-@media (max-width: 768px) {
-  .maintenance-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
+/* Removed duplicate - merged into main @media (max-width: 768px) above */
 
-  .task-header {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .task-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-}
 
 /* Calendar Enhancements */
 .calendar-loading {
@@ -3631,22 +3950,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* Mobile adjustments for calendar */
-@media (max-width: 768px) {
-  .calendar-day {
-    min-height: 60px;
-    padding: 0.25rem;
-    font-size: 0.85rem;
-  }
+/* Removed duplicate - merged into main @media (max-width: 768px) above */
 
-  .day-tasks-popup {
-    position: fixed;
-    left: 1rem;
-    right: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    max-height: 60vh;
-  }
-}
 
 /* Calendar View Controls */
 .calendar-controls {
@@ -3910,29 +4215,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* Mobile Responsive Adjustments */
-@media (max-width: 768px) {
-  .calendar-controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
+/* Removed duplicate - merged into main @media (max-width: 768px) above */
 
-  .calendar-view-buttons {
-    justify-content: stretch;
-  }
-
-  .calendar-view-btn {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .weekly-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .yearly-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
 
 @media (max-width: 480px) {
   .yearly-grid {
@@ -4257,17 +4541,5 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* Responsive adjustments */
-@media (max-width: 768px) {
-  .photo-modal {
-    max-width: 95vw;
-    max-height: 95vh;
-  }
+/* Removed duplicate - merged into main @media (max-width: 768px) above */
 
-  .photo-preview {
-    max-height: 300px;
-  }
-
-  .photo-full-size {
-    max-height: 300px;
-  }
-}
