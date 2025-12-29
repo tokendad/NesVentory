@@ -4,7 +4,7 @@ import re
 import click
 from PIL import Image
 
-from niimprint import BluetoothTransport, PrinterClient, SerialTransport
+from .printer import BluetoothTransport, PrinterClient, SerialTransport
 
 
 @click.command("print")

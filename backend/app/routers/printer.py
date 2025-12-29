@@ -12,6 +12,8 @@ import logging
 from ..deps import get_db, get_current_user
 from .. import models
 from ..printer_service import NiimbotPrinterService
+from ..niimbot import PrinterClient
+from ..config import settings
 
 router = APIRouter(prefix="/api/printer", tags=["printer"])
 logger = logging.getLogger(__name__)
@@ -107,9 +109,8 @@ def print_label(
         if not location:
             raise HTTPException(status_code=404, detail="Location not found")
         
-        # Generate QR code
-        base_url = "http://localhost:3000"  # This should be configurable
-        location_url = f"{base_url}/#/location/{request.location_id}"
+        # Generate QR code using configured app URL
+        location_url = f"{settings.APP_URL}/#/location/{request.location_id}"
         
         qr = qrcode.QRCode(
             version=1,
