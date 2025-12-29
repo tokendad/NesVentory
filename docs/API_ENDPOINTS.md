@@ -421,7 +421,14 @@ Create a new item.
   "purchase_price": 1500.00,
   "purchase_date": "2023-01-15",
   "location_id": "uuid",
-  "tag_ids": ["uuid1", "uuid2"]
+  "upc": "012345678901",
+  "tag_ids": ["uuid1", "uuid2"],
+  "is_living": false,
+  "birthdate": null,
+  "contact_info": null,
+  "relationship_type": null,
+  "is_current_user": false,
+  "associated_user_id": null
 }
 ```
 
@@ -443,7 +450,14 @@ Update an existing item.
   "name": "Gaming Laptop",
   "description": "Updated description",
   "estimated_value": 1100.00,
-  "tag_ids": ["uuid1"]
+  "tag_ids": ["uuid1"],
+  "warranties": [
+    {
+      "type": "manufacturer",
+      "provider": "Dell",
+      "expiration_date": "2025-01-15"
+    }
+  ]
 }
 ```
 
@@ -565,11 +579,21 @@ Get all locations.
   {
     "id": "uuid",
     "name": "Living Room",
-    "description": "Main living area",
     "parent_id": null,
-    "items": [],
-    "photos": [],
-    "videos": []
+    "is_primary_location": false,
+    "is_container": false,
+    "friendly_name": "Our Living Room",
+    "description": "Main living area",
+    "address": null,
+    "owner_info": null,
+    "landlord_info": null,
+    "tenant_info": null,
+    "insurance_info": null,
+    "estimated_property_value": null,
+    "estimated_value_with_items": null,
+    "location_type": "residential",
+    "videos": [],
+    "location_photos": []
   }
 ]
 ```
@@ -584,8 +608,13 @@ Create a new location.
 ```json
 {
   "name": "Living Room",
+  "parent_id": null,
+  "is_primary_location": false,
+  "is_container": false,
+  "friendly_name": "Our Living Room",
   "description": "Main living area",
-  "parent_id": null
+  "address": "123 Main St",
+  "location_type": "residential"
 }
 ```
 
@@ -605,7 +634,8 @@ Update an existing location.
 ```json
 {
   "name": "Master Bedroom",
-  "description": "Updated description"
+  "description": "Updated description",
+  "is_container": false
 }
 ```
 
@@ -1002,6 +1032,42 @@ Look up multiple barcodes at once.
 }
 ```
 
+### Scan QR Code from Image
+
+#### POST /api/ai/scan-qr
+
+Scan and decode a QR code from an image.
+
+**Request:** (multipart/form-data)
+- `file`: Image file
+
+**Response:**
+```json
+{
+  "found": true,
+  "content": "https://example.com/#/location/123",
+  "raw_response": null
+}
+```
+
+### Scan QR Code from Image
+
+#### POST /api/ai/scan-qr
+
+Scan and decode a QR code from an image.
+
+**Request:** (multipart/form-data)
+- `file`: Image file
+
+**Response:**
+```json
+{
+  "found": true,
+  "content": "https://example.com/#/location/123",
+  "raw_response": null
+}
+```
+
 ### Scan Barcode from Image
 
 #### POST /api/ai/scan-barcode
@@ -1014,10 +1080,9 @@ Scan and decode barcode from an image.
 **Response:**
 ```json
 {
-  "success": true,
-  "barcode": "012345678901",
-  "format": "EAN-13",
-  "product": { ... }
+  "found": true,
+  "upc": "012345678901",
+  "raw_response": null
 }
 ```
 
@@ -1034,6 +1099,7 @@ Get list of available UPC/barcode databases.
     {
       "id": "upcitemdb",
       "name": "UPC Item DB",
+      "description": "...",
       "requires_api_key": false
     }
   ]
@@ -1053,6 +1119,7 @@ Get list of available AI providers.
     {
       "id": "gemini",
       "name": "Google Gemini",
+      "description": "...",
       "requires_api_key": true
     }
   ]
@@ -1063,22 +1130,16 @@ Get list of available AI providers.
 
 #### POST /api/ai/run-valuation
 
-Run AI valuation on all items or specific items.
-
-**Request:**
-```json
-{
-  "item_ids": ["uuid1", "uuid2"]
-}
-```
+Run AI valuation on all items.
 
 **Response:**
 ```json
 {
-  "total_items": 2,
-  "processed": 2,
-  "failed": 0,
-  "results": [ ... ]
+  "items_processed": 10,
+  "items_updated": 8,
+  "items_skipped": 2,
+  "message": "AI valuation complete. ...",
+  "ai_schedule_last_run": "2024-01-15T10:00:00Z"
 }
 ```
 
@@ -1088,20 +1149,15 @@ Run AI valuation on all items or specific items.
 
 Enrich items using their data tag photos.
 
-**Request:**
-```json
-{
-  "item_ids": ["uuid1", "uuid2"]
-}
-```
-
 **Response:**
 ```json
 {
-  "total_items": 2,
-  "processed": 2,
-  "enriched": 1,
-  "results": [ ... ]
+  "items_processed": 5,
+  "items_updated": 3,
+  "items_skipped": 2,
+  "items_with_data_tags": 5,
+  "quota_exceeded": false,
+  "message": "AI enrichment complete. ..."
 }
 ```
 
@@ -1118,9 +1174,9 @@ Get Google Drive connection status.
 **Response:**
 ```json
 {
+  "enabled": true,
   "connected": true,
-  "last_backup": "2024-01-15T10:00:00Z",
-  "user_email": "user@example.com"
+  "last_backup": "2024-01-15T10:00:00Z"
 }
 ```
 
@@ -1133,7 +1189,7 @@ Connect Google Drive account.
 **Request:**
 ```json
 {
-  "authorization_code": "google_auth_code"
+  "code": "google_auth_code"
 }
 ```
 
@@ -1153,8 +1209,10 @@ Create a new backup to Google Drive.
 ```json
 {
   "success": true,
+  "message": "Backup created successfully",
   "backup_id": "file_id_on_drive",
-  "message": "Backup created successfully"
+  "backup_name": "...",
+  "backup_date": "..."
 }
 ```
 
@@ -1184,49 +1242,54 @@ List all backups on Google Drive.
 
 Delete a specific backup from Google Drive.
 
-## Encircle Export
+## Encircle Export/Import
 
-Endpoints for exporting data to Encircle format.
+Endpoints for Encircle integration.
 
-### Preview Encircle Export
+### Preview Encircle Import
 
 #### POST /api/import/encircle/preview
 
-Preview data in Encircle format without exporting.
+Preview an Encircle XLSX file to extract the parent location name.
 
-**Request:**
-```json
-{
-  "location_ids": ["uuid1", "uuid2"],
-  "include_photos": true
-}
-```
+**Request:** (multipart/form-data)
+- `xlsx_file`: Encircle XLSX export file
 
 **Response:**
 ```json
 {
-  "total_items": 50,
-  "total_locations": 2,
-  "preview": [ ... ]
+  "parent_location_name": "Maine Cottage"
 }
 ```
 
-### Export to Encircle
+### Import from Encircle
 
 #### POST /api/import/encircle
 
-Export data to Encircle format.
+Import items and images from Encircle XLSX export.
 
-**Request:**
+**Request:** (multipart/form-data)
+- `xlsx_file`: Encircle XLSX export file
+- `images`: Optional list of image files
+- `match_by_name`: Boolean (default: true)
+- `parent_location_id`: Optional UUID
+- `create_parent_from_file`: Boolean (default: true)
+
+**Response:**
 ```json
 {
-  "location_ids": ["uuid1", "uuid2"],
-  "include_photos": true,
-  "export_format": "csv"
+  "message": "Import completed successfully",
+  "items_created": 50,
+  "photos_attached": 120,
+  "items_without_photos": 5,
+  "locations_created": 1,
+  "sublocations_created": 8,
+  "parent_location_name": "Maine Cottage",
+  "log": [ ... ],
+  "warnings": [ ... ],
+  "quota_exceeded": false
 }
 ```
-
-**Response:** CSV file download
 
 ## CSV Import
 
@@ -1239,22 +1302,26 @@ Endpoints for importing data from CSV files.
 Import items from a CSV file.
 
 **Request:** (multipart/form-data)
-- `file`: CSV file
-- `location_id`: UUID (optional, default location for items)
+- `csv_file`: CSV file
+- `parent_location_id`: UUID (optional)
+- `create_locations`: Boolean (default: true)
 
 **Response:**
 ```json
 {
-  "success": true,
-  "imported_count": 100,
-  "failed_count": 5,
-  "errors": [ ... ]
+  "message": "Import completed successfully",
+  "items_created": 100,
+  "photos_attached": 85,
+  "photos_failed": 2,
+  "locations_created": 5,
+  "log": [ ... ],
+  "warnings": [ ... ]
 }
 ```
 
 ## Media Management
 
-Endpoints for managing media files across items and locations.
+Endpoints for managing media files.
 
 ### Get Media Statistics
 
@@ -1266,10 +1333,10 @@ Get statistics about media files in the system.
 ```json
 {
   "total_photos": 150,
-  "total_documents": 25,
   "total_videos": 10,
-  "total_size_bytes": 1073741824,
-  "total_size_readable": "1.00 GB"
+  "total_storage_bytes": 1073741824,
+  "total_storage_mb": 1024.0,
+  "directories": ["photos", "videos", "location_photos"]
 }
 ```
 
@@ -1280,19 +1347,23 @@ Get statistics about media files in the system.
 List media files with filtering options.
 
 **Query Parameters:**
-- `media_type`: Filter by type (photo, document, video)
-- `item_id`: Filter by item
-- `location_id`: Filter by location
-- `page`: Page number (default: 1)
-- `per_page`: Items per page (default: 50)
+- `location_filter`: Filter by location name or ID
+- `media_type`: Filter by type (photo, video)
+- `unassigned_only`: Only show media not assigned to any item
 
 **Response:**
 ```json
 {
-  "items": [ ... ],
-  "total": 150,
-  "page": 1,
-  "per_page": 50
+  "media": [
+    {
+      "id": "uuid",
+      "type": "photo",
+      "path": "/uploads/photos/...",
+      "item_name": "Laptop",
+      "location_name": "Living Room",
+      ...
+    }
+  ]
 }
 ```
 
@@ -1305,9 +1376,8 @@ Delete multiple media files at once.
 **Request:**
 ```json
 {
-  "photo_ids": ["uuid1", "uuid2"],
-  "document_ids": ["uuid3"],
-  "video_ids": ["uuid4"]
+  "media_ids": ["uuid1", "uuid2"],
+  "media_types": ["photo", "video"]
 }
 ```
 
@@ -1320,8 +1390,9 @@ Update media metadata.
 **Request:**
 ```json
 {
+  "media_type": "photo",
   "photo_type": "front",
-  "is_primary": true
+  "item_id": "new-uuid"
 }
 ```
 

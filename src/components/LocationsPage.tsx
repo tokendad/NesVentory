@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import type { Location, LocationCreate, Item } from "../lib/api";
-import { createLocation, updateLocation, deleteLocation } from "../lib/api";
+import { createLocation, updateLocation, deleteLocation, scanQRCodeImage } from "../lib/api";
 import QRLabelPrint, { PRINT_MODE_OPTIONS, type PrintMode } from "./QRLabelPrint";
 import LocationDetailsModal from "./LocationDetailsModal";
 import { getLocationPath } from "../lib/utils";
@@ -46,6 +46,10 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
   // QR Label printing
   const [showQRPrint, setShowQRPrint] = useState<Location | null>(null);
   const [printModeFromEdit, setPrintModeFromEdit] = useState<PrintMode>("qr_with_items");
+  
+  // QR Scanning
+  const [scanningQR, setScanningQR] = useState(false);
+  const qrInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   const [formData, setFormData] = useState<LocationCreate>({
@@ -114,6 +118,71 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
       setSelectedPath([]);
     } else {
       setSelectedPath(selectedPath.slice(0, index + 1));
+    }
+  };
+
+  const handleQRScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setScanningQR(true);
+    setFormError(null);
+
+    try {
+      const result = await scanQRCodeImage(file);
+      
+      if (result.found && result.content) {
+        // Parse location ID from URL: .../#/location/{id}
+        // or simple ID
+        const match = result.content.match(/\/location\/([^/?]+)/) || result.content.match(/location\/([^/?]+)/);
+        let locationId = match ? match[1] : null;
+        
+        // If no URL structure, try to use content directly if it looks like an ID
+        if (!locationId && /^\d+$/.test(result.content)) {
+          locationId = result.content;
+        }
+
+        if (locationId) {
+          const location = locations.find(l => l.id.toString() === locationId);
+          if (location) {
+            // Found the location, navigate to it
+            // We need to build the full path
+            const path: Location[] = [];
+            let current: Location | undefined = location;
+            while (current) {
+              path.unshift(current);
+              if (current.parent_id) {
+                const parentId = current.parent_id;
+                current = locations.find(l => l.id.toString() === parentId.toString());
+              } else {
+                current = undefined;
+              }
+            }
+            // Remove the last item (current location) from path if we want to show it as "selected" 
+            // but usually we want to see inside it, so keeping it is fine.
+            // Wait, existing logic: selectedPath is the trail.
+            // If I select a location, I see its children.
+            // If I scan a container, I want to see its contents.
+            // So setting selectedPath to [grandparent, parent, container] is correct.
+            
+            setSelectedPath(path);
+          } else {
+            setFormError(`Location not found (ID: ${locationId})`);
+          }
+        } else {
+           setFormError("Could not extract location ID from QR code");
+        }
+      } else {
+        setFormError("No QR code found in image");
+      }
+    } catch (err: any) {
+      setFormError(err.message || "Failed to scan QR code");
+    } finally {
+      setScanningQR(false);
+      // Reset input
+      if (qrInputRef.current) {
+        qrInputRef.current.value = "";
+      }
     }
   };
 
@@ -250,6 +319,22 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
         <div className="panel-header">
           <h2>Browse Locations</h2>
           <div style={{ display: "flex", gap: "0.75rem" }}>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              ref={qrInputRef}
+              onChange={handleQRScan}
+              style={{ display: "none" }}
+            />
+            <button 
+              className="btn-outline" 
+              onClick={() => qrInputRef.current?.click()} 
+              disabled={loading || scanningQR}
+              title="Scan location QR code"
+            >
+              {scanningQR ? "Scanning..." : "📷 Scan QR"}
+            </button>
             <button className="btn-outline" onClick={onRefresh} disabled={loading}>
               {loading ? "Refreshing..." : "Refresh"}
             </button>

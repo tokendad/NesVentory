@@ -1155,6 +1155,129 @@ async def get_ai_providers(
     )
 
 
+class QRScanResult(BaseModel):
+    """Schema for QR scan response."""
+    found: bool
+    content: Optional[str] = None
+    raw_response: Optional[str] = None
+
+
+def parse_qr_scan_response(response_text: str) -> QRScanResult:
+    """
+    Parse the Gemini response text for QR scan.
+    """
+    result = QRScanResult(found=False)
+    
+    try:
+        # Look for JSON object in the response
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            json_str = json_match.group()
+            parsed = json.loads(json_str)
+            
+            if isinstance(parsed, dict):
+                # Check if QR was found
+                found = parsed.get("found", False)
+                result.found = found is True or (isinstance(found, str) and found.lower() == "true")
+                
+                if not result.found:
+                    result.raw_response = response_text
+                    return result
+                
+                # Extract content
+                content = parsed.get("content") or parsed.get("url") or parsed.get("text")
+                if content:
+                    result.content = str(content)
+                else:
+                    result.found = False
+                    result.raw_response = response_text
+                    
+    except json.JSONDecodeError:
+        logger.warning("Failed to parse JSON from Gemini QR scan response")
+        result.raw_response = response_text
+    
+    return result
+
+
+@router.post("/scan-qr", response_model=QRScanResult)
+async def scan_qr_code(
+    file: UploadFile = File(..., description="Image of a QR code to scan"),
+    db: Session = Depends(get_db)
+):
+    """
+    Scan a QR code image and extract the content (URL or text).
+    
+    Uses Gemini AI to read the QR code from an uploaded image.
+    This is useful for mobile devices to scan location labels.
+    """
+    # Check if Gemini API is configured
+    gemini_api_key = get_effective_gemini_api_key(db)
+    if not gemini_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="AI detection is not configured. Please set GEMINI_API_KEY."
+        )
+    
+    # Validate file type
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed types: {', '.join(ALLOWED_IMAGE_TYPES)}"
+        )
+    
+    try:
+        import google.generativeai as genai
+        from ..settings_service import get_effective_gemini_model
+        
+        throttle_ai_request()
+        genai.configure(api_key=gemini_api_key)
+        
+        image_data = await file.read()
+        image_base64 = base64.b64encode(image_data).decode("utf-8")
+        
+        gemini_model = get_effective_gemini_model(db)
+        model = genai.GenerativeModel(gemini_model)
+        
+        prompt = """Analyze this image and look for any QR code.
+
+If you find a QR code, extract its text content or URL exactly as it appears.
+
+Return ONLY a JSON object with these fields:
+1. found: true if a QR code is visible and readable, false otherwise
+2. content: The exact text content or URL encoded in the QR code
+
+Example format if QR is found:
+{
+  "found": true,
+  "content": "https://example.com/location/123"
+}
+
+Example format if no QR is found:
+{
+  "found": false,
+  "content": null
+}"""
+
+        image_part = {
+            "mime_type": file.content_type,
+            "data": image_base64
+        }
+        
+        response = model.generate_content([prompt, image_part])
+        result = parse_qr_scan_response(response.text)
+        
+        if not result.found and not result.raw_response:
+            result.raw_response = response.text
+        
+        return result
+        
+    except Exception as e:
+        logger.exception("Error during QR image scanning")
+        if is_quota_error(e):
+            raise HTTPException(status_code=429, detail=QUOTA_EXCEEDED_MESSAGE)
+        raise HTTPException(status_code=500, detail="Failed to scan QR code image")
+
+
 def parse_barcode_scan_response(response_text: str) -> BarcodeScanResult:
     """
     Parse the Gemini response text for barcode scan (reading barcode from image).

@@ -1232,6 +1232,12 @@ export interface BarcodeScanResult {
   raw_response?: string | null;
 }
 
+export interface QRScanResult {
+  found: boolean;
+  content?: string | null;
+  raw_response?: string | null;
+}
+
 export async function scanBarcodeImage(file: File): Promise<BarcodeScanResult> {
   const formData = new FormData();
   formData.append("file", file);
@@ -1244,6 +1250,20 @@ export async function scanBarcodeImage(file: File): Promise<BarcodeScanResult> {
     body: formData,
   });
   return handleResponse<BarcodeScanResult>(res);
+}
+
+export async function scanQRCodeImage(file: File): Promise<QRScanResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_BASE_URL}/api/ai/scan-qr`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+    },
+    body: formData,
+  });
+  return handleResponse<QRScanResult>(res);
 }
 
 // --- Multi-Database UPC Lookup ---
