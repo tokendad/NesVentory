@@ -1,8 +1,8 @@
-# NesVentory v6.3.1 - Release
+# NesVentory v6.4.0 - Added OIDC and Authelia support
 
 ## Overview
 
-Version 6.3.1 release.
+Version 6.4.0 release.
 
 ---
 
