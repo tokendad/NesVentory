@@ -2105,3 +2105,92 @@ export async function updateMedia(
   return handleResponse<MediaItem>(res);
 }
 
+// ====================================
+// NIIMBOT Printer API
+// ====================================
+
+export interface PrinterConfig {
+  enabled: boolean;
+  model: string;
+  connection_type: string;
+  address?: string | null;
+  density: number;
+}
+
+export interface PrinterModel {
+  value: string;
+  label: string;
+  max_width: number;
+}
+
+export interface PrintLabelRequest {
+  location_id: string;
+  location_name: string;
+  is_container: boolean;
+}
+
+export interface PrinterResponse {
+  success: boolean;
+  message: string;
+}
+
+export async function getPrinterConfig(): Promise<PrinterConfig> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/config`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<PrinterConfig>(res);
+}
+
+export async function updatePrinterConfig(config: PrinterConfig): Promise<PrinterResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/config`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(config),
+  });
+  return handleResponse<PrinterResponse>(res);
+}
+
+export async function printLabel(request: PrintLabelRequest): Promise<PrinterResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/print-label`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(request),
+  });
+  return handleResponse<PrinterResponse>(res);
+}
+
+export async function testPrinterConnection(config: PrinterConfig): Promise<PrinterResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/test-connection`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(config),
+  });
+  return handleResponse<PrinterResponse>(res);
+}
+
+export async function getPrinterModels(): Promise<{ models: PrinterModel[] }> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/models`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<{ models: PrinterModel[] }>(res);
+}
+
+

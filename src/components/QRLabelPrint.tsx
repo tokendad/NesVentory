@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import QRCode from "qrcode";
-import type { Location, Item } from "../lib/api";
+import type { Location, Item, PrinterConfig } from "../lib/api";
+import { getPrinterConfig, printLabel } from "../lib/api";
 
 // Print mode options
 export type PrintMode = "qr_only" | "qr_with_items" | "items_only";
@@ -80,7 +81,23 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
   const [selectedSize, setSelectedSize] = useState("4x2");
   const [loading, setLoading] = useState(true);
   const [printError, setPrintError] = useState<string | null>(null);
+  const [printSuccess, setPrintSuccess] = useState<string | null>(null);
+  const [printerConfig, setPrinterConfig] = useState<PrinterConfig | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+
+  // Fetch printer configuration on mount
+  useEffect(() => {
+    const fetchPrinterConfig = async () => {
+      try {
+        const config = await getPrinterConfig();
+        setPrinterConfig(config);
+      } catch (err) {
+        console.error("Failed to fetch printer config:", err);
+      }
+    };
+    fetchPrinterConfig();
+  }, []);
 
   // Memoize label size to avoid repeated lookups
   const labelSize = useMemo(() => {
@@ -117,6 +134,31 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
 
     generateQR();
   }, [location.id]);
+
+  const handleNiimbotPrint = async () => {
+    try {
+      setIsPrinting(true);
+      setPrintError(null);
+      setPrintSuccess(null);
+
+      const result = await printLabel({
+        location_id: location.id.toString(),
+        location_name: location.friendly_name || location.name,
+        is_container: location.is_container || false,
+      });
+
+      if (result.success) {
+        setPrintSuccess(result.message);
+      } else {
+        setPrintError(result.message);
+      }
+    } catch (err) {
+      console.error("Failed to print to NIIMBOT:", err);
+      setPrintError("Failed to print label. Please check your printer connection.");
+    } finally {
+      setIsPrinting(false);
+    }
+  };
 
   const handlePrint = () => {
     const printContent = printRef.current;
@@ -271,6 +313,19 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
           </div>
         )}
 
+        {/* Success Message */}
+        {printSuccess && (
+          <div className="success-banner" style={{ background: "#4caf50", color: "white", padding: "1rem", borderRadius: "4px", marginBottom: "1rem" }}>
+            {printSuccess}
+            <button 
+              onClick={() => setPrintSuccess(null)}
+              style={{ marginLeft: "0.5rem", background: "none", border: "none", color: "inherit", cursor: "pointer" }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Options */}
         <div className="qr-options">
           <div className="form-row">
@@ -396,9 +451,14 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
           <h4>Label Printer Tips</h4>
           <ul>
             <li>Supports Dymo, Brother, Zebra, and other thermal label printers</li>
+            {printerConfig?.enabled && (
+              <li>✅ NIIMBOT printer configured ({printerConfig.model.toUpperCase()})</li>
+            )}
             <li>For best results, use the same paper size in your printer settings</li>
             <li>Scanning the QR code will show items in this location</li>
-            <li>Android app support planned for future development</li>
+            {!printerConfig?.enabled && (
+              <li>Configure NIIMBOT printer in User Settings for direct printing</li>
+            )}
           </ul>
         </div>
 
@@ -406,12 +466,22 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
           <button className="btn-outline" onClick={onClose}>
             Cancel
           </button>
+          {printerConfig?.enabled && (
+            <button
+              className="btn-success"
+              onClick={handleNiimbotPrint}
+              disabled={isPrinting}
+              style={{ marginLeft: "0.5rem" }}
+            >
+              {isPrinting ? "⏳ Printing..." : "🖨️ Print to NIIMBOT"}
+            </button>
+          )}
           <button
             className="btn-primary"
             onClick={handlePrint}
             disabled={printMode !== "items_only" && loading}
           >
-            🖨️ Print Label
+            🖨️ Browser Print
           </button>
         </div>
       </div>
