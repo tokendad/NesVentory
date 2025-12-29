@@ -116,6 +116,13 @@ jobs:
             console.log('Updated package.json version to ' + process.env.NEW_VERSION);
           "
 
+      - name: Update App.tsx version
+        env:
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
+        run: |
+          sed -i 's/const APP_VERSION = ".*";/const APP_VERSION = "'"$NEW_VERSION"'";/' src/App.tsx
+          echo "Updated App.tsx APP_VERSION to $NEW_VERSION"
+
       - name: Get merged PRs since last release
         id: get_prs
         env:
@@ -440,7 +447,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add VERSION package.json CHANGELOG.md README.md RELEASE_NOTES.md docs/releases/
+          git add VERSION package.json src/App.tsx CHANGELOG.md README.md RELEASE_NOTES.md docs/releases/
 
           if git diff --staged --quiet; then
             echo "No changes to commit"

@@ -49,7 +49,7 @@ import type { PhotoUpload, DocumentUpload } from "./lib/types";
 
 type View = "inventory" | "media" | "user-settings" | "calendar" | "system-settings" | "admin";
 
-const APP_VERSION = "5.0.0";
+const APP_VERSION = "6.3.1";
 
 const App: React.FC = () => {
   const isMobile = useIsMobile();
