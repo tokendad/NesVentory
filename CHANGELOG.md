@@ -13,6 +13,9 @@ All notable changes to this project will be documented in this file.
 
 
 
+
+## [6.3.1] - 2025-12-29
+### Fixed
 ## [6.3.0] - 2025-12-21
 ### Added
 ## [6.2.0] - 2025-12-19
