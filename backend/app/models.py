@@ -81,6 +81,9 @@ class User(Base):
     
     # Google OAuth - stores Google account ID for SSO
     google_id = Column(String(255), unique=True, nullable=True, index=True)
+    
+    # OIDC - stores OIDC account ID for SSO
+    oidc_id = Column(String(255), unique=True, nullable=True, index=True)
 
     # Pass the values of the Enum directly to avoid type confusion
     role = Column(Enum(UserRole.ADMIN, UserRole.EDITOR, UserRole.VIEWER, name="user_role", type_=String),

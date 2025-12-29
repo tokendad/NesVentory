@@ -50,6 +50,13 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
 
+    # OIDC settings (Authelia etc)
+    OIDC_CLIENT_ID: Optional[str] = None
+    OIDC_CLIENT_SECRET: Optional[str] = None
+    OIDC_DISCOVERY_URL: Optional[str] = None
+    OIDC_PROVIDER_NAME: str = "OIDC"
+    OIDC_BUTTON_TEXT: str = "Sign in with OIDC"
+
     # Registration settings
     DISABLE_SIGNUPS: bool = False
 

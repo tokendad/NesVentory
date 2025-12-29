@@ -10,6 +10,7 @@
 
 import React, { useEffect, useState } from "react";
 import LoginForm from "./components/LoginForm";
+import OIDCCallback from "./components/OIDCCallback";
 import RegisterForm from "./components/RegisterForm";
 import SetPasswordModal from "./components/SetPasswordModal";
 import UserSettings from "./components/UserSettings";
@@ -301,6 +302,33 @@ const App: React.FC = () => {
     : items;
 
   if (!token) {
+    // Check if we are handling an OIDC callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const oidcCode = urlParams.get("code");
+
+    if (oidcCode) {
+      return (
+        <OIDCCallback 
+          onSuccess={(newToken, email) => {
+            setToken(newToken);
+            // If email is empty, it will be populated by loadCurrentUser
+            if (email) setUserEmail(email);
+            
+            // Clear query params to remove code
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }}
+          onError={(error) => {
+            console.error("OIDC Login Error:", error);
+            // Clear query params to remove code and show login form with error
+            window.history.replaceState({}, document.title, window.location.pathname);
+            // We can't easily pass error to LoginForm without state lifting or context, 
+            // but clearing code will render LoginForm.
+            alert(`Login failed: ${error}`); // Simple fallback
+          }}
+        />
+      );
+    }
+
     return (
       <div className="app-root">
         {showSetPassword ? (

@@ -2010,6 +2010,54 @@ export async function listMedia(
   return handleResponse<MediaListResponse>(res);
 }
 
+// --- OIDC Auth ---
+
+export interface OIDCStatus {
+  enabled: boolean;
+  provider_name: string;
+  button_text: string;
+}
+
+export interface OIDCLoginResponse {
+  authorization_url: string;
+}
+
+export interface OIDCCallbackResponse {
+  access_token: string;
+  token_type: string;
+  is_new_user: boolean;
+}
+
+export async function getOIDCStatus(): Promise<OIDCStatus> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/oidc/status`, {
+    headers: {
+      "Accept": "application/json",
+    },
+  });
+  return handleResponse<OIDCStatus>(res);
+}
+
+export async function getOIDCLoginUrl(redirectUri: string): Promise<OIDCLoginResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/oidc/login?redirect_uri=${encodeURIComponent(redirectUri)}`, {
+    headers: {
+      "Accept": "application/json",
+    },
+  });
+  return handleResponse<OIDCLoginResponse>(res);
+}
+
+export async function oidcCallback(code: string, redirectUri: string): Promise<OIDCCallbackResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/oidc/callback?code=${code}&redirect_uri=${encodeURIComponent(redirectUri)}`, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+    },
+  });
+  return handleResponse<OIDCCallbackResponse>(res);
+}
+
+
+
 export async function bulkDeleteMedia(mediaIds: string[], mediaTypes: string[]): Promise<void> {
   const res = await fetch(`${API_BASE_URL}/api/media/bulk-delete`, {
     method: "DELETE",

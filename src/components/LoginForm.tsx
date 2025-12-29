@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { login, getGoogleOAuthStatus, googleAuth, getRegistrationStatus } from "../lib/api";
+import { login, getGoogleOAuthStatus, googleAuth, getRegistrationStatus, getOIDCStatus, getOIDCLoginUrl } from "../lib/api";
 
 interface LoginFormProps {
   onSuccess: (token: string, email: string) => void;
@@ -17,6 +17,9 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick, onMus
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
   const [googleScriptLoaded, setGoogleScriptLoaded] = useState(false);
   const [registrationEnabled, setRegistrationEnabled] = useState(true);
+  const [oidcEnabled, setOidcEnabled] = useState(false);
+  const [oidcButtonText, setOidcButtonText] = useState("Sign in with OIDC");
+  const [oidcLoading, setOidcLoading] = useState(false);
 
   // Callback for Google Sign-In response
   const handleGoogleCallback = useCallback(async (response: any) => {
@@ -79,6 +82,16 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick, onMus
         // This prevents locking users out from seeing the option due to network issues
         setRegistrationEnabled(true);
       });
+
+    // Check if OIDC is enabled
+    getOIDCStatus()
+      .then((status) => {
+        setOidcEnabled(status.enabled);
+        if (status.enabled) {
+          setOidcButtonText(status.button_text);
+        }
+      })
+      .catch(() => setOidcEnabled(false));
   }, []);
 
   // Initialize Google Sign-In when script is loaded and client_id is available
@@ -140,6 +153,23 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick, onMus
     });
   }
 
+  async function handleOIDCLogin() {
+    setError(null);
+    setOidcLoading(true);
+    try {
+      // Get the current URL as the base for redirect URI
+      // We want to redirect back to the same page, but the App component will handle the code
+      const redirectUri = window.location.origin + window.location.pathname;
+      const resp = await getOIDCLoginUrl(redirectUri);
+      
+      // Redirect to the authorization URL
+      window.location.href = resp.authorization_url;
+    } catch (err: any) {
+      setError(err.message || "Failed to initialize OIDC login");
+      setOidcLoading(false);
+    }
+  }
+
   return (
     <div className="login-wrapper">
       <div className="login-card">
@@ -191,6 +221,25 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick, onMus
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
                 {googleLoading ? "Signing in..." : "Sign in with Google"}
+              </button>
+            </>
+          )}
+          {oidcEnabled && (
+            <>
+              {/* Only show divider if Google didn't already show it */}
+              {!(googleEnabled && googleScriptLoaded) && (
+                <div className="login-divider">
+                  <span>or</span>
+                </div>
+              )}
+              <button
+                type="button"
+                className="btn-outline"
+                style={{ width: "100%", marginTop: googleEnabled && googleScriptLoaded ? "0.5rem" : "0" }}
+                onClick={handleOIDCLogin}
+                disabled={oidcLoading}
+              >
+                {oidcLoading ? "Redirecting..." : oidcButtonText}
               </button>
             </>
           )}

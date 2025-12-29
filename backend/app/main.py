@@ -20,7 +20,7 @@ setup_logging()
 from . import models
 from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
-from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins, location_photos, csv_import, media
+from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins, location_photos, csv_import, media, oidc
 from .routers.auth import perform_password_login
 
 
@@ -35,7 +35,7 @@ def run_migrations():
     # Whitelist of allowed table and column names for security
     # Only these exact names are permitted in migrations
     ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks", "videos", "plugins", "system_settings"}
-    ALLOWED_COLUMNS = {"google_id", "estimated_value_ai_date", "estimated_value_user_date", "estimated_value_user_name",
+    ALLOWED_COLUMNS = {"google_id", "oidc_id", "estimated_value_ai_date", "estimated_value_user_date", "estimated_value_user_name",
                        "ai_schedule_enabled", "ai_schedule_interval_days", "ai_schedule_last_run",
                        "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "ai_providers", "document_type", "color", 
                        "supports_image_processing", "gemini_model", "must_change_password"}
@@ -45,6 +45,8 @@ def run_migrations():
     migrations = [
         # User model: google_id column added for Google OAuth SSO
         ("users", "google_id", "VARCHAR(255)"),
+        # User model: oidc_id column added for OIDC SSO
+        ("users", "oidc_id", "VARCHAR(255)"),
         # Item model: estimated value tracking columns for AI and user attribution
         ("items", "estimated_value_ai_date", "VARCHAR(20)"),
         ("items", "estimated_value_user_date", "VARCHAR(20)"),
@@ -172,6 +174,7 @@ app.include_router(plugins.router, prefix="/api")
 app.include_router(location_photos.router, prefix="/api")
 app.include_router(csv_import.router, prefix="/api")
 app.include_router(media.router, prefix="/api")
+app.include_router(oidc.router, prefix="/api")
 
 # Root-level /token endpoint for backward compatibility with mobile apps
 @app.post("/token", response_model=Token)
