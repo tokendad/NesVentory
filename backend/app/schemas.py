@@ -48,6 +48,8 @@ class User(UserBase):
     upc_databases: Optional[List[dict]] = None
     # AI Provider Configuration
     ai_providers: Optional[List[dict]] = None
+    # NIIMBOT Printer Configuration
+    niimbot_printer_config: Optional[dict] = None
 
     class Config:
         from_attributes = True
@@ -72,6 +74,8 @@ class UserRead(UserBase):
     upc_databases: Optional[List[dict]] = None
     # AI Provider Configuration
     ai_providers: Optional[List[dict]] = None
+    # NIIMBOT Printer Configuration
+    niimbot_printer_config: Optional[dict] = None
 
     class Config:
         from_attributes = True

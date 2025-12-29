@@ -7,6 +7,12 @@ import {
   getUserLocationAccess,
   type User,
   type Location,
+  getPrinterConfig,
+  updatePrinterConfig,
+  testPrinterConnection,
+  getPrinterModels,
+  type PrinterConfig,
+  type PrinterModel,
 } from "../lib/api";
 import { useTheme } from "./ThemeContext";
 import { THEME_MODES, COLOR_PALETTES, type ThemeMode, type ColorPalette } from "../lib/theme";
@@ -26,7 +32,7 @@ interface UserSettingsProps {
   embedded?: boolean;
 }
 
-type TabType = 'profile' | 'api' | 'stats' | 'appearance';
+type TabType = 'profile' | 'api' | 'stats' | 'appearance' | 'printer';
 
 const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, embedded = false }) => {
   // Tab state
@@ -55,6 +61,19 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
   const [localeConfig, setLocaleConfig] = useState<LocaleConfig>(getLocaleConfig());
   const [localeSaved, setLocaleSaved] = useState(false);
   
+  // Printer settings states
+  const [printerConfig, setPrinterConfig] = useState<PrinterConfig>({
+    enabled: false,
+    model: "b21",
+    connection_type: "usb",
+    address: null,
+    density: 3,
+  });
+  const [printerModels, setPrinterModels] = useState<PrinterModel[]>([]);
+  const [printerLoading, setPrinterLoading] = useState(false);
+  const [printerSaved, setPrinterSaved] = useState(false);
+  const [printerTestResult, setPrinterTestResult] = useState<string | null>(null);
+  
   // Load user stats on mount
   useEffect(() => {
     async function loadUserStats() {
@@ -73,6 +92,23 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
     }
     loadUserStats();
   }, [user.id]);
+
+  // Load printer configuration on mount
+  useEffect(() => {
+    async function loadPrinterConfig() {
+      try {
+        const [config, models] = await Promise.all([
+          getPrinterConfig(),
+          getPrinterModels()
+        ]);
+        setPrinterConfig(config);
+        setPrinterModels(models.models);
+      } catch (err) {
+        console.error("Failed to load printer config:", err);
+      }
+    }
+    loadPrinterConfig();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -189,6 +225,36 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
 
   function handleColorPaletteChange(palette: ColorPalette) {
     setColorPalette(palette);
+  }
+
+  // Printer handlers
+  async function handlePrinterSave() {
+    try {
+      setPrinterLoading(true);
+      setPrinterTestResult(null);
+      await updatePrinterConfig(printerConfig);
+      setPrinterSaved(true);
+      setTimeout(() => setPrinterSaved(false), 3000);
+    } catch (err) {
+      console.error("Failed to save printer config:", err);
+      setPrinterTestResult("Failed to save configuration");
+    } finally {
+      setPrinterLoading(false);
+    }
+  }
+
+  async function handlePrinterTest() {
+    try {
+      setPrinterLoading(true);
+      setPrinterTestResult(null);
+      const result = await testPrinterConnection(printerConfig);
+      setPrinterTestResult(result.success ? "✅ " + result.message : "❌ " + result.message);
+    } catch (err) {
+      console.error("Failed to test printer:", err);
+      setPrinterTestResult("❌ Connection test failed");
+    } finally {
+      setPrinterLoading(false);
+    }
   }
 
   // Render the Profile Tab content
@@ -592,6 +658,123 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
     </div>
   );
 
+  // Render the Printer Tab content
+  const renderPrinterTab = () => (
+    <div className="tab-content">
+      <h3 style={{ marginBottom: "1rem" }}>NIIMBOT Printer Configuration</h3>
+      <p style={{ color: "#666", marginBottom: "1rem" }}>
+        Configure your NIIMBOT label printer for direct printing of QR code labels.
+      </p>
+
+      <div className="form-group">
+        <label htmlFor="printer-enabled" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <input
+            id="printer-enabled"
+            type="checkbox"
+            checked={printerConfig.enabled}
+            onChange={(e) => setPrinterConfig(prev => ({ ...prev, enabled: e.target.checked }))}
+          />
+          Enable NIIMBOT Printer
+        </label>
+      </div>
+
+      {printerConfig.enabled && (
+        <>
+          <div className="form-group">
+            <label htmlFor="printer-model">Printer Model</label>
+            <select
+              id="printer-model"
+              value={printerConfig.model}
+              onChange={(e) => setPrinterConfig(prev => ({ ...prev, model: e.target.value }))}
+            >
+              {printerModels.map(model => (
+                <option key={model.value} value={model.value}>
+                  {model.label} (Max Width: {model.max_width}px)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="printer-connection">Connection Type</label>
+            <select
+              id="printer-connection"
+              value={printerConfig.connection_type}
+              onChange={(e) => setPrinterConfig(prev => ({ ...prev, connection_type: e.target.value }))}
+            >
+              <option value="usb">USB</option>
+              <option value="bluetooth">Bluetooth</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="printer-address">
+              {printerConfig.connection_type === "bluetooth" ? "Bluetooth MAC Address" : "Serial Port (optional)"}
+            </label>
+            <input
+              id="printer-address"
+              type="text"
+              value={printerConfig.address || ""}
+              onChange={(e) => setPrinterConfig(prev => ({ ...prev, address: e.target.value || null }))}
+              placeholder={printerConfig.connection_type === "bluetooth" ? "AA:BB:CC:DD:EE:FF" : "auto-detect or /dev/ttyACM0"}
+            />
+            <small style={{ color: "#666", fontSize: "0.875rem" }}>
+              {printerConfig.connection_type === "bluetooth" 
+                ? "Enter the Bluetooth MAC address of your printer" 
+                : "Leave empty for auto-detection, or specify port like /dev/ttyACM0 (Linux) or COM3 (Windows)"}
+            </small>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="printer-density">Print Density (1-5)</label>
+            <input
+              id="printer-density"
+              type="number"
+              min="1"
+              max="5"
+              value={printerConfig.density}
+              onChange={(e) => setPrinterConfig(prev => ({ ...prev, density: parseInt(e.target.value) || 3 }))}
+            />
+            <small style={{ color: "#666", fontSize: "0.875rem" }}>
+              Higher values produce darker prints. Some models only support up to 3.
+            </small>
+          </div>
+
+          {printerTestResult && (
+            <div style={{ 
+              padding: "0.75rem", 
+              borderRadius: "4px", 
+              marginBottom: "1rem",
+              background: printerTestResult.startsWith("✅") ? "#d4edda" : "#f8d7da",
+              color: printerTestResult.startsWith("✅") ? "#155724" : "#721c24"
+            }}>
+              {printerTestResult}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handlePrinterSave}
+              disabled={printerLoading}
+            >
+              {printerSaved ? "✓ Saved!" : "Save Configuration"}
+            </button>
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={handlePrinterTest}
+              disabled={printerLoading}
+            >
+              {printerLoading ? "Testing..." : "Test Connection"}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   // Handle tab change - clear any errors when switching tabs
   const handleTabChange = (tab: TabType) => {
     setError(null);
@@ -639,6 +822,13 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
         >
           🎨 Appearance
         </button>
+        <button
+          type="button"
+          className={`tab-button ${activeTab === 'printer' ? 'active' : ''}`}
+          onClick={() => handleTabChange('printer')}
+        >
+          🖨️ Printer
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="form-vertical">
@@ -648,6 +838,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
           {activeTab === 'api' && renderApiTab()}
           {activeTab === 'stats' && renderStatsTab()}
           {activeTab === 'appearance' && renderAppearanceTab()}
+          {activeTab === 'printer' && renderPrinterTab()}
         </div>
 
         {error && <p className="error-message">{error}</p>}
