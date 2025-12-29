@@ -187,8 +187,32 @@ async def upload_document_from_url(
         # Limit redirects to prevent redirect loops and SSRF
         # Note: URL is user-provided but validated above for SSRF protection
         # (private IPs, loopback, link-local addresses are blocked)
+        # Re-parse and validate URL scheme and host before making the request.
+        try:
+            parsed_url = urlparse(url)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid URL format")
+
+        if parsed_url.scheme not in ("http", "https"):
+            raise HTTPException(status_code=400, detail="Only http and https URLs are allowed")
+
+        hostname = parsed_url.hostname
+        if not hostname:
+            raise HTTPException(status_code=400, detail="URL must include a hostname")
+
+        # Enforce allowed hosts using the effective second-level domain.
+        sld = get_sld(hostname)
+        if sld not in ALLOWED_HOSTS and hostname not in ALLOWED_HOSTS:
+            raise HTTPException(status_code=400, detail="Host not allowed")
+
+        # Reconstruct a safe URL using the validated components.
+        safe_netloc = hostname
+        if parsed_url.port:
+            safe_netloc = f"{hostname}:{parsed_url.port}"
+        safe_url = parsed_url._replace(netloc=safe_netloc).geturl()
+
         async with httpx.AsyncClient(timeout=30.0, max_redirects=3) as client:
-            response = await client.get(url)  # nosemgrep: ssrf
+            response = await client.get(safe_url)
             response.raise_for_status()
             
             # Get content type from response
