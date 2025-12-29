@@ -16,6 +16,7 @@ interface ItemFormProps {
   isEditing?: boolean;
   currentUserId?: string;
   currentUserName?: string;
+  initialPhotoFile?: File | null;
 }
 
 // Get current date in YYYY-MM-DD format for new items
@@ -41,6 +42,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
   isEditing = false,
   currentUserId,
   currentUserName,
+  initialPhotoFile = null,
 }) => {
   const [formData, setFormData] = useState<ItemCreate>({
     name: initialData?.name || "",
@@ -142,6 +144,12 @@ const ItemForm: React.FC<ItemFormProps> = ({
     getAIStatus()
       .then(setAIStatus)
       .catch(() => setAIStatus({ enabled: false }));
+
+    // If an initial photo file is passed, add it to the photos state
+    if (initialPhotoFile) {
+      const preview = URL.createObjectURL(initialPhotoFile);
+      setPhotos([{ file: initialPhotoFile, preview, type: PHOTO_TYPES.DEFAULT }]);
+    }
   }, []);
 
   // Cleanup preview URLs on unmount
@@ -1356,12 +1364,22 @@ const ItemForm: React.FC<ItemFormProps> = ({
     };
 
     // Helper function to get photo type label for display
-    // Priority: is_primary flag, then is_data_tag flag, then photo_type field
     const getPhotoTypeLabel = (photo: Photo): string => {
       if (photo.is_primary) return 'Primary';
       if (photo.is_data_tag) return 'Data Tag';
       return formatPhotoType(photo.photo_type || 'optional');
     };
+
+    const handlePhotoTypeChange = (index: number, newType: string) => {
+      setPhotos(prev => {
+        const updated = [...prev];
+        updated[index].type = newType;
+        return updated;
+      });
+    };
+    
+    const photoUploadRef = useRef<HTMLInputElement>(null);
+    const cameraUploadRef = useRef<HTMLInputElement>(null);
 
     return (
       <div className="tab-content">
@@ -1391,240 +1409,73 @@ const ItemForm: React.FC<ItemFormProps> = ({
         )}
 
         <div className="form-section">
-          <h3>{isEditing && existingPhotos.length > 0 ? 'Add New Photos' : 'Photos'}</h3>
+          <h3>{isEditing ? 'Add New Photos' : 'Photos'}</h3>
           
-          <div className="photo-upload-section">
-            {livingMode ? (
-              <>
-                <div className="photo-type-upload">
-                  <label htmlFor="photo-profile-media">Profile Picture</label>
-                  <input
-                    type="file"
-                    id="photo-profile-media"
-                    accept="image/*"
-                    capture="user"
-                    onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.PROFILE)}
-                    disabled={loading}
-                  />
-                  <span className="help-text">Take photo or browse from device</span>
-                </div>
-
-                <div className="photo-type-upload">
-                  <label htmlFor="photo-optional-media">Additional Photos</label>
-                  <input
-                    type="file"
-                    id="photo-optional-media"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
-                    disabled={loading}
-                    multiple
-                  />
-                  <span className="help-text">Take photos or browse from device</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="photo-type-upload">
-                  <label htmlFor="photo-default-media">Default/Primary Photo</label>
-                  <input
-                    type="file"
-                    id="photo-default-media"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DEFAULT)}
-                    disabled={loading || detectingFromPhoto}
-                  />
-                  <span className="help-text">
-                    {detectingFromPhoto 
-                      ? "🔄 AI is analyzing your photo..." 
-                      : "Take photo or browse from device"}
-                    {aiStatus?.enabled && !detectingFromPhoto && !isEditing && " — AI will auto-detect item info"}
-                  </span>
-                </div>
-
-                <div className="photo-type-upload">
-                  <label htmlFor="photo-data-tag-media">Data Tag</label>
-                  <div className="data-tag-controls">
-                    <input
-                      type="file"
-                      id="photo-data-tag-media"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.DATA_TAG)}
-                      disabled={loading || scanningDataTag}
-                    />
-                    {aiStatus?.enabled && (
-                      <>
-                        <input
-                          type="file"
-                          ref={dataTagInputRef}
-                          accept="image/*"
-                          capture="environment"
-                          onChange={handleDataTagFileChange}
-                          disabled={loading || scanningDataTag}
-                          style={{ display: "none" }}
-                        />
-                        <button
-                          type="button"
-                          className="btn-outline btn-scan-data-tag"
-                          onClick={handleDataTagScan}
-                          disabled={loading || scanningDataTag}
-                          title="Take a photo of the data tag and auto-fill fields using AI"
-                        >
-                          {scanningDataTag ? "🔄 Scanning..." : "🤖 AI Scan"}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                  <span className="help-text">
-                    Take photo or browse from device
-                    {aiStatus?.enabled && " — Use AI Scan to auto-fill manufacturer, model & serial number"}
-                  </span>
-                </div>
-
-                {/* Data Tag Scan Results */}
-                {dataTagResult && (
-                  <div className="data-tag-result">
-                    <h4>📋 Data Tag Scan Results</h4>
-                    <div className="data-tag-fields">
-                      {dataTagResult.manufacturer && (
-                        <div className="data-tag-field">
-                          <span className="field-label">Manufacturer:</span>
-                          <span className="field-value">{dataTagResult.manufacturer}</span>
-                        </div>
-                      )}
-                      {dataTagResult.brand && dataTagResult.brand !== dataTagResult.manufacturer && (
-                        <div className="data-tag-field">
-                          <span className="field-label">Brand:</span>
-                          <span className="field-value">{dataTagResult.brand}</span>
-                        </div>
-                      )}
-                      {dataTagResult.model_number && (
-                        <div className="data-tag-field">
-                          <span className="field-label">Model Number:</span>
-                          <span className="field-value">{dataTagResult.model_number}</span>
-                        </div>
-                      )}
-                      {dataTagResult.serial_number && (
-                        <div className="data-tag-field">
-                          <span className="field-label">Serial Number:</span>
-                          <span className="field-value">{dataTagResult.serial_number}</span>
-                        </div>
-                      )}
-                      {dataTagResult.production_date && (
-                        <div className="data-tag-field">
-                          <span className="field-label">Production Date:</span>
-                          <span className="field-value">{dataTagResult.production_date}</span>
-                        </div>
-                      )}
-                      {dataTagResult.estimated_value !== null && dataTagResult.estimated_value !== undefined && (
-                        <div className="data-tag-field">
-                          <span className="field-label">Estimated Value:</span>
-                          <span className="field-value">${dataTagResult.estimated_value.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {dataTagResult.additional_info && Object.keys(dataTagResult.additional_info).length > 0 && (
-                        <div className="data-tag-additional">
-                          <span className="field-label">Additional Info:</span>
-                          <div className="additional-fields">
-                            {Object.entries(dataTagResult.additional_info).map(([key, value]) => (
-                              <span key={key} className="additional-field">
-                                {key}: {String(value)}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {!dataTagResult.manufacturer && !dataTagResult.brand && !dataTagResult.model_number && 
-                       !dataTagResult.serial_number && !dataTagResult.production_date && !dataTagResult.estimated_value && (
-                        <p className="no-data-found">No data tag information could be extracted. Try a clearer image.</p>
-                      )}
-                    </div>
-                    <div className="data-tag-actions">
-                      <button
-                        type="button"
-                        className="btn-outline"
-                        onClick={dismissDataTagResult}
-                      >
-                        Dismiss
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-primary"
-                        onClick={() => applyDataTagInfo(dataTagResult)}
-                        disabled={!dataTagResult.brand && !dataTagResult.manufacturer && 
-                                 !dataTagResult.model_number && !dataTagResult.serial_number && 
-                                 !dataTagResult.estimated_value}
-                      >
-                        Apply to Form
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="photo-type-upload">
-                  <label htmlFor="photo-receipt-media">Receipt</label>
-                  <input
-                    type="file"
-                    id="photo-receipt-media"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.RECEIPT)}
-                    disabled={loading}
-                    multiple
-                  />
-                  <span className="help-text">Take photos or browse from device</span>
-                </div>
-
-                <div className="photo-type-upload">
-                  <label htmlFor="photo-warranty-media">Warranty Information</label>
-                  <input
-                    type="file"
-                    id="photo-warranty-media"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.WARRANTY)}
-                    disabled={loading}
-                    multiple
-                  />
-                  <span className="help-text">Take photos or browse from device</span>
-                </div>
-
-                <div className="photo-type-upload">
-                  <label htmlFor="photo-optional-media">Additional Photos</label>
-                  <input
-                    type="file"
-                    id="photo-optional-media"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
-                    disabled={loading}
-                    multiple
-                  />
-                  <span className="help-text">Take photos or browse from device</span>
-                </div>
-              </>
-            )}
+          {/* Generic Photo Upload Section */}
+          <div className="photo-upload-section" style={{ 
+            background: 'var(--bg-elevated-softer)', 
+            padding: '1rem', 
+            borderRadius: '8px', 
+            border: '1px solid var(--border-panel)' 
+          }}>
+            <p className="help-text" style={{margin: '0 0 0.75rem 0'}}>Add photos to your item. You can classify each photo after uploading.</p>
+            <input
+              type="file"
+              ref={photoUploadRef}
+              accept="image/*"
+              multiple
+              onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
+              style={{ display: 'none' }}
+            />
+             <input
+              type="file"
+              ref={cameraUploadRef}
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => handlePhotoChange(e, PHOTO_TYPES.OPTIONAL)}
+              style={{ display: 'none' }}
+            />
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button type="button" className="btn-outline" onClick={() => cameraUploadRef.current?.click()}>
+                📷 Take Photo
+              </button>
+              <button type="button" className="btn-outline" onClick={() => photoUploadRef.current?.click()}>
+                📁 Upload File(s)
+              </button>
+            </div>
           </div>
 
           {photos.length > 0 && (
-            <div className="photo-previews">
+            <div className="photo-previews" style={{marginTop: '1.5rem'}}>
               <h4>New Photos to Upload ({photos.length})</h4>
               <div className="photo-preview-grid">
                 {photos.map((photo, index) => (
-                  <div key={index} className="photo-preview-item">
-                    <img src={photo.preview} alt={`Preview ${index + 1}`} />
-                    <div className="photo-preview-info">
-                      <span className="photo-type-badge">{formatPhotoType(photo.type)}</span>
-                      <button
-                        type="button"
-                        className="remove-photo-btn"
-                        onClick={() => removePhoto(index)}
-                        disabled={loading}
+                  <div key={index} className="photo-preview-item" style={{height: 'auto', display: 'flex', flexDirection: 'column'}}>
+                    <img src={photo.preview} alt={`Preview ${index + 1}`} style={{ flexShrink: 0 }} />
+                    <div className="photo-preview-info" style={{ position: 'static', padding: '0.5rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%'}}>
+                         <span className="photo-type-badge">{formatPhotoType(photo.type)}</span>
+                         <button
+                          type="button"
+                          className="remove-photo-btn"
+                          onClick={() => removePhoto(index)}
+                          disabled={loading}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <select 
+                        value={photo.type} 
+                        onChange={(e) => handlePhotoTypeChange(index, e.target.value)}
+                        style={{width: '100%', padding: '0.25rem', fontSize: '0.75rem'}}
                       >
-                        ✕
-                      </button>
+                        <option value={PHOTO_TYPES.OPTIONAL}>Optional</option>
+                        <option value={PHOTO_TYPES.DEFAULT}>Primary</option>
+                        <option value={PHOTO_TYPES.DATA_TAG}>Data Tag</option>
+                        <option value={PHOTO_TYPES.RECEIPT}>Receipt</option>
+                        <option value={PHOTO_TYPES.WARRANTY}>Warranty</option>
+                        {livingMode && <option value={PHOTO_TYPES.PROFILE}>Profile</option>}
+                      </select>
                     </div>
                   </div>
                 ))}

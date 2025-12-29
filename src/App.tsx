@@ -21,6 +21,7 @@ import Layout, { useIsMobile } from "./components/Layout";
 import InventoryPage from "./components/InventoryPage";
 import ItemForm from "./components/ItemForm";
 import ItemDetails from "./components/ItemDetails";
+import AddItemModal from "./components/AddItemModal";
 import EncircleImport from "./components/EncircleImport";
 import CSVImport from "./components/CSVImport";
 import AIDetection from "./components/AIDetection";
@@ -75,6 +76,9 @@ const App: React.FC = () => {
   const [locationsError, setLocationsError] = useState<string | null>(null);
   const [view, setView] = useState<View>("inventory");
   const [showItemForm, setShowItemForm] = useState(false);
+  const [showAddItemModal, setShowAddItemModal] = useState(false);
+  const [itemInitialData, setItemInitialData] = useState<Partial<ItemCreate> | null>(null);
+  const [itemInitialPhoto, setItemInitialPhoto] = useState<File | null>(null);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [editingItem, setEditingItem] = useState(false);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
@@ -453,7 +457,7 @@ const App: React.FC = () => {
             onRefresh={loadItems}
             onRefreshLocations={loadLocations}
             onItemClick={handleItemClick}
-            onAddItem={() => setShowItemForm(true)}
+            onAddItem={() => setShowAddItemModal(true)}
             onImportEncircle={() => setShowEncircleImport(true)}
             onImportCSV={() => setShowCSVImport(true)}
             onAIScan={() => setShowAIDetection(true)}
@@ -489,11 +493,28 @@ const App: React.FC = () => {
         </footer>
 
         {/* Modals */}
-        {showItemForm && (
+        {showAddItemModal && (
+          <AddItemModal
+            onClose={() => setShowAddItemModal(false)}
+            onContinue={(initialData, initialPhoto) => {
+              setItemInitialData(initialData);
+              setItemInitialPhoto(initialPhoto);
+              setShowAddItemModal(false);
+              setShowItemForm(true);
+            }}
+          />
+        )}
+        {showItemForm && !editingItem && (
           <ItemForm
             onSubmit={handleCreateItem}
-            onCancel={() => setShowItemForm(false)}
+            onCancel={() => {
+              setShowItemForm(false);
+              setItemInitialData(null);
+              setItemInitialPhoto(null);
+            }}
             locations={locations}
+            initialData={itemInitialData || {}}
+            initialPhotoFile={itemInitialPhoto}
             currentUserId={currentUser?.id}
             currentUserName={currentUser?.full_name || currentUser?.email}
           />
