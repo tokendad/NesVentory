@@ -21,6 +21,9 @@ class Settings(BaseSettings):
 
     BACKEND_PORT: int = 8001
     FRONTEND_PORT: int = 5173
+    
+    # Application URL for QR code generation (used by printer service)
+    APP_URL: str = "http://localhost:3000"
 
     # v2.0: Database fields are optional for SQLite (not used)
     DB_HOST: str = "localhost"

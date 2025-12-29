@@ -1,8 +1,12 @@
-# NesVentory v6.4.0 - Added OIDC and Authelia support
+# NesVentory v6.4.1 - new Feature added
 
 ## Overview
 
-Version 6.4.0 release.
+Version 6.4.1 release.
+
+## New Features
+
+NIIMBOT printer support added
 
 ---
 

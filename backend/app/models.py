@@ -116,6 +116,10 @@ class User(Base):
     # Format: [{"id": "gemini", "enabled": true, "priority": 1, "api_key": "..."}, {"id": "chatgpt", "enabled": false, "priority": 2, "api_key": null}, ...]
     # Lower priority number = higher priority
     ai_providers = Column(JSON, nullable=True)
+    
+    # NIIMBOT Printer Configuration - stored as JSON object
+    # Format: {"enabled": true, "model": "b21", "connection_type": "usb", "address": "/dev/ttyACM0", "density": 3}
+    niimbot_printer_config = Column(JSON, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
