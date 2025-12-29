@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import type { Item, Location, Photo, EnrichedItemData } from "../lib/api";
-import { getApiBaseUrl, enrichItem } from "../lib/api";
+import { getApiBaseUrl, enrichItem, uploadPhoto } from "../lib/api";
 import { formatPhotoType, formatCurrency, formatDate, formatDateTime, getLocationPath } from "../lib/utils";
-import { RELATIONSHIP_LABELS, LIVING_TAG_NAME, DOCUMENT_TYPES } from "../lib/constants";
+import { RELATIONSHIP_LABELS, LIVING_TAG_NAME, DOCUMENT_TYPES, PHOTO_TYPES } from "../lib/constants";
 import MaintenanceTab from "./MaintenanceTab";
 import PhotoModal from "./PhotoModal";
 import EnrichmentModal from "./EnrichmentModal";
@@ -35,6 +35,14 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
   const [enriching, setEnriching] = useState(false);
   const [enrichmentError, setEnrichmentError] = useState<string | null>(null);
   const [enrichmentData, setEnrichmentData] = useState<EnrichedItemData[] | null>(null);
+  
+  // Photo upload state
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [showPhotoTypeModal, setShowPhotoTypeModal] = useState(false);
+  const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const location = locations.find(
     (loc) => loc.id.toString() === item.location_id?.toString()
@@ -81,6 +89,44 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
   const getRelationshipLabel = (type: string | null | undefined): string => {
     if (!type) return "—";
     return RELATIONSHIP_LABELS[type] || type;
+  };
+
+  // Handle file selection from camera or file input
+  const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setShowPhotoTypeModal(true);
+      setPhotoUploadError(null);
+    }
+    // Reset input value so same file can be selected again
+    event.target.value = '';
+  };
+
+  // Handle photo upload with selected type
+  const handlePhotoUpload = async (photoType: string, isPrimary: boolean, isDataTag: boolean) => {
+    if (!selectedFile) return;
+
+    setUploadingPhoto(true);
+    setPhotoUploadError(null);
+
+    try {
+      await uploadPhoto(item.id.toString(), selectedFile, photoType, isPrimary, isDataTag);
+      setShowPhotoTypeModal(false);
+      setSelectedFile(null);
+      onPhotoUpdated(); // Refresh the item data to show new photo
+    } catch (err: any) {
+      setPhotoUploadError(err.message || "Failed to upload photo");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  // Cancel photo upload
+  const handleCancelPhotoUpload = () => {
+    setShowPhotoTypeModal(false);
+    setSelectedFile(null);
+    setPhotoUploadError(null);
   };
 
   return (
@@ -319,9 +365,47 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
             </div>
           )}
 
-          {item.photos && item.photos.length > 0 && (
-            <div className="details-section">
+          {/* Photos/Images Section - Always show, even if empty */}
+          <div className="details-section">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3>{isLivingItem ? "Photos" : "Images"}</h3>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {/* Hidden file inputs */}
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleFileSelected}
+                  style={{ display: 'none' }}
+                />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelected}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  className="btn-outline"
+                  onClick={() => cameraInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  title="Add image from camera"
+                >
+                  📷 Camera
+                </button>
+                <button
+                  className="btn-outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  title="Add image from file"
+                >
+                  🖼️ File
+                </button>
+              </div>
+            </div>
+            
+            {item.photos && item.photos.length > 0 ? (
               <div className="photos-grid">
                 {item.photos.map((photo) => {
                   let badgeText = formatPhotoType(photo.photo_type);
@@ -346,8 +430,12 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
                   );
                 })}
               </div>
-            </div>
-          )}
+            ) : (
+              <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                No images yet. Use the buttons above to add images.
+              </p>
+            )}
+          </div>
 
           {item.documents && item.documents.filter(doc => doc.document_type === DOCUMENT_TYPES.MANUAL).length > 0 && (
             <div className="details-section">
@@ -468,7 +556,158 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
           </section>
         </div>
       )}
+
+      {/* Photo Type Selection Modal */}
+      {showPhotoTypeModal && selectedFile && (
+        <PhotoTypeSelectionModal
+          file={selectedFile}
+          onUpload={handlePhotoUpload}
+          onCancel={handleCancelPhotoUpload}
+          uploading={uploadingPhoto}
+          error={photoUploadError}
+          isLivingItem={isLivingItem}
+        />
+      )}
     </section>
+  );
+};
+
+// Photo Type Selection Modal Component
+interface PhotoTypeSelectionModalProps {
+  file: File;
+  onUpload: (photoType: string, isPrimary: boolean, isDataTag: boolean) => void;
+  onCancel: () => void;
+  uploading: boolean;
+  error: string | null;
+  isLivingItem: boolean;
+}
+
+const PhotoTypeSelectionModal: React.FC<PhotoTypeSelectionModalProps> = ({
+  file,
+  onUpload,
+  onCancel,
+  uploading,
+  error,
+  isLivingItem,
+}) => {
+  const [photoType, setPhotoType] = useState(isLivingItem ? PHOTO_TYPES.PROFILE : PHOTO_TYPES.DEFAULT);
+  const [isPrimary, setIsPrimary] = useState(false);
+  const [isDataTag, setIsDataTag] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+
+  // Create preview URL when component mounts
+  React.useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const handleSubmit = () => {
+    onUpload(photoType, isPrimary, isDataTag);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <section className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+        <div className="modal-header">
+          <h2>Configure Photo</h2>
+          <button className="modal-close" onClick={onCancel} disabled={uploading}>
+            ✕
+          </button>
+        </div>
+        
+        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* Image Preview */}
+          {previewUrl && (
+            <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+              <img 
+                src={previewUrl} 
+                alt="Preview" 
+                style={{ 
+                  maxWidth: '100%', 
+                  maxHeight: '300px', 
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)'
+                }} 
+              />
+            </div>
+          )}
+
+          {error && (
+            <div className="error-banner">{error}</div>
+          )}
+
+          {/* Photo Type Selection */}
+          <div className="form-group">
+            <label htmlFor="photo-type">Photo Type:</label>
+            <select
+              id="photo-type"
+              value={photoType}
+              onChange={(e) => setPhotoType(e.target.value)}
+              disabled={uploading}
+              style={{ width: '100%', padding: '0.5rem' }}
+            >
+              {isLivingItem ? (
+                <>
+                  <option value={PHOTO_TYPES.PROFILE}>Profile</option>
+                  <option value={PHOTO_TYPES.OPTIONAL}>Additional Photo</option>
+                </>
+              ) : (
+                <>
+                  <option value={PHOTO_TYPES.DEFAULT}>Default/Primary</option>
+                  <option value={PHOTO_TYPES.DATA_TAG}>Data Tag</option>
+                  <option value={PHOTO_TYPES.RECEIPT}>Receipt</option>
+                  <option value={PHOTO_TYPES.WARRANTY}>Warranty</option>
+                  <option value={PHOTO_TYPES.OPTIONAL}>Additional Photo</option>
+                </>
+              )}
+            </select>
+          </div>
+
+          {/* Photo Flags */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={isPrimary}
+                onChange={(e) => setIsPrimary(e.target.checked)}
+                disabled={uploading}
+              />
+              <span>Set as Primary Photo</span>
+            </label>
+
+            {!isLivingItem && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={isDataTag}
+                  onChange={(e) => setIsDataTag(e.target.checked)}
+                  disabled={uploading}
+                />
+                <span>Mark as Data Tag</span>
+              </label>
+            )}
+          </div>
+        </div>
+
+        <div className="modal-actions">
+          <button 
+            className="btn-outline" 
+            onClick={onCancel}
+            disabled={uploading}
+          >
+            Cancel
+          </button>
+          <button 
+            className="btn-primary" 
+            onClick={handleSubmit}
+            disabled={uploading}
+          >
+            {uploading ? 'Uploading...' : 'Upload Photo'}
+          </button>
+        </div>
+      </section>
+    </div>
   );
 };
 
