@@ -9,7 +9,8 @@ import qrcode
 import io
 import logging
 
-from ..deps import get_db, get_current_user
+from ..deps import get_db
+from ..auth import get_current_user
 from .. import models
 from ..printer_service import NiimbotPrinterService
 from ..niimbot import PrinterClient
