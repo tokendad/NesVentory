@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from "react";
 import QRCode from "qrcode";
 import type { Location, Item, PrinterConfig } from "../lib/api";
 import { getPrinterConfig, printLabel } from "../lib/api";
+import { NiimbotClient } from "../lib/niimbot";
 
 // Print mode options
 export type PrintMode = "qr_only" | "qr_with_items" | "items_only";
@@ -84,6 +85,7 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
   const [printSuccess, setPrintSuccess] = useState<string | null>(null);
   const [printerConfig, setPrinterConfig] = useState<PrinterConfig | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isBluetoothConnecting, setIsBluetoothConnecting] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   // Fetch printer configuration on mount
@@ -157,6 +159,113 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
       setPrintError("Failed to print label. Please check your printer connection.");
     } finally {
       setIsPrinting(false);
+    }
+  };
+
+  const drawLabelToCanvas = async (width: number, height: number): Promise<ImageData | null> => {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+
+      // White background
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = 'black';
+      ctx.textBaseline = 'top';
+
+      // Load QR Image
+      if (printMode !== 'items_only' && qrDataUrl) {
+          const img = new Image();
+          img.src = qrDataUrl;
+          await new Promise((resolve) => { img.onload = resolve; });
+          
+          // Draw QR
+          // Size: fit height minus margins
+          const qrSize = Math.min(height - 10, 120);
+          const qrY = (height - qrSize) / 2;
+          ctx.drawImage(img, 10, qrY, qrSize, qrSize);
+          
+          // Draw Text
+          const textX = 10 + qrSize + 10;
+          const textW = width - textX - 10;
+          
+          ctx.font = 'bold 24px Arial';
+          let title = location.friendly_name || location.name;
+          if (location.is_container) title += " [BOX]";
+          if (holidayIcon) title = HOLIDAY_ICONS[selectedHoliday] + " " + title;
+          
+          // Simple wrap or truncate? Truncate for now
+          ctx.fillText(title, textX, 15, textW);
+          
+          ctx.font = '16px Arial';
+          ctx.fillStyle = '#666';
+          const typeText = location.location_type?.replace(/_/g, " ") || "";
+          ctx.fillText(typeText, textX, 45, textW);
+          
+          if (printMode !== 'qr_only' && items.length > 0) {
+               ctx.fillStyle = 'black';
+               ctx.font = 'bold 14px Arial';
+               ctx.fillText(`Contents (${items.length}):`, textX, 70, textW);
+               
+               ctx.font = '12px Arial';
+               let y = 90;
+               for (const item of displayItems) {
+                   if (y > height - 15) break;
+                   let itemText = "• " + item.name;
+                   ctx.fillText(itemText, textX, y, textW);
+                   y += 15;
+               }
+          }
+
+      } else if (printMode === 'items_only') {
+          // Just list
+           ctx.font = 'bold 24px Arial';
+           let title = "Contents: " + (location.friendly_name || location.name);
+           if (holidayIcon) title = HOLIDAY_ICONS[selectedHoliday] + " " + title;
+           ctx.fillText(title, 10, 15);
+           
+           ctx.font = '14px Arial';
+           let y = 50;
+           for (const item of items) { // Show more items since no QR
+               if (y > height - 15) break;
+               let itemText = "• " + item.name;
+               if (item.brand) itemText += ` (${item.brand})`;
+               ctx.fillText(itemText, 10, y, width - 20);
+               y += 20;
+           }
+      }
+
+      return ctx.getImageData(0, 0, width, height);
+  };
+
+  const handleBluetoothPrint = async () => {
+    try {
+        setIsBluetoothConnecting(true);
+        setPrintError(null);
+        setPrintSuccess(null);
+        
+        const client = new NiimbotClient();
+        await client.connect();
+        
+        const width = labelSize?.width || 384;
+        const height = labelSize?.height || 192;
+        
+        // Generate image data
+        const imageData = await drawLabelToCanvas(width, height);
+        if (!imageData) throw new Error("Failed to generate label image");
+        
+        await client.printImage(imageData);
+        await client.disconnect();
+        
+        setPrintSuccess("Printed successfully via Bluetooth!");
+
+    } catch (err: any) {
+        console.error("Bluetooth print failed:", err);
+        setPrintError("Bluetooth print failed: " + err.message);
+    } finally {
+        setIsBluetoothConnecting(false);
     }
   };
 
@@ -466,6 +575,17 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
           <button className="btn-outline" onClick={onClose}>
             Cancel
           </button>
+          
+          <button
+              className="btn-success"
+              onClick={handleBluetoothPrint}
+              disabled={isBluetoothConnecting}
+              style={{ marginLeft: "0.5rem", backgroundColor: "#2196F3" }}
+              title="Print directly from phone"
+            >
+              {isBluetoothConnecting ? "⏳ Connecting..." : "📱 Bluetooth Print"}
+          </button>
+
           {printerConfig?.enabled && (
             <button
               className="btn-success"
