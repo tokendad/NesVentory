@@ -93,6 +93,52 @@ Check if Google OAuth is enabled.
 }
 ```
 
+### OIDC Authentication
+
+#### GET /api/auth/oidc/status
+
+Check if OIDC (OpenID Connect) authentication is enabled.
+
+**Response:**
+```json
+{
+  "enabled": true,
+  "provider_name": "Authelia",
+  "button_text": "Login with Authelia"
+}
+```
+
+#### GET /api/auth/oidc/login
+
+Get the OIDC authorization URL. The frontend should redirect the user to this URL.
+
+**Query Parameters:**
+- `redirect_uri`: The URL to redirect back to after login (e.g., `http://localhost:3000/oidc-callback`)
+
+**Response:**
+```json
+{
+  "authorization_url": "https://auth.example.com/api/oidc/authorize?..."
+}
+```
+
+#### POST /api/auth/oidc/callback
+
+Handle OIDC callback, exchange code for tokens, and log in the user.
+
+**Query Parameters:**
+- `code`: The authorization code received from the OIDC provider
+- `redirect_uri`: The same redirect URI used in the login request
+
+**Response:**
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer",
+  "is_new_user": false
+}
+```
+
 ### Check Registration Status
 
 #### GET /api/auth/registration/status
@@ -1661,6 +1707,103 @@ Get application version information.
   "message": "API keys updated successfully",
   "gemini_configured": true,
   "google_oauth_configured": true
+}
+```
+
+## Printer (NIIMBOT)
+
+Endpoints for managing and using NIIMBOT label printers.
+
+### Get Printer Configuration
+
+#### GET /api/printer/config
+
+Get the current user's NIIMBOT printer configuration.
+
+**Response:**
+```json
+{
+  "enabled": true,
+  "model": "b21",
+  "connection_type": "usb",
+  "address": null,
+  "density": 3
+}
+```
+
+### Update Printer Configuration
+
+#### PUT /api/printer/config
+
+Update the current user's NIIMBOT printer configuration.
+
+**Request:**
+```json
+{
+  "enabled": true,
+  "model": "b21",
+  "connection_type": "usb",
+  "address": null,
+  "density": 3
+}
+```
+
+### Print Label
+
+#### POST /api/printer/print-label
+
+Print a QR code label for a location using the configured NIIMBOT printer.
+
+**Request:**
+```json
+{
+  "location_id": "uuid",
+  "location_name": "Storage Box 1",
+  "is_container": true
+}
+```
+
+### Test Printer Connection
+
+#### POST /api/printer/test-connection
+
+Test the connection to a NIIMBOT printer with the provided configuration.
+
+**Request:**
+```json
+{
+  "enabled": true,
+  "model": "b21",
+  "connection_type": "usb",
+  "address": null,
+  "density": 3
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Successfully connected to printer"
+}
+```
+
+### Get Printer Models
+
+#### GET /api/printer/models
+
+Get a list of supported NIIMBOT printer models.
+
+**Response:**
+```json
+{
+  "models": [
+    {"value": "b1", "label": "Niimbot B1", "max_width": 384},
+    {"value": "b18", "label": "Niimbot B18", "max_width": 384},
+    {"value": "b21", "label": "Niimbot B21", "max_width": 384},
+    {"value": "d11", "label": "Niimbot D11", "max_width": 96},
+    {"value": "d110", "label": "Niimbot D110", "max_width": 96}
+  ]
 }
 ```
 
