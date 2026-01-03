@@ -185,7 +185,7 @@ The application comes with pre-seeded test users:
 - **[SEEDING.md](SEEDING.md)** - Details about pre-seeded test data and how to customize it
 - **[INTERNATIONALIZATION.md](INTERNATIONALIZATION.md)** - Guide to international format support for dates and currencies
 - **[CSV_IMPORT.md](CSV_IMPORT.md)** - Guide for importing inventory from CSV files with image URLs
-- **[PLUGINS.md](PLUGINS.md)** - Guide for creating and configuring custom LLM plugins
+- **[docs/PLUGINS.md](docs/PLUGINS.md)** - Guide for creating and configuring custom LLM plugins
 
 ## 📄 License
 
