@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from "react";
 import QRCode from "qrcode";
 import type { Location, Item, PrinterConfig } from "../lib/api";
 import { getPrinterConfig, printLabel } from "../lib/api";
-import { NiimbotClient } from "../lib/niimbot";
+import { NiimbotClient, BluetoothTransport, SerialTransport } from "../lib/niimbot";
 
 // Print mode options
 export type PrintMode = "qr_only" | "qr_with_items" | "items_only";
@@ -11,6 +11,14 @@ export const PRINT_MODE_OPTIONS: { value: PrintMode; label: string }[] = [
   { value: "qr_only", label: "Print QR Code Only" },
   { value: "qr_with_items", label: "Print QR Code with Item List" },
   { value: "items_only", label: "Print Item List Only" },
+];
+
+export type ConnectionType = "bluetooth" | "usb" | "server";
+
+export const CONNECTION_OPTIONS: { value: ConnectionType; label: string; icon: string }[] = [
+  { value: "bluetooth", label: "Bluetooth (Mobile/Laptop)", icon: "📱" },
+  { value: "usb", label: "USB (Desktop/Laptop)", icon: "🔌" },
+  { value: "server", label: "Server Printer (Network)", icon: "🖨️" },
 ];
 
 interface QRLabelPrintProps {
@@ -80,12 +88,13 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
   const [printMode, setPrintMode] = useState<PrintMode>(initialPrintMode || "qr_with_items");
   const [selectedHoliday, setSelectedHoliday] = useState("none");
   const [selectedSize, setSelectedSize] = useState("4x2");
+  const [connectionType, setConnectionType] = useState<ConnectionType>("bluetooth");
   const [loading, setLoading] = useState(true);
   const [printError, setPrintError] = useState<string | null>(null);
   const [printSuccess, setPrintSuccess] = useState<string | null>(null);
   const [printerConfig, setPrinterConfig] = useState<PrinterConfig | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
-  const [isBluetoothConnecting, setIsBluetoothConnecting] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   // Fetch printer configuration on mount
@@ -94,6 +103,9 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
       try {
         const config = await getPrinterConfig();
         setPrinterConfig(config);
+        // If server printer is configured, default to it? 
+        // Or stick to bluetooth as default for mobile-first.
+        // Let's keep bluetooth default unless maybe non-mobile detected, but hard to know.
       } catch (err) {
         console.error("Failed to fetch printer config:", err);
       }
@@ -137,7 +149,7 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
     generateQR();
   }, [location.id]);
 
-  const handleNiimbotPrint = async () => {
+  const handleServerPrint = async () => {
     try {
       setIsPrinting(true);
       setPrintError(null);
@@ -240,13 +252,29 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
       return ctx.getImageData(0, 0, width, height);
   };
 
-  const handleBluetoothPrint = async () => {
+  const handleDirectPrint = async () => {
     try {
-        setIsBluetoothConnecting(true);
+        setIsConnecting(true);
         setPrintError(null);
         setPrintSuccess(null);
         
-        const client = new NiimbotClient();
+        let client: NiimbotClient;
+
+        if (connectionType === 'bluetooth') {
+             if (!navigator.bluetooth) {
+                 throw new Error("Web Bluetooth is not supported in this browser.");
+             }
+             client = new NiimbotClient(new BluetoothTransport());
+        } else if (connectionType === 'usb') {
+             // Basic check for Web Serial support
+             if (!('serial' in navigator)) {
+                 throw new Error("Web Serial API is not supported in this browser. Try Chrome/Edge.");
+             }
+             client = new NiimbotClient(new SerialTransport());
+        } else {
+            throw new Error("Invalid connection type for direct print");
+        }
+        
         await client.connect();
         
         const width = labelSize?.width || 384;
@@ -259,17 +287,17 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
         await client.printImage(imageData);
         await client.disconnect();
         
-        setPrintSuccess("Printed successfully via Bluetooth!");
+        setPrintSuccess(`Printed successfully via ${connectionType === 'bluetooth' ? 'Bluetooth' : 'USB'}!`);
 
     } catch (err: any) {
-        console.error("Bluetooth print failed:", err);
-        setPrintError("Bluetooth print failed: " + err.message);
+        console.error("Direct print failed:", err);
+        setPrintError(`${connectionType === 'bluetooth' ? 'Bluetooth' : 'USB'} print failed: ` + err.message);
     } finally {
-        setIsBluetoothConnecting(false);
+        setIsConnecting(false);
     }
   };
 
-  const handlePrint = () => {
+  const handleBrowserPrint = () => {
     const printContent = printRef.current;
     if (!printContent) return;
 
@@ -469,31 +497,45 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
                   </option>
                 ))}
               </select>
-              <span className="help-text">
-                Optional holiday decoration
-              </span>
             </div>
           </div>
 
-          {items.length > 0 && selectedSize !== "2x1" && (
+          <div className="form-row">
             <div className="form-group">
-              <label htmlFor="printMode">Print Mode</label>
-              <select
-                id="printMode"
-                value={printMode}
-                onChange={(e) => setPrintMode(e.target.value as PrintMode)}
-              >
-                {PRINT_MODE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              <span className="help-text">
-                Choose what to include on the label
-              </span>
+               <label htmlFor="connectionType">Connection Method</label>
+               <select
+                  id="connectionType"
+                  value={connectionType}
+                  onChange={(e) => setConnectionType(e.target.value as ConnectionType)}
+               >
+                  {CONNECTION_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                          {opt.icon} {opt.label}
+                      </option>
+                  ))}
+               </select>
+               <span className="help-text">
+                   Choose how your printer is connected
+               </span>
             </div>
-          )}
+
+            {items.length > 0 && selectedSize !== "2x1" && (
+                <div className="form-group">
+                <label htmlFor="printMode">Print Mode</label>
+                <select
+                    id="printMode"
+                    value={printMode}
+                    onChange={(e) => setPrintMode(e.target.value as PrintMode)}
+                >
+                    {PRINT_MODE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                    </option>
+                    ))}
+                </select>
+                </div>
+            )}
+          </div>
         </div>
 
         {/* Preview */}
@@ -559,15 +601,11 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
         <div className="label-printer-info">
           <h4>Label Printer Tips</h4>
           <ul>
-            <li>Supports Dymo, Brother, Zebra, and other thermal label printers</li>
-            {printerConfig?.enabled && (
-              <li>✅ NIIMBOT printer configured ({printerConfig.model.toUpperCase()})</li>
-            )}
-            <li>For best results, use the same paper size in your printer settings</li>
-            <li>Scanning the QR code will show items in this location</li>
-            {!printerConfig?.enabled && (
-              <li>Configure NIIMBOT printer in User Settings for direct printing</li>
-            )}
+            <li>Supports NIIMBOT D11/B21/B1 via Bluetooth or USB</li>
+            {connectionType === 'bluetooth' && <li>📱 Bluetooth: Best for mobile devices (requires Web Bluetooth)</li>}
+            {connectionType === 'usb' && <li>🔌 USB: Best for desktop (requires Web Serial)</li>}
+            {connectionType === 'server' && <li>🖨️ Server: Prints to a printer connected to the NesVentory server</li>}
+            <li>Paper Size: {labelSize?.label}</li>
           </ul>
         </div>
 
@@ -577,32 +615,35 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
           </button>
           
           <button
-              className="btn-success"
-              onClick={handleBluetoothPrint}
-              disabled={isBluetoothConnecting}
-              style={{ marginLeft: "0.5rem", backgroundColor: "#2196F3" }}
-              title="Print directly from phone"
-            >
-              {isBluetoothConnecting ? "⏳ Connecting..." : "📱 Bluetooth Print"}
-          </button>
-
-          {printerConfig?.enabled && (
-            <button
-              className="btn-success"
-              onClick={handleNiimbotPrint}
-              disabled={isPrinting}
-              style={{ marginLeft: "0.5rem" }}
-            >
-              {isPrinting ? "⏳ Printing..." : "🖨️ Print to NIIMBOT"}
-            </button>
-          )}
-          <button
             className="btn-primary"
-            onClick={handlePrint}
+            onClick={handleBrowserPrint}
             disabled={printMode !== "items_only" && loading}
+            style={{ marginRight: 'auto' }}
           >
             🖨️ Browser Print
           </button>
+
+          {connectionType === 'server' ? (
+             <button
+               className="btn-success"
+               onClick={handleServerPrint}
+               disabled={isPrinting}
+               style={{ marginLeft: "0.5rem" }}
+               title="Print to printer connected to server"
+             >
+               {isPrinting ? "⏳ Printing..." : "🖨️ Send to Server"}
+             </button>
+          ) : (
+            <button
+                className="btn-success"
+                onClick={handleDirectPrint}
+                disabled={isConnecting}
+                style={{ marginLeft: "0.5rem", backgroundColor: "#2196F3" }}
+                title={`Print directly via ${connectionType === 'bluetooth' ? 'Bluetooth' : 'USB'}`}
+              >
+                {isConnecting ? "⏳ Connecting..." : `${CONNECTION_OPTIONS.find(c => c.value === connectionType)?.icon} Direct Print`}
+            </button>
+          )}
         </div>
       </div>
     </div>
