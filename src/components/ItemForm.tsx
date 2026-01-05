@@ -89,6 +89,10 @@ const ItemForm: React.FC<ItemFormProps> = ({
   const [showBrandSuggestions, setShowBrandSuggestions] = useState(false);
   const brandInputRef = useRef<HTMLInputElement>(null);
   const brandDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Photo upload refs
+  const photoUploadRef = useRef<HTMLInputElement>(null);
+  const cameraUploadRef = useRef<HTMLInputElement>(null);
   
   // Document URL state
   const [documentUrlManual, setDocumentUrlManual] = useState("");
@@ -1591,9 +1595,6 @@ const ItemForm: React.FC<ItemFormProps> = ({
       });
     };
     
-    const photoUploadRef = useRef<HTMLInputElement>(null);
-    const cameraUploadRef = useRef<HTMLInputElement>(null);
-
     return (
       <div className="tab-content">
         {/* Existing Photos Section - Only show when editing and there are existing photos */}
