@@ -49,22 +49,37 @@ export function formatCurrency(
     return '—';
   }
   
-  const userLocale = locale || getUserLocale();
-  const userCurrency = currency || getUserCurrency();
+  const config = getLocaleConfig();
+  const userLocale = locale || config.locale;
+  const userCurrency = currency || config.currency;
+  const position = config.currencySymbolPosition;
   
   try {
-    return new Intl.NumberFormat(userLocale, {
+    const formatter = new Intl.NumberFormat(userLocale, {
       style: 'currency',
       currency: userCurrency,
-      // Let Intl API determine decimal places based on currency
-      // (e.g., JPY and KRW use 0, USD uses 2)
-    }).format(value);
+    });
+    
+    // We use formatToParts to reconstruct to respect the position setting
+    const parts = formatter.formatToParts(value);
+    const currencyPart = parts.find(p => p.type === 'currency');
+    const currencySymbol = currencyPart ? currencyPart.value : '';
+    
+    // Reconstruct without the currency part initially
+    const nonCurrencyParts = parts
+      .filter(p => p.type !== 'currency' && p.type !== 'literal') // removing literals (often whitespace) that might be associated with currency position
+      .map(p => p.value)
+      .join('');
+      
+    // Add symbol based on preference
+    if (position === 'after') {
+      return `${nonCurrencyParts} ${currencySymbol}`;
+    } else {
+      return `${currencySymbol}${nonCurrencyParts}`;
+    }
   } catch (error) {
     // Fallback to USD if currency code is invalid
-    return new Intl.NumberFormat(userLocale, {
-      style: 'currency',
-      currency: 'USD',
-    }).format(value);
+    return `$${value.toFixed(2)}`;
   }
 }
 
@@ -84,16 +99,21 @@ export function formatDate(
     return '—';
   }
   
-  const userLocale = locale || getUserLocale();
-  const defaultOptions: Intl.DateTimeFormatOptions = {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  };
+  const config = getLocaleConfig();
+  const userLocale = locale || config.locale;
   
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    return new Intl.DateTimeFormat(userLocale, options || defaultOptions).format(dateObj);
+    
+    // If specific options are provided, use them
+    if (options) {
+      return new Intl.DateTimeFormat(userLocale, options).format(dateObj);
+    }
+    
+    // Otherwise use the user's configured date format style
+    return new Intl.DateTimeFormat(userLocale, {
+      dateStyle: config.dateFormat
+    }).format(dateObj);
   } catch (error) {
     // Fallback to original string if parsing fails
     return typeof date === 'string' ? date : '—';

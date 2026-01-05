@@ -5,6 +5,8 @@
 export interface LocaleConfig {
   locale: string;
   currency: string;
+  currencySymbolPosition: 'before' | 'after';
+  dateFormat: 'short' | 'medium' | 'long' | 'full';
 }
 
 const LOCALE_STORAGE_KEY = 'NesVentory_locale_config';
@@ -12,7 +14,27 @@ const LOCALE_STORAGE_KEY = 'NesVentory_locale_config';
 const DEFAULT_CONFIG: LocaleConfig = {
   locale: navigator.language || 'en-US',
   currency: 'USD',
+  currencySymbolPosition: 'before',
+  dateFormat: 'medium',
 };
+
+/**
+ * Date format options for the settings UI
+ */
+export const DATE_FORMAT_OPTIONS = [
+  { value: 'short', label: 'Short (1/31/25)' },
+  { value: 'medium', label: 'Medium (Jan 31, 2025)' },
+  { value: 'long', label: 'Long (January 31, 2025)' },
+  { value: 'full', label: 'Full (Friday, January 31, 2025)' },
+] as const;
+
+/**
+ * Currency symbol position options
+ */
+export const CURRENCY_POSITION_OPTIONS = [
+  { value: 'before', label: 'Before Amount ($100.00)' },
+  { value: 'after', label: 'After Amount (100.00$)' },
+] as const;
 
 /**
  * Get the current locale configuration from localStorage or defaults

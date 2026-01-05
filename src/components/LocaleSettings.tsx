@@ -5,6 +5,8 @@ import {
   resetLocaleConfig,
   COMMON_CURRENCIES,
   COMMON_LOCALES,
+  CURRENCY_POSITION_OPTIONS,
+  DATE_FORMAT_OPTIONS,
   type LocaleConfig 
 } from "../lib/locale";
 
@@ -33,6 +35,29 @@ const LocaleSettings: React.FC<LocaleSettingsProps> = ({ onClose, embedded = fal
     resetLocaleConfig();
     const resetConfig = getLocaleConfig();
     setConfig(resetConfig);
+  };
+
+  // Helper to format currency for preview
+  const getPreviewCurrency = () => {
+    try {
+      const formatter = new Intl.NumberFormat(config.locale, {
+        style: 'currency',
+        currency: config.currency,
+      });
+      
+      const parts = formatter.formatToParts(1234.56);
+      const currencyPart = parts.find(p => p.type === 'currency');
+      const symbol = currencyPart ? currencyPart.value : '';
+      const val = parts.filter(p => p.type !== 'currency' && p.type !== 'literal').map(p => p.value).join('');
+      
+      if (config.currencySymbolPosition === 'after') {
+        return `${val} ${symbol}`;
+      } else {
+        return `${symbol}${val}`;
+      }
+    } catch {
+      return '—';
+    }
   };
 
   const content = (
@@ -81,22 +106,53 @@ const LocaleSettings: React.FC<LocaleSettingsProps> = ({ onClose, embedded = fal
           </div>
 
           <div className="form-group">
-            <label htmlFor="currency">Currency</label>
+            <label htmlFor="dateFormat">Date Format</label>
             <select
-              id="currency"
-              value={config.currency}
-              onChange={(e) => setConfig({ ...config, currency: e.target.value })}
+              id="dateFormat"
+              value={config.dateFormat}
+              onChange={(e) => setConfig({ ...config, dateFormat: e.target.value as any })}
               disabled={saved}
             >
-              {COMMON_CURRENCIES.map((currency) => (
-                <option key={currency.code} value={currency.code}>
-                  {currency.name}
+              {DATE_FORMAT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
-            <span className="help-text">
-              Default currency for displaying prices
-            </span>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="currency">Currency</label>
+              <select
+                id="currency"
+                value={config.currency}
+                onChange={(e) => setConfig({ ...config, currency: e.target.value })}
+                disabled={saved}
+              >
+                {COMMON_CURRENCIES.map((currency) => (
+                  <option key={currency.code} value={currency.code}>
+                    {currency.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="currencyPosition">Symbol Position</label>
+              <select
+                id="currencyPosition"
+                value={config.currencySymbolPosition}
+                onChange={(e) => setConfig({ ...config, currencySymbolPosition: e.target.value as any })}
+                disabled={saved}
+              >
+                {CURRENCY_POSITION_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="preview-section">
@@ -106,19 +162,14 @@ const LocaleSettings: React.FC<LocaleSettingsProps> = ({ onClose, embedded = fal
                 <span className="preview-label">Date:</span>
                 <span className="preview-value">
                   {new Intl.DateTimeFormat(config.locale, {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
+                    dateStyle: config.dateFormat
                   }).format(new Date())}
                 </span>
               </div>
               <div className="preview-item">
                 <span className="preview-label">Currency:</span>
                 <span className="preview-value">
-                  {new Intl.NumberFormat(config.locale, {
-                    style: 'currency',
-                    currency: config.currency,
-                  }).format(1234.56)}
+                  {getPreviewCurrency()}
                 </span>
               </div>
             </div>
