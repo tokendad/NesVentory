@@ -16,6 +16,10 @@ All notable changes to this project will be documented in this file.
 
 
 
+
+## [6.5.0] - 2026-01-05
+### Added
+- Updated International formats,  added Custom Fields
 ## [6.4.1] - 2025-12-29
 ### Fixed
 - NIIMBOT printer support added
