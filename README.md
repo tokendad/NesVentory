@@ -4,7 +4,26 @@
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
-## 🚀 What's New in Version 6.3.0
+## 🚀 What's New in Version 6.5.0
+
+### ✨ **Custom Fields** (v6.5.0)
+- **Dynamic custom fields** - Add custom fields for links, notes, or other information to items
+- **Multiple field types** - Support for text, URL, date, and number field types
+- **Brand and retailer autocomplete** - Enhanced item entry with top 100 brands and retailers
+- **Updated international formats** - Improved currency symbol positioning and date formatting
+
+### 🖨️ **NIIMBOT Printer Support** (v6.4.1)
+- **Direct label printing** - Print QR code labels directly to NIIMBOT thermal printers
+- **Multiple printer models** - Support for B1, B18, B21, D11, D110 models
+- **USB and Bluetooth** - Connect via USB (recommended) or Bluetooth
+- **Configurable settings** - Adjust print density, test connection, and configure in User Settings
+- See [NIIMBOT Printer Guide](docs/NIIMBOT_PRINTER_GUIDE.md) for setup instructions
+
+### 🔐 **OIDC Authentication** (v6.4.0)
+- **OpenID Connect support** - Integrate with OIDC providers like Authelia and Keycloak
+- **Flexible authentication** - Use alongside Google OAuth and local accounts
+- **Customizable branding** - Configure provider name and button text
+- **Enterprise-ready** - Perfect for self-hosted authentication solutions
 
 ### 🏠 **Insurance Documentation** (v6.3.0)
 - **Insurance tab for primary locations** - Manage comprehensive insurance documentation for your home
@@ -97,6 +116,7 @@ NesVentory continues to evolve with powerful new features for managing your inve
 ## Features
 
 - 📦 **Inventory Management** - Track all your household items with detailed information
+- ✨ **Custom Fields** - Add custom fields (text, URL, date, number) for links, notes, or other information
 - 📸 **Media Management Dashboard** - Centralized view of all photos and videos across your inventory
 - 📷 **AI Photo Detection** - Scan rooms with AI to detect and add items automatically
 - 🤖 **AI Data Tag Parsing** - Extract product info from data tag photos
@@ -106,7 +126,9 @@ NesVentory continues to evolve with powerful new features for managing your inve
 - ⚙️ **AI Provider Configuration** - Multi-provider AI settings in Admin Panel
 - 📍 **Location Hierarchy** - Organize items by rooms and sub-locations
 - 📱 **QR Code Labels** - Print QR labels for locations and containers (including from Location Settings)
+- 🖨️ **NIIMBOT Printer Support** - Direct printing to NIIMBOT thermal label printers (B1, B18, B21, D11, D110)
 - 📦 **Container Support** - Mark locations as boxes/bins for seasonal storage
+- 🏠 **Insurance Documentation** - Comprehensive insurance tracking for primary locations with print and CSV export
 - 🏘️ **Multi-Property Support** - Manage multiple homes and multi-family properties
 - 👥 **Landlord/Tenant Management** - Track landlord and tenant info for rental properties
 - 📥 **CSV Import** - Import items from CSV files with automatic image URL download
@@ -115,9 +137,10 @@ NesVentory continues to evolve with powerful new features for managing your inve
 - 📍 **Location Media** - Upload and manage media directly on locations
 - 🔐 **Multi-user Support** - Role-based access control (Admin, Editor, Viewer)
 - 🔑 **Google OAuth SSO** - Sign in with Google for easy authentication
+- 🔐 **OIDC Authentication** - OpenID Connect support for Authelia, Keycloak, and other providers
 - 🔒 **Location Access Control** - Restrict user access to specific properties
 - 🛠️ **Maintenance Tracking** - Schedule and track recurring maintenance tasks
-- 🌐 **International Formats** - Support for 25+ locales and 20+ currencies
+- 🌐 **International Formats** - Enhanced support for 25+ locales and 20+ currencies
 - 📱 **Modern UI** - Responsive React frontend with TypeScript
 - 🚀 **FastAPI Backend** - High-performance Python backend
 - 🗄️ **SQLite Database** - Simple, embedded, file-based storage
@@ -186,6 +209,8 @@ The application comes with pre-seeded test users:
 - **[INTERNATIONALIZATION.md](INTERNATIONALIZATION.md)** - Guide to international format support for dates and currencies
 - **[CSV_IMPORT.md](CSV_IMPORT.md)** - Guide for importing inventory from CSV files with image URLs
 - **[docs/PLUGINS.md](docs/PLUGINS.md)** - Guide for creating and configuring custom LLM plugins
+- **[docs/INSURANCE_TAB_GUIDE.md](docs/INSURANCE_TAB_GUIDE.md)** - Guide for using the insurance documentation features
+- **[docs/NIIMBOT_PRINTER_GUIDE.md](docs/NIIMBOT_PRINTER_GUIDE.md)** - Setup and usage guide for NIIMBOT thermal label printers
 
 ## 📄 License
 
