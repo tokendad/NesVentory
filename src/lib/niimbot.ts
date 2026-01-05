@@ -111,7 +111,7 @@ export class NiimbotClient {
     // However, it's safer to chunk if large. D11 usually handles ~200 bytes fine in one write if MTU negotiated.
     // For safety with simple implementation, we assume writeValue handles it or MTU is sufficient.
     // If it fails, we might need to chunk.
-    await this.characteristic.writeValue(data);
+    await this.characteristic.writeValue(data as BufferSource);
     
     // Very basic rate limiting
     await new Promise(r => setTimeout(r, 20)); 

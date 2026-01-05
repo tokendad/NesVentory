@@ -51,7 +51,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
   // Check if this is a living item - prefer the is_living flag as the source of truth,
   // but also check tags for backward compatibility
   const isLivingItem = item.is_living === true || 
-    (item.is_living === undefined && item.tags?.some(tag => tag.name === LIVING_TAG_NAME));
+    (item.is_living === undefined && (item.tags?.some(tag => tag.name === LIVING_TAG_NAME) ?? false));
 
   const handleDelete = async () => {
     if (!confirm("Are you sure you want to delete this item?")) {
@@ -290,6 +290,31 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
                     <span className="detail-value">{formatCurrency(Number(item.estimated_value))}</span>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Additional Information (Dynamic Fields) */}
+          {item.additional_info && item.additional_info.length > 0 && (
+            <div className="details-section">
+              <h3>Additional Information</h3>
+              <div className="details-grid">
+                {item.additional_info.map((field, index) => (
+                  <div key={index} className={`detail-item ${field.type === 'text' && field.value.length > 50 ? 'full-width' : ''}`}>
+                    <span className="detail-label">{field.label}:</span>
+                    <span className="detail-value">
+                      {field.type === 'url' ? (
+                        <a href={field.value.startsWith('http') ? field.value : `https://${field.value}`} target="_blank" rel="noopener noreferrer" className="detail-link">
+                          {field.value}
+                        </a>
+                      ) : field.type === 'date' ? (
+                        formatDate(field.value)
+                      ) : (
+                        field.value
+                      )}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -590,7 +615,7 @@ const PhotoTypeSelectionModal: React.FC<PhotoTypeSelectionModalProps> = ({
   error,
   isLivingItem,
 }) => {
-  const [photoType, setPhotoType] = useState(isLivingItem ? PHOTO_TYPES.PROFILE : PHOTO_TYPES.DEFAULT);
+  const [photoType, setPhotoType] = useState<string>(isLivingItem ? PHOTO_TYPES.PROFILE : PHOTO_TYPES.DEFAULT);
   const [isPrimary, setIsPrimary] = useState(false);
   const [isDataTag, setIsDataTag] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string>('');

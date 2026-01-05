@@ -3089,7 +3089,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                     <div className="form-group">
                       <label>Description</label>
                       <textarea
-                        value={pluginFormData.description !== undefined ? pluginFormData.description : plugin.description || ''}
+                        value={pluginFormData.description ?? plugin.description ?? ''}
                         onChange={(e) => setPluginFormData({ ...pluginFormData, description: e.target.value })}
                         rows={2}
                       />
@@ -3113,7 +3113,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                       <label>API Key (leave blank to keep current)</label>
                       <input
                         type="password"
-                        value={pluginFormData.api_key !== undefined ? pluginFormData.api_key : ''}
+                        value={pluginFormData.api_key ?? ''}
                         onChange={(e) => setPluginFormData({ ...pluginFormData, api_key: e.target.value })}
                         placeholder="Enter new API key or leave blank"
                       />

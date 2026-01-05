@@ -1063,7 +1063,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                       type="button"
                       className="btn-outline"
                       onClick={() => {
-                        if (showLocationSettings !== "create") {
+                        if (isEditingLocation(showLocationSettings)) {
                           setShowQRPrint(showLocationSettings);
                         }
                       }}

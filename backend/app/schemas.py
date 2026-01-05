@@ -390,6 +390,8 @@ class ItemBase(BaseModel):
     relationship_type: Optional[str] = None
     is_current_user: bool = False
     associated_user_id: Optional[UUID] = None
+    # Dynamic fields
+    additional_info: Optional[List[dict]] = None
 
 
 class ItemCreate(ItemBase):
@@ -423,6 +425,8 @@ class ItemUpdate(BaseModel):
     relationship_type: Optional[str] = None
     is_current_user: Optional[bool] = None
     associated_user_id: Optional[UUID] = None
+    # Dynamic fields
+    additional_info: Optional[List[dict]] = None
 
 
 class Item(ItemBase):

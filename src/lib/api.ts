@@ -107,8 +107,16 @@ export interface Item {
   relationship_type?: string | null;
   is_current_user?: boolean;
   associated_user_id?: string | null;
+  // Dynamic fields
+  additional_info?: DynamicField[] | null;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface DynamicField {
+  label: string;
+  value: string;
+  type: 'text' | 'url' | 'date' | 'number';
 }
 
 export interface ItemCreate {
@@ -135,6 +143,8 @@ export interface ItemCreate {
   relationship_type?: string | null;
   is_current_user?: boolean;
   associated_user_id?: string | null;
+  // Dynamic fields
+  additional_info?: DynamicField[] | null;
 }
 
 export interface LandlordInfo {
@@ -689,7 +699,7 @@ export interface PhotoUpdate {
   item_id?: string;
   is_primary?: boolean;
   is_data_tag?: boolean;
-  photo_type?: string;
+  photo_type?: string | null;
 }
 
 export async function updatePhoto(

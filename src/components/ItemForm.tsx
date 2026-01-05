@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, BarcodeScanResult, Warranty, MultiBarcodeLookupResult, Photo, Document, DetectionResult } from "../lib/api";
+import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, BarcodeScanResult, Warranty, MultiBarcodeLookupResult, Photo, Document, DetectionResult, DynamicField } from "../lib/api";
 import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode, scanBarcodeImage, lookupBarcodeMulti, getApiBaseUrl, detectItemsFromImage } from "../lib/api";
 import { formatPhotoType, getLocationPath, getFilenameFromUrl } from "../lib/utils";
-import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES, ALLOWED_DOCUMENT_MIME_TYPES, DOCUMENT_TYPES, LIVING_TAG_NAME, RELATIONSHIP_LABELS } from "../lib/constants";
+import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES, ALLOWED_DOCUMENT_MIME_TYPES, DOCUMENT_TYPES, LIVING_TAG_NAME, RELATIONSHIP_LABELS, RETAILERS, BRANDS } from "../lib/constants";
 import type { PhotoUpload, DocumentUpload } from "../lib/types";
 
 // Tab type for the form
-type TabId = "basic" | "tags" | "warranty" | "media" | "manuals";
+type TabId = "basic" | "tags" | "warranty" | "media" | "additional_info";
 
 interface ItemFormProps {
   onSubmit: (item: ItemCreate, photos: PhotoUpload[], documents: DocumentUpload[]) => Promise<void>;
@@ -67,6 +67,11 @@ const ItemForm: React.FC<ItemFormProps> = ({
     relationship_type: initialData?.relationship_type || "",
     is_current_user: initialData?.is_current_user || false,
     associated_user_id: initialData?.associated_user_id || null,
+    // Dynamic fields - Prepopulate with "Related URL" and "Notes" for new items if empty
+    additional_info: initialData?.additional_info || (isEditing ? [] : [
+      { label: "Related URL", value: "", type: "url" },
+      { label: "Notes", value: "", type: "text" }
+    ]),
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +79,16 @@ const ItemForm: React.FC<ItemFormProps> = ({
   const [documents, setDocuments] = useState<DocumentUpload[]>([]);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [newTagName, setNewTagName] = useState("");
+
+  // Retailer autocomplete state
+  const [showRetailerSuggestions, setShowRetailerSuggestions] = useState(false);
+  const retailerInputRef = useRef<HTMLInputElement>(null);
+  const retailerDropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Brand autocomplete state
+  const [showBrandSuggestions, setShowBrandSuggestions] = useState(false);
+  const brandInputRef = useRef<HTMLInputElement>(null);
+  const brandDropdownRef = useRef<HTMLDivElement>(null);
   
   // Document URL state
   const [documentUrlManual, setDocumentUrlManual] = useState("");
@@ -152,6 +167,32 @@ const ItemForm: React.FC<ItemFormProps> = ({
     }
   }, []);
 
+  // Close retailer/brand suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        retailerDropdownRef.current && 
+        !retailerDropdownRef.current.contains(event.target as Node) &&
+        !retailerInputRef.current?.contains(event.target as Node)
+      ) {
+        setShowRetailerSuggestions(false);
+      }
+      
+      if (
+        brandDropdownRef.current && 
+        !brandDropdownRef.current.contains(event.target as Node) &&
+        !brandInputRef.current?.contains(event.target as Node)
+      ) {
+        setShowBrandSuggestions(false);
+      }
+    };
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   // Cleanup preview URLs on unmount
   useEffect(() => {
     return () => {
@@ -228,6 +269,16 @@ const ItemForm: React.FC<ItemFormProps> = ({
     });
   };
 
+  const handleRetailerSelect = (retailer: string) => {
+    setFormData(prev => ({ ...prev, retailer }));
+    setShowRetailerSuggestions(false);
+  };
+
+  const handleBrandSelect = (brand: string) => {
+    setFormData(prev => ({ ...prev, brand }));
+    setShowBrandSuggestions(false);
+  };
+
   const handleContactInfoChange = (field: keyof ContactInfo, value: string) => {
     setFormData(prev => ({
       ...prev,
@@ -245,6 +296,30 @@ const ItemForm: React.FC<ItemFormProps> = ({
       // When unchecking, clear the associated_user_id since the item is no longer associated with the current user
       associated_user_id: checked ? (currentUserId || null) : null,
     }));
+  };
+
+  // Dynamic Field Handlers
+  const handleDynamicFieldChange = (index: number, field: keyof DynamicField, value: string) => {
+    setFormData(prev => {
+      const updatedInfo = [...(prev.additional_info || [])];
+      updatedInfo[index] = { ...updatedInfo[index], [field]: value };
+      return { ...prev, additional_info: updatedInfo };
+    });
+  };
+
+  const addDynamicField = () => {
+    setFormData(prev => ({
+      ...prev,
+      additional_info: [...(prev.additional_info || []), { label: "", value: "", type: "text" }]
+    }));
+  };
+
+  const removeDynamicField = (index: number) => {
+    setFormData(prev => {
+      const updatedInfo = [...(prev.additional_info || [])];
+      updatedInfo.splice(index, 1);
+      return { ...prev, additional_info: updatedInfo };
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -804,16 +879,85 @@ const ItemForm: React.FC<ItemFormProps> = ({
       {!livingMode && (
         <>
           <div className="form-row">
-            <div className="form-group">
+            <div className="form-group" style={{ position: 'relative' }}>
               <label htmlFor="brand">Brand</label>
               <input
+                ref={brandInputRef}
                 type="text"
                 id="brand"
                 name="brand"
                 value={formData.brand || ""}
-                onChange={handleChange}
+                onChange={(e) => {
+                  handleChange(e);
+                  setShowBrandSuggestions(true);
+                }}
+                onFocus={() => setShowBrandSuggestions(true)}
                 disabled={loading}
+                autoComplete="off"
+                placeholder="Select or type brand..."
               />
+              {showBrandSuggestions && (
+                <div 
+                  ref={brandDropdownRef}
+                  className="brand-dropdown"
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    zIndex: 10,
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    backgroundColor: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-panel)',
+                    borderRadius: '0 0 0.5rem 0.5rem',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                  }}
+                >
+                  {/* Option to add new brand if filtered list doesn't match exact */}
+                  {formData.brand && !BRANDS.some(b => b.toLowerCase() === formData.brand?.toLowerCase()) && (
+                    <div
+                      className="brand-option add-new"
+                      onClick={() => handleBrandSelect(formData.brand || "")}
+                      style={{
+                        padding: '0.5rem 0.75rem',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid var(--border-panel)',
+                        color: 'var(--accent)',
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-elevated-softer)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <span>+</span> Add "{formData.brand}"
+                    </div>
+                  )}
+                  
+                  {BRANDS.filter(b => 
+                    !formData.brand || 
+                    b.toLowerCase().includes(formData.brand.toLowerCase())
+                  ).slice(0, 50).map(brand => (
+                    <div
+                      key={brand}
+                      className="brand-option"
+                      onClick={() => handleBrandSelect(brand)}
+                      style={{
+                        padding: '0.5rem 0.75rem',
+                        cursor: 'pointer',
+                        transition: 'background 0.1s',
+                        borderBottom: '1px solid var(--border-subtle)'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-elevated-softer)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      {brand}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="form-group">
@@ -1090,16 +1234,85 @@ const ItemForm: React.FC<ItemFormProps> = ({
               />
             </div>
 
-            <div className="form-group">
+            <div className="form-group" style={{ position: 'relative' }}>
               <label htmlFor="retailer">Retailer</label>
               <input
+                ref={retailerInputRef}
                 type="text"
                 id="retailer"
                 name="retailer"
                 value={formData.retailer || ""}
-                onChange={handleChange}
+                onChange={(e) => {
+                  handleChange(e);
+                  setShowRetailerSuggestions(true);
+                }}
+                onFocus={() => setShowRetailerSuggestions(true)}
                 disabled={loading}
+                autoComplete="off"
+                placeholder="Select or type retailer..."
               />
+              {showRetailerSuggestions && (
+                <div 
+                  ref={retailerDropdownRef}
+                  className="retailer-dropdown"
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    zIndex: 10,
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    backgroundColor: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-panel)',
+                    borderRadius: '0 0 0.5rem 0.5rem',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                  }}
+                >
+                  {/* Option to add new retailer if filtered list doesn't match exact */}
+                  {formData.retailer && !RETAILERS.some(r => r.toLowerCase() === formData.retailer?.toLowerCase()) && (
+                    <div
+                      className="retailer-option add-new"
+                      onClick={() => handleRetailerSelect(formData.retailer || "")}
+                      style={{
+                        padding: '0.5rem 0.75rem',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid var(--border-panel)',
+                        color: 'var(--accent)',
+                        fontWeight: 500,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-elevated-softer)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <span>+</span> Add "{formData.retailer}"
+                    </div>
+                  )}
+                  
+                  {RETAILERS.filter(r => 
+                    !formData.retailer || 
+                    r.toLowerCase().includes(formData.retailer.toLowerCase())
+                  ).slice(0, 50).map(retailer => (
+                    <div
+                      key={retailer}
+                      className="retailer-option"
+                      onClick={() => handleRetailerSelect(retailer)}
+                      style={{
+                        padding: '0.5rem 0.75rem',
+                        cursor: 'pointer',
+                        transition: 'background 0.1s',
+                        borderBottom: '1px solid var(--border-subtle)'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-elevated-softer)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      {retailer}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -1487,8 +1700,8 @@ const ItemForm: React.FC<ItemFormProps> = ({
     );
   };
 
-  // Render content for Manuals Tab
-  const renderManualsTab = () => {
+  // Render content for Additional Information Tab (formerly Manuals)
+  const renderAdditionalInfoTab = () => {
     // Helper function to format file size
     const formatFileSize = (bytes: number): string => {
       if (bytes < 1024) return `${bytes} B`;
@@ -1509,6 +1722,77 @@ const ItemForm: React.FC<ItemFormProps> = ({
 
     return (
       <div className="tab-content">
+        {/* Dynamic Fields Section */}
+        <div className="form-section" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+          <h3>Additional Details</h3>
+          <p className="help-text">Add custom fields for links, notes, or other information.</p>
+          
+          <div className="dynamic-fields-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+            {formData.additional_info?.map((field, index) => (
+              <div key={index} className="dynamic-field-row" style={{ 
+                display: 'flex', 
+                gap: '0.5rem', 
+                alignItems: 'flex-start',
+                padding: '0.75rem',
+                backgroundColor: 'var(--bg-elevated-softer)',
+                borderRadius: '0.5rem',
+                border: '1px solid var(--border-subtle)'
+              }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input
+                      type="text"
+                      placeholder="Label (e.g. Related URL)"
+                      value={field.label}
+                      onChange={(e) => handleDynamicFieldChange(index, 'label', e.target.value)}
+                      disabled={loading}
+                      style={{ flex: 1, fontSize: '0.85rem', padding: '0.4rem' }}
+                    />
+                    <select
+                      value={field.type}
+                      onChange={(e) => handleDynamicFieldChange(index, 'type', e.target.value as any)}
+                      disabled={loading}
+                      style={{ width: '100px', fontSize: '0.85rem', padding: '0.4rem' }}
+                    >
+                      <option value="text">Text</option>
+                      <option value="url">URL</option>
+                      <option value="date">Date</option>
+                      <option value="number">Number</option>
+                    </select>
+                  </div>
+                  <input
+                    type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                    placeholder="Value"
+                    value={field.value}
+                    onChange={(e) => handleDynamicFieldChange(index, 'value', e.target.value)}
+                    disabled={loading}
+                    style={{ width: '100%', fontSize: '0.9rem', padding: '0.4rem' }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="btn-danger"
+                  onClick={() => removeDynamicField(index)}
+                  disabled={loading}
+                  style={{ padding: '0.4rem 0.6rem', marginTop: '0.2rem' }}
+                  title="Remove field"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+          
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={addDynamicField}
+            disabled={loading}
+          >
+            + Add Field
+          </button>
+        </div>
+
         {/* Existing Documents Section - Only show when editing and there are existing documents */}
         {isEditing && existingDocuments.length > 0 && (
           <div className="form-section">
@@ -1724,10 +2008,10 @@ const ItemForm: React.FC<ItemFormProps> = ({
               </button>
               <button
                 type="button"
-                className={`tab-button ${activeTab === 'manuals' ? 'active' : ''}`}
-                onClick={() => setActiveTab('manuals')}
+                className={`tab-button ${activeTab === 'additional_info' ? 'active' : ''}`}
+                onClick={() => setActiveTab('additional_info')}
               >
-                📖 Manuals
+                ℹ️ Additional Info
               </button>
             </div>
           )}
@@ -1839,7 +2123,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                 {activeTab === 'tags' && renderTagsTab()}
                 {activeTab === 'warranty' && renderWarrantyTab()}
                 {activeTab === 'media' && renderMediaTab()}
-                {activeTab === 'manuals' && renderManualsTab()}
+                {activeTab === 'additional_info' && renderAdditionalInfoTab()}
               </>
             )}
           </div>

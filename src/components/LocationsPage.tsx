@@ -152,7 +152,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
             while (current) {
               path.unshift(current);
               if (current.parent_id) {
-                const parentId = current.parent_id;
+                const parentId: string | number = current.parent_id;
                 current = locations.find(l => l.id.toString() === parentId.toString());
               } else {
                 current = undefined;

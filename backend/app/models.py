@@ -275,6 +275,11 @@ class Item(Base):
     #   "notes": "..."
     # }
     contact_info = Column(JSON, nullable=True)
+    
+    # Dynamic fields for additional information (key-value pairs)
+    # Format: [{"label": "Related URL", "value": "...", "type": "url"}, {"label": "Notes", "value": "...", "type": "text"}]
+    additional_info = Column(JSON, nullable=True)
+
     # Relationship to logged-in user (e.g., "mother", "father", "sister", "pet", "plant")
     relationship_type = Column(String(100), nullable=True)
     # Flag if this living item is the currently logged-in user themselves
