@@ -1,6 +1,26 @@
-// UUIDs for Niimbot D11
-const SERVICE_UUID = 'e7810a71-73ae-499d-8c15-faa9aef0c3f2';
-const CHARACTERISTIC_UUID = 'bef8d6c9-9c21-4c9e-b632-bd58c1009f9f';
+// Niimbot Printer Driver for Web (Bluetooth & USB/Serial)
+// Based on reverse engineering and backend implementation
+
+export const NIIMBOT_SERVICE_UUID = 'e7810a71-73ae-499d-8c15-faa9aef0c3f2';
+export const NIIMBOT_CHARACTERISTIC_UUID = 'bef8d6c9-9c21-4c9e-b632-bd58c1009f9f';
+
+export enum RequestCode {
+  GET_INFO = 64, // 0x40
+  GET_RFID = 26, // 0x1A
+  HEARTBEAT = 220, // 0xDC
+  SET_LABEL_TYPE = 35, // 0x23
+  SET_LABEL_DENSITY = 33, // 0x21
+  START_PRINT = 1, // 0x01
+  END_PRINT = 243, // 0xF3
+  START_PAGE_PRINT = 3, // 0x03
+  END_PAGE_PRINT = 227, // 0xE3
+  ALLOW_PRINT_CLEAR = 32, // 0x20
+  SET_DIMENSION = 19, // 0x13
+  SET_QUANTITY = 21, // 0x15
+  GET_PRINT_STATUS = 163, // 0xA3
+  PRINT_BITMAP_ROW = 0x85, // 133
+  PRINT_CLEAR = 0x20, // 32
+}
 
 export class NiimbotPacket {
   type: number;
@@ -35,8 +55,6 @@ export class NiimbotPacket {
   static fromBytes(buffer: Uint8Array): NiimbotPacket | null {
     if (buffer.length < 7) return null;
     if (buffer[0] !== 0x55 || buffer[1] !== 0x55) return null;
-    // Footer check might need handling for split packets, but assuming atomic for now or checking end
-    // Logic: find 0xAA 0xAA at end?
     
     const type = buffer[2];
     const len = buffer[3];
@@ -59,67 +77,149 @@ export class NiimbotPacket {
   }
 }
 
-export enum RequestCode {
-    GET_INFO = 64, // 0x40
-    GET_RFID = 26, // 0x1A
-    HEARTBEAT = 220, // 0xDC
-    SET_LABEL_TYPE = 35, // 0x23
-    SET_LABEL_DENSITY = 33, // 0x21
-    START_PRINT = 1, // 0x01
-    END_PRINT = 243, // 0xF3
-    START_PAGE_PRINT = 3, // 0x03
-    END_PAGE_PRINT = 227, // 0xE3
-    ALLOW_PRINT_CLEAR = 32, // 0x20
-    SET_DIMENSION = 19, // 0x13
-    SET_QUANTITY = 21, // 0x15
-    GET_PRINT_STATUS = 163, // 0xA3
-    PRINT_BITMAP_ROW = 0x85, // 133
+export interface NiimbotTransport {
+  connect(): Promise<void>;
+  disconnect(): Promise<void>;
+  write(data: Uint8Array): Promise<void>;
+  read(length: number): Promise<Uint8Array>; // Simplified read
+  isConnected(): boolean;
 }
 
-export class NiimbotClient {
+export class BluetoothTransport implements NiimbotTransport {
   private device: BluetoothDevice | null = null;
   private server: BluetoothRemoteGATTServer | null = null;
   private characteristic: BluetoothRemoteGATTCharacteristic | null = null;
 
-  async connect() {
+  async connect(): Promise<void> {
     this.device = await navigator.bluetooth.requestDevice({
-      filters: [{ services: [SERVICE_UUID] }],
-      optionalServices: [SERVICE_UUID],
+      filters: [{ services: [NIIMBOT_SERVICE_UUID] }],
+      optionalServices: [NIIMBOT_SERVICE_UUID],
     });
 
     if (!this.device.gatt) throw new Error("Device does not support GATT");
 
     this.server = await this.device.gatt.connect();
-    const service = await this.server.getPrimaryService(SERVICE_UUID);
-    this.characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
-
-    // Setup notifications if needed, though D11 mainly listens
-    // await this.characteristic.startNotifications();
-    // this.characteristic.addEventListener('characteristicvaluechanged', this.handleNotification);
+    const service = await this.server.getPrimaryService(NIIMBOT_SERVICE_UUID);
+    this.characteristic = await service.getCharacteristic(NIIMBOT_CHARACTERISTIC_UUID);
+    
+    // Attempt to start notifications for reading
+    try {
+      await this.characteristic.startNotifications();
+      this.characteristic.addEventListener('characteristicvaluechanged', (e) => {
+        // Handle incoming data if we implement full read/response loop
+        // For now, we mainly write.
+      });
+    } catch (e) {
+      console.warn("Could not start notifications", e);
+    }
   }
 
-  async disconnect() {
+  async disconnect(): Promise<void> {
     if (this.server && this.server.connected) {
       this.server.disconnect();
     }
   }
 
-  private async send(packet: NiimbotPacket) {
+  async write(data: Uint8Array): Promise<void> {
     if (!this.characteristic) throw new Error("Not connected");
-    const data = packet.toBytes();
-    // BLE packet size limit is often 20 bytes, but modern Android/Chips handle larger.
-    // However, it's safer to chunk if large. D11 usually handles ~200 bytes fine in one write if MTU negotiated.
-    // For safety with simple implementation, we assume writeValue handles it or MTU is sufficient.
-    // If it fails, we might need to chunk.
-    await this.characteristic.writeValue(data as BufferSource);
-    
-    // Very basic rate limiting
-    await new Promise(r => setTimeout(r, 20)); 
+    // Some devices prefer smaller chunks (MTU size), e.g. 20 bytes for older BLE
+    // D11 usually handles 200+ bytes if MTU negotiated, but let's be safe or just write
+    // Most browsers handle splitting automatically for writeValue
+    try {
+      await this.characteristic.writeValue(data);
+    } catch (e) {
+      // Fallback chunking if needed? 
+      // For now assume standard WebBLE behavior works
+      throw e;
+    }
   }
 
-  // Simplified transaction (send only, or send and wait blindly) because reading responses via WebBLE 
-  // requires setting up the listener and promise racing, which is complex. 
-  // For printing, mostly we just send commands.
+  async read(length: number): Promise<Uint8Array> {
+    // WebBluetooth read is async and notification based mostly.
+    // Implementing synchronous read is tricky without a buffer queue.
+    // For this simple print driver, we might skip reading for now or just return empty.
+    return new Uint8Array(0);
+  }
+  
+  isConnected(): boolean {
+      return !!(this.server && this.server.connected);
+  }
+}
+
+export class SerialTransport implements NiimbotTransport {
+  private port: SerialPort | null = null;
+  private writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
+  private reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+
+  async connect(): Promise<void> {
+    if (!navigator.serial) throw new Error("Web Serial API not supported");
+
+    this.port = await navigator.serial.requestPort();
+    await this.port.open({ baudRate: 115200 }); // Standard Niimbot baudrate
+
+    if (this.port.writable) {
+      this.writer = this.port.writable.getWriter();
+    }
+    if (this.port.readable) {
+        this.reader = this.port.readable.getReader();
+        // Start a background read loop if needed, or read on demand
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    if (this.writer) {
+      await this.writer.close();
+      this.writer = null;
+    }
+    if (this.reader) {
+        await this.reader.cancel();
+        this.reader = null;
+    }
+    if (this.port) {
+      await this.port.close();
+      this.port = null;
+    }
+  }
+
+  async write(data: Uint8Array): Promise<void> {
+    if (!this.writer) throw new Error("Not connected");
+    await this.writer.write(data);
+  }
+
+  async read(length: number): Promise<Uint8Array> {
+     // Simplified placeholder
+     return new Uint8Array(0);
+  }
+
+  isConnected(): boolean {
+      return !!this.port && !!this.port.writable;
+  }
+}
+
+export class NiimbotClient {
+  private transport: NiimbotTransport;
+
+  constructor(transport: NiimbotTransport) {
+      this.transport = transport;
+  }
+
+  async connect() {
+    await this.transport.connect();
+  }
+
+  async disconnect() {
+    await this.transport.disconnect();
+  }
+
+  private async send(packet: NiimbotPacket) {
+    const data = packet.toBytes();
+    await this.transport.write(data);
+    
+    // Very basic rate limiting
+    await new Promise(r => setTimeout(r, 10)); 
+  }
+
+  // Simplified transaction (send only)
   
   async setLabelType(type: number) {
     await this.send(new NiimbotPacket(RequestCode.SET_LABEL_TYPE, new Uint8Array([type])));
@@ -159,25 +259,26 @@ export class NiimbotClient {
   }
 
   async printImage(imageData: ImageData, density: number = 3) {
-      if (!this.characteristic) throw new Error("Not connected");
+      if (!this.transport.isConnected()) throw new Error("Not connected");
 
       await this.setLabelDensity(density);
       await this.setLabelType(1);
       await this.startPrint();
+      
+      // Some printers might need ALLOW_PRINT_CLEAR (0x20)
+      // await this.send(new NiimbotPacket(RequestCode.ALLOW_PRINT_CLEAR, new Uint8Array([1])));
+
       await this.startPagePrint();
       await this.setDimension(imageData.height, imageData.width);
-      await this.setQuantity(1);
+      // await this.setQuantity(1);
 
       // Encode image
-      // Convert to 1-bit monochrome
       const width = imageData.width;
       const height = imageData.height;
       const data = imageData.data;
       
       for (let y = 0; y < height; y++) {
-          // Construct line data
-          // Each pixel is 0 or 1.
-          // Pack into bytes.
+          // Construct line data (1-bit monochrome)
           const rowBytes = new Uint8Array(Math.ceil(width / 8));
           for (let x = 0; x < width; x++) {
               const idx = (y * width + x) * 4;
@@ -196,20 +297,16 @@ export class NiimbotClient {
           }
           
           // Construct packet for this row
-          // Header: y (2 bytes big endian) + 1 (1 byte) + 1 (1 byte) + 1 (1 byte) + 1 (1 byte) ??
-          // Python: header = struct.pack(">H3BB", y, *counts, 1) where counts=(0,0,0)
-          // >H3BB means:
-          // H: unsigned short (2 bytes) -> y
-          // 3B: 3 unsigned bytes -> 0, 0, 0
-          // B: 1 unsigned byte -> 1
+          // Header: y (2 bytes big endian) + 1 (1 byte) + 1 (1 byte) + 1 (1 byte) + 1 (1 byte)
+          // Matching backend: struct.pack(">H3BB", y, *counts, 1) where counts=(0,0,0)
           
-          const header = new Uint8Array(2 + 3 + 1);
+          const header = new Uint8Array(6);
           const view = new DataView(header.buffer);
           view.setUint16(0, y, false); // Big endian y
-          header[2] = 0;
-          header[3] = 0;
-          header[4] = 0;
-          header[5] = 1;
+          header[2] = 0; // count1
+          header[3] = 0; // count2
+          header[4] = 0; // count3
+          header[5] = 1; // const
 
           const packetData = new Uint8Array(header.length + rowBytes.length);
           packetData.set(header, 0);
@@ -218,13 +315,13 @@ export class NiimbotClient {
           const packet = new NiimbotPacket(RequestCode.PRINT_BITMAP_ROW, packetData);
           await this.send(packet);
           
-          // Small delay to prevent buffer overflow on printer
+          // Delay to prevent buffer overflow (crucial for D11/D110)
           if (y % 10 === 0) await new Promise(r => setTimeout(r, 5));
       }
 
       await this.endPagePrint();
       
-      // Wait for print to finish (blind wait)
+      // Wait for print to finish (blind wait as we don't read status)
       await new Promise(r => setTimeout(r, 500));
       
       await this.endPrint();
