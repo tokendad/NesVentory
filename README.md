@@ -4,7 +4,34 @@
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
-## 🚀 What's New in Version 6.3.0
+## 🚀 What's New in Version 6.5.0
+
+### 📝 **Custom Fields** (v6.5.0)
+- **Dynamic custom fields** - Add custom fields to items for links, notes, or any additional information
+- **Flexible field types** - Support for various types of custom data specific to your inventory needs
+- **Additional details tab** - Organized interface for managing custom fields per item
+
+### 🌐 **Enhanced International Formats** (v6.5.0)
+- **Currency symbol positioning** - Choose whether currency symbols appear before or after amounts
+- **Advanced date formatting** - Select from short, medium, long, and full date format styles
+- **Improved locale settings** - Better configuration options for international users
+- **Brand and retailer autocomplete** - Enhanced data entry with top 100 brands and retailers
+
+### 🖨️ **NIIMBOT Printer Support** (v6.4.1)
+- **Direct thermal label printing** - Print QR labels directly to NIIMBOT printers without browser dialog
+- **Multiple printer models** - Support for B1, B18, B21, D11, and D110 models
+- **USB and Bluetooth connection** - Flexible connectivity options for your setup
+- **Configurable print settings** - Adjust print density and test connections
+- See [NIIMBOT Printer Guide](docs/NIIMBOT_PRINTER_GUIDE.md) for setup instructions
+
+### 🔐 **OIDC and Authelia Support** (v6.4.0)
+- **OpenID Connect (OIDC) authentication** - Enterprise-grade authentication support
+- **Authelia integration** - Seamless integration with Authelia authentication server
+- **Enhanced security options** - More flexible authentication methods for your deployment
+
+## 📋 Previous Updates
+
+### Version 6.3.0
 
 ### 🏠 **Insurance Documentation** (v6.3.0)
 - **Insurance tab for primary locations** - Manage comprehensive insurance documentation for your home
@@ -13,8 +40,6 @@ NesVentory is a modern home inventory management application that helps you trac
 - **Print functionality** - Basic and comprehensive insurance reports with photos
 - **CSV export** - RFC 4180 compliant export of all items for insurance claims
 - See [Insurance Tab Guide](docs/INSURANCE_TAB_GUIDE.md) for detailed instructions
-
-## 📋 Previous Updates
 
 ### Version 6.2.0
 
@@ -97,6 +122,7 @@ NesVentory continues to evolve with powerful new features for managing your inve
 ## Features
 
 - 📦 **Inventory Management** - Track all your household items with detailed information
+- 📝 **Custom Fields** - Add dynamic custom fields to items for links, notes, and additional details
 - 📸 **Media Management Dashboard** - Centralized view of all photos and videos across your inventory
 - 📷 **AI Photo Detection** - Scan rooms with AI to detect and add items automatically
 - 🤖 **AI Data Tag Parsing** - Extract product info from data tag photos
@@ -106,8 +132,10 @@ NesVentory continues to evolve with powerful new features for managing your inve
 - ⚙️ **AI Provider Configuration** - Multi-provider AI settings in Admin Panel
 - 📍 **Location Hierarchy** - Organize items by rooms and sub-locations
 - 📱 **QR Code Labels** - Print QR labels for locations and containers (including from Location Settings)
+- 🖨️ **NIIMBOT Printer Support** - Direct thermal label printing to NIIMBOT printers (USB/Bluetooth)
 - 📦 **Container Support** - Mark locations as boxes/bins for seasonal storage
 - 🏘️ **Multi-Property Support** - Manage multiple homes and multi-family properties
+- 🏠 **Insurance Documentation** - Comprehensive insurance tracking with policy holder management and reporting
 - 👥 **Landlord/Tenant Management** - Track landlord and tenant info for rental properties
 - 📥 **CSV Import** - Import items from CSV files with automatic image URL download
 - 📥 **Encircle Import** - Import items and photos from Encircle XLSX exports
@@ -115,9 +143,10 @@ NesVentory continues to evolve with powerful new features for managing your inve
 - 📍 **Location Media** - Upload and manage media directly on locations
 - 🔐 **Multi-user Support** - Role-based access control (Admin, Editor, Viewer)
 - 🔑 **Google OAuth SSO** - Sign in with Google for easy authentication
+- 🔐 **OIDC & Authelia** - OpenID Connect and Authelia authentication support
 - 🔒 **Location Access Control** - Restrict user access to specific properties
 - 🛠️ **Maintenance Tracking** - Schedule and track recurring maintenance tasks
-- 🌐 **International Formats** - Support for 25+ locales and 20+ currencies
+- 🌐 **Enhanced International Formats** - Support for 25+ locales, 20+ currencies, custom date formats, and flexible currency symbol positioning
 - 📱 **Modern UI** - Responsive React frontend with TypeScript
 - 🚀 **FastAPI Backend** - High-performance Python backend
 - 🗄️ **SQLite Database** - Simple, embedded, file-based storage
@@ -186,6 +215,8 @@ The application comes with pre-seeded test users:
 - **[INTERNATIONALIZATION.md](INTERNATIONALIZATION.md)** - Guide to international format support for dates and currencies
 - **[CSV_IMPORT.md](CSV_IMPORT.md)** - Guide for importing inventory from CSV files with image URLs
 - **[docs/PLUGINS.md](docs/PLUGINS.md)** - Guide for creating and configuring custom LLM plugins
+- **[docs/INSURANCE_TAB_GUIDE.md](docs/INSURANCE_TAB_GUIDE.md)** - Insurance documentation and reporting guide
+- **[docs/NIIMBOT_PRINTER_GUIDE.md](docs/NIIMBOT_PRINTER_GUIDE.md)** - Setup and usage guide for NIIMBOT thermal label printers
 
 ## 📄 License
 
