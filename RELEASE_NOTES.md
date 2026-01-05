@@ -1,12 +1,12 @@
-# NesVentory v6.4.1 - new Feature added
+# NesVentory v6.5.0 - New Features 
 
 ## Overview
 
-Version 6.4.1 release.
+Version 6.5.0 release.
 
 ## New Features
 
-NIIMBOT printer support added
+Updated International formats,  added Custom Fields
 
 ---
 
