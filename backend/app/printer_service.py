@@ -3,6 +3,7 @@ NIIMBOT printer service for printing QR code labels.
 """
 import io
 import logging
+import re
 from typing import Optional
 from PIL import Image, ImageDraw, ImageFont
 
@@ -89,6 +90,15 @@ class NiimbotPrinterService:
         address = config.get("address")
         if connection_type == "bluetooth" and not address:
             raise ValueError("Bluetooth address is required for bluetooth connection")
+        elif connection_type == "usb" and address:
+            # Validate USB address to prevent path traversal or access to restricted devices
+            # Allow:
+            # - "auto"
+            # - Windows: COM1, COM12
+            # - Linux: /dev/ttyUSB*, /dev/ttyACM*, /dev/ttyS*, /dev/rfcomm*
+            # - Mac: /dev/cu.*, /dev/tty.*
+            if address != "auto" and not re.match(r'^(COM\d+|/dev/tty(USB|ACM|AMA|S)\d+|/dev/rfcomm\d+|/dev/cu\..+|/dev/tty\..+)$', address):
+                 raise ValueError("Invalid USB printer address format. Must be a valid serial port (e.g., /dev/ttyUSB0, COM3).")
 
         return {
             "model": model,
