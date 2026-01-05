@@ -211,9 +211,7 @@ The application comes with pre-seeded test users:
 
 - **[docker-compose.yml](docker-compose.yml)** - Example Docker Compose configuration file
 - **[INSTALL.txt](INSTALL.txt)** - Comprehensive installation guide with Docker Compose and CLI commands
-- **[SEEDING.md](SEEDING.md)** - Details about pre-seeded test data and how to customize it
-- **[INTERNATIONALIZATION.md](INTERNATIONALIZATION.md)** - Guide to international format support for dates and currencies
-- **[CSV_IMPORT.md](CSV_IMPORT.md)** - Guide for importing inventory from CSV files with image URLs
+- **[docs/CSV_IMPORT.md](docs/CSV_IMPORT.md)** - Guide for importing inventory from CSV files with image URLs
 - **[docs/PLUGINS.md](docs/PLUGINS.md)** - Guide for creating and configuring custom LLM plugins
 - **[docs/INSURANCE_TAB_GUIDE.md](docs/INSURANCE_TAB_GUIDE.md)** - Insurance documentation and reporting guide
 - **[docs/NIIMBOT_PRINTER_GUIDE.md](docs/NIIMBOT_PRINTER_GUIDE.md)** - Setup and usage guide for NIIMBOT thermal label printers
