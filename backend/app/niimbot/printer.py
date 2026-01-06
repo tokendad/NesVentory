@@ -80,7 +80,7 @@ class SerialTransport(BaseTransport):
     def _detect_port(self):
         all_ports = list(list_comports())
         if len(all_ports) == 0:
-            raise RuntimeError("No serial ports detected")
+            raise RuntimeError("No serial ports detected on the server")
         if len(all_ports) > 1:
             msg = "Too many serial ports, please select specific one:"
             for port, desc, hwid in all_ports:
@@ -181,30 +181,45 @@ class PrinterClient:
     def get_rfid(self):
         packet = self._transceive(RequestCodeEnum.GET_RFID, b"\x01")
         data = packet.data
+        
+        logging.debug(f"RFID Raw Data: {data.hex()}")
 
-        if data[0] == 0:
+        if not data:
             return None
-        uuid = data[0:8].hex()
-        idx = 8
+            
+        # If the packet is too short for our offset logic, return raw hex and try legacy parsing or failure
+        # We need at least up to offset 68 for the full read (Offset 60 + 8 bytes)
+        if len(data) < 68:
+            logging.warning(f"RFID packet length {len(data)} is shorter than expected 68 bytes for offset parsing.")
+            # Try to return at least what we can or just the raw data
+            return {
+                "uuid": data[0:8].hex() if len(data) >= 8 else "", 
+                "raw": data.hex(),
+                "error": "Packet too short for offset parsing"
+            }
 
-        barcode_len = data[idx]
-        idx += 1
-        barcode = data[idx : idx + barcode_len].decode()
+        # UUID: Offset 28 (Blocks 7-8)
+        uuid = data[28:36].hex()
 
-        idx += barcode_len
-        serial_len = data[idx]
-        idx += 1
-        serial = data[idx : idx + serial_len].decode()
+        # Serial: Offset 36 (Blocks 9-12 -> 4 blocks * 4 bytes = 16 bytes)
+        serial_bytes = data[36:52]
+        try:
+            serial = serial_bytes.replace(b'\x00', b'').decode('utf-8', errors='ignore')
+        except Exception:
+            serial = serial_bytes.hex()
 
-        idx += serial_len
-        total_len, used_len, type_ = struct.unpack(">HHB", data[idx:])
+        # Barcode: Offset 60 (Blocks 15-16 -> 2 blocks * 4 bytes = 8 bytes)
+        barcode_bytes = data[60:68]
+        try:
+            barcode = barcode_bytes.replace(b'\x00', b'').decode('utf-8', errors='ignore')
+        except Exception:
+            barcode = barcode_bytes.hex()
+
         return {
             "uuid": uuid,
             "barcode": barcode,
             "serial": serial,
-            "used_len": used_len,
-            "total_len": total_len,
-            "type": type_,
+            "raw": data.hex()
         }
 
     def heartbeat(self):

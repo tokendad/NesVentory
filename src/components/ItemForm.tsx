@@ -79,6 +79,10 @@ const ItemForm: React.FC<ItemFormProps> = ({
   const [documents, setDocuments] = useState<DocumentUpload[]>([]);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [newTagName, setNewTagName] = useState("");
+  // Custom Fields Presets
+  const [presetFields, setPresetFields] = useState<DynamicField[]>([]);
+  const [showPresetMenu, setShowPresetMenu] = useState(false);
+  const presetMenuRef = useRef<HTMLDivElement>(null);
 
   // Retailer autocomplete state
   const [showRetailerSuggestions, setShowRetailerSuggestions] = useState(false);
@@ -164,11 +168,32 @@ const ItemForm: React.FC<ItemFormProps> = ({
       .then(setAIStatus)
       .catch(() => setAIStatus({ enabled: false }));
 
+    // Load custom field presets
+    const savedPresets = localStorage.getItem("NesVentory_CustomFieldsTemplate");
+    if (savedPresets) {
+      try {
+        setPresetFields(JSON.parse(savedPresets));
+      } catch (e) {
+        console.error("Failed to parse custom field presets", e);
+      }
+    }
+
     // If an initial photo file is passed, add it to the photos state
     if (initialPhotoFile) {
       const preview = URL.createObjectURL(initialPhotoFile);
       setPhotos([{ file: initialPhotoFile, preview, type: PHOTO_TYPES.DEFAULT }]);
     }
+  }, []);
+
+  // Close preset menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (presetMenuRef.current && !presetMenuRef.current.contains(event.target as Node)) {
+        setShowPresetMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // Close retailer/brand suggestions when clicking outside
@@ -316,6 +341,14 @@ const ItemForm: React.FC<ItemFormProps> = ({
       ...prev,
       additional_info: [...(prev.additional_info || []), { label: "", value: "", type: "text" }]
     }));
+  };
+
+  const addPresetField = (preset: DynamicField) => {
+    setFormData(prev => ({
+      ...prev,
+      additional_info: [...(prev.additional_info || []), { ...preset, value: preset.value || "" }]
+    }));
+    setShowPresetMenu(false);
   };
 
   const removeDynamicField = (index: number) => {
@@ -1726,7 +1759,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
         {/* Dynamic Fields Section */}
         <div className="form-section" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
           <h3>Additional Details</h3>
-          <p className="help-text">Add custom fields for links, notes, or other information.</p>
+          <p className="help-text">Add custom fields from defined templates.</p>
           
           <div className="dynamic-fields-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
             {formData.additional_info?.map((field, index) => (
@@ -1743,32 +1776,71 @@ const ItemForm: React.FC<ItemFormProps> = ({
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <input
                       type="text"
-                      placeholder="Label (e.g. Related URL)"
+                      placeholder="Label"
                       value={field.label}
-                      onChange={(e) => handleDynamicFieldChange(index, 'label', e.target.value)}
-                      disabled={loading}
-                      style={{ flex: 1, fontSize: '0.85rem', padding: '0.4rem' }}
+                      readOnly
+                      disabled={true}
+                      style={{ 
+                        flex: 1, 
+                        fontSize: '0.85rem', 
+                        padding: '0.4rem', 
+                        backgroundColor: '#f0f0f0', 
+                        cursor: 'not-allowed',
+                        color: 'var(--text-secondary)'
+                      }}
                     />
                     <select
                       value={field.type}
-                      onChange={(e) => handleDynamicFieldChange(index, 'type', e.target.value as any)}
-                      disabled={loading}
-                      style={{ width: '100px', fontSize: '0.85rem', padding: '0.4rem' }}
+                      disabled={true}
+                      style={{ 
+                        width: '120px', 
+                        fontSize: '0.85rem', 
+                        padding: '0.4rem', 
+                        backgroundColor: '#f0f0f0', 
+                        cursor: 'not-allowed',
+                        color: 'var(--text-secondary)'
+                      }}
                     >
                       <option value="text">Text</option>
+                      <option value="multiline">MultiLine</option>
                       <option value="url">URL</option>
                       <option value="date">Date</option>
+                      <option value="time">Time</option>
                       <option value="number">Number</option>
+                      <option value="boolean">Boolean</option>
                     </select>
                   </div>
-                  <input
-                    type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                    placeholder="Value"
-                    value={field.value}
-                    onChange={(e) => handleDynamicFieldChange(index, 'value', e.target.value)}
-                    disabled={loading}
-                    style={{ width: '100%', fontSize: '0.9rem', padding: '0.4rem' }}
-                  />
+                  
+                  {field.type === 'multiline' ? (
+                    <textarea
+                      placeholder="Value"
+                      value={field.value}
+                      onChange={(e) => handleDynamicFieldChange(index, 'value', e.target.value)}
+                      disabled={loading}
+                      rows={3}
+                      style={{ width: '100%', fontSize: '0.9rem', padding: '0.4rem', fontFamily: 'inherit' }}
+                    />
+                  ) : field.type === 'boolean' ? (
+                    <select
+                      value={field.value}
+                      onChange={(e) => handleDynamicFieldChange(index, 'value', e.target.value)}
+                      disabled={loading}
+                      style={{ width: '100%', fontSize: '0.9rem', padding: '0.4rem' }}
+                    >
+                      <option value="">-- Select --</option>
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
+                  ) : (
+                    <input
+                      type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : field.type === 'time' ? 'time' : 'text'}
+                      placeholder="Value"
+                      value={field.value}
+                      onChange={(e) => handleDynamicFieldChange(index, 'value', e.target.value)}
+                      disabled={loading}
+                      style={{ width: '100%', fontSize: '0.9rem', padding: '0.4rem' }}
+                    />
+                  )}
                 </div>
                 <button
                   type="button"
@@ -1784,14 +1856,72 @@ const ItemForm: React.FC<ItemFormProps> = ({
             ))}
           </div>
           
-          <button
-            type="button"
-            className="btn-outline"
-            onClick={addDynamicField}
-            disabled={loading}
-          >
-            + Add Field
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', position: 'relative' }}>
+            {presetFields.length > 0 ? (
+              <div ref={presetMenuRef} style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  className="btn-outline"
+                  onClick={() => setShowPresetMenu(!showPresetMenu)}
+                  disabled={loading}
+                  title="Add field from defined templates"
+                >
+                  + Add Field
+                </button>
+                {showPresetMenu && (
+                  <div className="preset-menu" style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    zIndex: 100,
+                    minWidth: '200px',
+                    backgroundColor: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-panel)',
+                    borderRadius: '0.5rem',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
+                    marginTop: '0.25rem',
+                    maxHeight: '300px',
+                    overflowY: 'auto'
+                  }}>
+                    {presetFields.map((preset, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        className="preset-option"
+                        onClick={() => addPresetField(preset)}
+                        style={{
+                          display: 'block',
+                          width: '100%',
+                          textAlign: 'left',
+                          padding: '0.5rem 0.75rem',
+                          background: 'none',
+                          border: 'none',
+                          borderBottom: '1px solid var(--border-subtle)',
+                          cursor: 'pointer',
+                          color: 'var(--text-primary)',
+                          fontSize: '0.9rem'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-elevated-softer)'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        {preset.label} <span style={{ opacity: 0.6, fontSize: '0.8rem' }}>({preset.type})</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ 
+                fontSize: '0.85rem', 
+                color: 'var(--text-secondary)',
+                padding: '0.5rem',
+                backgroundColor: 'var(--bg-elevated-softer)',
+                borderRadius: '4px'
+              }}>
+                No custom field templates defined. Please configure them in the Admin Panel &gt; Custom Fields.
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Existing Documents Section - Only show when editing and there are existing documents */}

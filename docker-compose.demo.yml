@@ -1,0 +1,27 @@
+services:
+  nesventory-demo:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: nesventory-demo
+    restart: unless-stopped
+    ports:
+      - "5151:8001"
+    environment:
+      SECRET_KEY: demo_secret_key_change_me
+      JWT_SECRET_KEY: demo_jwt_secret_key_change_me
+      PUID: 1000
+      PGID: 1000
+      TZ: Etc/UTC
+      APP_PORT: 8001
+      DATABASE_URL: sqlite:///./data/nesventory.db
+    volumes:
+      # Mount the backend code directly for live updates
+      - ./backend/app:/app/app
+      # Persistent data
+      - ./demo-data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8001/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

@@ -116,7 +116,7 @@ export interface Item {
 export interface DynamicField {
   label: string;
   value: string;
-  type: 'text' | 'url' | 'date' | 'number';
+  type: 'text' | 'url' | 'date' | 'number' | 'boolean' | 'time' | 'multiline';
 }
 
 export interface ItemCreate {

@@ -14,6 +14,7 @@ from ..auth import get_current_user
 from .. import models
 from ..printer_service import NiimbotPrinterService
 from ..niimbot import PrinterClient
+from ..niimbot.printer import InfoEnum
 from ..config import settings
 
 router = APIRouter(prefix="/api/printer", tags=["printer"])
@@ -189,6 +190,47 @@ def test_connection(
             "success": False,
             "message": f"Connection failed: {str(e)}"
         }
+
+
+@router.get("/status")
+def get_printer_status(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get detailed status of the connected printer including RFID info.
+    """
+    try:
+        # Get printer configuration
+        config = current_user.niimbot_printer_config
+        if not config or not config.get("enabled"):
+             raise HTTPException(
+                status_code=400,
+                detail="Printer is not enabled"
+            )
+
+        # Connect
+        transport = NiimbotPrinterService.create_transport(
+            config.get("connection_type", "usb"),
+            config.get("address")
+        )
+        printer = PrinterClient(transport)
+        
+        # Fetch Info
+        info = {
+            "serial": printer.get_info(InfoEnum.DEVICESERIAL),
+            "soft_version": printer.get_info(InfoEnum.SOFTVERSION),
+            "hard_version": printer.get_info(InfoEnum.HARDVERSION),
+            "rfid": printer.get_rfid()
+        }
+        
+        return info
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to get printer status: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get printer status: {str(e)}")
 
 
 @router.get("/models")

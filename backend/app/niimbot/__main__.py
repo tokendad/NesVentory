@@ -1,13 +1,31 @@
 import logging
 import re
+import json
 
 import click
 from PIL import Image
 
-from .printer import BluetoothTransport, PrinterClient, SerialTransport
+from .printer import BluetoothTransport, PrinterClient, SerialTransport, InfoEnum
 
 
-@click.command("print")
+def get_transport(conn, addr):
+    if conn == "bluetooth":
+        assert conn is not None, "--addr argument required for bluetooth connection"
+        addr = addr.upper()
+        assert re.fullmatch(r"([0-9A-F]{2}:){5}([0-9A-F]{2})", addr), "Bad MAC address"
+        return BluetoothTransport(addr)
+    if conn == "usb":
+        port = addr if addr is not None else "auto"
+        return SerialTransport(port=port)
+    raise ValueError(f"Unknown connection type: {conn}")
+
+
+@click.group()
+def cli():
+    pass
+
+
+@cli.command("print")
 @click.option(
     "-m",
     "--model",
@@ -64,14 +82,7 @@ def print_cmd(model, conn, addr, density, rotate, image, verbose):
         format="%(levelname)s | %(module)s:%(funcName)s:%(lineno)d - %(message)s",
     )
 
-    if conn == "bluetooth":
-        assert conn is not None, "--addr argument required for bluetooth connection"
-        addr = addr.upper()
-        assert re.fullmatch(r"([0-9A-F]{2}:){5}([0-9A-F]{2})", addr), "Bad MAC address"
-        transport = BluetoothTransport(addr)
-    if conn == "usb":
-        port = addr if addr is not None else "auto"
-        transport = SerialTransport(port=port)
+    transport = get_transport(conn, addr)
 
     if model in ("b1", "b18", "b21"):
         max_width_px = 384
@@ -92,5 +103,62 @@ def print_cmd(model, conn, addr, density, rotate, image, verbose):
     printer.print_image(image, density=density)
 
 
+@cli.command("info")
+@click.option(
+    "-c",
+    "--conn",
+    type=click.Choice(["usb", "bluetooth"]),
+    default="usb",
+    show_default=True,
+    help="Connection type",
+)
+@click.option(
+    "-a",
+    "--addr",
+    help="Bluetooth MAC address OR serial device path",
+)
+@click.option(
+    "-v",
+    "--verbose",
+    is_flag=True,
+    help="Enable verbose logging",
+)
+def info_cmd(conn, addr, verbose):
+    """Get printer info and RFID status."""
+    logging.basicConfig(
+        level="DEBUG" if verbose else "INFO",
+        format="%(levelname)s | %(module)s:%(funcName)s:%(lineno)d - %(message)s",
+    )
+
+    try:
+        transport = get_transport(conn, addr)
+        printer = PrinterClient(transport)
+
+        print("Fetching Printer Info...")
+        try:
+            serial = printer.get_info(InfoEnum.DEVICESERIAL)
+            print(f"Device Serial: {serial}")
+            
+            soft_ver = printer.get_info(InfoEnum.SOFTVERSION)
+            print(f"Software Version: {soft_ver}")
+            
+            hard_ver = printer.get_info(InfoEnum.HARDVERSION)
+            print(f"Hardware Version: {hard_ver}")
+        except Exception as e:
+            print(f"Error fetching device info: {e}")
+
+        print("\nFetching RFID Info...")
+        try:
+            rfid = printer.get_rfid()
+            if rfid:
+                print(json.dumps(rfid, indent=2))
+            else:
+                print("No RFID tag detected or read failed.")
+        except Exception as e:
+            print(f"Error fetching RFID info: {e}")
+    except Exception as e:
+        print(f"Connection failed: {e}")
+
+
 if __name__ == "__main__":
-    print_cmd()
+    cli()
