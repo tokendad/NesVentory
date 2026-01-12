@@ -12,8 +12,10 @@ services:
     build: .
     container_name: nesventory5
     restart: unless-stopped
-    ports:
-      - "5151:5151"
+    # Network mode host is required for Bluetooth access
+    network_mode: host
+    # Privileged mode is often required for hardware access
+    privileged: true
     environment:
       # IMPORTANT: Generate secure, random keys for these values before deploying!
       SECRET_KEY: CHANGE_ME_GENERATE_SECURE_KEY_HERE
@@ -39,7 +41,12 @@ services:
       DISABLE_SIGNUPS: true
     volumes:
       - /data/DockerConfigs/nesventory5-data:/app/data
+      - ./backend/app:/app/app
       - /etc/localtime:/etc/localtime:ro
+      - /dev:/dev
+      # DBus access for Bluetooth
+      - /var/run/dbus:/var/run/dbus
+      - /run/dbus:/run/dbus
 
     healthcheck:
       # Use CMD-SHELL so the container's APP_PORT environment variable is used.

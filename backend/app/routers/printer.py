@@ -22,12 +22,15 @@ logger = logging.getLogger(__name__)
 
 
 class PrinterConfig(BaseModel):
-    """Printer configuration model."""
+    """Printer configuration model. Currently supported: D11-H."""
     enabled: bool = False
-    model: str = "b21"
+    model: str = "d11_h"
     connection_type: str = "usb"
     address: Optional[str] = None
     density: int = 3
+    label_width: Optional[int] = None
+    label_height: Optional[int] = None
+    print_direction: Optional[str] = "left"
 
 
 class PrintLabelRequest(BaseModel):
@@ -35,6 +38,8 @@ class PrintLabelRequest(BaseModel):
     location_id: str
     location_name: str
     is_container: bool = False
+    label_width: Optional[int] = None
+    label_height: Optional[int] = None
 
 
 @router.get("/config")
@@ -48,10 +53,13 @@ def get_printer_config(
     config = current_user.niimbot_printer_config or {}
     return {
         "enabled": config.get("enabled", False),
-        "model": config.get("model", "b21"),
+        "model": config.get("model", "d11_h"),
         "connection_type": config.get("connection_type", "usb"),
         "address": config.get("address"),
         "density": config.get("density", 3),
+        "label_width": config.get("label_width"),
+        "label_height": config.get("label_height"),
+        "print_direction": config.get("print_direction", "left"),
     }
 
 
@@ -116,9 +124,9 @@ def print_label(
         
         qr = qrcode.QRCode(
             version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
             box_size=10,
-            border=1,
+            border=0,
         )
         qr.add_data(location_url)
         qr.make(fit=True)
@@ -136,6 +144,8 @@ def print_label(
             location_name=request.location_name,
             printer_config=config,
             is_container=request.is_container,
+            label_width=request.label_width,
+            label_height=request.label_height,
         )
         
         if result["success"]:
@@ -175,12 +185,17 @@ def test_connection(
         
         # Create printer client and try to get device info
         printer = PrinterClient(transport)
-        
-        # If we get here, connection is successful
-        return {
-            "success": True,
-            "message": "Successfully connected to printer"
-        }
+        try:
+            if not printer.connect():
+                raise ValueError("Protocol handshake failed (no response to CONNECT packet)")
+            
+            # If we get here, connection is successful
+            return {
+                "success": True,
+                "message": "Successfully connected to printer"
+            }
+        finally:
+            printer.disconnect()
         
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -215,16 +230,21 @@ def get_printer_status(
             config.get("address")
         )
         printer = PrinterClient(transport)
-        
-        # Fetch Info
-        info = {
-            "serial": printer.get_info(InfoEnum.DEVICESERIAL),
-            "soft_version": printer.get_info(InfoEnum.SOFTVERSION),
-            "hard_version": printer.get_info(InfoEnum.HARDVERSION),
-            "rfid": printer.get_rfid()
-        }
-        
-        return info
+        try:
+            if not printer.connect():
+                 raise ValueError("Protocol handshake failed")
+            
+            # Fetch Info
+            info = {
+                "serial": printer.get_info(InfoEnum.DEVICESERIAL),
+                "soft_version": printer.get_info(InfoEnum.SOFTVERSION),
+                "hard_version": printer.get_info(InfoEnum.HARDVERSION),
+                "rfid": printer.get_rfid()
+            }
+            
+            return info
+        finally:
+            printer.disconnect()
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -237,13 +257,10 @@ def get_printer_status(
 def get_printer_models():
     """
     Get the list of supported NIIMBOT printer models.
+    Currently supported: D11-H. Future models coming soon.
     """
     return {
         "models": [
-            {"value": "b1", "label": "Niimbot B1", "max_width": 384},
-            {"value": "b18", "label": "Niimbot B18", "max_width": 384},
-            {"value": "b21", "label": "Niimbot B21", "max_width": 384},
-            {"value": "d11", "label": "Niimbot D11", "max_width": 96},
-            {"value": "d110", "label": "Niimbot D110", "max_width": 96},
+            {"value": "d11_h", "label": "Niimbot D11-H (300dpi)", "max_width": 136},
         ]
     }

@@ -88,6 +88,14 @@ const App: React.FC = () => {
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      handleLogout();
+    };
+    window.addEventListener("auth:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
+  }, []);
+
   async function loadItems() {
     setItemsLoading(true);
     setItemsError(null);
@@ -140,6 +148,10 @@ const App: React.FC = () => {
       localStorage.setItem("NesVentory_currentUser", JSON.stringify(safeUser));
     } catch (err: any) {
       console.error("Failed to load current user:", err);
+      // If unauthorized, logout to clear stale session
+      if (err.message.includes("401") || err.message.includes("Could not validate credentials")) {
+        handleLogout();
+      }
     }
   }
 

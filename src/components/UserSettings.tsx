@@ -66,7 +66,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
   // Printer settings states
   const [printerConfig, setPrinterConfig] = useState<PrinterConfig>({
     enabled: false,
-    model: "b21",
+    model: "d11_h",
     connection_type: "usb",
     address: null,
     density: 3,
@@ -97,19 +97,24 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
 
   // Load printer configuration on mount
   useEffect(() => {
-    async function loadPrinterConfig() {
+    async function loadData() {
+      // Load printer models
       try {
-        const [config, models] = await Promise.all([
-          getPrinterConfig(),
-          getPrinterModels()
-        ]);
-        setPrinterConfig(config);
+        const models = await getPrinterModels();
         setPrinterModels(models.models);
+      } catch (err) {
+        console.error("Failed to load printer models:", err);
+      }
+
+      // Load printer config
+      try {
+        const config = await getPrinterConfig();
+        setPrinterConfig(config);
       } catch (err) {
         console.error("Failed to load printer config:", err);
       }
     }
-    loadPrinterConfig();
+    loadData();
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -747,10 +752,13 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
             >
               {printerModels.map(model => (
                 <option key={model.value} value={model.value}>
-                  {model.label} (Max Width: {model.max_width}px)
+                  {model.label}
                 </option>
               ))}
             </select>
+            <small style={{ color: "#666", fontSize: "0.875rem" }}>
+              Currently supported: D11-H. Future models coming soon.
+            </small>
           </div>
 
           <div className="form-group">
@@ -784,17 +792,17 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
           </div>
 
           <div className="form-group">
-            <label htmlFor="printer-density">Print Density (1-5)</label>
+            <label htmlFor="printer-density">Print Density (1-3)</label>
             <input
               id="printer-density"
               type="number"
               min="1"
-              max="5"
+              max="3"
               value={printerConfig.density}
               onChange={(e) => setPrinterConfig(prev => ({ ...prev, density: parseInt(e.target.value) || 3 }))}
             />
             <small style={{ color: "#666", fontSize: "0.875rem" }}>
-              Higher values produce darker prints. Some models only support up to 3.
+              Higher values produce darker prints (1-3 for D11-H).
             </small>
           </div>
 

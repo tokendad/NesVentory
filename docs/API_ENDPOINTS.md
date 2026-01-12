@@ -1724,9 +1724,9 @@ Get the current user's NIIMBOT printer configuration.
 ```json
 {
   "enabled": true,
-  "model": "b21",
-  "connection_type": "usb",
-  "address": null,
+  "model": "d11_h",
+  "connection_type": "server",
+  "address": "AA:BB:CC:DD:EE:FF",
   "density": 3
 }
 ```
@@ -1741,9 +1741,9 @@ Update the current user's NIIMBOT printer configuration.
 ```json
 {
   "enabled": true,
-  "model": "b21",
-  "connection_type": "usb",
-  "address": null,
+  "model": "d11_h",
+  "connection_type": "server",
+  "address": "AA:BB:CC:DD:EE:FF",
   "density": 3
 }
 ```
@@ -1773,9 +1773,9 @@ Test the connection to a NIIMBOT printer with the provided configuration.
 ```json
 {
   "enabled": true,
-  "model": "b21",
-  "connection_type": "usb",
-  "address": null,
+  "model": "d11_h",
+  "connection_type": "server",
+  "address": "AA:BB:CC:DD:EE:FF",
   "density": 3
 }
 ```
@@ -1798,11 +1798,7 @@ Get a list of supported NIIMBOT printer models.
 ```json
 {
   "models": [
-    {"value": "b1", "label": "Niimbot B1", "max_width": 384},
-    {"value": "b18", "label": "Niimbot B18", "max_width": 384},
-    {"value": "b21", "label": "Niimbot B21", "max_width": 384},
-    {"value": "d11", "label": "Niimbot D11", "max_width": 96},
-    {"value": "d110", "label": "Niimbot D110", "max_width": 96}
+    {"value": "d11_h", "label": "Niimbot D11-H (300dpi)", "max_width": 136}
   ]
 }
 ```

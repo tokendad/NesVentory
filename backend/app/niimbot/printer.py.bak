@@ -1,0 +1,420 @@
+import abc
+import enum
+import logging
+import math
+import socket
+import struct
+import time
+
+import serial
+from PIL import Image, ImageOps
+from serial.tools.list_ports import comports as list_comports
+
+from .packet import NiimbotPacket
+
+
+class InfoEnum(enum.IntEnum):
+    DENSITY = 1
+    PRINTSPEED = 2
+    LABELTYPE = 3
+    LANGUAGETYPE = 6
+    AUTOSHUTDOWNTIME = 7
+    DEVICETYPE = 8
+    SOFTVERSION = 9
+    BATTERY = 10
+    DEVICESERIAL = 11
+    HARDVERSION = 12
+
+
+class RequestCodeEnum(enum.IntEnum):
+    GET_INFO = 64  # 0x40
+    GET_RFID = 26  # 0x1A
+    HEARTBEAT = 220  # 0xDC
+    SET_LABEL_TYPE = 35  # 0x23
+    SET_LABEL_DENSITY = 33  # 0x21
+    START_PRINT = 1  # 0x01
+    END_PRINT = 243  # 0xF3
+    START_PAGE_PRINT = 3  # 0x03
+    END_PAGE_PRINT = 227  # 0xE3
+    ALLOW_PRINT_CLEAR = 32  # 0x20
+    SET_DIMENSION = 19  # 0x13
+    SET_QUANTITY = 21  # 0x15
+    GET_PRINT_STATUS = 163  # 0xA3
+    CONNECT = 192  # 0xC0
+
+
+def _packet_to_int(x):
+    return int.from_bytes(x.data, "big")
+
+
+class BaseTransport(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def read(self, length: int) -> bytes:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def write(self, data: bytes):
+        raise NotImplementedError
+
+
+class BluetoothTransport(BaseTransport):
+    def __init__(self, address: str):
+        self._sock = socket.socket(
+            socket.AF_BLUETOOTH,
+            socket.SOCK_STREAM,
+            socket.BTPROTO_RFCOMM,
+        )
+        self._sock.connect((address, 1))
+
+    def read(self, length: int) -> bytes:
+        return self._sock.recv(length)
+
+    def write(self, data: bytes):
+        return self._sock.send(data)
+
+
+class SerialTransport(BaseTransport):
+    def __init__(self, port: str = "auto"):
+        port = port if port != "auto" else self._detect_port()
+        self._serial = serial.Serial(port=port, baudrate=115200, timeout=0.5)
+
+    def _detect_port(self):
+        all_ports = list(list_comports())
+        if len(all_ports) == 0:
+            raise RuntimeError("No serial ports detected on the server")
+        if len(all_ports) > 1:
+            msg = "Too many serial ports, please select specific one:"
+            for port, desc, hwid in all_ports:
+                msg += f"\n- {port} : {desc} [{hwid}]"
+            raise RuntimeError(msg)
+        return all_ports[0][0]
+
+    def read(self, length: int) -> bytes:
+        return self._serial.read(length)
+
+    def write(self, data: bytes):
+        return self._serial.write(data)
+
+
+class PrinterClient:
+    def __init__(self, transport):
+        self._transport = transport
+        self._packetbuf = bytearray()
+
+    def connect(self):
+        packet = self._transceive(RequestCodeEnum.CONNECT, b"\x01")
+        return bool(packet)
+
+    def start_print_v5(self):
+        # 9-byte StartPrint: [TotalPages(2), 0,0,0,0, Color(1), Quality(1), Flag(1)]
+        payload = struct.pack(">H", 1) + b'\x00\x00\x00\x00' + b'\x00\x00\x01'
+        packet = self._transceive(RequestCodeEnum.START_PRINT, payload)
+        return bool(packet)
+
+    def set_dimension_v5(self, w, h, qty=1):
+        logging.info(f"Setting dimensions V5: width={w}, height={h}, qty={qty}")
+        # Structure: H(2), W(2), Qty(2), 0(1), 0(1), 0(1), 1(1), 0(2)
+        # Note: Height (Rows) first, Width (Cols) second.
+        payload = struct.pack(">HHH H B B B H", h, w, qty, 0, 0, 0, 1, 0)
+        packet = self._transceive(RequestCodeEnum.SET_DIMENSION, payload)
+        return bool(packet)
+
+    def print_image(self, image: Image, density: int = 3, model: str = None):
+        logging.info(f"Starting print: {image.width}x{image.height}px, density={density}, model={model}")
+
+        self.set_label_density(density)
+        self.set_label_type(1)
+
+        is_v5 = model and model.lower() in ["d11_h", "d110_m", "b21_pro"]
+
+        if is_v5:
+            logging.info("Using V5 Protocol Sequence")
+            self.start_print_v5()
+            self.set_dimension_v5(image.width, image.height)
+            # Skip allow_print_clear and start_page_print for V5
+        else:
+            # Some models (B21, B1) malfunction with set_label_type(1) and allow_print_clear()
+            # in this sequence. Only enable them for models known to need them.
+            skip_legacy_cmds = model and model.lower() in ["b21", "b1"]
+            
+            self.start_print()
+            
+            if not skip_legacy_cmds:
+                self.allow_print_clear()
+
+            self.start_page_print()
+            self.set_dimension(image.width, image.height)
+            self.set_quantity(1)
+
+        # Send image data
+        row_count = 0
+        encoder = self._encode_image_v5(image) if is_v5 else self._encode_image(image)
+        
+        for pkt in encoder:
+            self._send(pkt)
+            row_count += 1
+        logging.info(f"Sent {row_count} image rows")
+
+        self.end_page_print()
+        logging.info("Page print ended, waiting for printer to finish")
+
+        time.sleep(0.3)  # FIXME: Check get_print_status()
+        attempts = 0
+        while not self.end_print():
+            time.sleep(0.1)
+            attempts += 1
+            if attempts > 100:  # 10 second timeout
+                logging.warning("Print end timeout after 10 seconds")
+                break
+
+        logging.info("Print completed successfully")
+
+    def _encode_image_v5(self, image: Image):
+        # V5 Encoding: Header includes Total Pixel Count (Little Endian)
+        img = image.convert("L").convert("1") # Dither/Threshold? 
+        # Wait, PIL '1' mode: 0=Black, 255=White (usually).
+        # But we want to control the mapping manually based on pixel values.
+        # convert("1") forces 0 or 255 (actually 0 or 1 internally? No, getpixel returns 0 or 255 in 'L' mode after thresholding).
+        # Let's keep it 'L' to be safe and threshold manually.
+        
+        img = image.convert("L")
+
+        for y in range(img.height):
+            line_pixels = [img.getpixel((x, y)) for x in range(img.width)]
+            
+            # Map: 0(White)->0(Bit0), 255(Black)->1(Bit1)
+            # testusb.py logic: "1" if pix > 128 else "0"
+            # This assumes Black is > 128 (255).
+            
+            line_bits_str = "".join("1" if pix > 128 else "0" for pix in line_pixels)
+            
+            # Pad to 8-bit boundary
+            if len(line_bits_str) % 8 != 0:
+                line_bits_str += "0" * (8 - (len(line_bits_str) % 8))
+            
+            total_pixels = line_bits_str.count("1")
+            line_data = int(line_bits_str, 2).to_bytes(len(line_bits_str) // 8, "big")
+            
+            # Header: [Row_H, Row_L, 0, Total_L, Total_H, Repeat]
+            # Total is Little Endian
+            t_l = total_pixels & 0xff
+            t_h = (total_pixels >> 8) & 0xff
+            
+            header = struct.pack(">H B B B B", y, 0, t_l, t_h, 1)
+            yield NiimbotPacket(0x85, header + line_data)
+
+    def _encode_image(self, image: Image):
+        # Convert to 1-bit bitmap WITHOUT inversion
+        # In mode "1": 0 = black, 255 = white
+        img = image.convert("L").convert("1")
+
+        for y in range(img.height):
+            # Get pixel values for the row
+            line_pixels = [img.getpixel((x, y)) for x in range(img.width)]
+
+            # Niimbot protocol: bit 0 = print black, bit 1 = leave white
+            # So: black pixel (0) → bit "0", white pixel (255) → bit "1"
+            line_bits = "".join("0" if pix == 0 else "1" for pix in line_pixels)
+
+            # Convert bit string to bytes
+            line_bytes = int(line_bits, 2).to_bytes(math.ceil(img.width / 8), "big")
+
+            # Debug first few rows
+            if y < 3 or y == 10:
+                black_count = line_bits.count("0")
+                logging.debug(f"Row {y}: {black_count} black pixels, first 8 bytes: {line_bytes[:8].hex()}")
+
+            # Packet header format (BIG-ENDIAN per Niimbot protocol)
+            # - Row number: 2 bytes (unsigned short, big-endian)
+            # - Count bytes: 3 bytes (set to zeros per protocol docs)
+            # - Repeat count: 1 byte (how many times to print this row)
+            header = struct.pack(">H3BB", y, 0, 0, 0, 1)
+
+            pkt = NiimbotPacket(0x85, header + line_bytes)
+            yield pkt
+
+    def _recv(self):
+        packets = []
+        self._packetbuf.extend(self._transport.read(1024))
+        while len(self._packetbuf) > 4:
+            pkt_len = self._packetbuf[3] + 7
+            if len(self._packetbuf) >= pkt_len:
+                packet = NiimbotPacket.from_bytes(self._packetbuf[:pkt_len])
+                self._log_buffer("recv", packet.to_bytes())
+                packets.append(packet)
+                del self._packetbuf[:pkt_len]
+        return packets
+
+    def _send(self, packet):
+        data = packet.to_bytes()
+        self._log_buffer("send", data)
+        self._transport.write(data)
+
+    def _log_buffer(self, prefix: str, buff: bytes):
+        msg = ":".join(f"{i:#04x}"[-2:] for i in buff)
+        logging.debug(f"{prefix}: {msg}")
+
+    def _transceive(self, reqcode, data, respoffset=1):
+        respcode = respoffset + reqcode
+        packet = NiimbotPacket(reqcode, data)
+        self._log_buffer("send", packet.to_bytes())
+        self._send(packet)
+        resp = None
+        for _ in range(6):
+            for packet in self._recv():
+                if packet.type == 219:
+                    logging.debug("Received packet type 219 (0xDB), ignoring")
+                    continue
+                elif packet.type == 0:
+                    logging.info(f"Received generic response type 0: {packet.data.hex()}")
+                    resp = packet
+                elif packet.type == respcode:
+                    resp = packet
+            if resp:
+                return resp
+            time.sleep(0.1)
+        return resp
+
+    def get_info(self, key):
+        if packet := self._transceive(RequestCodeEnum.GET_INFO, bytes((key,)), key):
+            match key:
+                case InfoEnum.DEVICESERIAL:
+                    return packet.data.hex()
+                case InfoEnum.SOFTVERSION:
+                    return _packet_to_int(packet) / 100
+                case InfoEnum.HARDVERSION:
+                    return _packet_to_int(packet) / 100
+                case _:
+                    return _packet_to_int(packet)
+        else:
+            return None
+
+    def get_rfid(self):
+        packet = self._transceive(RequestCodeEnum.GET_RFID, b"\x01")
+        data = packet.data
+        
+        logging.debug(f"RFID Raw Data: {data.hex()}")
+
+        if not data:
+            return None
+            
+        # If the packet is too short for our offset logic, return raw hex and try legacy parsing or failure
+        # We need at least up to offset 68 for the full read (Offset 60 + 8 bytes)
+        if len(data) < 68:
+            logging.warning(f"RFID packet length {len(data)} is shorter than expected 68 bytes for offset parsing.")
+            # Try to return at least what we can or just the raw data
+            return {
+                "uuid": data[0:8].hex() if len(data) >= 8 else "", 
+                "raw": data.hex(),
+                "error": "Packet too short for offset parsing"
+            }
+
+        # UUID: Offset 28 (Blocks 7-8)
+        uuid = data[28:36].hex()
+
+        # Serial: Offset 36 (Blocks 9-12 -> 4 blocks * 4 bytes = 16 bytes)
+        serial_bytes = data[36:52]
+        try:
+            serial = serial_bytes.replace(b'\x00', b'').decode('utf-8', errors='ignore')
+        except Exception:
+            serial = serial_bytes.hex()
+
+        # Barcode: Offset 60 (Blocks 15-16 -> 2 blocks * 4 bytes = 8 bytes)
+        barcode_bytes = data[60:68]
+        try:
+            barcode = barcode_bytes.replace(b'\x00', b'').decode('utf-8', errors='ignore')
+        except Exception:
+            barcode = barcode_bytes.hex()
+
+        return {
+            "uuid": uuid,
+            "barcode": barcode,
+            "serial": serial,
+            "raw": data.hex()
+        }
+
+    def heartbeat(self):
+        packet = self._transceive(RequestCodeEnum.HEARTBEAT, b"\x01")
+        closingstate = None
+        powerlevel = None
+        paperstate = None
+        rfidreadstate = None
+
+        match len(packet.data):
+            case 20:
+                paperstate = packet.data[18]
+                rfidreadstate = packet.data[19]
+            case 13:
+                closingstate = packet.data[9]
+                powerlevel = packet.data[10]
+                paperstate = packet.data[11]
+                rfidreadstate = packet.data[12]
+            case 19:
+                closingstate = packet.data[15]
+                powerlevel = packet.data[16]
+                paperstate = packet.data[17]
+                rfidreadstate = packet.data[18]
+            case 10:
+                closingstate = packet.data[8]
+                powerlevel = packet.data[9]
+                rfidreadstate = packet.data[8]
+            case 9:
+                closingstate = packet.data[8]
+
+        return {
+            "closingstate": closingstate,
+            "powerlevel": powerlevel,
+            "paperstate": paperstate,
+            "rfidreadstate": rfidreadstate,
+        }
+
+    def set_label_type(self, n):
+        assert 1 <= n <= 3
+        packet = self._transceive(RequestCodeEnum.SET_LABEL_TYPE, bytes((n,)), 16)
+        return bool(packet.data[0])
+
+    def set_label_density(self, n):
+        assert 1 <= n <= 5  # B21 has 5 levels, not sure for D11
+        packet = self._transceive(RequestCodeEnum.SET_LABEL_DENSITY, bytes((n,)), 16)
+        return bool(packet.data[0])
+
+    def start_print(self):
+        packet = self._transceive(RequestCodeEnum.START_PRINT, b"\x01")
+        return bool(packet.data[0])
+
+    def end_print(self):
+        packet = self._transceive(RequestCodeEnum.END_PRINT, b"\x01")
+        return bool(packet.data[0])
+
+    def start_page_print(self):
+        packet = self._transceive(RequestCodeEnum.START_PAGE_PRINT, b"\x01")
+        return bool(packet.data[0])
+
+    def end_page_print(self):
+        packet = self._transceive(RequestCodeEnum.END_PAGE_PRINT, b"\x01")
+        return bool(packet.data[0]) if packet else False
+
+    def allow_print_clear(self):
+        packet = self._transceive(RequestCodeEnum.ALLOW_PRINT_CLEAR, b"\x01", 16)
+        return bool(packet.data[0])
+
+    def set_dimension(self, w, h):
+        logging.info(f"Setting dimensions: width={w}, height={h}")
+        packet = self._transceive(
+            RequestCodeEnum.SET_DIMENSION, struct.pack(">HH", w, h)
+        )
+        if packet and packet.data and packet.data[0] == 1:
+            logging.info(f"Dimension set successfully")
+            return True
+        else:
+            logging.error(f"Failed to set dimension! Response: {packet.data.hex() if packet and packet.data else 'None'}")
+            return False
+
+    def set_quantity(self, n):
+        packet = self._transceive(RequestCodeEnum.SET_QUANTITY, struct.pack(">H", n))
+        return bool(packet.data[0])
+
+    def get_print_status(self):
+        packet = self._transceive(RequestCodeEnum.GET_PRINT_STATUS, b"\x01", 16)
+        page, progress1, progress2 = struct.unpack(">HBB", packet.data)
+        return {"page": page, "progress1": progress1, "progress2": progress2}
