@@ -470,6 +470,7 @@ jobs:
           
           # Create Pull Request
           gh pr create \
+            --repo "${{ github.repository }}" \
             --title "chore: release v$NEW_VERSION" \
             --body "Automated release preparation for v$NEW_VERSION. Merging this PR will trigger the publication workflow." \
             --base main \
