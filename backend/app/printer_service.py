@@ -4,7 +4,6 @@ Optimized for D11_H V5 Protocol with full API compatibility.
 """
 import io
 import logging
-import struct
 from typing import Optional
 from PIL import Image, ImageDraw, ImageFont
 
