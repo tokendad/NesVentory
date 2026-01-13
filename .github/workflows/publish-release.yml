@@ -8,7 +8,7 @@ on:
 jobs:
   publish-release:
     # Only run if the commit message indicates a release (matching the release-workflow pattern)
-    if: contains(github.event.head_commit.message, 'chore: release v')
+    if: "contains(github.event.head_commit.message, 'chore: release v')"
     runs-on: ubuntu-latest
     permissions:
       contents: write
