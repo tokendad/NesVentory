@@ -4,13 +4,10 @@ Optimized for D11_H V5 Protocol with full API compatibility.
 """
 import io
 import logging
-import time
-import struct
 from typing import Optional
 from PIL import Image, ImageDraw, ImageFont
 
 from .niimbot import BleakTransport, PrinterClient, SerialTransport
-from .niimbot.packet import NiimbotPacket
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +86,7 @@ class NiimbotPrinterService:
         # Available for text: y=132 to y=468 = 336px length, full width ~130px
         try:
             font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 32)
-        except:
+        except OSError:
             font = ImageFont.load_default()
 
         # Maximize text area: 336px length x 124px height (matches QR width)
