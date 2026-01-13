@@ -9,7 +9,6 @@ from typing import Optional
 from PIL import Image, ImageDraw, ImageFont
 
 from .niimbot import BleakTransport, PrinterClient, SerialTransport
-from .niimbot.packet import NiimbotPacket
 
 logger = logging.getLogger(__name__)
 
