@@ -4,7 +4,18 @@
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
-## 🚀 What's New in Version 6.5.0
+## 🚀 What's New in Version 6.5.1
+
+### 🖨️ **NIIMBOT Printer Improvements** (v6.5.1)
+- **Fixed D11-H printer support** - Improved reliability and compatibility
+- **Bluetooth/USB print options** - Added flexible printing options for thermal printers
+- **Better host compatibility** - Relaxed document host check for various environments
+
+### 🔧 **Dependency Updates** (v6.5.1)
+- Updated React to latest version for improved performance
+- Updated Werkzeug and Vite dependencies
+
+## Previous Version Highlights
 
 ### ✨ **Custom Fields** (v6.5.0)
 - **Dynamic custom fields** - Add custom fields for links, notes, or other information to items
