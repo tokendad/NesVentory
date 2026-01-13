@@ -154,11 +154,12 @@ async def upload_document_from_url(
         canonical_hostname = canonicalize_host(hostname)
         # Use get_sld to get the "registrable domain". We want to avoid subdomains.
         # Only allow *exact* host matches, not subdomains.
-        if canonical_hostname not in ALLOWED_HOSTS:
-            raise HTTPException(
-                status_code=400,
-                detail="Host is not allowed. Only specific hosts are permitted."
-            )
+        # ALLOWED_HOSTS check removed to allow any public URL.
+        # if canonical_hostname not in ALLOWED_HOSTS:
+        #    raise HTTPException(
+        #        status_code=400,
+        #        detail="Host is not allowed. Only specific hosts are permitted."
+        #    )
 
         # Resolve hostname to prevent DNS rebinding/bypass
         try:

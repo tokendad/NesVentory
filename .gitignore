@@ -35,3 +35,7 @@ build/
 
 # Node modules
 node_modules/
+
+# References and Testing
+Niimprinters References/
+testing/

@@ -14,7 +14,6 @@ import OIDCCallback from "./components/OIDCCallback";
 import RegisterForm from "./components/RegisterForm";
 import SetPasswordModal from "./components/SetPasswordModal";
 import UserSettings from "./components/UserSettings";
-import SystemSettings from "./components/SystemSettings";
 import Calendar from "./components/Calendar";
 import AdminPage from "./components/AdminPage";
 import Layout, { useIsMobile } from "./components/Layout";
@@ -49,7 +48,7 @@ import {
 import { PHOTO_TYPES } from "./lib/constants";
 import type { PhotoUpload, DocumentUpload } from "./lib/types";
 
-type View = "inventory" | "media" | "user-settings" | "calendar" | "system-settings" | "admin";
+type View = "inventory" | "media" | "user-settings" | "calendar" | "admin";
 
 const APP_VERSION = "6.5.0";
 
@@ -88,6 +87,14 @@ const App: React.FC = () => {
   const [showAIDetection, setShowAIDetection] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      handleLogout();
+    };
+    window.addEventListener("auth:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
+  }, []);
 
   async function loadItems() {
     setItemsLoading(true);
@@ -141,6 +148,10 @@ const App: React.FC = () => {
       localStorage.setItem("NesVentory_currentUser", JSON.stringify(safeUser));
     } catch (err: any) {
       console.error("Failed to load current user:", err);
+      // If unauthorized, logout to clear stale session
+      if (err.message.includes("401") || err.message.includes("Could not validate credentials")) {
+        handleLogout();
+      }
     }
   }
 
@@ -415,12 +426,6 @@ const App: React.FC = () => {
       >
         📅 Maintenance Calendar
       </button>
-      <button
-        className={view === "system-settings" ? "nav-link active" : "nav-link"}
-        onClick={() => setView("system-settings")}
-      >
-        ⚙️ System Settings
-      </button>
       {currentUser?.role === "admin" && (
         <button
           className={view === "admin" ? "nav-link active" : "nav-link"}
@@ -478,7 +483,6 @@ const App: React.FC = () => {
           />
         )}
         {view === "calendar" && <Calendar />}
-        {view === "system-settings" && <SystemSettings />}
         {view === "admin" && currentUser?.role === "admin" && (
           <AdminPage 
             onClose={() => setView("inventory")} 

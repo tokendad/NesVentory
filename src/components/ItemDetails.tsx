@@ -300,7 +300,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
               <h3>Additional Information</h3>
               <div className="details-grid">
                 {item.additional_info.map((field, index) => (
-                  <div key={index} className={`detail-item ${field.type === 'text' && field.value.length > 50 ? 'full-width' : ''}`}>
+                  <div key={index} className={`detail-item ${['text', 'multiline', 'url'].includes(field.type) && field.value.length > 50 ? 'full-width' : ''}`}>
                     <span className="detail-label">{field.label}:</span>
                     <span className="detail-value">
                       {field.type === 'url' ? (
@@ -309,6 +309,10 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
                         </a>
                       ) : field.type === 'date' ? (
                         formatDate(field.value)
+                      ) : field.type === 'boolean' ? (
+                        field.value === 'true' ? 'Yes' : 'No'
+                      ) : field.type === 'multiline' ? (
+                        <span style={{ whiteSpace: 'pre-wrap' }}>{field.value}</span>
                       ) : (
                         field.value
                       )}

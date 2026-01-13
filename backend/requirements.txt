@@ -1,6 +1,6 @@
 fastapi==0.128.0
 publicsuffix2==2.20191221
-werkzeug==3.1.4
+werkzeug==3.1.5
 uvicorn[standard]==0.40.0
 SQLAlchemy==2.0.45
 psycopg2-binary==2.9.11
@@ -31,3 +31,4 @@ pillow>=10.3.0
 pyserial==3.5
 click==8.3.1
 qrcode==8.2
+bleak>=0.21.0

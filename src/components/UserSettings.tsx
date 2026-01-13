@@ -22,6 +22,8 @@ import {
   resetLocaleConfig,
   COMMON_CURRENCIES,
   COMMON_LOCALES,
+  CURRENCY_POSITION_OPTIONS,
+  DATE_FORMAT_OPTIONS,
   type LocaleConfig 
 } from "../lib/locale";
 
@@ -32,7 +34,7 @@ interface UserSettingsProps {
   embedded?: boolean;
 }
 
-type TabType = 'profile' | 'api' | 'stats' | 'appearance' | 'printer';
+type TabType = 'profile' | 'api' | 'stats' | 'appearance' | 'locale' | 'printer';
 
 const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, embedded = false }) => {
   // Tab state
@@ -64,7 +66,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
   // Printer settings states
   const [printerConfig, setPrinterConfig] = useState<PrinterConfig>({
     enabled: false,
-    model: "b21",
+    model: "d11_h",
     connection_type: "usb",
     address: null,
     density: 3,
@@ -95,19 +97,24 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
 
   // Load printer configuration on mount
   useEffect(() => {
-    async function loadPrinterConfig() {
+    async function loadData() {
+      // Load printer models
       try {
-        const [config, models] = await Promise.all([
-          getPrinterConfig(),
-          getPrinterModels()
-        ]);
-        setPrinterConfig(config);
+        const models = await getPrinterModels();
         setPrinterModels(models.models);
+      } catch (err) {
+        console.error("Failed to load printer models:", err);
+      }
+
+      // Load printer config
+      try {
+        const config = await getPrinterConfig();
+        setPrinterConfig(config);
       } catch (err) {
         console.error("Failed to load printer config:", err);
       }
     }
-    loadPrinterConfig();
+    loadData();
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -536,11 +543,11 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
     </div>
   );
 
-  // Render the Appearance Tab content (Theme and Locale)
+  // Render the Appearance Tab content (Theme only)
   const renderAppearanceTab = () => (
     <div className="tab-content">
       {/* Theme Settings */}
-      <div className="form-group" style={{ paddingBottom: "1rem", marginBottom: "1rem", borderBottom: "1px solid #e0e0e0" }}>
+      <div className="form-group">
         <label>🎨 Theme</label>
         <small style={{ color: "#666", fontSize: "0.875rem", display: "block", marginBottom: "0.75rem" }}>
           Choose your preferred appearance settings
@@ -592,7 +599,12 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
           </div>
         </div>
       </div>
-      
+    </div>
+  );
+
+  // Render the Locale Tab content
+  const renderLocaleTab = () => (
+    <div className="tab-content">
       {/* Locale Settings */}
       <div className="form-group">
         <label>🌍 International</label>
@@ -616,6 +628,25 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
             ))}
           </select>
         </div>
+
+        {/* Date Format */}
+        <div style={{ marginBottom: "1rem" }}>
+          <label htmlFor="dateFormat" style={{ fontSize: "0.9rem", marginBottom: "0.25rem", display: "block" }}>
+            Date Format
+          </label>
+          <select
+            id="dateFormat"
+            value={localeConfig.dateFormat}
+            onChange={(e) => setLocaleConfig(prev => ({ ...prev, dateFormat: e.target.value as any }))}
+            style={{ width: "100%" }}
+          >
+            {DATE_FORMAT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
         
         {/* Currency */}
         <div style={{ marginBottom: "1rem" }}>
@@ -630,6 +661,25 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
           >
             {COMMON_CURRENCIES.map(currency => (
               <option key={currency.code} value={currency.code}>{currency.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Currency Symbol Position */}
+        <div style={{ marginBottom: "1rem" }}>
+          <label htmlFor="currencyPosition" style={{ fontSize: "0.9rem", marginBottom: "0.25rem", display: "block" }}>
+            Symbol Position
+          </label>
+          <select
+            id="currencyPosition"
+            value={localeConfig.currencySymbolPosition}
+            onChange={(e) => setLocaleConfig(prev => ({ ...prev, currencySymbolPosition: e.target.value as any }))}
+            style={{ width: "100%" }}
+          >
+            {CURRENCY_POSITION_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
           </select>
         </div>
@@ -661,10 +711,23 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
   // Render the Printer Tab content
   const renderPrinterTab = () => (
     <div className="tab-content">
-      <h3 style={{ marginBottom: "1rem" }}>NIIMBOT Printer Configuration</h3>
-      <p style={{ color: "#666", marginBottom: "1rem" }}>
-        Configure your NIIMBOT label printer for direct printing of QR code labels.
-      </p>
+      <h3 style={{ marginBottom: "1rem" }}>Server-Side Printer Configuration</h3>
+      <div style={{ 
+        backgroundColor: "#e3f2fd", 
+        border: "1px solid #90caf9", 
+        borderRadius: "4px", 
+        padding: "0.75rem",
+        marginBottom: "1rem",
+        fontSize: "0.9rem",
+        color: "#0d47a1"
+      }}>
+        <p style={{ margin: 0, marginBottom: "0.5rem" }}>
+          <strong>ℹ️ Note:</strong> This configuration is ONLY for a printer connected directly to the <strong>server</strong> (e.g. shared printer).
+        </p>
+        <p style={{ margin: 0 }}>
+          If you want to print from your <strong>local computer or phone</strong> via USB or Bluetooth, you do <strong>not</strong> need to configure anything here. Just select "USB" or "Bluetooth" in the Print Label dialog.
+        </p>
+      </div>
 
       <div className="form-group">
         <label htmlFor="printer-enabled" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -674,7 +737,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
             checked={printerConfig.enabled}
             onChange={(e) => setPrinterConfig(prev => ({ ...prev, enabled: e.target.checked }))}
           />
-          Enable NIIMBOT Printer
+          Enable Server Printer
         </label>
       </div>
 
@@ -689,10 +752,13 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
             >
               {printerModels.map(model => (
                 <option key={model.value} value={model.value}>
-                  {model.label} (Max Width: {model.max_width}px)
+                  {model.label}
                 </option>
               ))}
             </select>
+            <small style={{ color: "#666", fontSize: "0.875rem" }}>
+              Currently supported: D11-H. Future models coming soon.
+            </small>
           </div>
 
           <div className="form-group">
@@ -702,8 +768,8 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
               value={printerConfig.connection_type}
               onChange={(e) => setPrinterConfig(prev => ({ ...prev, connection_type: e.target.value }))}
             >
-              <option value="usb">USB</option>
-              <option value="bluetooth">Bluetooth</option>
+              <option value="usb">USB (Server Port)</option>
+              <option value="bluetooth">Bluetooth (Server Adapter)</option>
             </select>
           </div>
 
@@ -726,17 +792,17 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
           </div>
 
           <div className="form-group">
-            <label htmlFor="printer-density">Print Density (1-5)</label>
+            <label htmlFor="printer-density">Print Density (1-3)</label>
             <input
               id="printer-density"
               type="number"
               min="1"
-              max="5"
+              max="3"
               value={printerConfig.density}
               onChange={(e) => setPrinterConfig(prev => ({ ...prev, density: parseInt(e.target.value) || 3 }))}
             />
             <small style={{ color: "#666", fontSize: "0.875rem" }}>
-              Higher values produce darker prints. Some models only support up to 3.
+              Higher values produce darker prints (1-3 for D11-H).
             </small>
           </div>
 
@@ -767,7 +833,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
               onClick={handlePrinterTest}
               disabled={printerLoading}
             >
-              {printerLoading ? "Testing..." : "Test Connection"}
+              {printerLoading ? "Testing..." : "Test Server Connection"}
             </button>
           </div>
         </>
@@ -824,6 +890,13 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
         </button>
         <button
           type="button"
+          className={`tab-button ${activeTab === 'locale' ? 'active' : ''}`}
+          onClick={() => handleTabChange('locale')}
+        >
+          🌐 Locale & Currency
+        </button>
+        <button
+          type="button"
           className={`tab-button ${activeTab === 'printer' ? 'active' : ''}`}
           onClick={() => handleTabChange('printer')}
         >
@@ -838,6 +911,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
           {activeTab === 'api' && renderApiTab()}
           {activeTab === 'stats' && renderStatsTab()}
           {activeTab === 'appearance' && renderAppearanceTab()}
+          {activeTab === 'locale' && renderLocaleTab()}
           {activeTab === 'printer' && renderPrinterTab()}
         </div>
 
