@@ -88,7 +88,7 @@ class NiimbotPrinterService:
         # Available for text: y=132 to y=468 = 336px length, full width ~130px
         try:
             font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 32)
-        except:
+        except OSError:
             font = ImageFont.load_default()
 
         # Maximize text area: 336px length x 124px height (matches QR width)
