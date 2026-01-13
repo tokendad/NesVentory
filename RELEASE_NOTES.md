@@ -1,12 +1,24 @@
-# NesVentory v6.5.0 - New Features 
+# NesVentory v6.5.1 - Patch Release
 
 ## Overview
 
-Version 6.5.0 release.
+Version 6.5.1 patch release with NIIMBOT printer improvements and dependency updates.
 
-## New Features
+## Bug Fixes
 
-Updated International formats,  added Custom Fields
+- **Fixed NIIMBOT D11-H Printer support** - Improved reliability and compatibility
+- **CI workflow improvements** - Refactored release workflow to use PRs and avoid protected branch push issues
+
+## Improvements
+
+- **Bluetooth/USB print options** - Added flexible printing options for NIIMBOT thermal printers
+- **Relaxed document host check** - Better compatibility for various hosting environments
+
+## Dependency Updates
+
+- Updated React to latest version
+- Updated Werkzeug dependency
+- Updated Vite to latest version
 
 ---
 
