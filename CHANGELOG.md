@@ -2,10 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [6.5.1] - 2026-01-13
+### Added
+- Bluetooth/USB print options for NIIMBOT printers
+- Relaxed document host check for better compatibility
 
+### Fixed
+- Fixed NIIMBOT D11-H Printer support for improved reliability
+- CI workflow refactored to use PRs and avoid protected branch push issues
 
-
-
+### Changed
+- Updated React to latest version
+- Updated Werkzeug dependency
+- Updated Vite to latest version
 
 
 
