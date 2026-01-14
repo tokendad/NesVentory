@@ -29,6 +29,11 @@ if [ $# -eq 0 ]; then
 fi
 
 # Switch to the nesventory user (created with PUID/PGID) and run the command
-# We use setpriv instead of gosu to grant ambient capabilities (CAP_NET_ADMIN)
-# which allows the non-root user to access Bluetooth raw sockets.
-exec setpriv --reuid="${PUID}" --regid="${PGID}" --init-groups --inheritable-caps=+net_admin --ambient-caps=+net_admin -- "$@"
+# We use capsh (from libcap2-bin) to grant ambient capabilities (CAP_NET_ADMIN)
+# This is more robust than setpriv on some systems.
+# --keep=1: Keep capabilities during UID switch
+# --user=nesventory: Switch to this user (and their groups)
+# --inh=...: Set inheritable capabilities
+# --addamb=...: Add to ambient capabilities
+# -- -c 'exec "$@"': Execute the passed command using sh/bash
+exec capsh --keep=1 --user=nesventory --inh=cap_net_admin --addamb=cap_net_admin -- -c 'exec "$@"' -- "$@"
