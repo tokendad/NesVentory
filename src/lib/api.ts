@@ -116,7 +116,7 @@ export interface Item {
 export interface DynamicField {
   label: string;
   value: string;
-  type: 'text' | 'url' | 'date' | 'number';
+  type: 'text' | 'url' | 'date' | 'number' | 'boolean' | 'time' | 'multiline';
 }
 
 export interface ItemCreate {
@@ -251,6 +251,9 @@ export interface Location {
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
+    if (res.status === 401) {
+      window.dispatchEvent(new Event("auth:unauthorized"));
+    }
     const text = await res.text();
     let message = text;
     try {
@@ -2145,6 +2148,9 @@ export interface PrinterConfig {
   connection_type: string;
   address?: string | null;
   density: number;
+  label_width?: number | null;
+  label_height?: number | null;
+  print_direction?: string | null;
 }
 
 export interface PrinterModel {

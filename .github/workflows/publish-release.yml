@@ -1,0 +1,47 @@
+name: Publish Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish-release:
+    # Only run if the commit message indicates a release (matching the release-workflow pattern)
+    if: "contains(github.event.head_commit.message, 'chore: release v')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get Version
+        id: version
+        run: |
+          VERSION=$(cat VERSION | tr -d '[:space:]')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Detected version: $VERSION"
+
+      - name: Create and Push Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          TAG_NAME="v${{ steps.version.outputs.version }}"
+          echo "Creating tag $TAG_NAME"
+          
+          git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+          git push origin "$TAG_NAME"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -29,4 +29,6 @@ if [ $# -eq 0 ]; then
 fi
 
 # Switch to the nesventory user (created with PUID/PGID) and run the command
-exec gosu nesventory "$@"
+# We use setpriv instead of gosu to grant ambient capabilities (CAP_NET_ADMIN)
+# which allows the non-root user to access Bluetooth raw sockets.
+exec setpriv --reuid="${PUID}" --regid="${PGID}" --init-groups --inheritable=+net_admin --ambient-caps=+net_admin -- "$@"

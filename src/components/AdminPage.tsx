@@ -57,8 +57,10 @@ import {
   type Plugin,
   type PluginCreate,
   type PluginUpdate,
-  type PluginConnectionTestResult
+  type PluginConnectionTestResult,
+  type DynamicField
 } from "../lib/api";
+import Status from "./Status";
 
 interface AdminPageProps {
   onClose: () => void;
@@ -91,13 +93,23 @@ interface GoogleWindow extends Window {
   };
 }
 
-type MainTabType = 'users' | 'logs' | 'server' | 'ai-settings' | 'plugins';
+type MainTabType = 'users' | 'logs' | 'server' | 'ai-settings' | 'plugins' | 'status' | 'custom-fields';
 type UserSubTabType = 'all' | 'pending' | 'create';
 
 const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded = false }) => {
   // Main tab state
   const [mainTab, setMainTab] = useState<MainTabType>('users');
   
+  // Custom Fields state
+  const [customFields, setCustomFields] = useState<DynamicField[]>(() => {
+    const saved = localStorage.getItem("NesVentory_CustomFieldsTemplate");
+    return saved ? JSON.parse(saved) : [
+      { label: "Related URL", value: "", type: "url" },
+      { label: "Notes", value: "", type: "text" }
+    ];
+  });
+  const [customFieldsSuccess, setCustomFieldsSuccess] = useState<string | null>(null);
+
   // User management states
   const [users, setUsers] = useState<User[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -1078,7 +1090,31 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     setServerSuccess(null);
     setAiProvidersError(null);
     setAiProvidersSuccess(null);
+    setCustomFieldsSuccess(null);
     setMainTab(tab);
+  }
+
+  // Custom Fields handlers
+  function handleSaveCustomFields() {
+    localStorage.setItem("NesVentory_CustomFieldsTemplate", JSON.stringify(customFields));
+    setCustomFieldsSuccess("Custom fields template saved successfully!");
+    setTimeout(() => setCustomFieldsSuccess(null), 3000);
+  }
+
+  function handleCustomFieldChange(index: number, field: keyof DynamicField, value: string) {
+    const updatedFields = [...customFields];
+    updatedFields[index] = { ...updatedFields[index], [field]: value };
+    setCustomFields(updatedFields);
+  }
+
+  function addCustomField() {
+    setCustomFields([...customFields, { label: "", value: "", type: "text" }]);
+  }
+
+  function removeCustomField(index: number) {
+    const updatedFields = [...customFields];
+    updatedFields.splice(index, 1);
+    setCustomFields(updatedFields);
   }
 
   // Filter to only show primary/main locations for access control
@@ -1089,6 +1125,112 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
   // Filter users by approval status
   const approvedUsers = users.filter(u => u.is_approved);
   const pendingUsers = users.filter(u => !u.is_approved);
+
+  // Render Status tab content
+  const renderStatusTab = () => (
+    <div className="tab-content">
+      <Status />
+    </div>
+  );
+
+  // Render Custom Fields tab content
+  const renderCustomFieldsTab = () => (
+    <div className="tab-content">
+      <div className="form-section" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+        <h3>Custom Field Templates</h3>
+        <p className="help-text">Define default custom fields that will appear for new items. (Currently stored locally in browser)</p>
+        
+        {customFieldsSuccess && (
+          <div style={{ 
+            backgroundColor: "#d1fae5", 
+            color: "#065f46", 
+            padding: "0.75rem", 
+            borderRadius: "4px",
+            marginBottom: "1rem"
+          }}>
+            {customFieldsSuccess}
+          </div>
+        )}
+
+        <div className="dynamic-fields-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+          {customFields.map((field, index) => (
+            <div key={index} className="dynamic-field-row" style={{ 
+              display: 'flex', 
+              gap: '0.5rem', 
+              alignItems: 'flex-start',
+              padding: '0.75rem',
+              backgroundColor: 'var(--bg-elevated-softer)',
+              borderRadius: '0.5rem',
+              border: '1px solid var(--border-subtle)'
+            }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    placeholder="Label (e.g. Related URL)"
+                    value={field.label}
+                    onChange={(e) => handleCustomFieldChange(index, 'label', e.target.value)}
+                    style={{ flex: 1, fontSize: '0.85rem', padding: '0.4rem' }}
+                  />
+                  <select
+                    value={field.type}
+                    onChange={(e) => handleCustomFieldChange(index, 'type', e.target.value as any)}
+                    style={{ width: "120px", fontSize: '0.85rem', padding: '0.4rem' }}
+                  >
+                    <option value="text">Single Line Text</option>
+                    <option value="multiline">MultiLine Text</option>
+                    <option value="url">URL</option>
+                    <option value="date">Date</option>
+                    <option value="time">Time</option>
+                    <option value="number">Integer/Number</option>
+                    <option value="boolean">Boolean (Yes/No)</option>
+                  </select>
+                </div>
+                {/* Value input is disabled/hidden as this is a template definition, or maybe used for default value? 
+                    The requirement says "options to create custom Fields". 
+                    Usually templates don't have values, but default values might be useful. 
+                    I'll keep it as default value. */}
+                <input
+                  type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                  placeholder="Default Value (Optional)"
+                  value={field.value}
+                  onChange={(e) => handleCustomFieldChange(index, 'value', e.target.value)}
+                  style={{ width: '100%', fontSize: '0.9rem', padding: '0.4rem' }}
+                />
+              </div>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={() => removeCustomField(index)}
+                style={{ padding: '0.4rem 0.6rem', marginTop: '0.2rem' }}
+                title="Remove field"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+        
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={addCustomField}
+          >
+            + Add Field Template
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleSaveCustomFields}
+            style={{ marginLeft: "auto" }}
+          >
+            Save Templates
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   // Render user admin tab content
   const renderUserAdminTab = () => (
@@ -3374,6 +3516,20 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
         >
           🧩 Plugins
         </button>
+        <button
+          type="button"
+          className={`tab-button ${mainTab === 'status' ? 'active' : ''}`}
+          onClick={() => handleMainTabChange('status')}
+        >
+          🚦 Service Status
+        </button>
+        <button
+          type="button"
+          className={`tab-button ${mainTab === 'custom-fields' ? 'active' : ''}`}
+          onClick={() => handleMainTabChange('custom-fields')}
+        >
+          📝 Custom Fields
+        </button>
       </div>
 
       {/* Tab Content */}
@@ -3383,6 +3539,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
         {mainTab === 'server' && renderServerSettingsTab()}
         {mainTab === 'ai-settings' && renderAISettingsTab()}
         {mainTab === 'plugins' && renderPluginsTab()}
+        {mainTab === 'status' && renderStatusTab()}
+        {mainTab === 'custom-fields' && renderCustomFieldsTab()}
       </div>
     </>
   );

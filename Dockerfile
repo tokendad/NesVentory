@@ -47,12 +47,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gosu \
     curl \
     build-essential \
+    libcap2-bin \
+    util-linux \
+    fonts-dejavu \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Create nesventory user
+# Create nesventory user and add to dialout/plugdev groups for hardware access
 RUN groupadd -o -g ${PGID} nesventory 2>/dev/null || true && \
-    useradd -o -u ${PUID} -g ${PGID} -s /bin/bash -m nesventory 2>/dev/null || true
+    useradd -o -u ${PUID} -g ${PGID} -G dialout,plugdev -s /bin/bash -m nesventory 2>/dev/null || true
 
 # Install Python backend dependencies
 COPY backend/requirements.txt /tmp/requirements.txt

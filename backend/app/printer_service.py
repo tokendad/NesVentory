@@ -1,179 +1,109 @@
 """
-NIIMBOT printer service for printing QR code labels.
+NIIMBOT printer service for 12x40mm (300DPI) labels.
+Optimized for D11_H V5 Protocol with full API compatibility.
 """
 import io
 import logging
-import re
 from typing import Optional
 from PIL import Image, ImageDraw, ImageFont
 
-from .niimbot import BluetoothTransport, PrinterClient, SerialTransport
+from .niimbot import BleakTransport, PrinterClient, SerialTransport
 
 logger = logging.getLogger(__name__)
-
 
 class NiimbotPrinterService:
     """Service for printing labels using NIIMBOT printers."""
 
-    # Supported printer models and their max widths (in pixels)
+    # D11-H: 12x40mm @ 300DPI = 136px width x 472px length
+    # Currently supported: D11-H. Future models coming soon.
     PRINTER_MODELS = {
-        "b1": 384,
-        "b18": 384,
-        "b21": 384,
-        "d11": 96,
-        "d110": 96,
+        "d11_h": 136,
     }
 
     # Density limits for specific models
     DENSITY_LIMITS = {
-        "b18": 3,
-        "d11": 3,
-        "d110": 3,
+        "d11_h": 3,
     }
-
-    @staticmethod
-    def create_transport(connection_type: str, address: Optional[str] = None):
-        """
-        Create a transport instance for the printer.
-        
-        Args:
-            connection_type: Either "usb" or "bluetooth"
-            address: Bluetooth MAC address or serial port path. For USB, can be None for auto-detect.
-            
-        Returns:
-            Transport instance
-        """
-        if connection_type == "bluetooth":
-            if not address:
-                raise ValueError("Bluetooth address is required for bluetooth connection")
-            # Validate and normalize MAC address
-            address = address.upper()
-            return BluetoothTransport(address)
-        elif connection_type == "usb":
-            port = address if address else "auto"
-            return SerialTransport(port=port)
-        else:
-            raise ValueError(f"Invalid connection type: {connection_type}")
 
     @staticmethod
     def validate_printer_config(config: dict) -> dict:
         """
-        Validate and normalize printer configuration.
-        
-        Args:
-            config: Printer configuration dictionary
-            
-        Returns:
-            Validated configuration
-            
-        Raises:
-            ValueError: If configuration is invalid
+        Validates printer configuration.
+        Required by the application's connection test.
         """
-        model = config.get("model", "b21").lower()
+        model = config.get("model", "d11_h").lower()
         if model not in NiimbotPrinterService.PRINTER_MODELS:
-            raise ValueError(f"Unsupported printer model: {model}")
+            model = "d11_h"
 
         connection_type = config.get("connection_type", "usb").lower()
-        if connection_type not in ["usb", "bluetooth"]:
-            raise ValueError(f"Invalid connection type: {connection_type}")
-
         density = config.get("density", 3)
-        if not isinstance(density, int) or density < 1 or density > 5:
-            raise ValueError("Density must be between 1 and 5")
+        max_density = NiimbotPrinterService.DENSITY_LIMITS.get(model, 3)
 
-        # Check density limits for specific models
-        max_density = NiimbotPrinterService.DENSITY_LIMITS.get(model, 5)
         if density > max_density:
-            logger.warning(f"Model {model} only supports density up to {max_density}, adjusting")
             density = max_density
-
-        address = config.get("address")
-        if connection_type == "bluetooth" and not address:
-            raise ValueError("Bluetooth address is required for bluetooth connection")
-        elif connection_type == "usb" and address:
-            # Validate USB address to prevent path traversal or access to restricted devices
-            # Allow:
-            # - "auto"
-            # - Windows: COM1, COM12
-            # - Linux: /dev/ttyUSB*, /dev/ttyACM*, /dev/ttyS*, /dev/rfcomm*
-            # - Mac: /dev/cu.*, /dev/tty.*
-            if address != "auto" and not re.match(r'^(COM\d+|/dev/tty(USB|ACM|AMA|S)\d+|/dev/rfcomm\d+|/dev/cu\..+|/dev/tty\..+)$', address):
-                 raise ValueError("Invalid USB printer address format. Must be a valid serial port (e.g., /dev/ttyUSB0, COM3).")
 
         return {
             "model": model,
             "connection_type": connection_type,
-            "address": address,
+            "address": config.get("address"),
             "density": density,
+            "label_width": config.get("label_width"),
+            "label_height": config.get("label_height"),
+            "print_direction": config.get("print_direction", "left"),
         }
+
+    @staticmethod
+    def create_transport(connection_type: str, address: Optional[str] = None):
+        """Creates transport; auto-detects USB if address is missing."""
+        if connection_type == "bluetooth":
+            return BleakTransport(address)
+        return SerialTransport(port=address if address else "auto")
 
     @staticmethod
     def create_qr_label_image(
         qr_code_data: bytes,
         location_name: str,
-        label_width: int = 384,
-        is_container: bool = False,
+        label_width: int = 136,
+        label_height: int = 472,
+        print_direction: str = "left",
     ) -> Image.Image:
         """
-        Create a label image with QR code and location name.
-        
-        Args:
-            qr_code_data: QR code image data (PNG format)
-            location_name: Name of the location to print
-            label_width: Width of the label in pixels
-            is_container: Whether this is a container location
-            
-        Returns:
-            PIL Image object ready for printing
+        Maps 12x40mm label: Width=12mm side, Height=40mm side.
         """
-        # Load QR code image
-        qr_image = Image.open(io.BytesIO(qr_code_data)).convert("L")
-        
-        # Calculate dimensions (8 pixels per mm, ~203 dpi)
-        # For a typical 30x15mm label (240x120 pixels) or 50x30mm label (400x240 pixels)
-        qr_size = min(120, label_width - 40)  # Leave margin and space for text
-        qr_image = qr_image.resize((qr_size, qr_size), Image.LANCZOS)
-        
-        # Calculate label height based on QR code size with margins
-        label_height = qr_size + 20  # 10px margin top and bottom
-        
-        # Create label image (black on white)
-        label = Image.new("L", (label_width, label_height), color=255)
-        draw = ImageDraw.Draw(label)
-        
-        # Position QR code on the left
-        qr_x = 10
-        qr_y = 10
-        label.paste(qr_image, (qr_x, qr_y))
-        
-        # Add text on the right side
-        text_x = qr_x + qr_size + 10
-        text_y = qr_y
-        
-        # Use a default font (PIL doesn't require external font files for basic text)
+        label = Image.new("L", (label_width, label_height), color=0)
+
+        # 1. QR Code: Position matches testusb.py (6, 5)
         try:
-            # Try to use a TrueType font if available
-            font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 16)
-            font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
-        except (IOError, OSError):
-            # Fall back to default bitmap font
-            font_large = ImageFont.load_default()
-            font_small = ImageFont.load_default()
-        
-        # Draw location name
-        max_text_width = label_width - text_x - 10
-        
-        # Wrap text if too long
-        if len(location_name) > 20:
-            location_name = location_name[:17] + "..."
-        
-        draw.text((text_x, text_y), location_name, fill=0, font=font_large)
-        
-        # Add container badge if applicable
-        if is_container:
-            badge_y = text_y + 20
-            draw.text((text_x, badge_y), "[BOX]", fill=0, font=font_small)
-        
+            qr_image = Image.open(io.BytesIO(qr_code_data)).convert("L")
+            # No inversion - matches testusb.py which pastes QR directly
+            qr_image = qr_image.resize((124, 124), Image.NEAREST)
+            label.paste(qr_image, (6, 5))
+        except Exception as e:
+            logger.error(f"QR Error: {e}")
+
+        # 2. Text: Maximize use of available label space
+        # Label: 136x472, QR: 124x124 at (6,5) ends at y=129
+        # Available for text: y=132 to y=468 = 336px length, full width ~130px
+        try:
+            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 32)
+        except OSError:
+            font = ImageFont.load_default()
+
+        # Maximize text area: 336px length x 124px height (matches QR width)
+        # After -90 rotation: 124x336, fitting nicely below QR
+        txt_img = Image.new("L", (336, 124), color=0)
+        draw_txt = ImageDraw.Draw(txt_img)
+        # Center text vertically in the 124px height
+        draw_txt.text((5, 44), location_name, fill=255, font=font)
+
+        if print_direction == "left":
+            rotated_txt = txt_img.rotate(-90, expand=True)
+            # After rotation: 124x336, position at x=6 (align with QR), y=132
+            label.paste(rotated_txt, (6, 132))
+        else:
+            # Top (Standard Landscape on Strip) - No rotation
+            label.paste(txt_img, (6, 132))
+
         return label
 
     @staticmethod
@@ -181,59 +111,43 @@ class NiimbotPrinterService:
         qr_code_data: bytes,
         location_name: str,
         printer_config: dict,
-        is_container: bool = False,
+        label_width: Optional[int] = None,
+        label_height: Optional[int] = None,
+        **kwargs,
     ) -> dict:
-        """
-        Print a QR code label to a NIIMBOT printer.
-        
-        Args:
-            qr_code_data: QR code image data (PNG format)
-            location_name: Name of the location to print
-            printer_config: Printer configuration dictionary
-            is_container: Whether this is a container location
-            
-        Returns:
-            Dictionary with success status and message
-        """
+        """Main entry point for printing."""
         try:
-            # Validate configuration
             config = NiimbotPrinterService.validate_printer_config(printer_config)
-            
-            # Get printer specifications
             model = config["model"]
-            max_width = NiimbotPrinterService.PRINTER_MODELS[model]
-            
-            # Create label image
+
+            target_w = label_width or config.get("label_width") or NiimbotPrinterService.PRINTER_MODELS.get(model, 136)
+            target_h = label_height or config.get("label_height") or 472
+            p_dir = config.get("print_direction", "left")
+
             label_image = NiimbotPrinterService.create_qr_label_image(
-                qr_code_data=qr_code_data,
-                location_name=location_name,
-                label_width=max_width,
-                is_container=is_container,
+                qr_code_data, location_name, target_w, target_h, p_dir
             )
-            
-            # Check image width
-            if label_image.width > max_width:
-                raise ValueError(f"Image width {label_image.width}px exceeds printer maximum {max_width}px")
-            
-            # Create transport and printer client
+
             transport = NiimbotPrinterService.create_transport(
-                config["connection_type"],
-                config.get("address")
+                config["connection_type"], config.get("address")
             )
+
             printer = PrinterClient(transport)
-            
-            # Print the image
-            logger.info(f"Printing label for '{location_name}' to {model} printer")
-            printer.print_image(label_image, density=config["density"])
-            
-            return {
-                "success": True,
-                "message": "Label printed successfully"
-            }
-            
+
+            try:
+                if not printer.connect():
+                    return {"success": False, "message": "Handshake failed"}
+
+                # Execute V5 Print Sequence
+                printer.print_image(label_image, density=config["density"], model=model)
+
+                return {"success": True, "message": "Label Printed"}
+            finally:
+                printer.disconnect()
+
         except Exception as e:
-            logger.error(f"Failed to print label: {str(e)}")
-            return {
-                "success": False,
-                "message": f"Failed to print label: {str(e)}"
-            }
+            import traceback
+            error_msg = str(e) or repr(e) or type(e).__name__
+            logger.error(f"Print Failure: {error_msg}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return {"success": False, "message": error_msg}
