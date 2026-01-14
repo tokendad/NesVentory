@@ -48,6 +48,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     build-essential \
     libcap2-bin \
+    util-linux \
     fonts-dejavu \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -59,9 +60,6 @@ RUN groupadd -o -g ${PGID} nesventory 2>/dev/null || true && \
 # Install Python backend dependencies
 COPY backend/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir --trusted-host pypi.org --trusted-host files.pythonhosted.org -r /tmp/requirements.txt
-
-# Grant CAP_NET_ADMIN to python to allow Bluetooth access without root
-RUN setcap 'cap_net_admin+eip' $(readlink -f $(which python3))
 
 # Copy backend application
 COPY --chown=nesventory:nesventory backend/app /app/app
