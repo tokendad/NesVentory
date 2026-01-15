@@ -151,13 +151,15 @@ def print_label(
         if result["success"]:
             return result
         else:
-            raise HTTPException(status_code=500, detail=result["message"])
+            # Log the internal error message but return a generic error to the client
+            logger.error(f"Printer service reported failure: {result.get('message')}")
+            raise HTTPException(status_code=500, detail="Failed to print label")
             
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to print label: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to print label: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to print label")
 
 
 @router.post("/test-connection")

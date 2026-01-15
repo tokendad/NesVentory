@@ -150,4 +150,5 @@ class NiimbotPrinterService:
             error_msg = str(e) or repr(e) or type(e).__name__
             logger.error(f"Print Failure: {error_msg}")
             logger.error(f"Traceback: {traceback.format_exc()}")
-            return {"success": False, "message": error_msg}
+            # Return a generic error message to avoid exposing internal details
+            return {"success": False, "message": "Failed to print label"}
