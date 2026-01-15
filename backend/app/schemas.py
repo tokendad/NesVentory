@@ -166,6 +166,28 @@ class AvailableAIProvidersResponse(BaseModel):
     providers: List[AvailableAIProvider]
 
 
+# --- AI Connection Test Schemas ---
+
+class AIProviderTestResult(BaseModel):
+    """Result of testing a single AI provider."""
+    provider_id: str
+    provider_name: str
+    success: bool
+    message: str
+    priority: int
+    is_plugin: bool = False
+
+
+class AIConnectionTestResponse(BaseModel):
+    """Response from AI connection test."""
+    overall_success: bool  # True if at least one provider works
+    summary: str  # Brief summary of results
+    results: List[AIProviderTestResult]
+    total_providers: int
+    working_providers: int
+    failed_providers: int
+
+
 # --- UPC Database Configuration Schemas ---
 
 class UPCDatabaseConfig(BaseModel):

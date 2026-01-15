@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { 
-  fetchUsers, 
+import {
+  fetchUsers,
   updateUser,
   deleteUser,
-  fetchLocations, 
-  updateUserLocationAccess, 
-  adminCreateUser, 
+  fetchLocations,
+  updateUserLocationAccess,
+  adminCreateUser,
   validatePassword,
   getLogSettings,
   updateLogSettings,
@@ -37,8 +37,9 @@ import {
   updatePlugin,
   deletePlugin,
   testPluginConnection,
-  type User, 
-  type Location, 
+  testAIConnection,
+  type User,
+  type Location,
   type AdminUserCreate,
   type LogSettings,
   type LogFile,
@@ -58,6 +59,7 @@ import {
   type PluginCreate,
   type PluginUpdate,
   type PluginConnectionTestResult,
+  type AIConnectionTestResponse,
   type DynamicField
 } from "../lib/api";
 import Status from "./Status";
@@ -219,6 +221,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
   const [editingProviderApiKey, setEditingProviderApiKey] = useState("");
   const [aiProvidersError, setAiProvidersError] = useState<string | null>(null);
   const [aiProvidersSuccess, setAiProvidersSuccess] = useState<string | null>(null);
+
+  // AI Connection Test states
+  const [aiTestLoading, setAiTestLoading] = useState(false);
+  const [aiTestResult, setAiTestResult] = useState<AIConnectionTestResponse | null>(null);
 
   // Plugin states
   const [plugins, setPlugins] = useState<Plugin[]>([]);
@@ -1012,6 +1018,21 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
 
   function getAiProviderInfo(providerId: string): AvailableAIProvider | undefined {
     return availableAiProviders.find(p => p.id === providerId);
+  }
+
+  async function handleTestAIConnection() {
+    setAiTestLoading(true);
+    setAiTestResult(null);
+    setAiProvidersError(null);
+    try {
+      const result = await testAIConnection();
+      setAiTestResult(result);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to test AI connection";
+      setAiProvidersError(errorMessage);
+    } finally {
+      setAiTestLoading(false);
+    }
   }
 
   function formatLastRun(dateStr: string | null | undefined): string {
@@ -2946,13 +2967,111 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
               className="btn-primary"
               onClick={handleSaveAiProviders}
               disabled={aiProvidersSaving}
-              style={{ width: "100%", marginBottom: "1rem" }}
+              style={{ width: "100%", marginBottom: "0.75rem" }}
             >
               {aiProvidersSaving ? "Saving..." : aiProvidersSaveSuccess ? "✓ Saved!" : "Save AI Provider Settings"}
             </button>
-            
+
+            {/* Test AI Button */}
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={handleTestAIConnection}
+              disabled={aiTestLoading}
+              style={{ width: "100%", marginBottom: "1rem" }}
+            >
+              {aiTestLoading ? "Testing AI Connections..." : "Test AI Connections"}
+            </button>
+
+            {/* Test Results */}
+            {aiTestResult && (
+              <div style={{
+                marginBottom: "1rem",
+                padding: "1rem",
+                borderRadius: "0.5rem",
+                backgroundColor: aiTestResult.overall_success ? "rgba(46, 125, 50, 0.1)" : "rgba(211, 47, 47, 0.1)",
+                border: `1px solid ${aiTestResult.overall_success ? "rgba(46, 125, 50, 0.3)" : "rgba(211, 47, 47, 0.3)"}`
+              }}>
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  marginBottom: "0.75rem"
+                }}>
+                  <span style={{ fontSize: "1.2rem" }}>
+                    {aiTestResult.overall_success ? "✓" : "✗"}
+                  </span>
+                  <strong style={{ color: aiTestResult.overall_success ? "#2e7d32" : "#d32f2f" }}>
+                    {aiTestResult.summary}
+                  </strong>
+                </div>
+
+                {/* Detailed Results */}
+                {aiTestResult.results.length > 0 && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    {aiTestResult.results.map((result, index) => (
+                      <div
+                        key={result.provider_id}
+                        style={{
+                          padding: "0.5rem",
+                          marginBottom: index < aiTestResult.results.length - 1 ? "0.5rem" : 0,
+                          backgroundColor: "var(--bg-elevated-softer)",
+                          borderRadius: "0.25rem",
+                          borderLeft: `3px solid ${result.success ? "#2e7d32" : "#d32f2f"}`
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
+                          <span style={{ fontSize: "0.85rem" }}>
+                            {result.success ? "✓" : "✗"}
+                          </span>
+                          <strong style={{ fontSize: "0.85rem" }}>
+                            {result.provider_name}
+                          </strong>
+                          {result.is_plugin && (
+                            <span style={{
+                              fontSize: "0.65rem",
+                              padding: "0.1rem 0.3rem",
+                              backgroundColor: "var(--accent)",
+                              color: "white",
+                              borderRadius: "3px"
+                            }}>
+                              Plugin
+                            </span>
+                          )}
+                          <span style={{ fontSize: "0.7rem", color: "var(--muted)" }}>
+                            Priority: {result.priority}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginLeft: "1.25rem" }}>
+                          {result.message}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Clear Results Button */}
+                <button
+                  type="button"
+                  onClick={() => setAiTestResult(null)}
+                  style={{
+                    marginTop: "0.75rem",
+                    padding: "0.25rem 0.5rem",
+                    fontSize: "0.75rem",
+                    backgroundColor: "transparent",
+                    border: "1px solid var(--border-subtle)",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    color: "var(--muted)"
+                  }}
+                >
+                  Clear Results
+                </button>
+              </div>
+            )}
+
             {/* Help Text */}
-            <div style={{ 
+            <div style={{
               padding: "0.75rem",
               backgroundColor: "var(--bg-elevated-softer)",
               borderRadius: "0.5rem",

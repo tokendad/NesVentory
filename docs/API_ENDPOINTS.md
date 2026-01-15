@@ -1181,6 +1181,73 @@ Get list of available AI providers.
 }
 ```
 
+### Test AI Connection
+
+#### POST /api/ai/test-connection
+
+Test all enabled AI providers and plugins in priority order. Returns a summary of which providers are working and which have issues. This endpoint is useful for verifying AI configuration and can be used by companion apps.
+
+**Response:**
+```json
+{
+  "overall_success": true,
+  "summary": "2 of 3 AI provider(s) working. 1 failed.",
+  "results": [
+    {
+      "provider_id": "plugin_abc123",
+      "provider_name": "Plugin: Custom LLM",
+      "success": true,
+      "message": "Connection successful",
+      "priority": 1,
+      "is_plugin": true
+    },
+    {
+      "provider_id": "gemini",
+      "provider_name": "Google Gemini AI",
+      "success": true,
+      "message": "Connected successfully using model: gemini-2.0-flash-exp",
+      "priority": 1,
+      "is_plugin": false
+    },
+    {
+      "provider_id": "chatgpt",
+      "provider_name": "ChatGPT (OpenAI)",
+      "success": false,
+      "message": "API key not configured. Add your OpenAI API key in AI Provider settings.",
+      "priority": 2,
+      "is_plugin": false
+    }
+  ],
+  "total_providers": 3,
+  "working_providers": 2,
+  "failed_providers": 1
+}
+```
+
+**Response Fields:**
+- `overall_success`: `true` if at least one provider is working
+- `summary`: Human-readable summary of test results
+- `results`: Array of individual test results, sorted by priority
+  - `provider_id`: Unique identifier (prefixed with `plugin_` for plugins)
+  - `provider_name`: Display name of the provider
+  - `success`: Whether the connection test passed
+  - `message`: Detailed status message or error description
+  - `priority`: Provider priority (lower = higher priority)
+  - `is_plugin`: `true` if this is a custom LLM plugin
+- `total_providers`: Total number of enabled providers tested
+- `working_providers`: Number of providers that passed the test
+- `failed_providers`: Number of providers that failed the test
+
+**Test Order:**
+1. Enabled plugins are tested first (sorted by their priority)
+2. Enabled AI providers are tested next (sorted by their priority)
+
+**Provider-Specific Tests:**
+- **Plugins**: Calls the `/health` endpoint and checks for the `/nesventory/identify/image` endpoint
+- **Gemini**: Makes a minimal API call to verify the API key and model configuration
+- **ChatGPT/OpenAI**: Verifies the API key by calling the `/v1/models` endpoint
+- **Alexa+**: Reports configuration status (integration not yet fully implemented)
+
 ### Run AI Valuation
 
 #### POST /api/ai/run-valuation

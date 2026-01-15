@@ -435,22 +435,262 @@ def get_ai_status(db: Session = Depends(get_db)):
     Checks both environment variables and database settings, as well as custom LLM plugins.
     """
     from ..settings_service import get_effective_gemini_model
-    
+
     gemini_api_key = get_effective_gemini_api_key(db)
     is_enabled = bool(gemini_api_key)
-    
+
     # Check for enabled plugins
     from ..plugin_service import get_enabled_ai_scan_plugins
     plugins = get_enabled_ai_scan_plugins(db)
-    
+
     # Get the effective model
     gemini_model = get_effective_gemini_model(db) if is_enabled else None
-    
+
     return AIStatusResponse(
         enabled=is_enabled or len(plugins) > 0,  # Enabled if Gemini OR plugins are configured
         model=gemini_model,
         plugins_enabled=len(plugins) > 0,
         plugin_count=len(plugins)
+    )
+
+
+@router.post("/test-connection", response_model=schemas.AIConnectionTestResponse)
+async def test_ai_connection(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """
+    Test AI provider connections in priority order.
+
+    Tests all enabled AI providers and plugins, returning a summary of which
+    are working and which have issues. Providers are tested in priority order:
+    plugins first (by their priority), then AI providers (by their priority).
+
+    This endpoint can be used by the companion app to verify AI configuration.
+    """
+    from ..settings_service import get_effective_gemini_model
+    from ..plugin_service import get_enabled_ai_scan_plugins, test_plugin_connection
+    from ..ai_provider_service import get_available_providers, get_default_ai_provider_config
+
+    results = []
+
+    # 1. Test enabled plugins first (they have higher priority)
+    plugins = get_enabled_ai_scan_plugins(db)
+    for plugin in plugins:
+        try:
+            test_result = await test_plugin_connection(plugin)
+            results.append(schemas.AIProviderTestResult(
+                provider_id=f"plugin_{plugin.id}",
+                provider_name=f"Plugin: {plugin.name}",
+                success=test_result.get("success", False),
+                message=test_result.get("message", "Unknown result"),
+                priority=plugin.priority,
+                is_plugin=True
+            ))
+        except Exception as e:
+            logger.error(f"Error testing plugin {plugin.name}: {e}")
+            results.append(schemas.AIProviderTestResult(
+                provider_id=f"plugin_{plugin.id}",
+                provider_name=f"Plugin: {plugin.name}",
+                success=False,
+                message=f"Test failed: {str(e)}",
+                priority=plugin.priority,
+                is_plugin=True
+            ))
+
+    # 2. Test enabled AI providers
+    # Get user's AI provider config or default
+    user_ai_providers = current_user.ai_providers
+    if not user_ai_providers:
+        user_ai_providers = get_default_ai_provider_config()
+
+    # Get available provider info
+    available_providers = {p["id"]: p for p in get_available_providers()}
+
+    # Filter to enabled providers and sort by priority
+    enabled_providers = sorted(
+        [p for p in user_ai_providers if p.get("enabled", False)],
+        key=lambda x: x.get("priority", 999)
+    )
+
+    for provider_config in enabled_providers:
+        provider_id = provider_config.get("id")
+        provider_info = available_providers.get(provider_id, {})
+        provider_name = provider_info.get("name", provider_id)
+        priority = provider_config.get("priority", 999)
+
+        if provider_id == "gemini":
+            # Test Gemini connection
+            gemini_api_key = get_effective_gemini_api_key(db)
+            if not gemini_api_key:
+                results.append(schemas.AIProviderTestResult(
+                    provider_id=provider_id,
+                    provider_name=provider_name,
+                    success=False,
+                    message="API key not configured. Set GEMINI_API_KEY in environment or configure in admin panel.",
+                    priority=priority,
+                    is_plugin=False
+                ))
+            else:
+                # Try to make a simple API call to test the connection
+                try:
+                    import google.generativeai as genai
+                    genai.configure(api_key=gemini_api_key)
+
+                    # Get the configured model
+                    gemini_model = get_effective_gemini_model(db)
+                    model = genai.GenerativeModel(gemini_model)
+
+                    # Make a simple test call with minimal tokens
+                    response = model.generate_content("Say 'OK' in one word.")
+
+                    if response and response.text:
+                        results.append(schemas.AIProviderTestResult(
+                            provider_id=provider_id,
+                            provider_name=provider_name,
+                            success=True,
+                            message=f"Connected successfully using model: {gemini_model}",
+                            priority=priority,
+                            is_plugin=False
+                        ))
+                    else:
+                        results.append(schemas.AIProviderTestResult(
+                            provider_id=provider_id,
+                            provider_name=provider_name,
+                            success=False,
+                            message="API call succeeded but returned empty response",
+                            priority=priority,
+                            is_plugin=False
+                        ))
+                except Exception as e:
+                    error_msg = str(e)
+                    if is_quota_error(e):
+                        error_msg = "API quota exceeded. Try again later or upgrade your tier."
+                    results.append(schemas.AIProviderTestResult(
+                        provider_id=provider_id,
+                        provider_name=provider_name,
+                        success=False,
+                        message=f"Connection test failed: {error_msg}",
+                        priority=priority,
+                        is_plugin=False
+                    ))
+
+        elif provider_id == "chatgpt":
+            # Test ChatGPT/OpenAI connection
+            api_key = provider_config.get("api_key")
+            if not api_key:
+                results.append(schemas.AIProviderTestResult(
+                    provider_id=provider_id,
+                    provider_name=provider_name,
+                    success=False,
+                    message="API key not configured. Add your OpenAI API key in AI Provider settings.",
+                    priority=priority,
+                    is_plugin=False
+                ))
+            else:
+                # Try to make a simple API call to test the connection
+                try:
+                    import httpx
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        response = await client.get(
+                            "https://api.openai.com/v1/models",
+                            headers={"Authorization": f"Bearer {api_key}"}
+                        )
+                        if response.status_code == 200:
+                            results.append(schemas.AIProviderTestResult(
+                                provider_id=provider_id,
+                                provider_name=provider_name,
+                                success=True,
+                                message="Connected successfully to OpenAI API",
+                                priority=priority,
+                                is_plugin=False
+                            ))
+                        elif response.status_code == 401:
+                            results.append(schemas.AIProviderTestResult(
+                                provider_id=provider_id,
+                                provider_name=provider_name,
+                                success=False,
+                                message="Invalid API key. Please check your OpenAI API key.",
+                                priority=priority,
+                                is_plugin=False
+                            ))
+                        else:
+                            results.append(schemas.AIProviderTestResult(
+                                provider_id=provider_id,
+                                provider_name=provider_name,
+                                success=False,
+                                message=f"API returned status {response.status_code}",
+                                priority=priority,
+                                is_plugin=False
+                            ))
+                except Exception as e:
+                    results.append(schemas.AIProviderTestResult(
+                        provider_id=provider_id,
+                        provider_name=provider_name,
+                        success=False,
+                        message=f"Connection test failed: {str(e)}",
+                        priority=priority,
+                        is_plugin=False
+                    ))
+
+        elif provider_id == "alexa_plus":
+            # Alexa+ is not yet implemented for testing
+            api_key = provider_config.get("api_key")
+            if not api_key:
+                results.append(schemas.AIProviderTestResult(
+                    provider_id=provider_id,
+                    provider_name=provider_name,
+                    success=False,
+                    message="API key not configured. Alexa+ integration is not yet fully implemented.",
+                    priority=priority,
+                    is_plugin=False
+                ))
+            else:
+                results.append(schemas.AIProviderTestResult(
+                    provider_id=provider_id,
+                    provider_name=provider_name,
+                    success=False,
+                    message="Alexa+ integration is not yet fully implemented. API key is configured but cannot be tested.",
+                    priority=priority,
+                    is_plugin=False
+                ))
+
+        else:
+            # Unknown provider
+            results.append(schemas.AIProviderTestResult(
+                provider_id=provider_id,
+                provider_name=provider_name,
+                success=False,
+                message=f"Unknown provider type: {provider_id}",
+                priority=priority,
+                is_plugin=False
+            ))
+
+    # Sort results by priority
+    results.sort(key=lambda x: x.priority)
+
+    # Calculate summary
+    working_count = sum(1 for r in results if r.success)
+    failed_count = sum(1 for r in results if not r.success)
+    total_count = len(results)
+
+    # Build summary message
+    if total_count == 0:
+        summary = "No AI providers or plugins are enabled. Enable at least one provider in AI Settings."
+    elif working_count == total_count:
+        summary = f"All {total_count} AI provider(s) are working correctly."
+    elif working_count > 0:
+        summary = f"{working_count} of {total_count} AI provider(s) working. {failed_count} failed."
+    else:
+        summary = f"All {total_count} AI provider(s) failed connection tests. Check your configuration."
+
+    return schemas.AIConnectionTestResponse(
+        overall_success=working_count > 0,
+        summary=summary,
+        results=results,
+        total_providers=total_count,
+        working_providers=working_count,
+        failed_providers=failed_count
     )
 
 

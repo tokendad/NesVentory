@@ -1415,6 +1415,37 @@ export async function updateAIProviderSettings(aiProviders: AIProviderConfig[]):
   return handleResponse<User>(res);
 }
 
+// --- AI Connection Test ---
+
+export interface AIProviderTestResult {
+  provider_id: string;
+  provider_name: string;
+  success: boolean;
+  message: string;
+  priority: number;
+  is_plugin: boolean;
+}
+
+export interface AIConnectionTestResponse {
+  overall_success: boolean;
+  summary: string;
+  results: AIProviderTestResult[];
+  total_providers: number;
+  working_providers: number;
+  failed_providers: number;
+}
+
+export async function testAIConnection(): Promise<AIConnectionTestResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/ai/test-connection`, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<AIConnectionTestResponse>(res);
+}
+
 // --- Google OAuth ---
 
 export interface GoogleOAuthStatus {
