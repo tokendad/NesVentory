@@ -494,7 +494,11 @@ async def get_issue_report_data(
     )
     
     # Create GitHub issue URL with pre-filled content
-    issue_title = urllib.parse.quote("Bug Report: [Brief description]")
+    # Keep URL short to avoid browser/GitHub URL length limits (~8000 chars)
+    # Only include last 500 chars of logs to keep URL manageable
+    truncated_logs = error_logs[-500:] if len(error_logs) > 500 else error_logs
+
+    issue_title = urllib.parse.quote("Bug Report: [Brief description]", safe='')
     issue_body = urllib.parse.quote(
         "## Description\n"
         "[Please describe the issue you encountered]\n\n"
@@ -515,11 +519,12 @@ async def get_issue_report_data(
         "<details>\n"
         "<summary>Click to expand log content</summary>\n\n"
         "```\n"
-        f"{error_logs[:2000]}\n"
+        f"{truncated_logs}\n"
         "```\n\n"
         "</details>\n\n"
         "## Additional Context\n"
-        "[Add any other context about the problem here]\n"
+        "[Add any other context about the problem here]\n",
+        safe=''
     )
     
     github_issue_url = f"https://github.com/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/issues/new?title={issue_title}&body={issue_body}"

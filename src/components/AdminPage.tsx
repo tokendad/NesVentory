@@ -671,17 +671,18 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
       setGithubIssueUrl(validatedUrl.href);
       
       // Navigate the opened window to the GitHub issue URL
-      if (newWindow) {
+      if (newWindow && !newWindow.closed) {
         try {
-          newWindow.location.assign(validatedUrl.href);
+          newWindow.location.href = validatedUrl.href;
         } catch (navError) {
+          console.warn("Navigation failed, likely popup blocked:", navError);
           // Firefox might block the navigation even if window was opened
           setPopupBlocked(true);
           setLogError(POPUP_BLOCKED_MESSAGE);
           newWindow.close();
         }
       } else {
-        // Popup was blocked (window.open returned null)
+        // Popup was blocked (window.open returned null) or window was closed
         setPopupBlocked(true);
         setLogError(POPUP_BLOCKED_MESSAGE);
       }
