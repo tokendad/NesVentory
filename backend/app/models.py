@@ -165,6 +165,9 @@ class Location(Base):
     # Flag for container locations (boxes, bins, cases that contain multiple items)
     is_container = Column(Boolean, default=False, nullable=False)
     
+    # New category definition (Primary, Room, Garage, Container, etc.)
+    location_category = Column(String(50), nullable=True)
+
     # New detail fields
     friendly_name = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)

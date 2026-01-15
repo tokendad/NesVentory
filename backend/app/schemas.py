@@ -201,6 +201,7 @@ class LocationBase(BaseModel):
     parent_id: Optional[UUID] = None
     is_primary_location: bool = False
     is_container: bool = False
+    location_category: Optional[str] = None
     friendly_name: Optional[str] = None
     description: Optional[str] = None
     address: Optional[str] = None
@@ -222,6 +223,7 @@ class LocationUpdate(BaseModel):
     parent_id: Optional[UUID] = None
     is_primary_location: Optional[bool] = None
     is_container: Optional[bool] = None
+    location_category: Optional[str] = None
     friendly_name: Optional[str] = None
     description: Optional[str] = None
     address: Optional[str] = None

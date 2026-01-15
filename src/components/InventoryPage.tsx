@@ -52,6 +52,17 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: "tags", label: "Tags", enabled: false },
 ];
 
+const LOCATION_CATEGORIES = [
+  "Primary",
+  "Out-building",
+  "Room",
+  "Floor",
+  "Exterior",
+  "Garage",
+  "Shed",
+  "Container"
+];
+
 const LOCATION_TYPES = [
   { value: "residential", label: "Residential" },
   { value: "commercial", label: "Commercial" },
@@ -358,6 +369,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
               parent_id: loc.parent_id?.toString() || "",
               is_primary_location: loc.is_primary_location || false,
               is_container: loc.is_container || false,
+              location_category: loc.location_category || (loc.is_primary_location ? "Primary" : loc.is_container ? "Container" : "Room"),
               description: loc.description || "",
               address: loc.address || "",
               estimated_property_value: loc.estimated_property_value?.toString() ?? "",
@@ -568,6 +580,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                   parent_id: "",
                   is_primary_location: false,
                   is_container: false,
+                  location_category: "Room", // Default
                   description: "",
                   address: "",
                   estimated_property_value: "",
@@ -963,77 +976,95 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="location_type">Location Type</label>
+                  <label htmlFor="location_category">Category</label>
                   <select
-                    id="location_type"
-                    value={editFormData?.location_type || ""}
-                    onChange={(e) => setEditFormData({ ...editFormData, location_type: e.target.value })}
+                    id="location_category"
+                    value={editFormData?.location_category || ""}
+                    onChange={(e) => {
+                      const category = e.target.value;
+                      let isPrimary = false;
+                      let isContainer = false;
+                      
+                      if (category === "Primary") isPrimary = true;
+                      else if (category === "Container") isContainer = true;
+                      
+                      setEditFormData({ 
+                        ...editFormData, 
+                        location_category: category,
+                        is_primary_location: isPrimary,
+                        is_container: isContainer,
+                        // Reset if not primary
+                        location_type: isPrimary ? editFormData.location_type : "",
+                        address: isPrimary ? editFormData.address : ""
+                      });
+                    }}
                   >
-                    <option value="">-- Select Type --</option>
-                    {LOCATION_TYPES.map((type) => (
-                      <option key={type.value} value={type.value}>
-                        {type.label}
+                    {LOCATION_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="parent_id">Parent Location</label>
-                  <select
-                    id="parent_id"
-                    value={editFormData?.parent_id || ""}
-                    onChange={(e) => setEditFormData({ ...editFormData, parent_id: e.target.value })}
-                  >
-                    <option value="">-- No Parent (Top Level) --</option>
-                    {locations
-                      .filter(loc => loc.is_primary_location || !loc.parent_id)
-                      .filter(loc => {
-                        // In create mode, show all locations. In edit mode, exclude the location being edited
-                        if (showLocationSettings === "create") return true;
-                        return loc.id.toString() !== showLocationSettings.id.toString();
-                      })
-                      .map((loc) => (
-                        <option key={loc.id} value={loc.id.toString()}>
-                          {loc.friendly_name || loc.name}
+              {/* Show Type and Address ONLY if Primary */}
+              {editFormData?.location_category === "Primary" && (
+                <>
+                  <div className="form-group">
+                    <label htmlFor="location_type">Location Type</label>
+                    <select
+                      id="location_type"
+                      value={editFormData?.location_type || ""}
+                      onChange={(e) => setEditFormData({ ...editFormData, location_type: e.target.value })}
+                    >
+                      <option value="">-- Select Type --</option>
+                      {LOCATION_TYPES.map((type) => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
                         </option>
                       ))}
-                  </select>
-                </div>
+                    </select>
+                  </div>
 
-                <div className="form-group">
-                  <label className="checkbox-label" style={{ marginTop: "1.5rem" }}>
+                  <div className="form-group">
+                    <label htmlFor="address">Address</label>
                     <input
-                      type="checkbox"
-                      name="is_primary_location"
-                      checked={editFormData?.is_primary_location || false}
-                      onChange={(e) => setEditFormData({ ...editFormData, is_primary_location: e.target.checked })}
+                      type="text"
+                      id="address"
+                      value={editFormData?.address || ""}
+                      onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                      placeholder="Full street address"
                     />
-                    <span>Primary Location (Home)</span>
-                  </label>
-                </div>
-              </div>
+                  </div>
+                </>
+              )}
 
               <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    name="is_container"
-                    checked={editFormData?.is_container || false}
-                    onChange={(e) => setEditFormData({ ...editFormData, is_container: e.target.checked })}
-                  />
-                  <span>📦 Container (Box/Bin/Case with multiple items)</span>
-                </label>
-                <span className="help-text">
-                  Mark this location as a container for storing multiple items. 
-                  A QR code can be printed and affixed to the box.
-                </span>
+                <label htmlFor="parent_id">Parent Location</label>
+                <select
+                  id="parent_id"
+                  value={editFormData?.parent_id || ""}
+                  onChange={(e) => setEditFormData({ ...editFormData, parent_id: e.target.value })}
+                >
+                  <option value="">-- No Parent (Top Level) --</option>
+                  {locations
+                    .filter(loc => loc.is_primary_location || !loc.parent_id)
+                    .filter(loc => {
+                      // In create mode, show all locations. In edit mode, exclude the location being edited
+                      if (showLocationSettings === "create") return true;
+                      return loc.id.toString() !== showLocationSettings.id.toString();
+                    })
+                    .map((loc) => (
+                      <option key={loc.id} value={loc.id.toString()}>
+                        {loc.friendly_name || loc.name}
+                      </option>
+                    ))}
+                </select>
               </div>
 
-              {/* Print Label Section - Only show when editing and is_container is checked */}
-              {showLocationSettings !== "create" && editFormData?.is_container && (
+              {/* Print Label Section - Show when editing */}
+              {showLocationSettings !== "create" && (
                 <div className="form-group" style={{ 
                   marginTop: "1rem", 
                   padding: "1rem", 
@@ -1077,17 +1108,6 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                   </span>
                 </div>
               )}
-
-              <div className="form-group">
-                <label htmlFor="address">Address</label>
-                <input
-                  type="text"
-                  id="address"
-                  value={editFormData?.address || ""}
-                  onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
-                  placeholder="Full street address"
-                />
-              </div>
 
               <div className="form-group">
                 <label htmlFor="description">Description</label>

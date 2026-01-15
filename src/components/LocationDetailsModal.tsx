@@ -24,6 +24,17 @@ const LOCATION_TYPES = [
   { value: "other", label: "Other" },
 ];
 
+const LOCATION_CATEGORIES = [
+  "Primary",
+  "Out-building",
+  "Room",
+  "Floor",
+  "Exterior",
+  "Garage",
+  "Shed",
+  "Container"
+];
+
 const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
   location,
   items,
@@ -35,12 +46,19 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
+  // Derive initial category from flags if not set
+  const initialCategory = location.location_category || 
+    (location.is_primary_location ? "Primary" : 
+     location.is_container ? "Container" : 
+     "Room"); // Default to Room if neither
+
   // Form state for details tab
   const [formData, setFormData] = useState<LocationCreate>({
     name: location.name,
     parent_id: location.parent_id?.toString() || null,
     is_primary_location: location.is_primary_location || false,
     is_container: location.is_container || false,
+    location_category: initialCategory,
     friendly_name: location.friendly_name || null,
     description: location.description || null,
     address: location.address || null,
@@ -57,6 +75,31 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.target;
+    
+    if (name === "location_category") {
+      const category = value;
+      let isPrimary = false;
+      let isContainer = false;
+      
+      if (category === "Primary") {
+        isPrimary = true;
+      } else if (category === "Container") {
+        isContainer = true;
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        location_category: category,
+        is_primary_location: isPrimary,
+        is_container: isContainer,
+        // Reset address if not primary
+        address: isPrimary ? prev.address : null,
+        // Reset location type if not primary
+        location_type: isPrimary ? prev.location_type : null
+      }));
+      return;
+    }
+
     const checked = (e.target as HTMLInputElement).checked;
 
     setFormData((prev) => ({
@@ -105,7 +148,7 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
         </div>
 
         {/* Tabs - Only show Insurance tab for primary locations */}
-        {location.is_primary_location && (
+        {formData.is_primary_location && (
           <div className="settings-tabs" style={{ marginBottom: "1rem" }}>
             <button
               className={`settings-tab ${activeTab === "details" ? "active" : ""}`}
@@ -156,62 +199,59 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
               </div>
 
               <div className="form-group">
-                <label htmlFor="location_type">Location Type</label>
+                <label htmlFor="location_category">Location Category</label>
                 <select
-                  id="location_type"
-                  name="location_type"
-                  value={formData.location_type || ""}
+                  id="location_category"
+                  name="location_category"
+                  value={formData.location_category || ""}
                   onChange={handleChange}
                   disabled={formLoading}
                 >
-                  <option value="">-- Select Type --</option>
-                  {LOCATION_TYPES.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
+                  <option value="">-- Select Category --</option>
+                  {LOCATION_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            <div className="form-group">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  name="is_primary_location"
-                  checked={formData.is_primary_location || false}
-                  onChange={handleChange}
-                  disabled={formLoading}
-                />
-                <span>Primary Location (Home)</span>
-              </label>
-            </div>
+            {/* Conditionally show Location Type and Address only for Primary Location */}
+            {formData.location_category === "Primary" && (
+              <>
+                <div className="form-group">
+                  <label htmlFor="location_type">Location Type</label>
+                  <select
+                    id="location_type"
+                    name="location_type"
+                    value={formData.location_type || ""}
+                    onChange={handleChange}
+                    disabled={formLoading}
+                  >
+                    <option value="">-- Select Type --</option>
+                    {LOCATION_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            <div className="form-group">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  name="is_container"
-                  checked={formData.is_container || false}
-                  onChange={handleChange}
-                  disabled={formLoading}
-                />
-                <span>📦 Container (Box/Bin/Case with multiple items)</span>
-              </label>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="address">Address</label>
-              <input
-                type="text"
-                id="address"
-                name="address"
-                value={formData.address || ""}
-                onChange={handleChange}
-                disabled={formLoading}
-                placeholder="Full street address"
-              />
-            </div>
+                <div className="form-group">
+                  <label htmlFor="address">Address</label>
+                  <input
+                    type="text"
+                    id="address"
+                    name="address"
+                    value={formData.address || ""}
+                    onChange={handleChange}
+                    disabled={formLoading}
+                    placeholder="Full street address"
+                  />
+                </div>
+              </>
+            )}
 
             <div className="form-group">
               <label htmlFor="description">Description</label>
