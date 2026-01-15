@@ -23,7 +23,7 @@ googleapis-common-protos
 grpcio
 grpcio-status
 google-generativeai==0.8.6
-google-api-python-client==2.187.0
+google-api-python-client==2.188.0
 google-auth-oauthlib==1.2.3
 boto3>=1.35.0
 # NIIMBOT printer support
