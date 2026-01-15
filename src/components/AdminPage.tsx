@@ -1690,20 +1690,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                   type="radio"
                   name="log_level"
                   value="info"
-                  checked={logSettings.log_level === "info"}
+                  checked={logSettings.log_level === "info" || logSettings.log_level === "warn_error"}
                   onChange={() => setLogSettings({ ...logSettings, log_level: "info" })}
                 />
-                <span><strong>Info</strong> - Normal operations and above (recommended default)</span>
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <input
-                  type="radio"
-                  name="log_level"
-                  value="warn_error"
-                  checked={logSettings.log_level === "warn_error"}
-                  onChange={() => setLogSettings({ ...logSettings, log_level: "warn_error" })}
-                />
-                <span><strong>Warn/Error</strong> - Warnings and errors only</span>
+                <span><strong>Info</strong> - Operations, warnings, and errors (recommended for production)</span>
               </label>
               <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <input
@@ -1713,7 +1703,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                   checked={logSettings.log_level === "debug"}
                   onChange={() => setLogSettings({ ...logSettings, log_level: "debug" })}
                 />
-                <span><strong>Debug</strong> - Includes debug information for troubleshooting</span>
+                <span><strong>Debug</strong> - Detailed operation info for troubleshooting</span>
               </label>
               <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <input
@@ -1723,7 +1713,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                   checked={logSettings.log_level === "trace"}
                   onChange={() => setLogSettings({ ...logSettings, log_level: "trace" })}
                 />
-                <span><strong>Trace</strong> - Most verbose, includes all operations (development only)</span>
+                <span><strong>Trace</strong> - Full verbose logging including request details (development only)</span>
               </label>
             </div>
           </div>

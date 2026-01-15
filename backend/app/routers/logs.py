@@ -8,6 +8,7 @@ import urllib.parse
 from datetime import datetime
 from pathlib import Path
 import os
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from werkzeug.utils import secure_filename
@@ -15,10 +16,17 @@ from werkzeug.utils import secure_filename
 from .. import auth, models
 from ..config import settings as app_settings
 from ..database import SQLALCHEMY_DATABASE_URL
-from ..logging_config import reconfigure_logging_level
+from ..logging_config import (
+    reconfigure_logging_level,
+    get_logger,
+    cleanup_old_logs,
+    rotate_current_log,
+    CURRENT_LOG_FILE,
+)
 
 
 router = APIRouter(prefix="/logs", tags=["logs"])
+logger = get_logger(__name__)
 
 # GitHub repository for issue reporting (can be overridden)
 GITHUB_REPO_OWNER = "tokendad"
@@ -49,10 +57,19 @@ class LogSettings(BaseModel):
     auto_delete_enabled: bool = False  # Whether to auto-delete old logs
 
 
+class LogStats(BaseModel):
+    """Statistics about the current log file."""
+    current_file_size_bytes: int
+    current_file_size_display: str
+    total_rotated_files: int
+    oldest_rotated_file: Optional[str] = None
+
+
 class LogSettingsResponse(BaseModel):
     """Response model for log settings."""
     settings: LogSettings
     log_files: list[dict]  # List of log files with metadata
+    stats: Optional[LogStats] = None
 
 
 class LogFile(BaseModel):
@@ -172,6 +189,37 @@ def check_admin(current_user: models.User) -> None:
         raise HTTPException(status_code=403, detail="Not authorized. Admin access required.")
 
 
+def get_log_stats() -> LogStats:
+    """Get statistics about the current log file and rotated files."""
+    current_size = 0
+    try:
+        if CURRENT_LOG_FILE.exists():
+            current_size = CURRENT_LOG_FILE.stat().st_size
+    except OSError:
+        pass
+
+    # Count rotated files and find oldest
+    rotated_files = []
+    try:
+        for filepath in LOG_DIR.glob("nesventory.log.*"):
+            if filepath.is_file() and filepath.name != "log_settings.json":
+                rotated_files.append((filepath.name, filepath.stat().st_mtime))
+    except OSError:
+        pass
+
+    oldest_file = None
+    if rotated_files:
+        rotated_files.sort(key=lambda x: x[1])
+        oldest_file = rotated_files[0][0]
+
+    return LogStats(
+        current_file_size_bytes=current_size,
+        current_file_size_display=format_file_size(current_size),
+        total_rotated_files=len(rotated_files),
+        oldest_rotated_file=oldest_file
+    )
+
+
 @router.get("/settings", response_model=LogSettingsResponse)
 async def get_log_settings(
     current_user: models.User = Depends(auth.get_current_user)
@@ -180,10 +228,12 @@ async def get_log_settings(
     check_admin(current_user)
     settings = load_log_settings()
     log_files = get_log_files()
-    
+    stats = get_log_stats()
+
     return LogSettingsResponse(
         settings=settings,
-        log_files=log_files
+        log_files=log_files,
+        stats=stats
     )
 
 
@@ -194,33 +244,39 @@ async def update_log_settings(
 ):
     """Update log settings. Admin only."""
     check_admin(current_user)
+
     # Validate settings
     if settings.rotation_type not in ["schedule", "size"]:
         raise HTTPException(status_code=400, detail="Invalid rotation type. Must be 'schedule' or 'size'")
-    
-    if settings.log_level not in ["info", "warn_error", "debug", "trace"]:
-        raise HTTPException(status_code=400, detail="Invalid log level. Must be 'info', 'warn_error', 'debug', or 'trace'")
-    
+
+    # Accept "warn_error" as alias for "info" (backwards compatibility)
+    valid_levels = ["info", "debug", "trace", "warn_error"]
+    if settings.log_level not in valid_levels:
+        raise HTTPException(status_code=400, detail="Invalid log level. Must be 'info', 'debug', or 'trace'")
+
     if settings.rotation_schedule_hours < 1:
         raise HTTPException(status_code=400, detail="Rotation schedule must be at least 1 hour")
-    
+
     if settings.rotation_size_mb < 1:
         raise HTTPException(status_code=400, detail="Rotation size must be at least 1 MB")
-    
+
     if settings.retention_days < 1:
         raise HTTPException(status_code=400, detail="Retention days must be at least 1")
-    
+
     # Save settings
     save_log_settings(settings)
-    
+    logger.info(f"Log settings updated by {current_user.email}: level={settings.log_level}")
+
     # Apply the new log level to Python logging immediately
     reconfigure_logging_level(settings.log_level)
-    
-    # Return updated settings with log files
+
+    # Return updated settings with log files and stats
     log_files = get_log_files()
+    stats = get_log_stats()
     return LogSettingsResponse(
         settings=settings,
-        log_files=log_files
+        log_files=log_files,
+        stats=stats
     )
 
 
@@ -259,6 +315,9 @@ async def delete_log_files(
             except OSError:
                 pass
     
+    if deleted_count > 0:
+        logger.info(f"Log files deleted by {current_user.email}: {deleted_count} file(s)")
+
     return DeleteLogsResponse(
         deleted_count=deleted_count,
         message=f"Successfully deleted {deleted_count} log file(s)"
@@ -271,26 +330,59 @@ async def rotate_logs_now(
 ):
     """Manually trigger log rotation. Admin only."""
     check_admin(current_user)
-    settings = load_log_settings()
-    current_log = LOG_DIR / "nesventory.log"
-    
-    if not current_log.exists():
-        return {"message": "No current log file to rotate", "rotated": False}
-    
-    # Create rotated log filename with timestamp
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    rotated_name = f"nesventory.log.{timestamp}"
-    rotated_path = LOG_DIR / rotated_name
-    
+
     try:
-        current_log.rename(rotated_path)
-        return {
-            "message": f"Log rotated successfully to {rotated_name}",
-            "rotated": True,
-            "rotated_file": rotated_name
-        }
-    except OSError as e:
+        rotated_name = rotate_current_log()
+        if rotated_name:
+            logger.info(f"Manual log rotation by {current_user.email}: {rotated_name}")
+            return {
+                "message": f"Log rotated successfully to {rotated_name}",
+                "rotated": True,
+                "rotated_file": rotated_name
+            }
+        else:
+            return {"message": "No log file to rotate or file is empty", "rotated": False}
+    except Exception as e:
+        logger.error(f"Failed to rotate log: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to rotate log: {str(e)}")
+
+
+@router.post("/cleanup", response_model=dict)
+async def cleanup_logs_now(
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """Manually trigger cleanup of old log files based on retention settings. Admin only."""
+    check_admin(current_user)
+
+    try:
+        # Temporarily enable auto_delete to force cleanup
+        settings = load_log_settings()
+        original_auto_delete = settings.auto_delete_enabled
+
+        # Force cleanup regardless of auto_delete setting
+        settings_dict = settings.model_dump()
+        settings_dict["auto_delete_enabled"] = True
+
+        # Save temporarily, cleanup, then restore
+        from ..logging_config import save_log_settings as save_settings
+        save_settings(settings_dict)
+
+        deleted_count = cleanup_old_logs()
+
+        # Restore original setting
+        settings_dict["auto_delete_enabled"] = original_auto_delete
+        save_settings(settings_dict)
+
+        if deleted_count > 0:
+            logger.info(f"Manual cleanup by {current_user.email}: deleted {deleted_count} file(s)")
+
+        return {
+            "message": f"Cleanup completed. Deleted {deleted_count} log file(s) older than {settings.retention_days} days.",
+            "deleted_count": deleted_count
+        }
+    except Exception as e:
+        logger.error(f"Failed to cleanup logs: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to cleanup logs: {str(e)}")
 
 
 @router.get("/files", response_model=list[dict])

@@ -4,7 +4,9 @@ from typing import List
 from uuid import UUID
 from .. import models, schemas
 from ..deps import get_db
+from ..logging_config import get_logger
 
+logger = get_logger(__name__)
 router = APIRouter(prefix="/locations", tags=["locations"])
 
 
@@ -20,6 +22,7 @@ def create_location(payload: schemas.LocationCreate, db: Session = Depends(get_d
     db.add(loc)
     db.commit()
     db.refresh(loc)
+    logger.info(f"Location created: {loc.name} (id={loc.id})")
     return loc
 
 
@@ -47,6 +50,7 @@ def update_location(
 
     db.commit()
     db.refresh(loc)
+    logger.info(f"Location updated: {loc.name} (id={loc.id})")
     return loc
 
 
@@ -71,7 +75,9 @@ def delete_location(location_id: UUID, db: Session = Depends(get_db)):
     
     # Videos will be cascade deleted automatically due to the relationship definition
     # in the Location model: videos = relationship("Video", back_populates="location", cascade="all, delete-orphan")
-    
+
+    location_name = loc.name
     db.delete(loc)
     db.commit()
+    logger.info(f"Location deleted: {location_name} (id={location_id})")
     return None

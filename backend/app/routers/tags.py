@@ -4,7 +4,9 @@ from typing import List
 from uuid import UUID
 from .. import models, schemas
 from ..deps import get_db
+from ..logging_config import get_logger
 
+logger = get_logger(__name__)
 router = APIRouter(prefix="/tags", tags=["tags"])
 
 

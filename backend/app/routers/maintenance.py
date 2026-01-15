@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 from ..deps import get_db
 from ..auth import get_current_user
 from .. import crud, schemas, models
+from ..logging_config import get_logger
 
+logger = get_logger(__name__)
 router = APIRouter(prefix="/api/maintenance", tags=["maintenance"])
 
 
@@ -18,7 +20,9 @@ def create_maintenance_task(
     current_user: models.User = Depends(get_current_user),
 ):
     """Create a new maintenance task for an item."""
-    return crud.create_maintenance_task(db, task)
+    result = crud.create_maintenance_task(db, task)
+    logger.info(f"Maintenance task created: {task.name} for item {task.item_id}")
+    return result
 
 
 @router.get("/", response_model=List[schemas.MaintenanceTask])

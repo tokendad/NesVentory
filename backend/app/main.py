@@ -12,8 +12,8 @@ from .deps import get_db
 from .schemas import Token
 import re
 
-# 🔥 Setup logging FIRST before any other imports that might use logging
-from .logging_config import setup_logging
+# Setup logging FIRST before any other imports that might use logging
+from .logging_config import setup_logging, log_startup_summary
 setup_logging()
 
 # 🔥 IMPORTANT: Load all SQLAlchemy models so tables get created
@@ -22,6 +22,7 @@ from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
 from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins, location_photos, csv_import, media, oidc, printer
 from .routers.auth import perform_password_login
+from .middleware import RequestTracingMiddleware
 
 
 def run_migrations():
@@ -160,6 +161,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Request tracing middleware (generates request IDs and logs requests)
+app.add_middleware(RequestTracingMiddleware)
+
 # Include routers
 app.include_router(items.router, prefix="/api")
 app.include_router(locations.router, prefix="/api")
@@ -220,6 +224,15 @@ STATIC_DIR = Path("/app/static")
 if STATIC_DIR.exists():
     # Mount static assets (JS, CSS, images, etc.)
     app.mount("/assets", StaticFiles(directory=str(STATIC_DIR / "assets")), name="assets")
+
+@app.on_event("startup")
+async def startup_event():
+    """Log startup summary when the application starts."""
+    import os
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("APP_PORT", "8001"))
+    log_startup_summary(host, port)
+
 
 @app.get("/api/health")
 def health():
