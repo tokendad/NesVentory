@@ -123,6 +123,7 @@ def create_locations(db: Session) -> dict:
         friendly_name="Demo Home",
         full_path="/My Home",
         is_primary_location=True,
+        location_category="Primary",
         address="123 Main Street, Anytown, ST 12345",
         location_type=models.LocationType.RESIDENTIAL,
         description="Primary residence for demo purposes",
@@ -137,6 +138,7 @@ def create_locations(db: Session) -> dict:
         name="Living Room",
         parent_id=my_home.id,
         full_path="/My Home/Living Room",
+        location_category="Room",
     )
     db.add(living_room)
 
@@ -145,6 +147,7 @@ def create_locations(db: Session) -> dict:
         name="Master Bedroom",
         parent_id=my_home.id,
         full_path="/My Home/Master Bedroom",
+        location_category="Room",
     )
     db.add(bedroom)
 
@@ -153,6 +156,7 @@ def create_locations(db: Session) -> dict:
         name="Kitchen",
         parent_id=my_home.id,
         full_path="/My Home/Kitchen",
+        location_category="Room",
     )
     db.add(kitchen)
 
@@ -161,6 +165,7 @@ def create_locations(db: Session) -> dict:
         name="Garage",
         parent_id=my_home.id,
         full_path="/My Home/Garage",
+        location_category="Garage",
     )
     db.add(garage)
 
@@ -169,6 +174,7 @@ def create_locations(db: Session) -> dict:
         name="Home Office",
         parent_id=my_home.id,
         full_path="/My Home/Home Office",
+        location_category="Room",
     )
     db.add(office)
 
@@ -180,6 +186,7 @@ def create_locations(db: Session) -> dict:
         name="TV Stand",
         parent_id=living_room.id,
         full_path="/My Home/Living Room/TV Stand",
+        location_category="Furniture",
     )
     db.add(tv_stand)
 
@@ -188,6 +195,7 @@ def create_locations(db: Session) -> dict:
         name="Closet",
         parent_id=bedroom.id,
         full_path="/My Home/Master Bedroom/Closet",
+        location_category="Room",
     )
     db.add(closet)
 
@@ -196,6 +204,7 @@ def create_locations(db: Session) -> dict:
         name="Pantry",
         parent_id=kitchen.id,
         full_path="/My Home/Kitchen/Pantry",
+        location_category="Room",
     )
     db.add(pantry)
 
@@ -204,6 +213,7 @@ def create_locations(db: Session) -> dict:
         name="Workbench",
         parent_id=garage.id,
         full_path="/My Home/Garage/Workbench",
+        location_category="Furniture",
     )
     db.add(workbench)
 

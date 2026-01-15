@@ -35,7 +35,7 @@ def run_migrations():
     """
     # Whitelist of allowed table and column names for security
     # Only these exact names are permitted in migrations
-    ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks", "videos", "plugins", "system_settings"}
+    ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks", "videos", "plugins", "system_settings", "location_photos"}
     ALLOWED_COLUMNS = {"google_id", "oidc_id", "estimated_value_ai_date", "estimated_value_user_date", "estimated_value_user_name",
                        "ai_schedule_enabled", "ai_schedule_interval_days", "ai_schedule_last_run",
                        "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "ai_providers", "document_type", "color", 
