@@ -29,11 +29,8 @@ if [ $# -eq 0 ]; then
 fi
 
 # Switch to the nesventory user (created with PUID/PGID) and run the command
-# We use capsh (from libcap2-bin) to grant ambient capabilities (CAP_NET_ADMIN)
-# This is more robust than setpriv on some systems.
-# --keep=1: Keep capabilities during UID switch
-# --user=nesventory: Switch to this user (and their groups)
-# --inh=...: Set inheritable capabilities
-# --addamb=...: Add to ambient capabilities
-# -- -c 'exec "$@"': Execute the passed command using sh/bash
-exec capsh --keep=1 --user=nesventory --inh=cap_net_admin --addamb=cap_net_admin -- -c 'exec "$@"' -- "$@"
+# We use gosu for a simple, portable user switch that works in any Docker environment.
+# If you need CAP_NET_ADMIN for Bluetooth printer features, add it via docker-compose:
+#   cap_add:
+#     - NET_ADMIN
+exec gosu nesventory "$@"
