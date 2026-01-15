@@ -126,7 +126,7 @@ export class BluetoothTransport implements NiimbotTransport {
     // D11 usually handles 200+ bytes if MTU negotiated, but let's be safe or just write
     // Most browsers handle splitting automatically for writeValue
     try {
-      await this.characteristic.writeValue(data);
+      await this.characteristic.writeValue(data as any);
     } catch (e) {
       // Fallback chunking if needed? 
       // For now assume standard WebBLE behavior works
