@@ -1,4 +1,8 @@
 # Changelog
+n## [6.6.0] - 2026-01-15
+### Added
+- Automated release 6.6.0
+
 
 All notable changes to this project will be documented in this file.
 
