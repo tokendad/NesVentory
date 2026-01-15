@@ -1,0 +1,354 @@
+name: Automated Release
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # 1am EST (06:00 UTC)
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type'
+        required: false
+        type: choice
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+        default: 'auto'
+      release_title:
+        description: 'Release title (optional)'
+        required: false
+        type: string
+      release_notes:
+        description: 'Additional release notes (optional)'
+        required: false
+        type: string
+      breaking_changes:
+        description: 'Breaking changes (optional)'
+        required: false
+        type: string
+
+jobs:
+  release:
+    name: Prepare and Publish Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Get current version
+        id: current_version
+        run: |
+          if [ -f VERSION ]; then
+            VERSION=$(cat VERSION | tr -d '[:space:]')
+          else
+            VERSION="0.0.0"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+
+      - name: Determine Bump Type
+        id: determine_bump
+        run: |
+          INPUT_BUMP="${{ inputs.bump_type }}"
+          if [[ "$INPUT_BUMP" != "auto" && -n "$INPUT_BUMP" ]]; then
+            echo "bump_type=$INPUT_BUMP" >> $GITHUB_OUTPUT
+            echo "Manual bump type selected: $INPUT_BUMP"
+            exit 0
+          fi
+
+          # Get previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [[ -z "$PREV_TAG" ]]; then
+            echo "No previous tag found. Defaulting to patch."
+            echo "bump_type=patch" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Comparing HEAD against $PREV_TAG"
+          COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"%s")
+
+          if [[ -z "$COMMITS" ]]; then
+             echo "No commits since last tag."
+             echo "bump_type=none" >> $GITHUB_OUTPUT
+             exit 0
+          fi
+
+          # Check for conventional commit patterns
+          if echo "$COMMITS" | grep -q "BREAKING CHANGE"; then
+            BUMP="major"
+          elif echo "$COMMITS" | grep -qiE "^(feat|feature)(\(.*\))?:" || [[ "$COMMITS" =~ ^(feat|feature) ]]; then
+            BUMP="minor"
+          elif echo "$COMMITS" | grep -qiE "^(fix|bugfix)(\(.*\))?:" || [[ "$COMMITS" =~ ^(fix|bugfix) ]]; then
+            BUMP="patch"
+          else
+            # Default to patch if there are changes but no keywords, or skipping?
+            # User wants "updates... based on new update". If only chore/docs, maybe skip?
+            # For safety, let's bump patch if there are any changes to avoid stagnation, 
+            # or check strictly. 
+            # Let's assume 'patch' for any other changes to capture chores/docs in the nightly.
+            BUMP="patch"
+          fi
+
+          echo "Detected bump type: $BUMP"
+          echo "bump_type=$BUMP" >> $GITHUB_OUTPUT
+
+      - name: Check if Release Needed
+        id: check_release
+        run: |
+          BUMP="${{ steps.determine_bump.outputs.bump_type }}"
+          if [[ "$BUMP" == "none" ]]; then
+            echo "No release needed."
+            echo "needed=false" >> $GITHUB_OUTPUT
+          else
+            echo "Release needed ($BUMP)."
+            echo "needed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Bump version
+        id: bump_version
+        if: steps.check_release.outputs.needed == 'true'
+        run: |
+          CURRENT_VERSION="${{ steps.current_version.outputs.version }}"
+          BUMP_TYPE="${{ steps.determine_bump.outputs.bump_type }}"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          
+          # Clean patch if it has suffixes
+          if [[ "$PATCH" == *"-"* ]]; then
+            PATCH_NUM="${PATCH%%-*}"
+          else
+            PATCH_NUM="$PATCH"
+          fi
+
+          case "$BUMP_TYPE" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH_NUM=0
+              ;; 
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH_NUM=0
+              ;; 
+            patch)
+              PATCH_NUM=$((PATCH_NUM + 1))
+              ;; 
+          esac
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH_NUM}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Bumped version: $CURRENT_VERSION -> $NEW_VERSION"
+          echo "$NEW_VERSION" > VERSION
+
+      - name: Update package.json version
+        if: steps.check_release.outputs.needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            if (fs.existsSync('package.json')) {
+              const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+              pkg.version = process.env.NEW_VERSION;
+              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            }
+          "
+
+      - name: Update App.tsx version
+        if: steps.check_release.outputs.needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
+        run: |
+          if [ -f src/App.tsx ]; then
+            sed -i 's/const APP_VERSION = ".*";/const APP_VERSION = "'$NEW_VERSION'";/' src/App.tsx
+          fi
+
+      - name: Get merged PRs and Commits
+        id: get_changes
+        if: steps.check_release.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [[ -z "$PREV_TAG" ]]; then PREV_TAG=$(git rev-list --max-parents=0 HEAD); fi
+
+          # Commits
+          COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"%s")
+          
+          FEATURES=""
+          FIXES=""
+          CHANGES=""
+          OTHERS=""
+          
+          while IFS= read -r commit; do
+            if [[ -z "$commit" ]]; then continue; fi
+            if [[ "$commit" =~ ^(feat|feature|add|added)[\(:] ]] || [[ "$commit" =~ [Ff]eat ]]; then
+              FEATURES="${FEATURES}- ${commit}"$'\n'${FEATURES}
+            elif [[ "$commit" =~ ^(fix|fixed|bugfix)[\(:] ]] || [[ "$commit" =~ [Ff]ix ]]; then
+              FIXES="${FIXES}- ${commit}"$'\n'${FIXES}
+            elif [[ "$commit" =~ ^(update|upgrade|change|improve|refactor)[\(:] ]] || [[ "$commit" =~ (Update|Upgrade|Change) ]]; then
+              CHANGES="${CHANGES}- ${commit}"$'\n'${CHANGES}
+            else
+              OTHERS="${OTHERS}- ${commit}"$'\n'${OTHERS}
+            fi
+          done <<< "$COMMITS"
+          
+          {
+            echo "features<<EOF"
+            echo -e "$FEATURES"
+            echo "EOF"
+            echo "fixes<<EOF"
+            echo -e "$FIXES"
+            echo "EOF"
+            echo "changes<<EOF"
+            echo -e "$CHANGES"
+            echo "EOF"
+            echo "others<<EOF"
+            echo -e "$OTHERS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+          
+          # PRs (Best effort, relies on GH CLI)
+          if git rev-parse "$PREV_TAG" >/dev/null 2>&1; then
+             TAG_DATE=$(git log -1 --format=%aI "$PREV_TAG")
+             PR_LIST=$(gh pr list --state merged --limit 100 --json number,title --search "merged:>$TAG_DATE" 2>/dev/null || echo "[]")
+             PR_NOTES=$(echo "$PR_LIST" | jq -r '.[] | "- **PR #\(.number)**: \(.title)"' 2>/dev/null || echo "")
+          else
+             PR_NOTES=""
+          fi
+          
+          {
+            echo "pr_notes<<EOF"
+            echo "$PR_NOTES"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Generate release documentation
+        if: steps.check_release.outputs.needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
+          RELEASE_TITLE: ${{ inputs.release_title }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          BREAKING_CHANGES: ${{ inputs.breaking_changes }}
+          REPO: ${{ github.repository }}
+          PR_NOTES: ${{ steps.get_changes.outputs.pr_notes }}
+          COMMIT_FEATURES: ${{ steps.get_changes.outputs.features }}
+          COMMIT_FIXES: ${{ steps.get_changes.outputs.fixes }}
+          COMMIT_CHANGES: ${{ steps.get_changes.outputs.changes }}
+        run: |
+          mkdir -p docs/releases
+          RELEASE_FILE="docs/releases/RELEASE_NOTES_v${NEW_VERSION}.md"
+          
+          {
+            echo "# NesVentory v${NEW_VERSION}"
+            echo ""
+            echo "Release tag: https://github.com/${REPO}/releases/tag/v${NEW_VERSION}"
+            echo ""
+            echo "## Summary"
+            echo "${RELEASE_TITLE:-Automated Nightly Release}"
+            echo ""
+            
+            if [[ -n "$RELEASE_NOTES" ]]; then
+              echo "## Notes"
+              echo "${RELEASE_NOTES}"
+              echo ""
+            fi
+            
+            if [[ -n "$COMMIT_FEATURES" ]]; then
+              echo "## Features"
+              echo -e "${COMMIT_FEATURES}"
+              echo ""
+            fi
+            
+            if [[ -n "$COMMIT_FIXES" ]]; then
+              echo "## Bug Fixes"
+              echo -e "${COMMIT_FIXES}"
+              echo ""
+            fi
+            
+            if [[ -n "$BREAKING_CHANGES" ]]; then
+              echo "## Breaking Changes"
+              echo "${BREAKING_CHANGES}"
+              echo ""
+            fi
+            
+            if [[ -n "$PR_NOTES" ]]; then
+               echo "## Merged Pull Requests"
+               echo "$PR_NOTES"
+            fi
+          } > "$RELEASE_FILE"
+          
+          # Also update main RELEASE_NOTES.md
+          cp "$RELEASE_FILE" RELEASE_NOTES.md
+          
+      - name: Update CHANGELOG.md
+        if: steps.check_release.outputs.needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
+          BUMP_TYPE: ${{ steps.determine_bump.outputs.bump_type }}
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          if [[ "$BUMP_TYPE" == "major" ]]; then HEADER="### Changed"; 
+          elif [[ "$BUMP_TYPE" == "minor" ]]; then HEADER="### Added";
+          else HEADER="### Fixed"; fi
+          
+          ENTRY="\n## [$NEW_VERSION] - $DATE\n$HEADER\n- Automated release $NEW_VERSION\n"
+          
+          if [[ -f "CHANGELOG.md" ]]; then
+             sed -i "/^# Changelog/a $ENTRY" CHANGELOG.md
+          else
+             echo -e "# Changelog\n$ENTRY" > CHANGELOG.md
+          fi
+
+      - name: Update README Version
+        if: steps.check_release.outputs.needed == 'true'
+        env:
+          NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
+        run: |
+          if [ -f README.md ]; then
+             sed -i "s/Version: [0-9.]*/Version: $NEW_VERSION/" README.md || true
+          fi
+
+      - name: Commit and Push Changes
+        if: steps.check_release.outputs.needed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add VERSION package.json src/App.tsx CHANGELOG.md README.md RELEASE_NOTES.md docs/releases/
+          
+          git commit -m "chore: release v${{ steps.bump_version.outputs.new_version }}"
+          git push origin main
+
+      - name: Create and Push Tag
+        if: steps.check_release.outputs.needed == 'true'
+        run: |
+          TAG_NAME="v${{ steps.bump_version.outputs.new_version }}"
+          git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+          git push origin "$TAG_NAME"
+
+      - name: Publish GitHub Release
+        if: steps.check_release.outputs.needed == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.bump_version.outputs.new_version }}
+          name: Release ${{ steps.bump_version.outputs.new_version }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
