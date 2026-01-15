@@ -8,6 +8,7 @@ from datetime import datetime
 from .. import models, schemas
 from ..deps import get_db
 from ..storage import get_storage, extract_storage_path
+from ..thumbnails import create_thumbnail
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,23 @@ async def upload_location_photo(
     storage = get_storage()
     try:
         file_url = storage.save(file.file, storage_path, content_type=file.content_type)
+        
+        # Generate thumbnail
+        thumbnail_filename = f"{location_id}_{timestamp}_{safe_name}_thumb.jpg"
+        thumbnail_storage_path = f"location_photos/thumbnails/{thumbnail_filename}"
+        
+        # Reset file pointer to beginning for thumbnail generation
+        await file.seek(0)
+        
+        # Create thumbnail
+        thumbnail_created = create_thumbnail(
+            file.file, 
+            thumbnail_storage_path, 
+            content_type=file.content_type
+        )
+        
+        thumbnail_url = f"/uploads/{thumbnail_storage_path}" if thumbnail_created else None
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
     
@@ -69,6 +87,7 @@ async def upload_location_photo(
         location_id=location_id,
         filename=filename,
         path=file_url,
+        thumbnail_path=thumbnail_url,
         mime_type=file.content_type,
         photo_type=photo_type
     )

@@ -2007,10 +2007,14 @@ export interface MediaItem {
   photo_type?: string | null;
   filename?: string;
   video_type?: string | null;
+  thumbnail_path?: string | null;
 }
 
 export interface MediaListResponse {
-  media: MediaItem[];
+  items: MediaItem[];
+  total: number;
+  page: number;
+  pages: number;
 }
 
 export async function getMediaStats(): Promise<MediaStats> {
@@ -2026,12 +2030,16 @@ export async function getMediaStats(): Promise<MediaStats> {
 export async function listMedia(
   locationFilter?: string,
   mediaType?: 'photo' | 'video',
-  unassignedOnly?: boolean
+  unassignedOnly?: boolean,
+  page: number = 1,
+  limit: number = 50
 ): Promise<MediaListResponse> {
   const params = new URLSearchParams();
   if (locationFilter) params.append('location_filter', locationFilter);
   if (mediaType) params.append('media_type', mediaType);
   if (unassignedOnly) params.append('unassigned_only', 'true');
+  params.append('page', page.toString());
+  params.append('limit', limit.toString());
   
   const url = `${API_BASE_URL}/api/media/list${params.toString() ? '?' + params.toString() : ''}`;
   const res = await fetch(url, {

@@ -28,6 +28,9 @@ const MediaManagement: React.FC<MediaManagementProps> = ({ onClose }) => {
   const [showMediaModal, setShowMediaModal] = useState<MediaItem | null>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -36,7 +39,11 @@ const MediaManagement: React.FC<MediaManagementProps> = ({ onClose }) => {
   }, []);
 
   useEffect(() => {
-    loadMedia();
+    // Reset media list when filters change
+    setMedia([]);
+    setPage(1);
+    setHasMore(true);
+    loadMedia(1, true);
   }, [locationFilter, mediaTypeFilter]);
 
   async function loadData() {
@@ -52,18 +59,40 @@ const MediaManagement: React.FC<MediaManagementProps> = ({ onClose }) => {
     }
   }
 
-  async function loadMedia() {
+  async function loadMedia(pageNum: number, isNewFilter: boolean = false) {
     try {
+      if (pageNum === 1) setLoading(true);
+      else setLoadingMore(true);
+      
       setError(null);
       const response = await listMedia(
         locationFilter || undefined,
         mediaTypeFilter || undefined,
-        false
+        false,
+        pageNum,
+        50 // Limit per page
       );
-      setMedia(response.media);
+      
+      if (isNewFilter) {
+        setMedia(response.items);
+      } else {
+        setMedia(prev => [...prev, ...response.items]);
+      }
+      
+      setHasMore(pageNum < response.pages);
     } catch (err: any) {
       setError(err.message || "Failed to load media list");
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
     }
+  }
+
+  async function handleLoadMore() {
+    if (!hasMore || loadingMore) return;
+    const nextPage = page + 1;
+    setPage(nextPage);
+    await loadMedia(nextPage);
   }
 
   async function loadItems() {
@@ -111,7 +140,9 @@ const MediaManagement: React.FC<MediaManagementProps> = ({ onClose }) => {
       await bulkDeleteMedia(mediaIds, mediaTypes);
       setSelectedMedia(new Set());
       await loadData();
-      await loadMedia();
+      // Reload first page
+      setPage(1);
+      await loadMedia(1, true);
     } catch (err: any) {
       alert(`Failed to delete media: ${err.message}`);
     }
@@ -349,7 +380,7 @@ const MediaManagement: React.FC<MediaManagementProps> = ({ onClose }) => {
                 </div>
               ) : (
                 <img
-                  src={item.path}
+                  src={item.thumbnail_path || item.path}
                   alt="Media"
                   style={{
                     width: "100%",
@@ -359,6 +390,11 @@ const MediaManagement: React.FC<MediaManagementProps> = ({ onClose }) => {
                   }}
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
+                    // If thumbnail failed, try full path
+                    if (item.thumbnail_path && target.src.endsWith(item.thumbnail_path)) {
+                         target.src = item.path;
+                         return;
+                    }
                     target.style.display = "none";
                     const parent = target.parentElement;
                     if (parent) {
@@ -407,6 +443,20 @@ const MediaManagement: React.FC<MediaManagementProps> = ({ onClose }) => {
           No media files found
         </div>
       )}
+      
+      {/* Load More Button */}
+      {media.length > 0 && hasMore && (
+        <div style={{ display: "flex", justifyContent: "center", margin: "2rem 0" }}>
+          <button 
+            className="btn-primary" 
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            style={{ minWidth: "200px" }}
+          >
+            {loadingMore ? "Loading..." : "Load More Media"}
+          </button>
+        </div>
+      )}
 
       {/* Media Detail Modal */}
       {showMediaModal && (
@@ -417,7 +467,9 @@ const MediaManagement: React.FC<MediaManagementProps> = ({ onClose }) => {
           onUpdate={() => {
             setShowMediaModal(null);
             loadData();
-            loadMedia();
+            // Reload first page
+            setPage(1);
+            loadMedia(1, true);
           }}
         />
       )}

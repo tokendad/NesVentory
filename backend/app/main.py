@@ -40,8 +40,8 @@ def run_migrations():
                        "ai_schedule_enabled", "ai_schedule_interval_days", "ai_schedule_last_run",
                        "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "ai_providers", "document_type", "color", 
                        "supports_image_processing", "gemini_model", "must_change_password", "niimbot_printer_config",
-                       "additional_info"}
-    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "VARCHAR(64)", "VARCHAR(7)", "VARCHAR(100)", "BOOLEAN DEFAULT FALSE", "BOOLEAN DEFAULT TRUE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT", "JSON"}
+                       "additional_info", "thumbnail_path"}
+    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "VARCHAR(64)", "VARCHAR(7)", "VARCHAR(100)", "BOOLEAN DEFAULT FALSE", "BOOLEAN DEFAULT TRUE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT", "JSON", "VARCHAR(1024)"}
     
     # Define migrations: (table_name, column_name, column_definition)
     migrations = [
@@ -78,6 +78,10 @@ def run_migrations():
         ("users", "niimbot_printer_config", "JSON"),
         # Item model: dynamic fields for additional information
         ("items", "additional_info", "JSON"),
+        # Photo model: thumbnail path
+        ("photos", "thumbnail_path", "VARCHAR(1024)"),
+        # LocationPhoto model: thumbnail path
+        ("location_photos", "thumbnail_path", "VARCHAR(1024)"),
     ]
     
     with engine.begin() as conn:

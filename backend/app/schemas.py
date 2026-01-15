@@ -252,6 +252,7 @@ class Location(LocationBase):
 class PhotoBase(BaseModel):
     item_id: UUID
     path: str
+    thumbnail_path: Optional[str] = None
     mime_type: Optional[str] = None
     is_primary: bool = False
     is_data_tag: bool = False
@@ -328,6 +329,7 @@ class LocationPhotoBase(BaseModel):
     filename: str
     mime_type: Optional[str] = None
     path: str
+    thumbnail_path: Optional[str] = None
     photo_type: Optional[str] = None
 
 
@@ -562,3 +564,27 @@ class PluginConnectionTestResult(BaseModel):
 class MediaBulkDeleteRequest(BaseModel):
     media_ids: List[str]
     media_types: List[str]  # Corresponding types: 'photo', 'video', 'location_photo'
+
+class MediaItem(BaseModel):
+    id: str
+    type: str  # 'photo', 'video', 'location_photo'
+    path: str
+    thumbnail_path: Optional[str] = None
+    mime_type: Optional[str] = None
+    uploaded_at: str
+    item_id: Optional[str] = None
+    item_name: Optional[str] = None
+    location_id: Optional[str] = None
+    location_name: Optional[str] = None
+    is_primary: Optional[bool] = None
+    is_data_tag: Optional[bool] = None
+    photo_type: Optional[str] = None
+    filename: Optional[str] = None
+    video_type: Optional[str] = None
+
+class MediaListResponse(BaseModel):
+    items: List[MediaItem]
+    total: int
+    page: int
+    pages: int
+

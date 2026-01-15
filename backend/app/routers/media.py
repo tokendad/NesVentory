@@ -88,21 +88,32 @@ def list_media(
     location_filter: Optional[str] = None,
     media_type: Optional[str] = None,  # 'photo', 'video', or None for all
     unassigned_only: bool = False,
+    page: int = 1,
+    limit: int = 50,
     db: Session = Depends(get_db)
 ):
     """
-    List all media with optional filtering.
+    List all media with optional filtering and pagination.
     
     Args:
         location_filter: Filter by location name or ID
         media_type: Filter by media type ('photo' or 'video')
         unassigned_only: Only show media not assigned to any item (photos only)
+        page: Page number (default 1)
+        limit: Items per page (default 50)
     """
-    results = []
+    # 1. Gather all potential results (metadata only) from different tables
+    # Since we need to sort mixed types (photos, videos, location photos) by date,
+    # and they are in different tables, efficient DB-side pagination across union is complex.
+    # For now, we fetch the IDs and Dates of ALL matching items, sort them in Python, 
+    # then apply pagination (skip/limit) to determine WHICH IDs to fetch full details for.
+    # This is much faster than fetching full objects.
     
-    # Fetch photos
+    all_media_meta = []
+    
+    # Fetch Photos Metadata
     if not media_type or media_type == "photo":
-        photo_query = db.query(models.Photo).join(models.Item, models.Photo.item_id == models.Item.id)
+        photo_query = db.query(models.Photo.id, models.Photo.uploaded_at, models.Item.location_id).join(models.Item, models.Photo.item_id == models.Item.id)
         
         if location_filter:
             photo_query = photo_query.join(models.Location, models.Item.location_id == models.Location.id)
@@ -111,25 +122,16 @@ def list_media(
                 (models.Location.id == location_filter)
             )
         
-        photos = photo_query.all()
-        for photo in photos:
-            results.append({
-                "id": str(photo.id),
-                "type": "photo",
-                "path": photo.path,
-                "mime_type": photo.mime_type,
-                "uploaded_at": photo.uploaded_at.isoformat(),
-                "item_id": str(photo.item_id),
-                "item_name": photo.item.name if photo.item else None,
-                "location_id": str(photo.item.location_id) if photo.item.location_id else None,
-                "location_name": photo.item.location.name if photo.item and photo.item.location else None,
-                "is_primary": photo.is_primary,
-                "is_data_tag": photo.is_data_tag,
-                "photo_type": photo.photo_type
-            })
-        
-        # Fetch location photos
-        location_photo_query = db.query(models.LocationPhoto).join(
+        for p_id, p_date, loc_id in photo_query.all():
+             all_media_meta.append({
+                 "id": str(p_id),
+                 "type": "photo",
+                 "date": p_date,
+                 "sort_key": p_date.timestamp()
+             })
+             
+        # Fetch Location Photos Metadata
+        location_photo_query = db.query(models.LocationPhoto.id, models.LocationPhoto.uploaded_at, models.LocationPhoto.location_id).join(
             models.Location, models.LocationPhoto.location_id == models.Location.id
         )
         
@@ -138,54 +140,136 @@ def list_media(
                 (models.Location.name.ilike(f"%{location_filter}%")) |
                 (models.Location.id == location_filter)
             )
-        
-        location_photos = location_photo_query.all()
-        for photo in location_photos:
-            results.append({
-                "id": str(photo.id),
+            
+        for lp_id, lp_date, loc_id in location_photo_query.all():
+            all_media_meta.append({
+                "id": str(lp_id),
                 "type": "location_photo",
-                "path": photo.path,
-                "mime_type": photo.mime_type,
-                "uploaded_at": photo.uploaded_at.isoformat(),
-                "item_id": None,
-                "item_name": None,
-                "location_id": str(photo.location_id),
-                "location_name": photo.location.name if photo.location else None,
-                "is_primary": False,
-                "is_data_tag": False,
-                "photo_type": photo.photo_type
+                "date": lp_date,
+                "sort_key": lp_date.timestamp()
             })
-    
-    # Fetch videos
+
+    # Fetch Videos Metadata
     if not media_type or media_type == "video":
-        video_query = db.query(models.Video).join(models.Location, models.Video.location_id == models.Location.id)
+        video_query = db.query(models.Video.id, models.Video.uploaded_at, models.Video.location_id).join(models.Location, models.Video.location_id == models.Location.id)
         
         if location_filter:
             video_query = video_query.filter(
                 (models.Location.name.ilike(f"%{location_filter}%")) |
                 (models.Location.id == location_filter)
             )
-        
-        videos = video_query.all()
-        for video in videos:
-            results.append({
-                "id": str(video.id),
+            
+        for v_id, v_date, loc_id in video_query.all():
+            all_media_meta.append({
+                "id": str(v_id),
                 "type": "video",
-                "path": video.path,
-                "mime_type": video.mime_type,
-                "uploaded_at": video.uploaded_at.isoformat(),
-                "item_id": None,
-                "item_name": None,
-                "location_id": str(video.location_id),
-                "location_name": video.location.name if video.location else None,
-                "filename": video.filename,
-                "video_type": video.video_type
+                "date": v_date,
+                "sort_key": v_date.timestamp()
             })
+            
+    # Sort all metadata
+    all_media_meta.sort(key=lambda x: x["sort_key"], reverse=True)
     
-    # Sort by uploaded_at descending
-    results.sort(key=lambda x: x["uploaded_at"], reverse=True)
+    # Calculate Total and Pages
+    total_items = len(all_media_meta)
+    total_pages = (total_items + limit - 1) // limit
     
-    return {"media": results}
+    # Apply Pagination Slice
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    paged_meta = all_media_meta[start_idx:end_idx]
+    
+    # Fetch Full Details for Paged Items
+    results = []
+    
+    # Group by type to batch queries (optimization)
+    photo_ids = [UUID(m["id"]) for m in paged_meta if m["type"] == "photo"]
+    location_photo_ids = [UUID(m["id"]) for m in paged_meta if m["type"] == "location_photo"]
+    video_ids = [UUID(m["id"]) for m in paged_meta if m["type"] == "video"]
+    
+    # Fetch Photos
+    if photo_ids:
+        photos = db.query(models.Photo).filter(models.Photo.id.in_(photo_ids)).all()
+        photos_map = {str(p.id): p for p in photos}
+    else:
+        photos_map = {}
+        
+    # Fetch Location Photos
+    if location_photo_ids:
+        loc_photos = db.query(models.LocationPhoto).filter(models.LocationPhoto.id.in_(location_photo_ids)).all()
+        loc_photos_map = {str(p.id): p for p in loc_photos}
+    else:
+        loc_photos_map = {}
+        
+    # Fetch Videos
+    if video_ids:
+        videos = db.query(models.Video).filter(models.Video.id.in_(video_ids)).all()
+        videos_map = {str(v.id): v for v in videos}
+    else:
+        videos_map = {}
+        
+    # Reassemble in sorted order
+    for meta in paged_meta:
+        item = None
+        if meta["type"] == "photo":
+            photo = photos_map.get(meta["id"])
+            if photo:
+                results.append({
+                    "id": str(photo.id),
+                    "type": "photo",
+                    "path": photo.path,
+                    "thumbnail_path": photo.thumbnail_path,
+                    "mime_type": photo.mime_type,
+                    "uploaded_at": photo.uploaded_at.isoformat(),
+                    "item_id": str(photo.item_id),
+                    "item_name": photo.item.name if photo.item else None,
+                    "location_id": str(photo.item.location_id) if photo.item.location_id else None,
+                    "location_name": photo.item.location.name if photo.item and photo.item.location else None,
+                    "is_primary": photo.is_primary,
+                    "is_data_tag": photo.is_data_tag,
+                    "photo_type": photo.photo_type
+                })
+        elif meta["type"] == "location_photo":
+            photo = loc_photos_map.get(meta["id"])
+            if photo:
+                results.append({
+                    "id": str(photo.id),
+                    "type": "location_photo",
+                    "path": photo.path,
+                    "thumbnail_path": photo.thumbnail_path,
+                    "mime_type": photo.mime_type,
+                    "uploaded_at": photo.uploaded_at.isoformat(),
+                    "item_id": None,
+                    "item_name": None,
+                    "location_id": str(photo.location_id),
+                    "location_name": photo.location.name if photo.location else None,
+                    "is_primary": False,
+                    "is_data_tag": False,
+                    "photo_type": photo.photo_type
+                })
+        elif meta["type"] == "video":
+            video = videos_map.get(meta["id"])
+            if video:
+                 results.append({
+                    "id": str(video.id),
+                    "type": "video",
+                    "path": video.path,
+                    "mime_type": video.mime_type,
+                    "uploaded_at": video.uploaded_at.isoformat(),
+                    "item_id": None,
+                    "item_name": None,
+                    "location_id": str(video.location_id),
+                    "location_name": video.location.name if video.location else None,
+                    "filename": video.filename,
+                    "video_type": video.video_type
+                })
+
+    return {
+        "items": results,
+        "total": total_items,
+        "page": page,
+        "pages": total_pages
+    }
 
 
 @router.delete("/bulk-delete", status_code=status.HTTP_204_NO_CONTENT)

@@ -310,6 +310,7 @@ class Photo(Base):
     id = Column(UUID(), primary_key=True, default=uuid.uuid4)
     item_id = Column(UUID(), ForeignKey("items.id"), nullable=False)
     path = Column(String(1024), nullable=False)
+    thumbnail_path = Column(String(1024), nullable=True)
     mime_type = Column(String(128), nullable=True)
 
     is_primary = Column(Boolean, default=False, nullable=False)
@@ -359,6 +360,7 @@ class LocationPhoto(Base):
     filename = Column(String(255), nullable=False)
     mime_type = Column(String(128), nullable=True)
     path = Column(String(1024), nullable=False)
+    thumbnail_path = Column(String(1024), nullable=True)
     photo_type = Column(String(64), nullable=True)  # 'overview', 'detail', etc.
 
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
