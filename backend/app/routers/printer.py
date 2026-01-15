@@ -205,7 +205,7 @@ def test_connection(
         logger.error(f"Connection test failed: {str(e)}")
         return {
             "success": False,
-            "message": f"Connection failed: {str(e)}"
+            "message": "Connection failed while testing printer connection. Please verify the configuration and try again."
         }
 
 
