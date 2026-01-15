@@ -39,3 +39,5 @@ node_modules/
 # References and Testing
 Niimprinters References/
 testing/
+labeltest/
+demo-data/logs/

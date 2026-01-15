@@ -243,7 +243,12 @@ Get profile for the currently authenticated user.
   "ai_schedule_enabled": false,
   "ai_schedule_interval_days": 7,
   "upc_databases": [],
-  "ai_providers": []
+  "ai_providers": [],
+  "niimbot_printer_config": {
+    "enabled": true,
+    "model": "d11_h",
+    "connection_type": "server"
+  }
 }
 ```
 
@@ -445,6 +450,9 @@ Get all items in the inventory.
     "photos": [],
     "documents": [],
     "tags": [],
+    "additional_info": [
+      { "label": "Notes", "value": "Bought on sale", "type": "text" }
+    ],
     "created_at": "2023-01-15T10:00:00Z"
   }
 ]
@@ -628,6 +636,7 @@ Get all locations.
     "parent_id": null,
     "is_primary_location": false,
     "is_container": false,
+    "location_category": "Room",
     "friendly_name": "Our Living Room",
     "description": "Main living area",
     "address": null,
@@ -1390,26 +1399,32 @@ Get statistics about media files in the system.
 
 #### GET /api/media/list
 
-List media files with filtering options.
+List media files with filtering and pagination options.
 
 **Query Parameters:**
 - `location_filter`: Filter by location name or ID
 - `media_type`: Filter by type (photo, video)
 - `unassigned_only`: Only show media not assigned to any item
+- `page`: Page number (default: 1)
+- `limit`: Items per page (default: 50)
 
 **Response:**
 ```json
 {
-  "media": [
+  "items": [
     {
       "id": "uuid",
       "type": "photo",
       "path": "/uploads/photos/...",
+      "thumbnail_path": "/uploads/photos/thumbnails/...",
       "item_name": "Laptop",
       "location_name": "Living Room",
       ...
     }
-  ]
+  ],
+  "total": 150,
+  "page": 1,
+  "pages": 3
 }
 ```
 
