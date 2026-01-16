@@ -1,4 +1,8 @@
 # Changelog
+n## [6.6.1] - 2026-01-16
+### Fixed
+- Automated release 6.6.1
+
 n## [6.6.0] - 2026-01-15
 ### Added
 - Automated release 6.6.0
