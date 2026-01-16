@@ -162,6 +162,62 @@ def print_label(
         raise HTTPException(status_code=500, detail="Failed to print label")
 
 
+@router.post("/print-test-label")
+def print_test_label(
+    current_user: models.User = Depends(get_current_user),
+):
+    """
+    Print a test label with a QR code and a few lines of text.
+    """
+    try:
+        # Get printer configuration
+        config = current_user.niimbot_printer_config
+        if not config or not config.get("enabled"):
+            raise HTTPException(
+                status_code=400,
+                detail="NIIMBOT printer is not configured or enabled. Please configure in User Settings."
+            )
+        
+        # Generate test QR code
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
+            box_size=10,
+            border=0,
+        )
+        qr.add_data(f"{settings.APP_URL} (Test Print)")
+        qr.make(fit=True)
+        
+        qr_image = qr.make_image(fill_color="black", back_color="white")
+        
+        # Convert to bytes
+        img_byte_arr = io.BytesIO()
+        qr_image.save(img_byte_arr, format='PNG')
+        qr_code_data = img_byte_arr.getvalue()
+        
+        # Print the label
+        # We'll use the location_name field for multiple lines of text
+        test_text = "TEST PRINT\nNESVENTORY\nSUCCESSFUL"
+        
+        result = NiimbotPrinterService.print_qr_label(
+            qr_code_data=qr_code_data,
+            location_name=test_text,
+            printer_config=config,
+        )
+        
+        if result["success"]:
+            return result
+        else:
+            logger.error(f"Printer service reported failure: {result.get('message')}")
+            raise HTTPException(status_code=500, detail="Failed to print test label")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to print test label: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to print test label")
+
+
 @router.post("/test-connection")
 def test_connection(
     config: PrinterConfig = Body(...),

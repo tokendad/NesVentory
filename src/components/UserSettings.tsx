@@ -11,6 +11,7 @@ import {
   updatePrinterConfig,
   testPrinterConnection,
   getPrinterModels,
+  printTestLabel,
   type PrinterConfig,
   type PrinterModel,
 } from "../lib/api";
@@ -259,6 +260,21 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
     } catch (err) {
       console.error("Failed to test printer:", err);
       setPrinterTestResult("❌ Connection test failed");
+    } finally {
+      setPrinterLoading(false);
+    }
+  }
+
+  async function handlePrintTest() {
+    try {
+      setPrinterLoading(true);
+      setPrinterTestResult(null);
+      const result = await printTestLabel();
+      setPrinterTestResult(result.success ? "✅ " + result.message : "❌ " + result.message);
+    } catch (err) {
+      console.error("Failed to print test label:", err);
+      const errorMessage = err instanceof Error ? err.message : "Print test failed";
+      setPrinterTestResult("❌ " + errorMessage);
     } finally {
       setPrinterLoading(false);
     }
@@ -834,6 +850,15 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
               disabled={printerLoading}
             >
               {printerLoading ? "Testing..." : "Test Server Connection"}
+            </button>
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={handlePrintTest}
+              disabled={printerLoading}
+              title="Prints a test label with QR code and text"
+            >
+              {printerLoading ? "Printing..." : "Print Test Label"}
             </button>
           </div>
         </>

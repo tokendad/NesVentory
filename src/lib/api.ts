@@ -2247,6 +2247,17 @@ export async function printLabel(request: PrintLabelRequest): Promise<PrinterRes
   return handleResponse<PrinterResponse>(res);
 }
 
+export async function printTestLabel(): Promise<PrinterResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/print-test-label`, {
+    method: "POST",
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<PrinterResponse>(res);
+}
+
 export async function testPrinterConnection(config: PrinterConfig): Promise<PrinterResponse> {
   const res = await fetch(`${API_BASE_URL}/api/printer/test-connection`, {
     method: "POST",

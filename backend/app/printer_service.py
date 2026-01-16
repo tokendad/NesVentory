@@ -93,8 +93,23 @@ class NiimbotPrinterService:
         # After -90 rotation: 124x336, fitting nicely below QR
         txt_img = Image.new("L", (336, 124), color=0)
         draw_txt = ImageDraw.Draw(txt_img)
-        # Center text vertically in the 124px height
-        draw_txt.text((5, 44), location_name, fill=255, font=font)
+        
+        # Support multiline text (e.g. for test prints)
+        lines = location_name.split('\n')
+        line_count = len(lines)
+        
+        if line_count > 1:
+            # For multiline, use smaller font if needed and draw multiline
+            try:
+                small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
+            except OSError:
+                small_font = ImageFont.load_default()
+            
+            # Draw multiline text centered
+            draw_txt.multiline_text((5, 10), location_name, fill=255, font=small_font, spacing=4)
+        else:
+            # Center single line text vertically in the 124px height
+            draw_txt.text((5, 44), location_name, fill=255, font=font)
 
         if print_direction == "left":
             rotated_txt = txt_img.rotate(-90, expand=True)
