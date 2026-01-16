@@ -666,6 +666,7 @@ Create a new location.
   "parent_id": null,
   "is_primary_location": false,
   "is_container": false,
+  "location_category": "Room",
   "friendly_name": "Our Living Room",
   "description": "Main living area",
   "address": "123 Main St",
@@ -690,7 +691,8 @@ Update an existing location.
 {
   "name": "Master Bedroom",
   "description": "Updated description",
-  "is_container": false
+  "is_container": false,
+  "location_category": "Room"
 }
 ```
 

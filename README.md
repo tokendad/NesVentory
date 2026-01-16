@@ -136,6 +136,7 @@ NesVentory continues to evolve with powerful new features for managing your inve
 - 🧩 **Custom LLM Plugins** - Integrate specialized AI models for enhanced scanning accuracy
 - ⚙️ **AI Provider Configuration** - Multi-provider AI settings in Admin Panel
 - 📍 **Location Hierarchy** - Organize items by rooms and sub-locations
+- 🏷️ **Location Categories** - Categorize locations (e.g., Room, Garage, Container) for better sorting and filtering
 - 📱 **QR Code Labels** - Print QR labels for locations and containers (including from Location Settings)
 - 🖨️ **NIIMBOT Printer Support** - Direct printing to NIIMBOT thermal label printers (B1, B18, B21, D11, D110)
 - 📦 **Container Support** - Mark locations as boxes/bins for seasonal storage
