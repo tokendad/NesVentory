@@ -20,7 +20,8 @@ setup_logging()
 from . import models
 from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
-from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins, location_photos, csv_import, media, oidc, printer, settings
+from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins, location_photos, csv_import, media, oidc, printer
+from .routers import settings as settings_router
 from .routers.auth import perform_password_login
 from .middleware import RequestTracingMiddleware
 
@@ -193,7 +194,7 @@ app.include_router(csv_import.router, prefix="/api")
 app.include_router(media.router, prefix="/api")
 app.include_router(oidc.router, prefix="/api")
 app.include_router(printer.router)
-app.include_router(settings.router, prefix="/api")
+app.include_router(settings_router.router, prefix="/api")
 
 # Root-level /token endpoint for backward compatibility with mobile apps
 @app.post("/token", response_model=Token)
