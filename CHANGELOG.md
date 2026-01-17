@@ -1,4 +1,8 @@
 # Changelog
+n## [6.7.0] - 2026-01-17
+### Added
+- Automated release 6.7.0
+
 n## [6.6.1] - 2026-01-16
 ### Added
 - Location Categories feature for better organization
