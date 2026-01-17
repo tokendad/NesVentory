@@ -3,11 +3,25 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from .. import models, schemas
-from ..deps import get_db, get_current_active_admin
+from ..deps import get_db
+from ..auth import get_current_user
 from ..logging_config import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/settings", tags=["settings"])
+
+
+def get_current_active_admin(
+    current_user: models.User = Depends(get_current_user),
+) -> models.User:
+    """
+    Check if the current user is an active admin.
+    """
+    if current_user.role != models.UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized"
+        )
+    return current_user
 
 
 def get_or_create_settings(db: Session) -> models.SystemSettings:
