@@ -1794,6 +1794,57 @@ Get application version information.
 }
 ```
 
+## System Settings
+
+Endpoints for managing global system settings.
+
+### Get System Settings
+
+#### GET /api/settings
+
+**Admin only.** Get full system settings.
+
+**Response:**
+```json
+{
+  "id": 1,
+  "gemini_api_key": "masked",
+  "gemini_model": "gemini-1.5-pro",
+  "custom_location_categories": ["Primary", "Room", "Garage", "Attic"],
+  "updated_at": "2024-01-01T00:00:00Z"
+}
+```
+
+### Update System Settings
+
+#### PUT /api/settings
+
+**Admin only.** Update system settings.
+
+**Request:**
+```json
+{
+  "custom_location_categories": ["Primary", "Room", "Garage", "Attic", "Dungeon"]
+}
+```
+
+### Get Location Categories
+
+#### GET /api/settings/location-categories
+
+**Public (Authenticated).** Get the list of configured location categories. Returns default list if none configured.
+
+**Response:**
+```json
+[
+  "Primary",
+  "Room",
+  "Garage",
+  "Attic",
+  "Dungeon"
+]
+```
+
 ## Printer (NIIMBOT)
 
 Endpoints for managing and using NIIMBOT label printers.

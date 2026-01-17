@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import type { Item, Location, Tag, Video, LocationPhoto } from "../lib/api";
 import { getLocationPath } from "../lib/utils";
 import { 
@@ -9,7 +9,8 @@ import {
   deleteLocationPhoto,
   uploadLocationVideo,
   deleteLocationVideo,
-  fetchLocations
+  fetchLocations,
+  getLocationCategories
 } from "../lib/api";
 import QRLabelPrint, { PRINT_MODE_OPTIONS, type PrintMode } from "./QRLabelPrint";
 import InsuranceTab from "./InsuranceTab";
@@ -52,17 +53,6 @@ const DEFAULT_COLUMNS: ColumnConfig[] = [
   { key: "tags", label: "Tags", enabled: false },
 ];
 
-const LOCATION_CATEGORIES = [
-  "Primary",
-  "Out-building",
-  "Room",
-  "Floor",
-  "Exterior",
-  "Garage",
-  "Shed",
-  "Container"
-];
-
 const LOCATION_TYPES = [
   { value: "residential", label: "Residential" },
   { value: "commercial", label: "Commercial" },
@@ -98,6 +88,30 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
 }) => {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [itemLimit, setItemLimit] = useState<number>(10);
+  const [locationCategories, setLocationCategories] = useState<string[]>([
+    "Primary",
+    "Out-building",
+    "Room",
+    "Floor",
+    "Exterior",
+    "Garage",
+    "Shed",
+    "Container"
+  ]);
+
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const categories = await getLocationCategories();
+        if (categories && categories.length > 0) {
+          setLocationCategories(categories);
+        }
+      } catch (error) {
+        console.error("Failed to load location categories:", error);
+      }
+    }
+    loadCategories();
+  }, []);
   const [showImportMenu, setShowImportMenu] = useState(false);
   const [columns, setColumns] = useState<ColumnConfig[]>(
     () => {
@@ -999,7 +1013,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                       });
                     }}
                   >
-                    {LOCATION_CATEGORIES.map((cat) => (
+                    {locationCategories.map((cat) => (
                       <option key={cat} value={cat}>
                         {cat}
                       </option>

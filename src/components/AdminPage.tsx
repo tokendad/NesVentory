@@ -38,6 +38,8 @@ import {
   deletePlugin,
   testPluginConnection,
   testAIConnection,
+  getSystemSettings,
+  updateSystemSettings,
   type User,
   type Location,
   type AdminUserCreate,
@@ -111,6 +113,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     ];
   });
   const [customFieldsSuccess, setCustomFieldsSuccess] = useState<string | null>(null);
+
+  // Location Categories state
+  const [locationCategories, setLocationCategories] = useState<string[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  const [categoriesSuccess, setCategoriesSuccess] = useState<string | null>(null);
+  const [newCategory, setNewCategory] = useState("");
 
   // User management states
   const [users, setUsers] = useState<User[]>([]);
@@ -382,6 +391,84 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     }
   }
 
+  async function loadLocationCategories() {
+    setCategoriesLoading(true);
+    setCategoriesError(null);
+    try {
+      const settings = await getSystemSettings();
+      if (settings.custom_location_categories && settings.custom_location_categories.length > 0) {
+        setLocationCategories(settings.custom_location_categories);
+      } else {
+        // Default categories
+        setLocationCategories([
+          "Primary",
+          "Out-building",
+          "Room",
+          "Floor",
+          "Exterior",
+          "Garage",
+          "Shed",
+          "Container"
+        ]);
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to load location categories";
+      setCategoriesError(errorMessage);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  }
+
+  async function handleSaveCategories(categories: string[]) {
+    setCategoriesLoading(true);
+    setCategoriesError(null);
+    setCategoriesSuccess(null);
+    try {
+      await updateSystemSettings({ custom_location_categories: categories });
+      setLocationCategories(categories);
+      setCategoriesSuccess("Location categories saved successfully!");
+      setTimeout(() => setCategoriesSuccess(null), 3000);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to save location categories";
+      setCategoriesError(errorMessage);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  }
+
+  function handleAddCategory() {
+    if (!newCategory.trim()) return;
+    if (locationCategories.includes(newCategory.trim())) {
+      setCategoriesError("Category already exists");
+      return;
+    }
+    const updated = [...locationCategories, newCategory.trim()];
+    handleSaveCategories(updated);
+    setNewCategory("");
+  }
+
+  function handleRemoveCategory(category: string) {
+    if (confirm(`Are you sure you want to remove "${category}"? Note: Existing locations with this category will keep it, but it won't be available for new selection.`)) {
+      const updated = locationCategories.filter(c => c !== category);
+      handleSaveCategories(updated);
+    }
+  }
+
+  function handleResetCategories() {
+    if (confirm("Reset to default categories? This will overwrite your custom list.")) {
+      handleSaveCategories([
+        "Primary",
+        "Out-building",
+        "Room",
+        "Floor",
+        "Exterior",
+        "Garage",
+        "Shed",
+        "Container"
+      ]);
+    }
+  }
+
   async function handleTestConnection(pluginId: string) {
     setTestingConnection(prev => ({ ...prev, [pluginId]: true }));
     setConnectionTestResults(prev => ({ ...prev, [pluginId]: null }));
@@ -420,6 +507,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     }
     if (mainTab === 'plugins') {
       loadPlugins();
+    }
+    if (mainTab === 'custom-fields') {
+      loadLocationCategories();
     }
   }, [mainTab]);
 
@@ -1158,8 +1248,84 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
   // Render Custom Fields tab content
   const renderCustomFieldsTab = () => (
     <div className="tab-content">
-      <div className="form-section" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
-        <h3>Custom Field Templates</h3>
+      {/* Location Categories Section */}
+      <div className="form-section" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none', marginBottom: '2rem' }}>
+        <h3>Custom Location Categories</h3>
+        <p className="help-text">Manage the list of available location categories (e.g., Room, Garage, Container).</p>
+        
+        {categoriesLoading && <p>Loading categories...</p>}
+        {categoriesError && <p className="error-message">{categoriesError}</p>}
+        {categoriesSuccess && (
+          <div className="success-message" style={{ marginBottom: "1rem" }}>
+            {categoriesSuccess}
+          </div>
+        )}
+
+        <div className="dynamic-fields-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+          {locationCategories.map((category) => (
+            <div key={category} style={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.5rem 0.75rem',
+              backgroundColor: 'var(--bg-elevated-softer)',
+              borderRadius: '2rem',
+              border: '1px solid var(--border-subtle)',
+              fontSize: '0.9rem'
+            }}>
+              <span>{category}</span>
+              <button
+                type="button"
+                onClick={() => handleRemoveCategory(category)}
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  color: 'var(--muted)',
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  fontSize: '1.1rem',
+                  lineHeight: 1
+                }}
+                title="Remove category"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <input
+            type="text"
+            placeholder="New Category Name"
+            value={newCategory}
+            onChange={(e) => setNewCategory(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+            style={{ maxWidth: "250px" }}
+          />
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleAddCategory}
+            disabled={!newCategory.trim()}
+          >
+            + Add
+          </button>
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={handleResetCategories}
+            style={{ marginLeft: "auto", fontSize: "0.85rem" }}
+          >
+            Reset to Defaults
+          </button>
+        </div>
+      </div>
+
+      <div className="form-section" style={{ paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
+        <h3>Custom Field Templates (Items)</h3>
         <p className="help-text">Define default custom fields that will appear for new items. (Currently stored locally in browser)</p>
         
         {customFieldsSuccess && (
@@ -1208,10 +1374,6 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                     <option value="boolean">Boolean (Yes/No)</option>
                   </select>
                 </div>
-                {/* Value input is disabled/hidden as this is a template definition, or maybe used for default value? 
-                    The requirement says "options to create custom Fields". 
-                    Usually templates don't have values, but default values might be useful. 
-                    I'll keep it as default value. */}
                 <input
                   type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
                   placeholder="Default Value (Optional)"

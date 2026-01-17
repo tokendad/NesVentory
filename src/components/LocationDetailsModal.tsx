@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { Location, LocationCreate, Item } from "../lib/api";
-import { updateLocation } from "../lib/api";
+import { updateLocation, getLocationCategories } from "../lib/api";
 import InsuranceTab from "./InsuranceTab";
 
 interface LocationDetailsModalProps {
@@ -24,17 +24,6 @@ const LOCATION_TYPES = [
   { value: "other", label: "Other" },
 ];
 
-const LOCATION_CATEGORIES = [
-  "Primary",
-  "Out-building",
-  "Room",
-  "Floor",
-  "Exterior",
-  "Garage",
-  "Shed",
-  "Container"
-];
-
 const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
   location,
   items,
@@ -45,6 +34,30 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>("details");
   const [formError, setFormError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [locationCategories, setLocationCategories] = useState<string[]>([
+    "Primary",
+    "Out-building",
+    "Room",
+    "Floor",
+    "Exterior",
+    "Garage",
+    "Shed",
+    "Container"
+  ]);
+
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const categories = await getLocationCategories();
+        if (categories && categories.length > 0) {
+          setLocationCategories(categories);
+        }
+      } catch (error) {
+        console.error("Failed to load location categories:", error);
+      }
+    }
+    loadCategories();
+  }, []);
 
   // Derive initial category from flags if not set
   const initialCategory = location.location_category || 
@@ -208,7 +221,7 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
                   disabled={formLoading}
                 >
                   <option value="">-- Select Category --</option>
-                  {LOCATION_CATEGORIES.map((cat) => (
+                  {locationCategories.map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
                     </option>

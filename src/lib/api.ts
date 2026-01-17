@@ -2004,6 +2004,59 @@ export async function deletePlugin(pluginId: string): Promise<void> {
   }
 }
 
+// --- System Settings APIs ---
+
+export interface SystemSettings {
+  id: number;
+  gemini_api_key?: string | null;
+  gemini_model?: string | null;
+  google_client_id?: string | null;
+  google_client_secret?: string | null;
+  custom_location_categories?: string[] | null;
+  updated_at: string;
+}
+
+export interface SystemSettingsUpdate {
+  gemini_api_key?: string | null;
+  gemini_model?: string | null;
+  google_client_id?: string | null;
+  google_client_secret?: string | null;
+  custom_location_categories?: string[] | null;
+}
+
+export async function getSystemSettings(): Promise<SystemSettings> {
+  const res = await fetch(`${API_BASE_URL}/api/settings/`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<SystemSettings>(res);
+}
+
+export async function updateSystemSettings(settings: SystemSettingsUpdate): Promise<SystemSettings> {
+  const res = await fetch(`${API_BASE_URL}/api/settings/`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify(settings),
+  });
+  return handleResponse<SystemSettings>(res);
+}
+
+export async function getLocationCategories(): Promise<string[]> {
+  const res = await fetch(`${API_BASE_URL}/api/settings/location-categories`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<string[]>(res);
+}
+
 export async function testPluginConnection(pluginId: string): Promise<PluginConnectionTestResult> {
   const res = await fetch(`${API_BASE_URL}/api/plugins/${pluginId}/test`, {
     method: "POST",

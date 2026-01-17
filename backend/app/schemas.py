@@ -166,6 +166,28 @@ class AvailableAIProvidersResponse(BaseModel):
     providers: List[AvailableAIProvider]
 
 
+# --- System Settings Schemas ---
+
+class SystemSettingsBase(BaseModel):
+    gemini_api_key: Optional[str] = None
+    gemini_model: Optional[str] = None
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+    custom_location_categories: Optional[List[str]] = None
+
+
+class SystemSettingsUpdate(SystemSettingsBase):
+    pass
+
+
+class SystemSettings(SystemSettingsBase):
+    id: int
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # --- AI Connection Test Schemas ---
 
 class AIProviderTestResult(BaseModel):

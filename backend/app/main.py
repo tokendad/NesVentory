@@ -20,7 +20,7 @@ setup_logging()
 from . import models
 from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
-from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins, location_photos, csv_import, media, oidc, printer
+from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins, location_photos, csv_import, media, oidc, printer, settings
 from .routers.auth import perform_password_login
 from .middleware import RequestTracingMiddleware
 
@@ -40,7 +40,7 @@ def run_migrations():
                        "ai_schedule_enabled", "ai_schedule_interval_days", "ai_schedule_last_run",
                        "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "ai_providers", "document_type", "color", 
                        "supports_image_processing", "gemini_model", "must_change_password", "niimbot_printer_config",
-                       "additional_info", "thumbnail_path", "location_category"}
+                       "additional_info", "thumbnail_path", "location_category", "custom_location_categories"}
     ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "VARCHAR(64)", "VARCHAR(7)", "VARCHAR(100)", "BOOLEAN DEFAULT FALSE", "BOOLEAN DEFAULT TRUE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT", "JSON", "VARCHAR(1024)", "VARCHAR(50)"}
     
     # Define migrations: (table_name, column_name, column_definition)
@@ -72,6 +72,8 @@ def run_migrations():
         ("plugins", "supports_image_processing", "BOOLEAN DEFAULT TRUE"),
         # SystemSettings model: gemini_model column for storing user-selected Gemini model
         ("system_settings", "gemini_model", "VARCHAR(100)"),
+        # SystemSettings model: custom_location_categories for dynamic location categories
+        ("system_settings", "custom_location_categories", "JSON"),
         # User model: must_change_password flag for forcing password change on first login
         ("users", "must_change_password", "BOOLEAN DEFAULT FALSE"),
         # User model: NIIMBOT printer configuration (JSON object with connection settings)
@@ -191,6 +193,7 @@ app.include_router(csv_import.router, prefix="/api")
 app.include_router(media.router, prefix="/api")
 app.include_router(oidc.router, prefix="/api")
 app.include_router(printer.router)
+app.include_router(settings.router, prefix="/api")
 
 # Root-level /token endpoint for backward compatibility with mobile apps
 @app.post("/token", response_model=Token)

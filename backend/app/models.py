@@ -451,6 +451,10 @@ class SystemSettings(Base):
     google_client_id = Column(String(255), nullable=True)
     google_client_secret = Column(String(255), nullable=True)
     
+    # Custom Location Categories - stored as JSON array of strings
+    # If null, default hardcoded categories are used
+    custom_location_categories = Column(JSON, nullable=True)
+    
     updated_at = Column(DateTime, default=lambda: datetime.utcnow(), onupdate=lambda: datetime.utcnow(), nullable=False)
 
 
