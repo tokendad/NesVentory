@@ -48,26 +48,79 @@ All notable changes to this project will be documented in this file.
 - NIIMBOT printer support added
 ## [6.4.0] - 2025-12-29
 ### Added
-## [6.3.1] - 2025-12-29
+- OIDC and Authelia support for enhanced authentication
+
 ### Fixed
+- Potential fix for code scanning alert no. 31: Full server-side request forgery
+
+### Changed
+- Bump fastapi from 0.127.0 to 0.128.0 in the python-packages group
+- Sync footer version to 6.3.1 and automate in release workflow
+## [6.3.1] - 2025-12-29
+### Added
+- Image upload to ItemDetails media section with photo type selection
+- Camera-to-AI direct processing for new items
+- Comprehensive API endpoint documentation
+
+### Fixed
+- Fix broken screenshot links in README
+- Fix API endpoint documentation paths for import endpoints
+- Fix insurance tab visibility in InventoryPage and add primary location to seed data
+
+### Changed
+- Optimize mobile views: consolidate breakpoints, reduce text/spacing for no-scroll viewing
+- Optimize add item form for mobile with camera capture support
+- Bump the python-packages group with 2 updates
 ## [6.3.0] - 2025-12-21
 ### Added
+- Insurance details tab for primary locations with comprehensive reporting
+- "Set password on Login" feature for admin user creation
+- Updated README with features from v6.0.0 to v6.2.0
+
+### Changed
+- Improve error display for expired Gemini API keys
+- Consolidate Gemini AI configuration from Server Settings to AI Settings tab
+- Automate nightly Docker push workflow with PR-based triggering
+- Replace text input with hierarchical location dropdown in Media Management filter
 ## [6.2.0] - 2025-12-19
 ### Added
+- Media Management dashboard for inventory photos and videos
 ## [6.1.3] - 2025-12-18
-### Fixed
+### Changed
+- Updated Document Location
 ## [6.1.2] - 2025-12-18
+### Added
+- AI-powered item enrichment with confidence-based accept/reject flow
+- Delete photo functionality to Photo Details modal
+
 ### Fixed
+- Fix IndentationError in config.py preventing container startup
 ## [6.1.1] - 2025-12-18
 ### Fixed
 - Enhancements to GUI
 ## [6.1.0] - 2025-12-17
 ### Added
+- CSV import with image URL download support
 ## [6.0.4] - 2025-12-17
-### Fixed
-- Updated how AI scan works.  Minor Patches Bump
+### Added
+- Plugin support to barcode scanning endpoint
+
+### Changed
+- Updated how AI scan works. Minor Patches Bump
+- Update requirements to remove package versioning
 ## [6.0.3] - 2025-12-16
+### Added
+- Photo metadata editing and item reassignment
+- Media upload support to Location Settings
+- QR label printing to Location Settings for containers
+
 ### Fixed
+- Fix Android app 405 error - Add root /token endpoint
+
+### Changed
+- Add build-essential to Dockerfile for grpcio compilation
+- Resolve protobuf dependency conflict in backend requirements
+- Bump the python-packages group with 2 updates
 ## [6.0.2] - 2025-12-15
 ### Added
 - QR label printing option in Location Settings details page
@@ -76,7 +129,21 @@ All notable changes to this project will be documented in this file.
   - Users can select print mode and generate QR labels directly from the settings modal
 
 ## [6.0.1] - 2025-12-15
+### Added
+- DockerHub publish workflow
+
 ### Fixed
+- Release workflow failure and add commit categorization to release notes
+- Root logger level blocks messages from reaching handlers
+
+### Changed
+- Update Docker publish workflow for dual registry support with new secrets and tags
+- Bump react-dom from 19.2.1 to 19.2.3
+- Bump vite from 7.2.6 to 7.3.0
+- Bump python from 3.13-slim to 3.14-slim
+- Bump react from 19.2.1 to 19.2.3
+- Bump the python-packages group with 6 updates
+- Add manual trigger to docker-publish workflow and simplify to latest-only tagging
 ## [6.0.0] - 2025-12-14
 ### Added
 - **Merged 5.0-upgrade branch into main** - Consolidating all 5.x features into version 6.0.0
@@ -92,9 +159,11 @@ All notable changes to this project will be documented in this file.
   - Updated all version references throughout codebase
 
 ## [5.2.0] - 2025-12-14
-### Added
+### Note
+- Release notes were removed in v6.0.1. Details may be found in git history.
 ## [5.1.0] - 2025-12-11
-### Added
+### Note
+- Release notes were removed in v6.0.1. Details may be found in git history.
 ## [5.0.0] - 2025-12-02
 ### Major UI Redesign
 This is a major release with a complete redesign of the user interface.
