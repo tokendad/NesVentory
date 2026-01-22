@@ -2,7 +2,7 @@ fastapi==0.128.0
 publicsuffix2==2.20191221
 werkzeug==3.1.5
 uvicorn[standard]==0.40.0
-SQLAlchemy==2.0.45
+SQLAlchemy==2.0.46
 psycopg2-binary==2.9.11
 asyncpg==0.31.0
 python-jose[cryptography]==3.5.0
@@ -24,7 +24,7 @@ grpcio
 grpcio-status
 google-generativeai==0.8.6
 google-api-python-client==2.188.0
-google-auth-oauthlib==1.2.3
+google-auth-oauthlib==1.2.4
 boto3>=1.35.0
 # NIIMBOT printer support
 pillow>=10.3.0
