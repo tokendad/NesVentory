@@ -69,7 +69,7 @@ Tells Home Assistant about the integration.
     *   Endpoint: `/api/v1/items/` (GET) to count items.
     *   Auth: Bearer Token (User will generate/provide or login via flow).
 2.  **Config Flow (`config_flow.py`):**
-    *   UI prompt for "URL" (e.g., `http://192.168.1.100:8001`) and "Username/Password".
+    *   UI prompt for "URL" (e.g., `http://192.168.1.100:8181`) and "Username/Password".
     *   Validate connection during setup.
 3.  **Sensor (`sensor.py`):**
     *   `sensor.nesventory_total_items`: State = Count of all items.

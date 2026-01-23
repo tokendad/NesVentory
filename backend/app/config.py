@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "NesVentory"
     VERSION: str = _get_version()
 
-    BACKEND_PORT: int = 8001
+    BACKEND_PORT: int = 8181
     FRONTEND_PORT: int = 5173
     
     # Application URL for QR code generation (used by printer service)

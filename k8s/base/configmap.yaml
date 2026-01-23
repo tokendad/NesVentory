@@ -9,7 +9,7 @@ metadata:
 data:
   # Application settings
   PROJECT_NAME: "NesVentory"
-  APP_PORT: "8001"
+  APP_PORT: "8181"
   TZ: "Etc/UTC"
 
   # Database connection settings (PostgreSQL HA)

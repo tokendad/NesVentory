@@ -19,7 +19,7 @@ These variables **must** be set for the application to function properly.
 | `PGID` | `1000` | Group ID for file ownership. Run `id -g` to find your group ID. |
 | `UMASK` | `002` | File permission mask for created files. |
 | `TZ` | `Etc/UTC` | Timezone (e.g., `America/New_York`, `Europe/London`). |
-| `APP_PORT` | `8001` | Port the application listens on inside the container. |
+| `APP_PORT` | `8181` | Port the application listens on inside the container. |
 
 ## Database Settings
 
@@ -129,7 +129,7 @@ services:
       PUID: 1000
       PGID: 1000
       TZ: America/New_York
-      APP_PORT: 8001
+      APP_PORT: 8181
 
       # Authentication
       ACCESS_TOKEN_EXPIRE_MINUTES: 1440
@@ -152,7 +152,7 @@ services:
       - ./nesventory_data:/app/data
       - /etc/localtime:/etc/localtime:ro
     ports:
-      - "8001:8001"
+      - "8181:8181"
     # Uncomment for Bluetooth printer support:
     # cap_add:
     #   - NET_ADMIN

@@ -21,13 +21,13 @@ spec:
               kubernetes.io/metadata.name: ingress-nginx
       ports:
         - protocol: TCP
-          port: 8001
+          port: 8181
     # Allow internal communication within namespace
     - from:
         - podSelector: {}
       ports:
         - protocol: TCP
-          port: 8001
+          port: 8181
   egress:
     # Allow DNS resolution
     - to:

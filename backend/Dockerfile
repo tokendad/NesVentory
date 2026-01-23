@@ -49,6 +49,6 @@ COPY --chown=nesventory:nesventory . /app
 # Switch to nesventory user
 USER nesventory
 
-EXPOSE 8001
+EXPOSE 8181
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8181"]

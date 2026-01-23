@@ -54,7 +54,7 @@ mkdir -p /path/to/nesventory_data
 # Run NesVentory
 docker run -d \
   --name nesventory \
-  -p 8001:8001 \
+  -p 8181:8181 \
   -e SECRET_KEY=<generate-secure-key> \
   -e JWT_SECRET_KEY=<generate-secure-key> \
   -e TZ=America/New_York \
@@ -80,12 +80,12 @@ services:
       TZ: America/New_York
       SECRET_KEY: <generate-secure-key>
       JWT_SECRET_KEY: <generate-secure-key>
-      APP_PORT: 8001
+      APP_PORT: 8181
     volumes:
       - /path/to/nesventory_data:/app/data
       - /etc/localtime:/etc/localtime:ro
     ports:
-      - "8001:8001"
+      - "8181:8181"
 ```
 
 Then run:
@@ -94,7 +94,7 @@ Then run:
 docker compose up -d
 ```
 
-Access the application at: **http://localhost:8001**
+Access the application at: **http://localhost:8181**
 
 ## Default Credentials
 
@@ -126,7 +126,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `APP_PORT` | `8001` | Application port |
+| `APP_PORT` | `8181` | Application port |
 | `PUID` | `1000` | User ID for file ownership |
 | `PGID` | `1000` | Group ID for file ownership |
 | `UMASK` | `002` | File permission mask |
@@ -204,15 +204,15 @@ The `/app/data` volume contains:
 
 | Port | Description |
 |------|-------------|
-| `8001` | Web UI and API (configurable via `APP_PORT`) |
+| `8181` | Web UI and API (configurable via `APP_PORT`) |
 
 ## Health Check
 
 ```bash
-curl http://localhost:8001/api/health
+curl http://localhost:8181/api/health
 # Response: {"status":"healthy"}
 
-curl http://localhost:8001/api/version
+curl http://localhost:8181/api/version
 # Response: {"name":"NesVentory","version":"6.5.1"}
 ```
 

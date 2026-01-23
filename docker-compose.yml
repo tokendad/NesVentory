@@ -24,7 +24,7 @@ services:
       PGID: 1000
       UMASK: 002
       TZ: Etc/UTC
-      APP_PORT: 8001
+      APP_PORT: 8181
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
       JWT_ALGORITHM: HS256
       # GEMINI_API_KEY: your-gemini-api-key-here
@@ -52,7 +52,7 @@ services:
       # Use CMD-SHELL so the container's APP_PORT environment variable is used.
       # This assumes the container has curl available; if not, switch to python3 or
       # install curl in the image.
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8001/api/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8181/api/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

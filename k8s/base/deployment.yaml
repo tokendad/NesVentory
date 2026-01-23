@@ -38,7 +38,7 @@ spec:
           image: ghcr.io/tokendad/nesventory:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 8001
+            - containerPort: 8181
               name: http
           envFrom:
             - configMapRef:
@@ -133,7 +133,7 @@ spec:
           readinessProbe:
             httpGet:
               path: /api/health
-              port: 8001
+              port: 8181
             initialDelaySeconds: 10
             periodSeconds: 5
             timeoutSeconds: 3
@@ -141,7 +141,7 @@ spec:
           livenessProbe:
             httpGet:
               path: /api/health
-              port: 8001
+              port: 8181
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
@@ -169,7 +169,7 @@ spec:
   type: ClusterIP
   ports:
     - port: 80
-      targetPort: 8001
+      targetPort: 8181
       protocol: TCP
       name: http
   selector:
