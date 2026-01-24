@@ -1,4 +1,8 @@
 # Changelog
+n## [6.7.3] - 2026-01-24
+### Fixed
+- Automated release 6.7.3
+
 n## [6.7.2] - 2026-01-21
 ### Fixed
 - Automated release 6.7.2
