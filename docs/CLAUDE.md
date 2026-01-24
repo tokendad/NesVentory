@@ -27,7 +27,7 @@ docker compose up -d     # Start unified container
 docker compose build     # Rebuild container
 ```
 
-The app runs on port 8001 by default (configurable via APP_PORT env var).
+The app runs on port 8181 by default (configurable via APP_PORT env var).
 
 ## Architecture
 
@@ -118,7 +118,7 @@ Key configuration (see docker-compose.yml):
 - `GEMINI_API_KEY`, `GEMINI_MODEL` - AI features
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - Google OAuth
 - `DISABLE_SIGNUPS` - Prevent new user registration
-- `APP_PORT` - Server port (default 8001)
+- `APP_PORT` - Server port (default 8181)
 
 ## Commit Convention
 

@@ -25,7 +25,7 @@ fi
 
 # Default command if none provided
 if [ $# -eq 0 ]; then
-    set -- uvicorn app.main:app --host 0.0.0.0 --port "${APP_PORT:-8001}"
+    set -- uvicorn app.main:app --host 0.0.0.0 --port "${APP_PORT:-8181}"
 fi
 
 # Switch to the nesventory user (created with PUID/PGID) and run the command

@@ -150,7 +150,7 @@ docker run -d \
   -e UMASK=002 \
   -e TZ=Etc/UTC \
   -v $(pwd)/backend:/app \
-  -p 8001:8001 \
+  -p 8181:8181 \
   --restart unless-stopped \
   nesventory-backend
 
@@ -210,7 +210,7 @@ Docker User Configuration (Optional):
 
 Application Settings:
   PROJECT_NAME                  - Project name (default: NesVentory)
-  BACKEND_PORT                  - Backend port (default: 8001)
+  BACKEND_PORT                  - Backend port (default: 8181)
   FRONTEND_PORT                 - Frontend port (default: 5173)
   ACCESS_TOKEN_EXPIRE_MINUTES   - JWT expiration (default: 30)
 
@@ -240,10 +240,10 @@ See .env.example for a complete template with all available options.
 Once all services are running, you can access:
 
   Frontend UI:        http://localhost:5173
-  Backend API:        http://localhost:8001
-  API Documentation:  http://localhost:8001/docs
-  Health Check:       http://localhost:8001/api/health
-  Version Info:       http://localhost:8001/api/version
+  Backend API:        http://localhost:8181
+  API Documentation:  http://localhost:8181/docs
+  Health Check:       http://localhost:8181/api/health
+  Version Info:       http://localhost:8181/api/version
 
 ================================================================================
 6. DEFAULT LOGIN CREDENTIALS
@@ -283,12 +283,12 @@ To verify the installation is successful:
    - nesventory_backend (running)
 
 2. Check Backend Health:
-   curl http://localhost:8001/api/health
+   curl http://localhost:8181/api/health
    
    Expected response: {"status":"healthy"}
 
 3. Check Backend Version:
-   curl http://localhost:8001/api/version
+   curl http://localhost:8181/api/version
    
    Expected response: {"name":"NesVentory","version":"6.0.0"}
 
@@ -302,7 +302,7 @@ To verify the installation is successful:
    Password: admin123
 
 6. Check Database Seeding:
-   curl http://localhost:8001/api/items
+   curl http://localhost:8181/api/items
    (Requires authentication token)
    
    Should return the 8 pre-seeded test items
@@ -327,7 +327,7 @@ If you see foreign key or type mismatch errors:
 
 Port Already in Use:
 --------------------
-If port 8001 is already in use:
+If port 8181 is already in use:
   - Change the host port in docker-compose.yml ports section
   - Update APP_PORT environment variable to match
   - Restart services
@@ -384,7 +384,7 @@ ADDITIONAL RESOURCES
 
 - Project README: README.md
 - Database Seeding Documentation: SEEDING.md
-- API Documentation: http://localhost:8001/docs (when running)
+- API Documentation: http://localhost:8181/docs (when running)
 - GitHub Repository: https://github.com/tokendad/NesVentory
 
 For issues and support, please visit:

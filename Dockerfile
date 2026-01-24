@@ -32,7 +32,7 @@ ENV PUID=${PUID} \
     PGID=${PGID} \
     UMASK=002 \
     TZ=Etc/UTC \
-    APP_PORT=8001 \
+    APP_PORT=8181 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive
@@ -82,7 +82,7 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 # This is required for bind mounts where directories may be created with root ownership
 
 # Expose default port (actual port is determined by APP_PORT environment variable at runtime)
-EXPOSE 8001
+EXPOSE 8181
 
 # Use entrypoint script to handle permissions and user switching
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

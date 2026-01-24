@@ -240,7 +240,7 @@ async def startup_event():
     """Log startup summary when the application starts."""
     import os
     host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("APP_PORT", "8001"))
+    port = int(os.getenv("APP_PORT", "8181"))
     log_startup_summary(host, port)
 
 

@@ -119,7 +119,7 @@ NesVentory is a modern home inventory management application that helps you trac
    docker compose up -d
    ```
 
-4. Access at: http://localhost:8001
+4. Access at: http://localhost:8181
 
 ### 🔑 Default Login Credentials
 
