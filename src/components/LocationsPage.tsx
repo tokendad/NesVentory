@@ -319,6 +319,16 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
         <div className="panel-header">
           <h2>Browse Locations</h2>
           <div style={{ display: "flex", gap: "0.75rem" }}>
+            {currentLocation && (
+              <button 
+                className="btn-outline"
+                onClick={() => setShowQRPrint(currentLocation)}
+                disabled={loading}
+                title={`Print label for ${currentLocation.friendly_name || currentLocation.name}`}
+              >
+                🖨️ Print Location
+              </button>
+            )}
             <input
               type="file"
               accept="image/*"
@@ -475,7 +485,7 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
                     }}
                     title="Print QR Label"
                   >
-                    📱 QR
+                    🖨️ Print Label
                   </button>
                 </div>
               </div>

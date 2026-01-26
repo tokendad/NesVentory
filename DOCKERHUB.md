@@ -15,7 +15,7 @@
 
 ## Supported Tags
 
-- `latest` - Latest stable release (6.5.1)
+- `latest` - Latest stable release (6.7.3)
 - `6.x.x` - Version 6 series tags
 - `5.x.x` - Version 5 series tags (legacy)
 
@@ -213,7 +213,7 @@ curl http://localhost:8181/api/health
 # Response: {"status":"healthy"}
 
 curl http://localhost:8181/api/version
-# Response: {"name":"NesVentory","version":"6.5.1"}
+# Response: {"name":"NesVentory","version":"6.7.3"}
 ```
 
 ## User/Group Identifiers

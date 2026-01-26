@@ -4,18 +4,22 @@
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
-## 🚀 What's New in Version 6.5.1
+## 🚀 What's New in Version 6.7.3
+
+### 🔧 **Standardization** (v6.7.3)
+- **Unified Port Configuration** - Standardized default port to 8181 across all documentation and configs
+
+### 🏷️ **Dynamic Location Categories** (v6.7.0)
+- **Custom Categories** - Create and manage custom categories for locations (e.g., Room, Garage, Box)
+- **Admin Management** - Dedicated interface for managing location categories
+- **Enhanced Organization** - Better sorting and filtering capabilities for your locations
+
+## Previous Version Highlights
 
 ### 🖨️ **NIIMBOT Printer Improvements** (v6.5.1)
 - **Fixed D11-H printer support** - Improved reliability and compatibility
 - **Bluetooth/USB print options** - Added flexible printing options for thermal printers
 - **Better host compatibility** - Relaxed document host check for various environments
-
-### 🔧 **Dependency Updates** (v6.5.1)
-- Updated React to latest version for improved performance
-- Updated Werkzeug and Vite dependencies
-
-## Previous Version Highlights
 
 ### ✨ **Custom Fields** (v6.5.0)
 - **Dynamic custom fields** - Add custom fields for links, notes, or other information to items
@@ -28,7 +32,7 @@ NesVentory is a modern home inventory management application that helps you trac
 - **Multiple printer models** - Support for B1, B18, B21, D11, D110 models
 - **USB and Bluetooth** - Connect via USB (recommended) or Bluetooth
 - **Configurable settings** - Adjust print density, test connection, and configure in User Settings
-- See [NIIMBOT Printer Guide](docs/NIIMBOT_PRINTER_GUIDE.md) for setup instructions
+- See [NIIMBOT Printer Guide](docs/nimmbott/NIIMBOT_PRINTER_GUIDE.md) for setup instructions
 
 ### 🔐 **OIDC Authentication** (v6.4.0)
 - **OpenID Connect support** - Integrate with OIDC providers like Authelia and Keycloak
@@ -42,7 +46,7 @@ NesVentory is a modern home inventory management application that helps you trac
 - **Automatic value calculation** - Total and estimated values including all items in location
 - **Print functionality** - Basic and comprehensive insurance reports with photos
 - **CSV export** - RFC 4180 compliant export of all items for insurance claims
-- See [Insurance Tab Guide](docs/INSURANCE_TAB_GUIDE.md) for detailed instructions
+- See [Insurance Tab Guide](docs/Guides/INSURANCE_TAB_GUIDE.md) for detailed instructions
 
 ## Features
 
@@ -139,10 +143,10 @@ The application comes with pre-seeded test users:
 - **[INSTALL.txt](INSTALL.txt)** - Comprehensive installation guide with Docker Compose and CLI commands
 - **[SEEDING.md](SEEDING.md)** - Details about pre-seeded test data and how to customize it
 - **[INTERNATIONALIZATION.md](INTERNATIONALIZATION.md)** - Guide to international format support for dates and currencies
-- **[CSV_IMPORT.md](CSV_IMPORT.md)** - Guide for importing inventory from CSV files with image URLs
-- **[docs/PLUGINS.md](docs/PLUGINS.md)** - Guide for creating and configuring custom LLM plugins
-- **[docs/INSURANCE_TAB_GUIDE.md](docs/INSURANCE_TAB_GUIDE.md)** - Guide for using the insurance documentation features
-- **[docs/NIIMBOT_PRINTER_GUIDE.md](docs/NIIMBOT_PRINTER_GUIDE.md)** - Setup and usage guide for NIIMBOT thermal label printers
+- **[docs/Guides/CSV_IMPORT.md](docs/Guides/CSV_IMPORT.md)** - Guide for importing inventory from CSV files with image URLs
+- **[docs/Guides/PLUGINS.md](docs/Guides/PLUGINS.md)** - Guide for creating and configuring custom LLM plugins
+- **[docs/Guides/INSURANCE_TAB_GUIDE.md](docs/Guides/INSURANCE_TAB_GUIDE.md)** - Guide for using the insurance documentation features
+- **[docs/nimmbott/NIIMBOT_PRINTER_GUIDE.md](docs/nimmbott/NIIMBOT_PRINTER_GUIDE.md)** - Setup and usage guide for NIIMBOT thermal label printers
 
 ## 📄 License
 
