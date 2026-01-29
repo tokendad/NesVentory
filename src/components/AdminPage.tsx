@@ -743,15 +743,12 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     setLogError(null);
     setGithubIssueUrl(null);
     setPopupBlocked(false);
-    
+
     const POPUP_BLOCKED_MESSAGE = "Popup blocked by browser. Please use the link below to open the GitHub issue.";
-    
-    // Open a new window immediately to avoid popup blockers
-    const newWindow = window.open('about:blank', '_blank', 'noopener,noreferrer');
-    
+
     try {
       const reportData = await getIssueReportData();
-      
+
       // Validate that the URL is properly formatted and is a GitHub URL to prevent XSS
       let validatedUrl: URL;
       try {
@@ -762,37 +759,21 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
       } catch {
         throw new Error('Invalid GitHub URL received from server');
       }
-      
+
       // Store the URL in case popup is blocked
       setGithubIssueUrl(validatedUrl.href);
-      
-      // Navigate the opened window to the GitHub issue URL
-      if (newWindow && !newWindow.closed) {
-        try {
-          newWindow.location.href = validatedUrl.href;
-        } catch (navError) {
-          console.warn("Navigation failed, likely popup blocked:", navError);
-          // Firefox might block the navigation even if window was opened
-          setPopupBlocked(true);
-          setLogError(POPUP_BLOCKED_MESSAGE);
-          newWindow.close();
-        }
-      } else {
-        // Popup was blocked (window.open returned null) or window was closed
+
+      // Open the GitHub issue URL directly
+      const newWindow = window.open(validatedUrl.href, '_blank');
+
+      if (!newWindow) {
+        // Popup was blocked
         setPopupBlocked(true);
         setLogError(POPUP_BLOCKED_MESSAGE);
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Failed to generate issue report";
       setLogError(errorMessage);
-      // Close the blank window if we opened one
-      if (newWindow && !newWindow.closed) {
-        try {
-          newWindow.close();
-        } catch {
-          // Ignore errors when closing window
-        }
-      }
     } finally {
       setIssueReportLoading(false);
     }
@@ -2098,7 +2079,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
               <ul style={{ margin: "0 0 1rem 1rem", padding: 0, fontSize: "0.85rem" }}>
                 <li>System information (app version, database type, platform)</li>
                 <li>Current log settings configuration</li>
-                <li>Recent error logs (last 50 lines)</li>
+                <li>Instructions to upload log files if needed</li>
               </ul>
               <button
                 className="btn-primary"

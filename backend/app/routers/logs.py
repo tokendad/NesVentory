@@ -492,12 +492,8 @@ async def get_issue_report_data(
         f"- Python: {platform.python_version()}\n"
         f"- Architecture: {platform.machine()}"
     )
-    
-    # Create GitHub issue URL with pre-filled content
-    # Keep URL short to avoid browser/GitHub URL length limits (~8000 chars)
-    # Only include last 500 chars of logs to keep URL manageable
-    truncated_logs = error_logs[-500:] if len(error_logs) > 500 else error_logs
 
+    # Create GitHub issue URL with pre-filled content
     issue_title = urllib.parse.quote("Bug Report: [Brief description]", safe='')
     issue_body = urllib.parse.quote(
         "## Description\n"
@@ -515,13 +511,9 @@ async def get_issue_report_data(
         f"- Database Type: {database_type}\n"
         f"- Log Level: {log_settings.log_level}\n"
         f"{system_info}\n\n"
-        "## Recent Logs\n"
-        "<details>\n"
-        "<summary>Click to expand log content</summary>\n\n"
-        "```\n"
-        f"{truncated_logs}\n"
-        "```\n\n"
-        "</details>\n\n"
+        "## Log Files\n"
+        "If you are experiencing an error, please download and attach the relevant log file(s) from:\n"
+        "**Admin → Logs → Download** button next to the log file.\n\n"
         "## Additional Context\n"
         "[Add any other context about the problem here]\n",
         safe=''
