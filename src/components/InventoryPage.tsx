@@ -374,6 +374,25 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
           className="btn-icon-small"
           onClick={(e) => {
             e.stopPropagation();
+            setShowQRPrint(loc);
+          }}
+          title="Print Label"
+          style={{
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: "0.25rem",
+            display: "flex",
+            alignItems: "center",
+            fontSize: "1rem",
+          }}
+        >
+          🖨️
+        </button>
+        <button
+          className="btn-icon-small"
+          onClick={(e) => {
+            e.stopPropagation();
             setShowLocationSettings(loc);
             setLocationSettingsTab("details"); // Reset to details tab
             setEditFormData({

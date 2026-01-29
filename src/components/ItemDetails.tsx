@@ -6,6 +6,7 @@ import { RELATIONSHIP_LABELS, LIVING_TAG_NAME, DOCUMENT_TYPES, PHOTO_TYPES } fro
 import MaintenanceTab from "./MaintenanceTab";
 import PhotoModal from "./PhotoModal";
 import EnrichmentModal from "./EnrichmentModal";
+import QRLabelPrint from "./QRLabelPrint";
 
 interface ItemDetailsProps {
   item: Item;
@@ -35,6 +36,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
   const [enriching, setEnriching] = useState(false);
   const [enrichmentError, setEnrichmentError] = useState<string | null>(null);
   const [enrichmentData, setEnrichmentData] = useState<EnrichedItemData[] | null>(null);
+  const [showQRPrint, setShowQRPrint] = useState(false);
   
   // Photo upload state
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -530,6 +532,13 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
         </button>
         <button
           className="btn-outline"
+          onClick={() => setShowQRPrint(true)}
+          title="Print a QR label for this item"
+        >
+          🖨️ Print Label
+        </button>
+        <button
+          className="btn-outline"
           onClick={handleEnrich}
           disabled={enriching}
           style={{ marginLeft: "auto" }}
@@ -595,6 +604,14 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
           uploading={uploadingPhoto}
           error={photoUploadError}
           isLivingItem={isLivingItem}
+        />
+      )}
+
+      {/* QR Label Print Modal */}
+      {showQRPrint && (
+        <QRLabelPrint
+          item={item}
+          onClose={() => setShowQRPrint(false)}
         />
       )}
     </section>

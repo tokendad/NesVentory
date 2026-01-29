@@ -42,6 +42,7 @@ WORKDIR /app
 # Install only essential runtime dependencies
 # gosu is needed for the entrypoint to switch from root to nesventory user
 # curl is needed for healthcheck
+# libcups2-dev is needed for pycups (system printer integration)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tzdata \
     gosu \
@@ -50,6 +51,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcap2-bin \
     util-linux \
     fonts-dejavu \
+    libcups2-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

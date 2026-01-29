@@ -1,4 +1,23 @@
 # Changelog
+
+## [6.8.0] - 2026-01-29
+### Added
+- **System Printer (CUPS) Support** - Print QR labels to any system printer configured via CUPS
+- **Item Label Printing** - New "Print Label" button on Item Details page for individual item QR codes
+- **First-Time User Guidance** - Helpful tip shown to new users about print functionality (Issue #464)
+- **Print Preferences** - Connection type and settings remembered between sessions
+- **Windows LPD Printing Guide** - Documentation for printing from Docker to Windows printers
+- New API endpoints for system printer integration (`/api/printer/system/*`)
+
+### Changed
+- Updated React to 19.2.4 (DoS mitigations for Server Components)
+- Updated react-dom to 19.2.4
+- Updated python-multipart to 0.0.22 (security fix)
+- Updated sqlalchemy to 2.0.46
+- Updated google-auth-oauthlib to 1.2.4
+- Added `libcups2-dev` and `pycups` for CUPS integration
+- Added CUPS socket mount option to docker-compose.yml
+
 n## [6.7.4] - 2026-01-26
 ### Fixed
 - Automated release 6.7.4

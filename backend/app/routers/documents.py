@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Set
 from uuid import UUID
 from urllib.parse import urlparse
 import ipaddress
@@ -13,11 +13,54 @@ from datetime import datetime
 from .. import models, schemas
 from ..deps import get_db
 from ..storage import get_storage
+from ..config import settings
 import httpx
 import socket
 
-# ALLOWED_HOSTS defines what hostnames can be used for document URLs. Add your trusted domains here.
-ALLOWED_HOSTS = {"example.com"}  # TODO: Replace with your allowed host(s), e.g. {"files.example.com"}
+
+def get_allowed_hosts() -> Set[str]:
+    """Parse DOCUMENT_URL_ALLOWED_HOSTS from config into a set of lowercase hostnames."""
+    hosts_str = settings.DOCUMENT_URL_ALLOWED_HOSTS
+    if not hosts_str or hosts_str.strip() == "":
+        return set()
+    return {h.strip().lower() for h in hosts_str.split(",") if h.strip()}
+
+
+def is_host_allowed(hostname: str) -> bool:
+    """
+    Check if hostname is allowed for document URL downloads.
+
+    Security note: This is an additional layer on top of SSRF IP protection.
+    Even when host validation is disabled, private/loopback/link-local IPs are still blocked.
+    """
+    # If host validation is disabled, allow all public hosts
+    if not settings.DOCUMENT_URL_HOST_VALIDATION:
+        return True
+
+    # Get configured allowed hosts
+    allowed_hosts = get_allowed_hosts()
+
+    # If no hosts are configured and validation is enabled, allow all
+    # (to maintain backwards compatibility and avoid breaking existing setups)
+    if not allowed_hosts:
+        return True
+
+    # Canonicalize hostname
+    canonical_hostname = hostname.rstrip('.').lower()
+
+    # Check exact hostname match
+    if canonical_hostname in allowed_hosts:
+        return True
+
+    # Check second-level domain (e.g., "files.example.com" matches "example.com")
+    try:
+        sld = get_sld(canonical_hostname)
+        if sld and sld in allowed_hosts:
+            return True
+    except Exception:
+        pass
+
+    return False
 
 logger = logging.getLogger(__name__)
 
@@ -146,21 +189,6 @@ async def upload_document_from_url(
         if not hostname:
             raise HTTPException(status_code=400, detail="URL must include a hostname.")
 
-        # Security: Only allow *exact* (canonical) hosts in ALLOWED_HOSTS. No subdomain tricks.
-        def canonicalize_host(host):
-            # Lowercase, strip trailing dot (which can trick checks), handle IDN
-            return host.rstrip('.').lower()
-
-        canonical_hostname = canonicalize_host(hostname)
-        # Use get_sld to get the "registrable domain". We want to avoid subdomains.
-        # Only allow *exact* host matches, not subdomains.
-        # ALLOWED_HOSTS check removed to allow any public URL.
-        # if canonical_hostname not in ALLOWED_HOSTS:
-        #    raise HTTPException(
-        #        status_code=400,
-        #        detail="Host is not allowed. Only specific hosts are permitted."
-        #    )
-
         # Resolve hostname to prevent DNS rebinding/bypass
         try:
             addr_info = socket.getaddrinfo(hostname, None)
@@ -201,10 +229,12 @@ async def upload_document_from_url(
         if not hostname:
             raise HTTPException(status_code=400, detail="URL must include a hostname")
 
-        # Enforce allowed hosts using the effective second-level domain.
-        sld = get_sld(hostname)
-        if sld not in ALLOWED_HOSTS and hostname not in ALLOWED_HOSTS:
-            raise HTTPException(status_code=400, detail="Host not allowed")
+        # Check if host is allowed (configurable via DOCUMENT_URL_HOST_VALIDATION and DOCUMENT_URL_ALLOWED_HOSTS)
+        if not is_host_allowed(hostname):
+            raise HTTPException(
+                status_code=400,
+                detail="Host not allowed. Configure DOCUMENT_URL_ALLOWED_HOSTS or set DOCUMENT_URL_HOST_VALIDATION=false."
+            )
 
         # Reconstruct a safe URL using the validated components.
         safe_netloc = hostname

@@ -39,6 +39,12 @@ services:
       # GOOGLE_CLIENT_ID: your-google-client-id
       # GOOGLE_CLIENT_SECRET: your-google-client-secret
       DISABLE_SIGNUPS: true
+      # Document URL Security (for uploading documents/manuals from external URLs)
+      # Set to 'false' to allow documents from any public URL (recommended for home use)
+      # Private IPs, localhost, and link-local addresses are always blocked regardless of this setting
+      DOCUMENT_URL_HOST_VALIDATION: false
+      # Or specify allowed hosts (comma-separated) - only used when HOST_VALIDATION is true
+      # DOCUMENT_URL_ALLOWED_HOSTS: "github.com,githubusercontent.com,dropbox.com,example.com"
     volumes:
       - /data/DockerConfigs/nesventory5-data:/app/data
       - ./backend/app:/app/app
@@ -47,12 +53,13 @@ services:
       # DBus access for Bluetooth
       - /var/run/dbus:/var/run/dbus
       - /run/dbus:/run/dbus
+      # CUPS socket for system printer integration (optional)
+      # Uncomment to enable printing to host system printers
+      - /var/run/cups/cups.sock:/var/run/cups/cups.sock
 
     healthcheck:
       # Use CMD-SHELL so the container's APP_PORT environment variable is used.
-      # This assumes the container has curl available; if not, switch to python3 or
-      # install curl in the image.
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8181/api/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:${APP_PORT:-8181}/api/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

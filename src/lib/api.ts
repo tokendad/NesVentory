@@ -2334,4 +2334,82 @@ export async function getPrinterModels(): Promise<{ models: PrinterModel[] }> {
   return handleResponse<{ models: PrinterModel[] }>(res);
 }
 
+// ====================================
+// System Printer (CUPS) API
+// ====================================
+
+export interface SystemPrinter {
+  name: string;
+  info: string;
+  location: string;
+  make_model: string;
+  state: number;
+  state_message: string;
+  is_default: boolean;
+  accepting_jobs: boolean;
+}
+
+export interface SystemPrinterAvailability {
+  available: boolean;
+  message: string;
+}
+
+export async function checkSystemPrintersAvailable(): Promise<SystemPrinterAvailability> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/system/available`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<SystemPrinterAvailability>(res);
+}
+
+export async function getSystemPrinters(): Promise<SystemPrinter[]> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/system/printers`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+  });
+  return handleResponse<SystemPrinter[]>(res);
+}
+
+export async function printToSystemPrinter(
+  printerName: string,
+  locationId: string
+): Promise<PrinterResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/system/print-location`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({
+      printer_name: printerName,
+      location_id: locationId,
+    }),
+  });
+  return handleResponse<PrinterResponse>(res);
+}
+
+export async function printItemToSystemPrinter(
+  printerName: string,
+  itemId: string
+): Promise<PrinterResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/system/print-item`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    body: JSON.stringify({
+      printer_name: printerName,
+      item_id: itemId,
+    }),
+  });
+  return handleResponse<PrinterResponse>(res);
+}
+
 

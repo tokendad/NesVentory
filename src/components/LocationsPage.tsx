@@ -26,6 +26,9 @@ const LOCATION_TYPES = [
   { value: "other", label: "Other" },
 ];
 
+// localStorage key for first-time user guidance
+const PRINT_TIP_SEEN_KEY = "nesventory_print_tip_seen";
+
 const LocationsPage: React.FC<LocationsPageProps> = ({
   locations,
   items = [],
@@ -50,6 +53,24 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
   // QR Scanning
   const [scanningQR, setScanningQR] = useState(false);
   const qrInputRef = useRef<HTMLInputElement>(null);
+
+  // First-time user guidance
+  const [showPrintTip, setShowPrintTip] = useState(false);
+
+  // Check if user has seen the print tip
+  useEffect(() => {
+    const hasSeen = localStorage.getItem(PRINT_TIP_SEEN_KEY);
+    if (!hasSeen && locations.length > 0) {
+      // Show tip after a short delay so page loads first
+      const timer = setTimeout(() => setShowPrintTip(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [locations.length]);
+
+  const dismissPrintTip = () => {
+    setShowPrintTip(false);
+    localStorage.setItem(PRINT_TIP_SEEN_KEY, "true");
+  };
 
   // Form state
   const [formData, setFormData] = useState<LocationCreate>({
@@ -355,7 +376,45 @@ const LocationsPage: React.FC<LocationsPageProps> = ({
         </div>
         {error && <div className="error-banner">{error}</div>}
         {formError && !showForm && <div className="error-banner">{formError}</div>}
-        
+
+        {/* First-time user guidance tip */}
+        {showPrintTip && (
+          <div style={{
+            background: "linear-gradient(135deg, rgba(78, 205, 196, 0.2), rgba(78, 205, 196, 0.1))",
+            border: "1px solid rgba(78, 205, 196, 0.5)",
+            borderRadius: "8px",
+            padding: "1rem",
+            marginBottom: "1rem",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "0.75rem"
+          }}>
+            <span style={{ fontSize: "1.5rem" }}>💡</span>
+            <div style={{ flex: 1 }}>
+              <strong style={{ display: "block", marginBottom: "0.25rem" }}>Did you know?</strong>
+              <p style={{ margin: 0, fontSize: "0.9rem" }}>
+                You can print QR labels for any location or item! Click the{" "}
+                <strong>🖨️ Print Label</strong> button on any location card to generate a scannable QR code label.
+                Works with NIIMBOT printers via USB or Bluetooth - no setup required!
+              </p>
+            </div>
+            <button
+              onClick={dismissPrintTip}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "0.25rem",
+                fontSize: "1rem",
+                opacity: 0.7
+              }}
+              title="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Breadcrumb navigation */}
         <div className="location-breadcrumb">
           <button

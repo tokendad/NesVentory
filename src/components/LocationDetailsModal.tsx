@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import type { Location, LocationCreate, Item } from "../lib/api";
 import { updateLocation, getLocationCategories } from "../lib/api";
 import InsuranceTab from "./InsuranceTab";
+import QRLabelPrint from "./QRLabelPrint";
 
 interface LocationDetailsModalProps {
   location: Location;
@@ -34,6 +35,7 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>("details");
   const [formError, setFormError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [showQRPrint, setShowQRPrint] = useState(false);
   const [locationCategories, setLocationCategories] = useState<string[]>([
     "Primary",
     "Out-building",
@@ -155,9 +157,19 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
       >
         <div className="modal-header">
           <h2>{location.friendly_name || location.name}</h2>
-          <button className="modal-close" onClick={onClose}>
-            ✕
-          </button>
+          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <button
+              className="btn-outline"
+              onClick={() => setShowQRPrint(true)}
+              title="Print QR Label for this location"
+              style={{ padding: "0.25rem 0.5rem", fontSize: "0.85rem" }}
+            >
+              🖨️ Print Label
+            </button>
+            <button className="modal-close" onClick={onClose}>
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Tabs - Only show Insurance tab for primary locations */}
@@ -332,6 +344,15 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
           </div>
         )}
       </div>
+
+      {/* QR Label Print Modal */}
+      {showQRPrint && (
+        <QRLabelPrint
+          location={location}
+          items={items.filter(item => item.location_id?.toString() === location.id.toString())}
+          onClose={() => setShowQRPrint(false)}
+        />
+      )}
     </div>
   );
 };

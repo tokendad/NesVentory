@@ -1,7 +1,14 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import QRCode from "qrcode";
-import type { Location, Item, PrinterConfig } from "../lib/api";
-import { getPrinterConfig, printLabel } from "../lib/api";
+import type { Location, Item, PrinterConfig, SystemPrinter } from "../lib/api";
+import {
+  getPrinterConfig,
+  printLabel,
+  checkSystemPrintersAvailable,
+  getSystemPrinters,
+  printToSystemPrinter,
+  printItemToSystemPrinter,
+} from "../lib/api";
 import { NiimbotClient, BluetoothTransport, SerialTransport } from "../lib/niimbot";
 
 // Print mode options
@@ -13,20 +20,34 @@ export const PRINT_MODE_OPTIONS: { value: PrintMode; label: string }[] = [
   { value: "items_only", label: "Print Item List Only" },
 ];
 
-export type ConnectionType = "bluetooth" | "usb" | "server";
+export type ConnectionType = "bluetooth" | "usb" | "server" | "system";
 
 export const CONNECTION_OPTIONS: { value: ConnectionType; label: string; icon: string }[] = [
-  { value: "server", label: "Server Printer (Recommended)", icon: "🖨️" },
+  { value: "server", label: "Server NIIMBOT (Recommended)", icon: "🖨️" },
+  { value: "system", label: "System Printer (CUPS)", icon: "🖥️" },
   { value: "bluetooth", label: "Bluetooth (Mobile/Laptop)", icon: "📱" },
   { value: "usb", label: "Direct USB (Web API)", icon: "🔌" },
 ];
 
-interface QRLabelPrintProps {
-  location: Location;
-  items: Item[];
+// Props can be for either a location or an item
+interface QRLabelPrintPropsBase {
   onClose: () => void;
   initialPrintMode?: PrintMode;
 }
+
+interface QRLabelPrintPropsLocation extends QRLabelPrintPropsBase {
+  location: Location;
+  items: Item[];
+  item?: never;
+}
+
+interface QRLabelPrintPropsItem extends QRLabelPrintPropsBase {
+  item: Item;
+  location?: never;
+  items?: never;
+}
+
+type QRLabelPrintProps = QRLabelPrintPropsLocation | QRLabelPrintPropsItem;
 
 // Seasonal holiday icons
 const HOLIDAY_ICONS: Record<string, string> = {
@@ -71,17 +92,52 @@ const escapeHtml = (text: string): string => {
   return div.innerHTML;
 };
 
-const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
-  location,
-  items,
-  onClose,
-  initialPrintMode,
-}) => {
+// localStorage keys for print preferences
+const PRINT_PREFS_KEY = "nesventory_print_preferences";
+
+interface PrintPreferences {
+  connectionType: ConnectionType;
+  printMode: PrintMode;
+  holiday: string;
+}
+
+const loadPrintPreferences = (): Partial<PrintPreferences> => {
+  try {
+    const saved = localStorage.getItem(PRINT_PREFS_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (e) {
+    console.error("Failed to load print preferences:", e);
+  }
+  return {};
+};
+
+const savePrintPreferences = (prefs: Partial<PrintPreferences>) => {
+  try {
+    const current = loadPrintPreferences();
+    localStorage.setItem(PRINT_PREFS_KEY, JSON.stringify({ ...current, ...prefs }));
+  } catch (e) {
+    console.error("Failed to save print preferences:", e);
+  }
+};
+
+const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
+  const { onClose, initialPrintMode } = props;
+
+  // Determine if we're printing for a location or an item
+  const isItemMode = 'item' in props && props.item !== undefined;
+  const location = isItemMode ? undefined : (props as QRLabelPrintPropsLocation).location;
+  const items = isItemMode ? [] : (props as QRLabelPrintPropsLocation).items;
+  const item = isItemMode ? (props as QRLabelPrintPropsItem).item : undefined;
+  // Load saved preferences
+  const savedPrefs = useMemo(() => loadPrintPreferences(), []);
+
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
-  const [printMode, setPrintMode] = useState<PrintMode>(initialPrintMode || "qr_with_items");
-  const [selectedHoliday, setSelectedHoliday] = useState("none");
+  const [printMode, setPrintMode] = useState<PrintMode>(initialPrintMode || savedPrefs.printMode || "qr_with_items");
+  const [selectedHoliday, setSelectedHoliday] = useState(savedPrefs.holiday || "none");
   const [selectedSize] = useState("12x40");
-  const [connectionType, setConnectionType] = useState<ConnectionType>("server");
+  const [connectionType, setConnectionType] = useState<ConnectionType>(savedPrefs.connectionType || "server");
   const [loading, setLoading] = useState(true);
   const [printError, setPrintError] = useState<string | null>(null);
   const [printSuccess, setPrintSuccess] = useState<string | null>(null);
@@ -90,15 +146,56 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
   const [isConnecting, setIsConnecting] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
+  // System printer state
+  const [systemPrintersAvailable, setSystemPrintersAvailable] = useState<boolean | null>(null);
+  const [systemPrinters, setSystemPrinters] = useState<SystemPrinter[]>([]);
+  const [selectedSystemPrinter, setSelectedSystemPrinter] = useState<string>("");
+  const [loadingSystemPrinters, setLoadingSystemPrinters] = useState(false);
+
+  // Browser capability detection
+  const browserCapabilities = useMemo(() => {
+    const hasWebBluetooth = typeof navigator !== 'undefined' && 'bluetooth' in navigator;
+    const hasWebSerial = typeof navigator !== 'undefined' && 'serial' in navigator;
+    return { hasWebBluetooth, hasWebSerial };
+  }, []);
+
+  // Set default connection type based on browser capabilities (only if no saved preference)
+  useEffect(() => {
+    // Only auto-select if user hasn't set a preference before
+    if (savedPrefs.connectionType) return;
+
+    if (!browserCapabilities.hasWebBluetooth && !browserCapabilities.hasWebSerial) {
+      // Neither API available - default to server
+      setConnectionType("server");
+    } else if (browserCapabilities.hasWebSerial && !browserCapabilities.hasWebBluetooth) {
+      // Only USB available (desktop Chrome without BT)
+      setConnectionType("usb");
+    } else if (browserCapabilities.hasWebBluetooth && !browserCapabilities.hasWebSerial) {
+      // Only Bluetooth available (mobile)
+      setConnectionType("bluetooth");
+    }
+    // If both available, keep default "server"
+  }, [browserCapabilities, savedPrefs.connectionType]);
+
+  // Save preferences when they change
+  useEffect(() => {
+    savePrintPreferences({ connectionType });
+  }, [connectionType]);
+
+  useEffect(() => {
+    savePrintPreferences({ printMode });
+  }, [printMode]);
+
+  useEffect(() => {
+    savePrintPreferences({ holiday: selectedHoliday });
+  }, [selectedHoliday]);
+
   // Fetch printer configuration on mount
   useEffect(() => {
     const fetchPrinterConfig = async () => {
       try {
         const config = await getPrinterConfig();
         setPrinterConfig(config);
-        // If server printer is configured, default to it? 
-        // Or stick to bluetooth as default for mobile-first.
-        // Let's keep bluetooth default unless maybe non-mobile detected, but hard to know.
       } catch (err) {
         console.error("Failed to fetch printer config:", err);
       }
@@ -106,23 +203,77 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
     fetchPrinterConfig();
   }, []);
 
+  // Check system printer availability and fetch printers when "system" is selected
+  useEffect(() => {
+    if (connectionType !== "system") return;
+
+    const fetchSystemPrinters = async () => {
+      setLoadingSystemPrinters(true);
+      try {
+        const availability = await checkSystemPrintersAvailable();
+        setSystemPrintersAvailable(availability.available);
+
+        if (availability.available) {
+          const printers = await getSystemPrinters();
+          setSystemPrinters(printers);
+          // Auto-select default printer or first one
+          const defaultPrinter = printers.find(p => p.is_default);
+          if (defaultPrinter) {
+            setSelectedSystemPrinter(defaultPrinter.name);
+          } else if (printers.length > 0) {
+            setSelectedSystemPrinter(printers[0].name);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch system printers:", err);
+        setSystemPrintersAvailable(false);
+      } finally {
+        setLoadingSystemPrinters(false);
+      }
+    };
+
+    fetchSystemPrinters();
+  }, [connectionType]);
+
   // Memoize label size to avoid repeated lookups
   const labelSize = useMemo(() => {
     return LABEL_SIZES.find((s) => s.value === selectedSize);
   }, [selectedSize]);
 
   // Generate the URL that the QR code will point to
-  const getLocationUrl = () => {
+  const getTargetUrl = () => {
     const baseUrl = window.location.origin;
-    return `${baseUrl}/#/location/${location.id}`;
+    if (isItemMode && item) {
+      return `${baseUrl}/#/item/${item.id}`;
+    }
+    return `${baseUrl}/#/location/${location!.id}`;
   };
 
-  // Generate QR code on mount or when location changes
+  // Get the display name for the label
+  const getLabelName = () => {
+    if (isItemMode && item) {
+      return item.name;
+    }
+    return location!.friendly_name || location!.name;
+  };
+
+  // Get subtitle info (brand/model for items, location type for locations)
+  const getLabelSubtitle = () => {
+    if (isItemMode && item) {
+      const parts = [];
+      if (item.brand) parts.push(item.brand);
+      if (item.model_number) parts.push(item.model_number);
+      return parts.join(" - ");
+    }
+    return location!.location_type?.replace(/_/g, " ") || "";
+  };
+
+  // Generate QR code on mount or when location/item changes
   useEffect(() => {
     const generateQR = async () => {
       try {
         setLoading(true);
-        const url = getLocationUrl();
+        const url = getTargetUrl();
         const dataUrl = await QRCode.toDataURL(url, {
           width: 150,
           margin: 1,
@@ -140,7 +291,7 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
     };
 
     generateQR();
-  }, [location.id]);
+  }, [isItemMode ? item?.id : location?.id]);
 
   const handleServerPrint = async () => {
     try {
@@ -148,12 +299,18 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
       setPrintError(null);
       setPrintSuccess(null);
 
+      if (isItemMode) {
+        // Item printing via server not yet supported - use direct printing
+        setPrintError("Server printing for items is not yet supported. Please use USB or Bluetooth direct printing.");
+        return;
+      }
+
       // Don't pass label_width/label_height - let the server use the correct
       // dimensions for the configured printer model (e.g., d11_h = 136x472)
       const result = await printLabel({
-        location_id: location.id.toString(),
-        location_name: location.friendly_name || location.name,
-        is_container: location.is_container || false,
+        location_id: location!.id.toString(),
+        location_name: location!.friendly_name || location!.name,
+        is_container: location!.is_container || false,
       });
 
       if (result.success) {
@@ -164,6 +321,41 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
     } catch (err) {
       console.error("Failed to print to NIIMBOT:", err);
       setPrintError("Failed to print label. Please check your printer connection.");
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  // Handle printing to system printer (CUPS)
+  const handleSystemPrint = async () => {
+    try {
+      setIsPrinting(true);
+      setPrintError(null);
+      setPrintSuccess(null);
+
+      if (!selectedSystemPrinter) {
+        setPrintError("Please select a system printer.");
+        return;
+      }
+
+      let result;
+      if (isItemMode && item) {
+        result = await printItemToSystemPrinter(selectedSystemPrinter, item.id.toString());
+      } else if (location) {
+        result = await printToSystemPrinter(selectedSystemPrinter, location.id.toString());
+      } else {
+        setPrintError("No location or item specified.");
+        return;
+      }
+
+      if (result.success) {
+        setPrintSuccess(result.message);
+      } else {
+        setPrintError(result.message);
+      }
+    } catch (err) {
+      console.error("Failed to print to system printer:", err);
+      setPrintError("Failed to print label. Please check CUPS is running and the printer is available.");
     } finally {
       setIsPrinting(false);
     }
@@ -210,6 +402,10 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
       // Check if this is a D11-H style label (472x136 landscape, becomes 136x472 after rotation)
       const isD11HLabel = width === 472 && height === 136;
 
+      // Get the label title
+      const labelTitle = getLabelName();
+      const labelSubtitle = getLabelSubtitle();
+
       if (isD11HLabel && printMode !== 'items_only' && qrDataUrl) {
           // D11-H layout: QR on left (becomes top after +90 rotation), text on right (becomes bottom)
           // Matches server layout: 124x124 QR, 32px font, maximized text area
@@ -229,8 +425,8 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
           const textW = width - textX - 5;  // ~329px available
 
           ctx.font = 'bold 32px Arial';
-          let title = location.friendly_name || location.name;
-          if (location.is_container) title += " [BOX]";
+          let title = labelTitle;
+          if (!isItemMode && location?.is_container) title += " [BOX]";
           if (holidayIcon) title = HOLIDAY_ICONS[selectedHoliday] + " " + title;
 
           // Center text vertically in the 136px height
@@ -251,43 +447,43 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
           const textW = width - textX - 10;
 
           ctx.font = 'bold 24px Arial';
-          let title = location.friendly_name || location.name;
-          if (location.is_container) title += " [BOX]";
+          let title = labelTitle;
+          if (!isItemMode && location?.is_container) title += " [BOX]";
           if (holidayIcon) title = HOLIDAY_ICONS[selectedHoliday] + " " + title;
           ctx.fillText(title, textX, 15, textW);
 
           ctx.font = '16px Arial';
           ctx.fillStyle = '#666';
-          const typeText = location.location_type?.replace(/_/g, " ") || "";
-          ctx.fillText(typeText, textX, 45, textW);
+          ctx.fillText(labelSubtitle, textX, 45, textW);
 
-          if (printMode !== 'qr_only' && items.length > 0) {
+          // Only show items list for location mode
+          if (!isItemMode && printMode !== 'qr_only' && items.length > 0) {
                ctx.fillStyle = 'black';
                ctx.font = 'bold 14px Arial';
                ctx.fillText(`Contents (${items.length}):`, textX, 70, textW);
 
                ctx.font = '12px Arial';
                let y = 90;
-               for (const item of displayItems) {
+               for (const displayItem of displayItems) {
                    if (y > height - 15) break;
-                   let itemText = "• " + item.name;
+                   let itemText = "• " + displayItem.name;
                    ctx.fillText(itemText, textX, y, textW);
                    y += 15;
                }
           }
 
-      } else if (printMode === 'items_only') {
+      } else if (printMode === 'items_only' && !isItemMode) {
           ctx.font = 'bold 24px Arial';
-          let title = "Contents: " + (location.friendly_name || location.name);
+          let title = "Contents: " + labelTitle;
           if (holidayIcon) title = HOLIDAY_ICONS[selectedHoliday] + " " + title;
           ctx.fillText(title, 10, 15);
 
           ctx.font = '14px Arial';
           let y = 50;
-          for (const item of items) {
+          for (const listItem of items) {
               if (y > height - 15) break;
-              let itemText = "• " + item.name;
-              if (item.brand) itemText += ` (${item.brand})`;
+              let itemText = "• " + listItem.name;
+              if (listItem.brand) itemText += ` (${listItem.brand})`;
               ctx.fillText(itemText, 10, y, width - 20);
               y += 20;
           }
@@ -356,7 +552,7 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
 
     const width = labelSize?.width || 384;
     const height = labelSize?.height || 192;
-    const escapedTitle = escapeHtml(location.friendly_name || location.name);
+    const escapedTitle = escapeHtml(getLabelName());
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -478,7 +674,7 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content large" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Print Label</h2>
+          <h2>Print {isItemMode ? "Item" : "Location"} Label</h2>
           <button className="modal-close" onClick={onClose}>
             ✕
           </button>
@@ -501,12 +697,60 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
         {printSuccess && (
           <div className="success-banner" style={{ background: "#4caf50", color: "white", padding: "1rem", borderRadius: "4px", marginBottom: "1rem" }}>
             {printSuccess}
-            <button 
+            <button
               onClick={() => setPrintSuccess(null)}
               style={{ marginLeft: "0.5rem", background: "none", border: "none", color: "inherit", cursor: "pointer" }}
             >
               ✕
             </button>
+          </div>
+        )}
+
+        {/* Configuration Help Banner */}
+        {connectionType === 'server' ? (
+          <div style={{
+            background: "rgba(255, 193, 7, 0.15)",
+            border: "1px solid rgba(255, 193, 7, 0.5)",
+            borderRadius: "6px",
+            padding: "0.75rem 1rem",
+            marginBottom: "1rem",
+            fontSize: "0.9rem"
+          }}>
+            <strong>Server NIIMBOT Printing</strong> requires configuration in{" "}
+            <a href="#/settings" style={{ color: "var(--accent)" }}>User Settings → Printer</a>.
+            {!printerConfig?.enabled && (
+              <span style={{ color: "#ff9800", marginLeft: "0.5rem" }}>
+                (Not currently configured)
+              </span>
+            )}
+          </div>
+        ) : connectionType === 'system' ? (
+          <div style={{
+            background: "rgba(33, 150, 243, 0.15)",
+            border: "1px solid rgba(33, 150, 243, 0.5)",
+            borderRadius: "6px",
+            padding: "0.75rem 1rem",
+            marginBottom: "1rem",
+            fontSize: "0.9rem"
+          }}>
+            <strong>System Printer (CUPS)</strong> - Print to any printer configured on the server.
+            {systemPrintersAvailable === false && (
+              <span style={{ color: "#f44336", display: "block", marginTop: "0.25rem" }}>
+                CUPS not available. Ensure CUPS is running and the socket is mounted in Docker.
+              </span>
+            )}
+          </div>
+        ) : (
+          <div style={{
+            background: "rgba(76, 175, 80, 0.15)",
+            border: "1px solid rgba(76, 175, 80, 0.5)",
+            borderRadius: "6px",
+            padding: "0.75rem 1rem",
+            marginBottom: "1rem",
+            fontSize: "0.9rem"
+          }}>
+            <strong>No configuration needed!</strong> {connectionType === 'bluetooth' ? 'Bluetooth' : 'USB'} printing
+            works directly from your browser. Just click the print button below.
           </div>
         )}
 
@@ -547,18 +791,63 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
                   value={connectionType}
                   onChange={(e) => setConnectionType(e.target.value as ConnectionType)}
                >
-                  {CONNECTION_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                          {opt.icon} {opt.label}
-                      </option>
-                  ))}
+                  {CONNECTION_OPTIONS.map((opt) => {
+                      const isDisabled =
+                        (opt.value === 'bluetooth' && !browserCapabilities.hasWebBluetooth) ||
+                        (opt.value === 'usb' && !browserCapabilities.hasWebSerial);
+                      const unavailableText = isDisabled ? ' (Not available in this browser)' : '';
+                      return (
+                        <option key={opt.value} value={opt.value} disabled={isDisabled}>
+                            {opt.icon} {opt.label}{unavailableText}
+                        </option>
+                      );
+                  })}
                </select>
-               <span className="help-text">
+               {!browserCapabilities.hasWebBluetooth && !browserCapabilities.hasWebSerial && (
+                 <span className="help-text" style={{ color: "#ff9800" }}>
+                   USB/Bluetooth not supported in this browser. Use Chrome, Edge, or Opera for direct printing.
+                 </span>
+               )}
+               {(browserCapabilities.hasWebBluetooth || browserCapabilities.hasWebSerial) && (
+                 <span className="help-text">
                    Choose how your printer is connected
-               </span>
+                 </span>
+               )}
             </div>
 
-            {items.length > 0 && selectedSize !== "2x1" && (
+            {/* System Printer Selection */}
+            {connectionType === 'system' && (
+              <div className="form-group">
+                <label htmlFor="systemPrinter">System Printer</label>
+                {loadingSystemPrinters ? (
+                  <div style={{ padding: "0.5rem", color: "var(--muted)" }}>
+                    Loading printers...
+                  </div>
+                ) : systemPrinters.length === 0 ? (
+                  <div style={{ padding: "0.5rem", color: "#f44336" }}>
+                    No printers available. Ensure CUPS is running.
+                  </div>
+                ) : (
+                  <select
+                    id="systemPrinter"
+                    value={selectedSystemPrinter}
+                    onChange={(e) => setSelectedSystemPrinter(e.target.value)}
+                  >
+                    {systemPrinters.map((printer) => (
+                      <option key={printer.name} value={printer.name}>
+                        {printer.info || printer.name}
+                        {printer.is_default ? " (Default)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <span className="help-text">
+                  Select a printer from the server's CUPS configuration
+                </span>
+              </div>
+            )}
+
+            {!isItemMode && items.length > 0 && selectedSize !== "2x1" && (
                 <div className="form-group">
                 <label htmlFor="printMode">Print Mode</label>
                 <select
@@ -603,25 +892,25 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
               <div className="info-section">
                 <div className="location-name">
                   {holidayIcon && <span className="holiday-icon">{holidayIcon}</span>}
-                  {location.friendly_name || location.name}
-                  {location.is_container && (
+                  {getLabelName()}
+                  {!isItemMode && location?.is_container && (
                     <span className="container-badge">BOX</span>
                   )}
                 </div>
-                {location.location_type && (
+                {getLabelSubtitle() && (
                   <div className="location-type">
-                    {location.location_type.replace(/_/g, " ")}
+                    {getLabelSubtitle()}
                   </div>
                 )}
-                {printMode !== "qr_only" && displayItems.length > 0 && (
+                {!isItemMode && printMode !== "qr_only" && displayItems.length > 0 && (
                   <div className="items-list">
                     <div className="items-list-title">
                       Contents ({items.length} item{items.length !== 1 ? "s" : ""}):
                     </div>
-                    {displayItems.map((item) => (
-                      <div key={item.id} className="item-entry">
-                        • {item.name}
-                        {item.brand && ` (${item.brand})`}
+                    {displayItems.map((displayItem) => (
+                      <div key={displayItem.id} className="item-entry">
+                        • {displayItem.name}
+                        {displayItem.brand && ` (${displayItem.brand})`}
                       </div>
                     ))}
                     {hasMoreItems && (
@@ -638,13 +927,38 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
 
         {/* Info about label printing */}
         <div className="label-printer-info">
-          <h4>Label Printer Tips</h4>
+          <h4>Quick Tips</h4>
           <ul>
-            <li>Currently supported: NIIMBOT D11-H. Future models coming soon.</li>
-            {connectionType === 'bluetooth' && <li>📱 Bluetooth: Best for mobile devices (requires Web Bluetooth)</li>}
-            {connectionType === 'usb' && <li>🔌 USB: Best for desktop (requires Web Serial)</li>}
-            {connectionType === 'server' && <li>🖨️ Server: Prints to a printer connected to the NesVentory server</li>}
-            <li>Label Size: 12x40mm (D11-H)</li>
+            {connectionType === 'bluetooth' && (
+              <>
+                <li>📱 <strong>Bluetooth</strong>: Works on mobile and laptop - no setup required</li>
+                <li>Supported browsers: Chrome, Edge, Opera (not Firefox/Safari)</li>
+              </>
+            )}
+            {connectionType === 'usb' && (
+              <>
+                <li>🔌 <strong>USB</strong>: Connect printer directly to your computer - no setup required</li>
+                <li>Supported browsers: Chrome, Edge, Opera on desktop only</li>
+              </>
+            )}
+            {connectionType === 'server' && (
+              <>
+                <li>🖨️ <strong>Server NIIMBOT</strong>: NIIMBOT printer connected to NesVentory server</li>
+                <li>Requires configuration in User Settings → Printer tab</li>
+                {isItemMode && <li style={{ color: "#ff9800" }}>Note: Item printing via server coming soon - use USB/Bluetooth for now</li>}
+              </>
+            )}
+            {connectionType === 'system' && (
+              <>
+                <li>🖥️ <strong>System Printer</strong>: Print to any CUPS-configured printer</li>
+                <li>Requires CUPS running on the server with socket mounted in Docker</li>
+                <li>Works with standard label printers, inkjets, and laser printers</li>
+              </>
+            )}
+            {(connectionType === 'server' || connectionType === 'bluetooth' || connectionType === 'usb') && (
+              <li>Supported NIIMBOT: D11-H with 12x40mm labels</li>
+            )}
+            <li>QR code links to: {isItemMode ? "Item details page" : "Location page"}</li>
           </ul>
         </div>
 
@@ -666,12 +980,22 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = ({
              <button
                className="btn-success"
                onClick={handleServerPrint}
-               disabled={isPrinting}
+               disabled={isPrinting || isItemMode}
                style={{ marginLeft: "0.5rem" }}
-               title="Print to printer connected to server"
+               title={isItemMode ? "Server printing not yet supported for items - use USB or Bluetooth" : "Print to printer connected to server"}
              >
-               {isPrinting ? "⏳ Printing..." : "🖨️ Send to Server"}
+               {isPrinting ? "⏳ Printing..." : "🖨️ Send to NIIMBOT"}
              </button>
+          ) : connectionType === 'system' ? (
+            <button
+              className="btn-success"
+              onClick={handleSystemPrint}
+              disabled={isPrinting || !selectedSystemPrinter || systemPrintersAvailable === false}
+              style={{ marginLeft: "0.5rem", backgroundColor: "#673ab7" }}
+              title="Print to system printer via CUPS"
+            >
+              {isPrinting ? "⏳ Printing..." : "🖥️ Print to System"}
+            </button>
           ) : (
             <button
                 className="btn-success"

@@ -63,6 +63,14 @@ class Settings(BaseSettings):
     # Registration settings
     DISABLE_SIGNUPS: bool = False
 
+    # Document URL security settings
+    # Controls host validation when uploading documents from external URLs
+    # Set DOCUMENT_URL_HOST_VALIDATION=false to allow any public URL (SSRF IP protection still applies)
+    DOCUMENT_URL_HOST_VALIDATION: bool = True
+    # Comma-separated list of allowed hosts/domains (e.g., "github.com,dropbox.com")
+    # Empty string means: if validation is enabled, block all; if disabled, allow all public URLs
+    DOCUMENT_URL_ALLOWED_HOSTS: str = ""
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v):

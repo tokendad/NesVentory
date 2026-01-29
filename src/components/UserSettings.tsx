@@ -727,21 +727,56 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
   // Render the Printer Tab content
   const renderPrinterTab = () => (
     <div className="tab-content">
-      <h3 style={{ marginBottom: "1rem" }}>Server-Side Printer Configuration</h3>
-      <div style={{ 
-        backgroundColor: "#e3f2fd", 
-        border: "1px solid #90caf9", 
-        borderRadius: "4px", 
+      {/* Quick Start Section */}
+      <div style={{
+        backgroundColor: "rgba(76, 175, 80, 0.15)",
+        border: "1px solid rgba(76, 175, 80, 0.5)",
+        borderRadius: "8px",
+        padding: "1rem",
+        marginBottom: "1.5rem"
+      }}>
+        <h3 style={{ margin: "0 0 0.75rem 0", color: "#2e7d32", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <span>🚀</span> Quick Start - No Setup Required!
+        </h3>
+        <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.95rem" }}>
+          Print labels directly from your <strong>computer or phone</strong> without any configuration:
+        </p>
+        <ul style={{ margin: "0 0 1rem 0", paddingLeft: "1.25rem", fontSize: "0.9rem" }}>
+          <li><strong>USB:</strong> Plug printer into your computer → Select "USB" in print dialog → Print!</li>
+          <li><strong>Bluetooth:</strong> Turn on printer → Select "Bluetooth" in print dialog → Pair & Print!</li>
+        </ul>
+        <p style={{ margin: 0, fontSize: "0.85rem", color: "#666" }}>
+          <strong>Where to print:</strong> Go to any Location or Item → Click the "🖨️ Print Label" button
+        </p>
+      </div>
+
+      {/* Divider */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        margin: "1.5rem 0",
+        gap: "1rem"
+      }}>
+        <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-subtle)" }} />
+        <span style={{ color: "var(--muted)", fontSize: "0.85rem", fontWeight: 500 }}>ADVANCED</span>
+        <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-subtle)" }} />
+      </div>
+
+      {/* Server Configuration Section */}
+      <h3 style={{ marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <span>🖨️</span> Server-Side Printer Configuration
+      </h3>
+      <div style={{
+        backgroundColor: "rgba(33, 150, 243, 0.1)",
+        border: "1px solid rgba(33, 150, 243, 0.3)",
+        borderRadius: "6px",
         padding: "0.75rem",
         marginBottom: "1rem",
-        fontSize: "0.9rem",
-        color: "#0d47a1"
+        fontSize: "0.85rem"
       }}>
-        <p style={{ margin: 0, marginBottom: "0.5rem" }}>
-          <strong>ℹ️ Note:</strong> This configuration is ONLY for a printer connected directly to the <strong>server</strong> (e.g. shared printer).
-        </p>
         <p style={{ margin: 0 }}>
-          If you want to print from your <strong>local computer or phone</strong> via USB or Bluetooth, you do <strong>not</strong> need to configure anything here. Just select "USB" or "Bluetooth" in the Print Label dialog.
+          <strong>When to use:</strong> Configure this if you have a printer connected directly to the NesVentory <strong>server</strong>
+          that you want to share with all users on the network.
         </p>
       </div>
 
