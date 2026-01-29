@@ -77,6 +77,26 @@ These variables **must** be set for the application to function properly.
 | `APP_URL` | `http://localhost:3000` | Base URL for QR code generation (used by printer service). |
 | `CORS_ORIGINS` | *(empty)* | Comma-separated list of allowed CORS origins. |
 
+## Document URL Settings
+
+These settings control security when uploading documents/manuals from external URLs.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DOCUMENT_URL_HOST_VALIDATION` | `true` | Set to `false` to allow documents from any public URL (recommended for home use). Private IPs, localhost, and link-local addresses are always blocked regardless of this setting. |
+| `DOCUMENT_URL_ALLOWED_HOSTS` | *(empty)* | Comma-separated list of allowed hosts/domains (e.g., `github.com,dropbox.com`). Only used when `DOCUMENT_URL_HOST_VALIDATION` is `true`. |
+
+## System Printer (CUPS)
+
+NesVentory supports printing labels to system printers via CUPS. This requires mounting the CUPS socket from the host.
+
+| Requirement | Description |
+|-------------|-------------|
+| Volume mount | `/var/run/cups/cups.sock:/var/run/cups/cups.sock` |
+| Host setup | CUPS must be installed and running on the Docker host |
+
+No environment variables are required—CUPS integration is automatic when the socket is available. Printer selection is done through the application UI.
+
 ## Docker Capabilities
 
 For hardware features like Bluetooth printing, you may need to add Linux capabilities:
@@ -111,6 +131,7 @@ services:
 | `/etc/localtime:ro` | Optional. Sync container time with host (read-only). |
 | `/dev` | Optional. Required for USB printer access. |
 | `/var/run/dbus` | Optional. Required for Bluetooth printer access. |
+| `/var/run/cups/cups.sock` | Optional. Required for system printer (CUPS) access. |
 
 ## Complete Example
 
@@ -148,9 +169,16 @@ services:
       # OIDC_CLIENT_SECRET: your-oidc-client-secret
       # OIDC_DISCOVERY_URL: https://auth.example.com/.well-known/openid-configuration
 
+      # Document URL Security (optional)
+      # Set to 'false' to allow documents from any public URL
+      # DOCUMENT_URL_HOST_VALIDATION: false
+      # DOCUMENT_URL_ALLOWED_HOSTS: "github.com,dropbox.com"
+
     volumes:
       - ./nesventory_data:/app/data
       - /etc/localtime:/etc/localtime:ro
+      # Uncomment for system printer (CUPS) support:
+      # - /var/run/cups/cups.sock:/var/run/cups/cups.sock
     ports:
       - "8181:8181"
     # Uncomment for Bluetooth printer support:
