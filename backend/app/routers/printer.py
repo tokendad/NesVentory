@@ -338,11 +338,19 @@ def get_printer_status(
 def get_printer_models():
     """
     Get the list of supported NIIMBOT printer models.
-    Currently supported: D11-H. Future models coming soon.
+    Model specs from: https://printers.niim.blue/hardware/models/
     """
     return {
         "models": [
-            {"value": "d11_h", "label": "Niimbot D11-H (300dpi)", "max_width": 136},
+            {"value": "d11_h", "label": "Niimbot D11-H (300dpi)", "max_width": 136, "dpi": 300},
+            {"value": "d101", "label": "Niimbot D101 (203dpi)", "max_width": 192, "dpi": 203},
+            {"value": "d110", "label": "Niimbot D110 (203dpi)", "max_width": 96, "dpi": 203},
+            {"value": "d110_m", "label": "Niimbot D110-M (203dpi)", "max_width": 96, "dpi": 203},
+            {"value": "b1", "label": "Niimbot B1 (203dpi)", "max_width": 384, "dpi": 203},
+            {"value": "b21", "label": "Niimbot B21 (203dpi)", "max_width": 384, "dpi": 203},
+            {"value": "b21_pro", "label": "Niimbot B21 Pro (300dpi)", "max_width": 591, "dpi": 300},
+            {"value": "b21_c2b", "label": "Niimbot B21-C2B (203dpi)", "max_width": 384, "dpi": 203},
+            {"value": "m2_h", "label": "Niimbot M2-H (300dpi)", "max_width": 591, "dpi": 300},
         ]
     }
 

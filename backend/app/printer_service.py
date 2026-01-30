@@ -1,6 +1,7 @@
 """
-NIIMBOT printer service for 12x40mm (300DPI) labels.
-Optimized for D11_H V5 Protocol with full API compatibility.
+NIIMBOT printer service for thermal label printing.
+Supports multiple NIIMBOT printer models with V5 protocol.
+Model specs from: https://printers.niim.blue/
 """
 import io
 import logging
@@ -14,16 +15,40 @@ logger = logging.getLogger(__name__)
 class NiimbotPrinterService:
     """Service for printing labels using NIIMBOT printers."""
 
-    # D11-H: 12x40mm @ 300DPI = 136px width x 472px length
-    # Currently supported: D11-H. Future models coming soon.
+    # Printer model specifications: width, height (pixels), DPI, print direction
+    # Source: https://printers.niim.blue/hardware/models/
     PRINTER_MODELS = {
-        "d11_h": 136,
+        "d11_h": {"width": 136, "height": 472, "dpi": 300, "direction": "left"},
+        "d101": {"width": 192, "height": 180, "dpi": 203, "direction": "left"},
+        "d110": {"width": 96, "height": 96, "dpi": 203, "direction": "left"},
+        "d110_m": {"width": 96, "height": 96, "dpi": 203, "direction": "left"},
+        "b1": {"width": 384, "height": 240, "dpi": 203, "direction": "top"},
+        "b21": {"width": 384, "height": 240, "dpi": 203, "direction": "top"},
+        "b21_pro": {"width": 591, "height": 240, "dpi": 300, "direction": "top"},
+        "b21_c2b": {"width": 384, "height": 240, "dpi": 203, "direction": "top"},
+        "m2_h": {"width": 591, "height": 240, "dpi": 300, "direction": "top"},
     }
 
-    # Density limits for specific models
+    # Density limits for specific models (D-series: 1-3, B-series: 1-5)
     DENSITY_LIMITS = {
         "d11_h": 3,
+        "d101": 3,
+        "d110": 3,
+        "d110_m": 3,
+        "b1": 5,
+        "b21": 5,
+        "b21_pro": 5,
+        "b21_c2b": 5,
+        "m2_h": 5,
     }
+
+    @staticmethod
+    def get_model_specs(model: str) -> dict:
+        """Get specifications for a printer model."""
+        return NiimbotPrinterService.PRINTER_MODELS.get(
+            model.lower(),
+            NiimbotPrinterService.PRINTER_MODELS["d11_h"]
+        )
 
     @staticmethod
     def validate_printer_config(config: dict) -> dict:
@@ -35,6 +60,7 @@ class NiimbotPrinterService:
         if model not in NiimbotPrinterService.PRINTER_MODELS:
             model = "d11_h"
 
+        model_specs = NiimbotPrinterService.get_model_specs(model)
         connection_type = config.get("connection_type", "usb").lower()
         density = config.get("density", 3)
         max_density = NiimbotPrinterService.DENSITY_LIMITS.get(model, 3)
@@ -47,9 +73,9 @@ class NiimbotPrinterService:
             "connection_type": connection_type,
             "address": config.get("address"),
             "density": density,
-            "label_width": config.get("label_width"),
-            "label_height": config.get("label_height"),
-            "print_direction": config.get("print_direction", "left"),
+            "label_width": config.get("label_width") or model_specs["width"],
+            "label_height": config.get("label_height") or model_specs["height"],
+            "print_direction": config.get("print_direction") or model_specs["direction"],
         }
 
     @staticmethod
@@ -135,9 +161,10 @@ class NiimbotPrinterService:
             config = NiimbotPrinterService.validate_printer_config(printer_config)
             model = config["model"]
 
-            target_w = label_width or config.get("label_width") or NiimbotPrinterService.PRINTER_MODELS.get(model, 136)
-            target_h = label_height or config.get("label_height") or 472
-            p_dir = config.get("print_direction", "left")
+            model_specs = NiimbotPrinterService.get_model_specs(model)
+            target_w = label_width or config.get("label_width") or model_specs["width"]
+            target_h = label_height or config.get("label_height") or model_specs["height"]
+            p_dir = config.get("print_direction") or model_specs["direction"]
 
             label_image = NiimbotPrinterService.create_qr_label_image(
                 qr_code_data, location_name, target_w, target_h, p_dir

@@ -280,7 +280,12 @@ class PrinterClient:
         """
         logging.info(f"Starting print: {image.width}x{image.height}px, model={model}")
 
-        is_v5 = model and model.lower() in ["d11_h", "d110_m", "b21_pro"]
+        # V5 protocol models (most modern NIIMBOT printers)
+        # Source: https://printers.niim.blue/
+        is_v5 = model and model.lower() in [
+            "d11_h", "d101", "d110", "d110_m",
+            "b21_pro", "b21_c2b", "m2_h"
+        ]
 
         # Exactly match testusb.py sequence
         self.set_label_density(density)
