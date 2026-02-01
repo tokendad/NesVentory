@@ -1,8 +1,53 @@
 // Niimbot Printer Driver for Web (Bluetooth & USB/Serial)
 // Based on reverse engineering and backend implementation
+// Reference: https://github.com/MultiMote/niimbluelib
 
 export const NIIMBOT_SERVICE_UUID = 'e7810a71-73ae-499d-8c15-faa9aef0c3f2';
 export const NIIMBOT_CHARACTERISTIC_UUID = 'bef8d6c9-9c21-4c9e-b632-bd58c1009f9f';
+
+// Printer model specifications from niimbluelib
+// printDirection: "left" = printhead on left side (image needs +90° rotation)
+// printDirection: "top" = printhead on top (no rotation needed)
+export type PrintDirection = 'left' | 'top';
+
+export interface NiimbotModelSpec {
+  model: string;
+  label: string;
+  dpi: number;
+  printDirection: PrintDirection;
+  printheadPixels: number;  // Print width in pixels
+  densityMin: number;
+  densityMax: number;
+  densityDefault: number;
+}
+
+// Common NIIMBOT models supported for direct printing
+// Specs from: https://printers.niim.blue/ and https://github.com/MultiMote/niimbluelib
+export const NIIMBOT_MODELS: NiimbotModelSpec[] = [
+  // D-series (compact label printers)
+  { model: 'D11', label: 'D11 (12mm)', dpi: 203, printDirection: 'left', printheadPixels: 96, densityMin: 1, densityMax: 3, densityDefault: 2 },
+  { model: 'D11S', label: 'D11S (12mm)', dpi: 203, printDirection: 'left', printheadPixels: 96, densityMin: 1, densityMax: 3, densityDefault: 2 },
+  { model: 'D101', label: 'D101 (24mm)', dpi: 203, printDirection: 'left', printheadPixels: 192, densityMin: 1, densityMax: 3, densityDefault: 2 },
+  { model: 'D110', label: 'D110 (12mm)', dpi: 203, printDirection: 'left', printheadPixels: 96, densityMin: 1, densityMax: 3, densityDefault: 2 },
+  { model: 'D110_M', label: 'D110-M (12mm)', dpi: 203, printDirection: 'left', printheadPixels: 96, densityMin: 1, densityMax: 5, densityDefault: 3 },
+  { model: 'D11_H', label: 'D11-H (12mm HD)', dpi: 300, printDirection: 'left', printheadPixels: 142, densityMin: 1, densityMax: 5, densityDefault: 3 },
+  // B-series (wider label printers)
+  { model: 'B1', label: 'B1 (48mm)', dpi: 203, printDirection: 'top', printheadPixels: 384, densityMin: 1, densityMax: 5, densityDefault: 3 },
+  { model: 'B18', label: 'B18 (12mm)', dpi: 203, printDirection: 'left', printheadPixels: 96, densityMin: 1, densityMax: 3, densityDefault: 2 },
+  { model: 'B21', label: 'B21 (48mm)', dpi: 203, printDirection: 'top', printheadPixels: 384, densityMin: 1, densityMax: 5, densityDefault: 3 },
+  { model: 'B21_PRO', label: 'B21 Pro (50mm HD)', dpi: 300, printDirection: 'top', printheadPixels: 591, densityMin: 1, densityMax: 5, densityDefault: 3 },
+  { model: 'B21_C2B', label: 'B21-C2B (48mm)', dpi: 203, printDirection: 'top', printheadPixels: 384, densityMin: 1, densityMax: 5, densityDefault: 3 },
+  // Other models
+  { model: 'M2_H', label: 'M2-H (48mm HD)', dpi: 300, printDirection: 'top', printheadPixels: 567, densityMin: 1, densityMax: 5, densityDefault: 3 },
+];
+
+export const getModelSpec = (model: string): NiimbotModelSpec | undefined => {
+  return NIIMBOT_MODELS.find(m => m.model === model);
+};
+
+export const getDefaultModel = (): NiimbotModelSpec => {
+  return NIIMBOT_MODELS.find(m => m.model === 'D101') || NIIMBOT_MODELS[0];
+};
 
 export enum RequestCode {
   GET_INFO = 64, // 0x40
@@ -85,14 +130,25 @@ export interface NiimbotTransport {
   isConnected(): boolean;
 }
 
+// NIIMBOT printer name prefixes for Bluetooth discovery
+// Derived from all known model names (A20, B1, B21, C1, D11, D101, etc.)
+// See: https://github.com/MultiMote/niimbluelib
+const NIIMBOT_NAME_PREFIXES = ['A', 'B', 'C', 'D', 'E', 'F', 'H', 'J', 'K', 'M', 'N', 'P', 'S', 'T', 'Z'];
+
 export class BluetoothTransport implements NiimbotTransport {
   private device: BluetoothDevice | null = null;
   private server: BluetoothRemoteGATTServer | null = null;
   private characteristic: BluetoothRemoteGATTCharacteristic | null = null;
 
   async connect(): Promise<void> {
+    // Use namePrefix filters for device discovery (required for most NIIMBOT printers)
+    // Plus service UUID filter as fallback. Web Bluetooth needs at least one matching filter.
+    // Reference: https://github.com/MultiMote/niimbluelib/blob/main/src/client/bluetooth_impl.ts
     this.device = await navigator.bluetooth.requestDevice({
-      filters: [{ services: [NIIMBOT_SERVICE_UUID] }],
+      filters: [
+        ...NIIMBOT_NAME_PREFIXES.map(prefix => ({ namePrefix: prefix })),
+        { services: [NIIMBOT_SERVICE_UUID] },
+      ],
       optionalServices: [NIIMBOT_SERVICE_UUID],
     });
 

@@ -9,7 +9,15 @@ import {
   printToSystemPrinter,
   printItemToSystemPrinter,
 } from "../lib/api";
-import { NiimbotClient, BluetoothTransport, SerialTransport } from "../lib/niimbot";
+import {
+  NiimbotClient,
+  BluetoothTransport,
+  SerialTransport,
+  NIIMBOT_MODELS,
+  getModelSpec,
+  getDefaultModel,
+  type NiimbotModelSpec,
+} from "../lib/niimbot";
 
 // Print mode options
 export type PrintMode = "qr_only" | "qr_with_items" | "items_only";
@@ -99,6 +107,7 @@ interface PrintPreferences {
   connectionType: ConnectionType;
   printMode: PrintMode;
   holiday: string;
+  printerModel: string;  // NIIMBOT model for direct printing
 }
 
 const loadPrintPreferences = (): Partial<PrintPreferences> => {
@@ -138,6 +147,11 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
   const [selectedHoliday, setSelectedHoliday] = useState(savedPrefs.holiday || "none");
   const [selectedSize] = useState("12x40");
   const [connectionType, setConnectionType] = useState<ConnectionType>(savedPrefs.connectionType || "server");
+
+  // NIIMBOT printer model selection for direct printing (Bluetooth/USB)
+  const [selectedPrinterModel, setSelectedPrinterModel] = useState<string>(
+    savedPrefs.printerModel || getDefaultModel().model
+  );
   const [loading, setLoading] = useState(true);
   const [printError, setPrintError] = useState<string | null>(null);
   const [printSuccess, setPrintSuccess] = useState<string | null>(null);
@@ -189,6 +203,15 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
   useEffect(() => {
     savePrintPreferences({ holiday: selectedHoliday });
   }, [selectedHoliday]);
+
+  useEffect(() => {
+    savePrintPreferences({ printerModel: selectedPrinterModel });
+  }, [selectedPrinterModel]);
+
+  // Get current model spec for direct printing
+  const currentModelSpec = useMemo(() => {
+    return getModelSpec(selectedPrinterModel) || getDefaultModel();
+  }, [selectedPrinterModel]);
 
   // Fetch printer configuration on mount
   useEffect(() => {
@@ -386,6 +409,117 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
     return rotatedCtx.getImageData(0, 0, height, width);
   };
 
+  // Draw label to canvas using model-specific dimensions
+  // For "left" direction printers: width = label length, height = printheadPixels (rotated later)
+  // For "top" direction printers: width = printheadPixels, height = label length
+  const drawLabelForModel = async (modelSpec: NiimbotModelSpec): Promise<ImageData | null> => {
+      const { printheadPixels, dpi, printDirection } = modelSpec;
+
+      // Calculate label dimensions based on DPI and common 40mm label length
+      // 40mm at 203 DPI = ~320px, at 300 DPI = ~472px
+      const labelLengthMm = 40;
+      const labelLengthPx = Math.round((labelLengthMm / 25.4) * dpi);
+
+      // For "left" direction: canvas width = label length, height = printhead width
+      // Image will be rotated +90° before printing
+      // For "top" direction: canvas width = printhead width, height = label length
+      // No rotation needed
+      let canvasWidth: number;
+      let canvasHeight: number;
+
+      if (printDirection === 'left') {
+          canvasWidth = labelLengthPx;
+          canvasHeight = printheadPixels;
+      } else {
+          canvasWidth = printheadPixels;
+          canvasHeight = labelLengthPx;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+
+      // White background
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+      ctx.fillStyle = 'black';
+      ctx.textBaseline = 'top';
+
+      // Get the label title
+      const labelTitle = getLabelName();
+
+      // Scale factors based on printhead size (96px as baseline)
+      const scaleFactor = printheadPixels / 96;
+      const qrSize = Math.min(Math.round(printheadPixels * 0.9), canvasHeight - 10, canvasWidth - 10);
+      const fontSize = Math.max(12, Math.round(16 * scaleFactor));
+      const padding = Math.round(4 * scaleFactor);
+
+      if (printMode !== 'items_only' && qrDataUrl) {
+          const img = new Image();
+          img.src = qrDataUrl;
+          await new Promise((resolve) => { img.onload = resolve; });
+
+          if (printDirection === 'left') {
+              // Horizontal layout: QR on left, text on right
+              // After +90° rotation: QR on top, text below
+              const qrX = padding;
+              const qrY = Math.round((canvasHeight - qrSize) / 2);
+              ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
+
+              const textX = qrX + qrSize + padding * 2;
+              const textW = canvasWidth - textX - padding;
+
+              ctx.font = `bold ${fontSize}px Arial`;
+              let title = labelTitle;
+              if (!isItemMode && location?.is_container) title += " [BOX]";
+              if (holidayIcon) title = HOLIDAY_ICONS[selectedHoliday] + " " + title;
+
+              // Center text vertically
+              const textY = Math.round((canvasHeight - fontSize) / 2);
+              ctx.fillText(title, textX, textY, textW);
+          } else {
+              // Vertical layout for "top" direction printers (B1, B21, etc.)
+              // QR on top, text below - no rotation needed
+              const qrX = Math.round((canvasWidth - qrSize) / 2);
+              const qrY = padding;
+              ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
+
+              const textY = qrY + qrSize + padding * 2;
+              const textW = canvasWidth - padding * 2;
+
+              ctx.font = `bold ${fontSize}px Arial`;
+              let title = labelTitle;
+              if (!isItemMode && location?.is_container) title += " [BOX]";
+              if (holidayIcon) title = HOLIDAY_ICONS[selectedHoliday] + " " + title;
+
+              // Center text horizontally
+              const metrics = ctx.measureText(title);
+              const textX = Math.max(padding, Math.round((canvasWidth - metrics.width) / 2));
+              ctx.fillText(title, textX, textY, textW);
+          }
+      } else if (printMode === 'items_only' && !isItemMode) {
+          ctx.font = `bold ${fontSize}px Arial`;
+          let title = "Contents: " + labelTitle;
+          if (holidayIcon) title = HOLIDAY_ICONS[selectedHoliday] + " " + title;
+          ctx.fillText(title, padding, padding);
+
+          ctx.font = `${Math.round(fontSize * 0.8)}px Arial`;
+          let y = padding + fontSize + padding;
+          for (const listItem of items) {
+              if (y > canvasHeight - fontSize) break;
+              let itemText = "• " + listItem.name;
+              if (listItem.brand) itemText += ` (${listItem.brand})`;
+              ctx.fillText(itemText, padding, y, canvasWidth - padding * 2);
+              y += Math.round(fontSize * 1.2);
+          }
+      }
+
+      return ctx.getImageData(0, 0, canvasWidth, canvasHeight);
+  };
+
+  // Legacy function for browser print preview (uses fixed dimensions)
   const drawLabelToCanvas = async (width: number, height: number): Promise<ImageData | null> => {
       const canvas = document.createElement('canvas');
       canvas.width = width;
@@ -393,48 +527,15 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return null;
 
-      // White background
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, width, height);
       ctx.fillStyle = 'black';
       ctx.textBaseline = 'top';
 
-      // Check if this is a D11-H style label (472x136 landscape, becomes 136x472 after rotation)
-      const isD11HLabel = width === 472 && height === 136;
-
-      // Get the label title
       const labelTitle = getLabelName();
       const labelSubtitle = getLabelSubtitle();
 
-      if (isD11HLabel && printMode !== 'items_only' && qrDataUrl) {
-          // D11-H layout: QR on left (becomes top after +90 rotation), text on right (becomes bottom)
-          // Matches server layout: 124x124 QR, 32px font, maximized text area
-          const img = new Image();
-          img.src = qrDataUrl;
-          await new Promise((resolve) => { img.onload = resolve; });
-
-          // QR: 124x124, centered vertically on left side
-          const qrSize = 124;
-          const qrX = 6;
-          const qrY = (height - qrSize) / 2;
-          ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
-
-          // Text area: starts after QR, uses remaining width
-          // After rotation, this becomes the vertical text area below QR
-          const textX = qrX + qrSize + 8;  // 138px from left
-          const textW = width - textX - 5;  // ~329px available
-
-          ctx.font = 'bold 32px Arial';
-          let title = labelTitle;
-          if (!isItemMode && location?.is_container) title += " [BOX]";
-          if (holidayIcon) title = HOLIDAY_ICONS[selectedHoliday] + " " + title;
-
-          // Center text vertically in the 136px height
-          const textY = (height - 32) / 2;  // Roughly centered for 32px font
-          ctx.fillText(title, textX, textY, textW);
-
-      } else if (printMode !== 'items_only' && qrDataUrl) {
-          // Standard layout for other label sizes
+      if (printMode !== 'items_only' && qrDataUrl) {
           const img = new Image();
           img.src = qrDataUrl;
           await new Promise((resolve) => { img.onload = resolve; });
@@ -456,7 +557,6 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
           ctx.fillStyle = '#666';
           ctx.fillText(labelSubtitle, textX, 45, textW);
 
-          // Only show items list for location mode
           if (!isItemMode && printMode !== 'qr_only' && items.length > 0) {
                ctx.fillStyle = 'black';
                ctx.font = 'bold 14px Arial';
@@ -466,12 +566,10 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
                let y = 90;
                for (const displayItem of displayItems) {
                    if (y > height - 15) break;
-                   let itemText = "• " + displayItem.name;
-                   ctx.fillText(itemText, textX, y, textW);
+                   ctx.fillText("• " + displayItem.name, textX, y, textW);
                    y += 15;
                }
           }
-
       } else if (printMode === 'items_only' && !isItemMode) {
           ctx.font = 'bold 24px Arial';
           let title = "Contents: " + labelTitle;
@@ -497,7 +595,10 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
         setIsConnecting(true);
         setPrintError(null);
         setPrintSuccess(null);
-        
+
+        const modelSpec = currentModelSpec;
+        console.log(`Direct printing with model: ${modelSpec.model} (${modelSpec.printheadPixels}px @ ${modelSpec.dpi}DPI, direction: ${modelSpec.printDirection})`);
+
         let client: NiimbotClient;
 
         if (connectionType === 'bluetooth') {
@@ -514,23 +615,24 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
         } else {
             throw new Error("Invalid connection type for direct print");
         }
-        
+
         await client.connect();
-        
-        const width = labelSize?.width || 384;
-        const height = labelSize?.height || 192;
-        
-        // Generate image data
-        const imageData = await drawLabelToCanvas(width, height);
+
+        // Generate image data using model-specific dimensions
+        const imageData = await drawLabelForModel(modelSpec);
         if (!imageData) throw new Error("Failed to generate label image");
 
-        // Rotate +90 degrees clockwise for direct USB/Bluetooth printing
-        const rotatedImageData = rotateImageData90CW(imageData);
+        // For "left" direction printers, rotate +90 degrees clockwise
+        // For "top" direction printers, no rotation needed
+        const printImageData = modelSpec.printDirection === 'left'
+            ? rotateImageData90CW(imageData)
+            : imageData;
 
-        await client.printImage(rotatedImageData);
+        // Use model-specific density
+        await client.printImage(printImageData, modelSpec.densityDefault);
         await client.disconnect();
-        
-        setPrintSuccess(`Printed successfully via ${connectionType === 'bluetooth' ? 'Bluetooth' : 'USB'}!`);
+
+        setPrintSuccess(`Printed successfully via ${connectionType === 'bluetooth' ? 'Bluetooth' : 'USB'} to ${modelSpec.label}!`);
 
     } catch (err: any) {
         console.error("Direct print failed:", err);
@@ -749,8 +851,8 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
             marginBottom: "1rem",
             fontSize: "0.9rem"
           }}>
-            <strong>No configuration needed!</strong> {connectionType === 'bluetooth' ? 'Bluetooth' : 'USB'} printing
-            works directly from your browser. Just click the print button below.
+            <strong>Direct {connectionType === 'bluetooth' ? 'Bluetooth' : 'USB'} Printing</strong> - Select your
+            printer model below for correct label sizing, then click print.
           </div>
         )}
 
@@ -760,10 +862,18 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
             <div className="form-group">
               <label>Label Size</label>
               <div style={{ padding: "0.5rem", backgroundColor: "var(--bg-secondary)", borderRadius: "4px" }}>
-                12x40mm D11-H (0.47" x 1.57")
+                {(connectionType === 'bluetooth' || connectionType === 'usb') ? (
+                  <>
+                    {currentModelSpec.label} ({currentModelSpec.printheadPixels}px width @ {currentModelSpec.dpi} DPI)
+                  </>
+                ) : (
+                  <>12x40mm (standard label)</>
+                )}
               </div>
               <span className="help-text">
-                Currently supported: D11-H. Future models coming soon.
+                {(connectionType === 'bluetooth' || connectionType === 'usb')
+                  ? "Label dimensions based on selected printer model"
+                  : "Server/system printing uses configured label size"}
               </span>
             </div>
 
@@ -843,6 +953,27 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
                 )}
                 <span className="help-text">
                   Select a printer from the server's CUPS configuration
+                </span>
+              </div>
+            )}
+
+            {/* NIIMBOT Model Selection for Direct Printing */}
+            {(connectionType === 'bluetooth' || connectionType === 'usb') && (
+              <div className="form-group">
+                <label htmlFor="printerModel">Printer Model</label>
+                <select
+                  id="printerModel"
+                  value={selectedPrinterModel}
+                  onChange={(e) => setSelectedPrinterModel(e.target.value)}
+                >
+                  {NIIMBOT_MODELS.map((model) => (
+                    <option key={model.model} value={model.model}>
+                      {model.label} - {model.dpi} DPI
+                    </option>
+                  ))}
+                </select>
+                <span className="help-text">
+                  Select your NIIMBOT printer model for correct label sizing
                 </span>
               </div>
             )}
@@ -931,13 +1062,14 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
           <ul>
             {connectionType === 'bluetooth' && (
               <>
-                <li>📱 <strong>Bluetooth</strong>: Works on mobile and laptop - no setup required</li>
+                <li>📱 <strong>Bluetooth</strong>: Works on mobile and laptop - select your model above</li>
                 <li>Supported browsers: Chrome, Edge, Opera (not Firefox/Safari)</li>
+                <li>Your printer will appear in the Bluetooth picker (e.g., "D101_XXXX")</li>
               </>
             )}
             {connectionType === 'usb' && (
               <>
-                <li>🔌 <strong>USB</strong>: Connect printer directly to your computer - no setup required</li>
+                <li>🔌 <strong>USB</strong>: Connect printer directly to your computer</li>
                 <li>Supported browsers: Chrome, Edge, Opera on desktop only</li>
               </>
             )}
@@ -945,7 +1077,7 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
               <>
                 <li>🖨️ <strong>Server NIIMBOT</strong>: NIIMBOT printer connected to NesVentory server</li>
                 <li>Requires configuration in User Settings → Printer tab</li>
-                {isItemMode && <li style={{ color: "#ff9800" }}>Note: Item printing via server coming soon - use USB/Bluetooth for now</li>}
+                {isItemMode && <li style={{ color: "#ff9800" }}>Note: Item printing via server coming soon - use Bluetooth for now</li>}
               </>
             )}
             {connectionType === 'system' && (
@@ -955,8 +1087,8 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
                 <li>Works with standard label printers, inkjets, and laser printers</li>
               </>
             )}
-            {(connectionType === 'server' || connectionType === 'bluetooth' || connectionType === 'usb') && (
-              <li>Supported NIIMBOT: D11-H with 12x40mm labels</li>
+            {(connectionType === 'bluetooth' || connectionType === 'usb') && (
+              <li>Selected: <strong>{currentModelSpec.label}</strong> ({currentModelSpec.printheadPixels}px @ {currentModelSpec.dpi} DPI)</li>
             )}
             <li>QR code links to: {isItemMode ? "Item details page" : "Location page"}</li>
           </ul>
