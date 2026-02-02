@@ -309,20 +309,29 @@ export async function login(
 }
 
 function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem("NesVentory_token");
-  if (!token) return {};
+  // Token is now stored in HttpOnly cookie, no need to get from localStorage
+  // Cookies are automatically sent with fetch when credentials: 'include' is used
+  return {};
+}
+
+/**
+ * Helper function for authenticated fetch calls
+ * Automatically includes HttpOnly cookies in requests
+ */
+function createFetchOptions(options?: RequestInit): RequestInit {
   return {
-    Authorization: `Bearer ${token}`,
+    ...options,
+    credentials: 'include', // Include HttpOnly cookies
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+      ...options?.headers,
+    },
   };
 }
 
 export async function fetchItems(): Promise<Item[]> {
-  const res = await fetch(`${API_BASE_URL}/api/items`, {
-    headers: {
-      "Accept": "application/json",
-      ...authHeaders(),
-    },
-  });
+  const res = await fetch(`${API_BASE_URL}/api/items`, createFetchOptions());
   return handleResponse<Item[]>(res);
 }
 

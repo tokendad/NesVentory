@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from pydantic import BaseModel
@@ -115,7 +116,7 @@ async def google_oauth_status(db: Session = Depends(get_db)):
     }
 
 
-@router.post("/auth/google", response_model=GoogleAuthResponse)
+@router.post("/auth/google")
 async def google_auth(
     request: GoogleAuthRequest,
     db: Session = Depends(get_db)
@@ -123,7 +124,7 @@ async def google_auth(
     """
     Authenticate or register a user with Google OAuth.
 
-    If the Google account is already linked to a user, returns a token for that user.
+    If the Google account is already linked to a user, sets HttpOnly cookie with token.
     If the email exists but is not linked to Google, links the accounts.
     If the email doesn't exist, creates a new user with Google OAuth.
     """
@@ -217,21 +218,51 @@ async def google_auth(
 
     logger.info(f"Google OAuth: user logged in {email} (id={user.id})")
 
-    return {
-        "access_token": access_token,
+    # Create response with HttpOnly cookie
+    response = JSONResponse(content={
         "token_type": "bearer",
         "is_new_user": is_new_user
-    }
+    })
+
+    # Set HttpOnly secure cookie with auth token
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )
+
+    return response
 
 
-@router.post("/token", response_model=Token)
+@router.post("/token")
 async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
     """
     OAuth2 compatible token login endpoint.
-    Accepts username (email) and password, returns access_token and token_type.
+    Accepts username (email) and password, sets HttpOnly cookie with token.
     Unapproved users are blocked from logging in.
     """
-    return perform_password_login(db, form_data.username, form_data.password)
+    result = perform_password_login(db, form_data.username, form_data.password)
+
+    # Create response with HttpOnly cookie
+    response = JSONResponse(content={
+        "token_type": result["token_type"],
+        "must_change_password": result.get("must_change_password", False)
+    })
+
+    # Set HttpOnly secure cookie with auth token
+    response.set_cookie(
+        key="access_token",
+        value=result["access_token"],
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )
+
+    return response

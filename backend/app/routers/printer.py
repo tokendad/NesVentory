@@ -458,8 +458,8 @@ def print_to_system_printer(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to print to system printer: {e}")
-        raise HTTPException(status_code=500, detail=f"Print failed: {str(e)}")
+        logger.error(f"Failed to print to system printer: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to print label. Please try again.")
 
 
 @router.post("/system/print-location")
@@ -527,8 +527,8 @@ def print_location_to_system_printer(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to print location label: {e}")
-        raise HTTPException(status_code=500, detail=f"Print failed: {str(e)}")
+        logger.error(f"Failed to print location label: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to print label. Please try again.")
 
 
 @router.post("/system/print-item")
@@ -596,5 +596,5 @@ def print_item_to_system_printer(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to print item label: {e}")
-        raise HTTPException(status_code=500, detail=f"Print failed: {str(e)}")
+        logger.error(f"Failed to print item label: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to print label. Please try again.")

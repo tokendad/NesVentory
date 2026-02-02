@@ -39,20 +39,27 @@ def create_thumbnail(source_file, destination_path: str, size: tuple = (300, 300
         img.save(thumb_io, format="JPEG", quality=85)
         thumb_io.seek(0)
         
-        # Save to destination
-        # Note: This assumes local filesystem for now. If using cloud storage, 
+        # Save to destination with path traversal protection
+        # Note: This assumes local filesystem for now. If using cloud storage,
         # this logic needs to be integrated with the storage provider.
         # However, the current project uses local storage via the 'storage' module.
-        
-        # If destination_path starts with /, it's absolute. Otherwise relative to app/data/media
-        if os.path.isabs(destination_path):
-            full_path = Path(destination_path)
-        else:
-            # Assuming standard storage location
-            full_path = Path("/app/data/media") / destination_path
-            
+
+        MEDIA_DIR = Path("/app/data/media").resolve()
+
+        # Always resolve destination relative to MEDIA_DIR
+        try:
+            # Resolve the full path
+            full_path = (MEDIA_DIR / destination_path).resolve()
+
+            # Verify path is within MEDIA_DIR (prevent path traversal)
+            full_path.relative_to(MEDIA_DIR)
+        except (ValueError, RuntimeError):
+            # Path traversal attempt detected
+            logger.error(f"Blocked attempt to save thumbnail with invalid path: {destination_path}")
+            return False
+
         full_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         with open(full_path, "wb") as f:
             f.write(thumb_io.getvalue())
             

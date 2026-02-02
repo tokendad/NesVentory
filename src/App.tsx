@@ -54,9 +54,9 @@ const APP_VERSION = "6.9.0";
 
 const App: React.FC = () => {
   const isMobile = useIsMobile();
-  const [token, setToken] = useState<string | null>(
-    () => localStorage.getItem("NesVentory_token")
-  );
+  // Token is now stored in HttpOnly cookies - no need for localStorage
+  // The token will be automatically sent with API requests
+  const [token, setToken] = useState<string | null>(true as any); // Indicate token exists in cookies
   const [userEmail, setUserEmail] = useState<string | undefined>(
     () => localStorage.getItem("NesVentory_user_email") || undefined
   );
@@ -164,9 +164,15 @@ const App: React.FC = () => {
   }, [token]);
 
   function handleLogout() {
-    localStorage.removeItem("NesVentory_token");
+    // Call logout endpoint to clear httponly cookie on server
+    fetch("/api/auth/logout", { method: "POST" }).catch(() => {
+      // Logout endpoint may not exist, that's ok
+    });
+
+    // Clear user data from localStorage
     localStorage.removeItem("NesVentory_user_email");
     localStorage.removeItem("NesVentory_currentUser");
+    // Note: HttpOnly cookie will be cleared by server
     setToken(null);
     setUserEmail(undefined);
     setCurrentUser(null);

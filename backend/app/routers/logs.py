@@ -288,26 +288,24 @@ async def delete_log_files(
     """Delete specified log files. Admin only."""
     check_admin(current_user)
     deleted_count = 0
-    
+
     for filename in request.file_names:
-        # Security: ensure filename is safe and within log directory
-        # Normalize filename and prevent absolute paths
-        norm_filename = os.path.normpath(filename)
-        if os.path.isabs(norm_filename) or norm_filename.startswith("..") or os.path.sep in norm_filename and ("/" in norm_filename or "\\" in norm_filename):
-            continue
-        
-        filepath = LOG_DIR / norm_filename
-        
-        # Verify the file is within LOG_DIR (prevent path traversal)
+        # Security: Validate filename is safe and within log directory
         try:
-            filepath.resolve().relative_to(LOG_DIR.resolve())
-        except ValueError:
+            # Convert to Path and resolve to absolute path
+            filepath = (LOG_DIR / filename).resolve()
+
+            # Verify the file is within LOG_DIR (prevent path traversal)
+            filepath.relative_to(LOG_DIR.resolve())
+        except (ValueError, RuntimeError):
+            # Path traversal attempt or invalid path
+            logger.warning(f"Blocked attempt to delete file with invalid path: {filename}")
             continue
-        
+
         # Don't allow deleting the settings file
         if filepath.name == "log_settings.json":
             continue
-        
+
         if filepath.exists() and filepath.is_file():
             try:
                 filepath.unlink()

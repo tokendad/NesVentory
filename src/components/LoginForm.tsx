@@ -25,7 +25,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick, onMus
   const handleGoogleCallback = useCallback(async (response: any) => {
     try {
       const authResp = await googleAuth(response.credential);
-      localStorage.setItem("NesVentory_token", authResp.access_token);
+      // Token is now stored in HttpOnly cookie - no need to store in localStorage
       // Try to decode the JWT to get email, with fallback
       let userEmail = "";
       try {
@@ -39,7 +39,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick, onMus
         console.warn("Could not parse email from Google credential");
       }
       localStorage.setItem("NesVentory_user_email", userEmail);
-      onSuccess(authResp.access_token, userEmail);
+      // Pass empty string as token since it's in HttpOnly cookie now
+      onSuccess("", userEmail);
     } catch (err: any) {
       setError(err.message || "Google sign-in failed");
       setGoogleLoading(false);
@@ -115,16 +116,17 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick, onMus
     setLoading(true);
     try {
       const resp = await login(email, password);
-      localStorage.setItem("NesVentory_token", resp.access_token);
+      // Token is now stored in HttpOnly cookie - no need to store in localStorage
       localStorage.setItem("NesVentory_user_email", email);
-      
+
       // Check if user must change password
       if (resp.must_change_password && onMustChangePassword) {
         onMustChangePassword();
         return;
       }
-      
-      onSuccess(resp.access_token, email);
+
+      // Pass empty string as token since it's in HttpOnly cookie now
+      onSuccess("", email);
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {
