@@ -808,7 +808,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
               ))}
             </select>
             <small style={{ color: "#666", fontSize: "0.875rem" }}>
-              Currently supported: D11-H. Future models coming soon.
+              Supported models: D11-H, D101, D110, B1, B21, and others
             </small>
           </div>
 
@@ -824,6 +824,24 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
             </select>
           </div>
 
+          {printerConfig.connection_type === "bluetooth" && (
+            <div className="form-group">
+              <label htmlFor="printer-bluetooth-type">Bluetooth Type</label>
+              <select
+                id="printer-bluetooth-type"
+                value={printerConfig.bluetooth_type || "auto"}
+                onChange={(e) => setPrinterConfig(prev => ({ ...prev, bluetooth_type: e.target.value }))}
+              >
+                <option value="auto">Auto-detect (Recommended)</option>
+                <option value="ble">BLE (GATT) - for modern BLE printers</option>
+                <option value="rfcomm">Classic Bluetooth (RFCOMM) - for older/classic printers like B1</option>
+              </select>
+              <small style={{ color: "#666", fontSize: "0.875rem" }}>
+                Auto-detect will automatically determine if your printer uses BLE or Classic Bluetooth (RFCOMM)
+              </small>
+            </div>
+          )}
+
           <div className="form-group">
             <label htmlFor="printer-address">
               {printerConfig.connection_type === "bluetooth" ? "Bluetooth MAC Address" : "Serial Port (optional)"}
@@ -836,24 +854,24 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
               placeholder={printerConfig.connection_type === "bluetooth" ? "AA:BB:CC:DD:EE:FF" : "auto-detect or /dev/ttyACM0"}
             />
             <small style={{ color: "#666", fontSize: "0.875rem" }}>
-              {printerConfig.connection_type === "bluetooth" 
-                ? "Enter the Bluetooth MAC address of your printer" 
+              {printerConfig.connection_type === "bluetooth"
+                ? "Enter the Bluetooth MAC address of your printer (e.g., 03:01:08:82:81:4D for B1)"
                 : "Leave empty for auto-detection, or specify port like /dev/ttyACM0 (Linux) or COM3 (Windows)"}
             </small>
           </div>
 
           <div className="form-group">
-            <label htmlFor="printer-density">Print Density (1-3)</label>
+            <label htmlFor="printer-density">Print Density (1-{["b1", "b21", "b21_c2b"].includes(printerConfig.model) ? "5" : "3"})</label>
             <input
               id="printer-density"
               type="number"
               min="1"
-              max="3"
+              max={["b1", "b21", "b21_c2b"].includes(printerConfig.model) ? 5 : 3}
               value={printerConfig.density}
               onChange={(e) => setPrinterConfig(prev => ({ ...prev, density: parseInt(e.target.value) || 3 }))}
             />
             <small style={{ color: "#666", fontSize: "0.875rem" }}>
-              Higher values produce darker prints (1-3 for D11-H).
+              Higher values produce darker prints ({["b1", "b21", "b21_c2b"].includes(printerConfig.model) ? "1-5 for B-series" : "1-3 for D-series"}).
             </small>
           </div>
 

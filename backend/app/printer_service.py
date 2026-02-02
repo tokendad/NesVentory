@@ -8,7 +8,13 @@ import logging
 from typing import Optional
 from PIL import Image, ImageDraw, ImageFont
 
-from .niimbot import BleakTransport, PrinterClient, SerialTransport
+from .niimbot import (
+    BleakTransport,
+    PrinterClient,
+    RfcommTransport,
+    SerialTransport,
+    detect_bluetooth_device_type,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +77,7 @@ class NiimbotPrinterService:
         return {
             "model": model,
             "connection_type": connection_type,
+            "bluetooth_type": config.get("bluetooth_type", "auto"),
             "address": config.get("address"),
             "density": density,
             "label_width": config.get("label_width") or model_specs["width"],
@@ -79,10 +86,94 @@ class NiimbotPrinterService:
         }
 
     @staticmethod
+    def resolve_connection_type(connection_type: str, bluetooth_type: Optional[str] = None) -> str:
+        """
+        Resolve the actual connection type based on connection_type and bluetooth_type.
+
+        Args:
+            connection_type: "usb" or "bluetooth"
+            bluetooth_type: "auto", "ble", or "rfcomm" (only used if connection_type="bluetooth")
+
+        Returns:
+            Resolved connection type: "usb", "bluetooth", "bluetooth_ble", or "bluetooth_rfcomm"
+        """
+        if connection_type != "bluetooth":
+            return connection_type
+
+        bluetooth_type = (bluetooth_type or "auto").lower()
+        if bluetooth_type == "ble":
+            return "bluetooth_ble"
+        elif bluetooth_type == "rfcomm":
+            return "bluetooth_rfcomm"
+        else:  # "auto" or unknown
+            return "bluetooth"
+
+    @staticmethod
     def create_transport(connection_type: str, address: Optional[str] = None):
-        """Creates transport; auto-detects USB if address is missing."""
+        """
+        Creates transport based on connection type with auto-detection for Bluetooth.
+
+        Args:
+            connection_type: "usb", "bluetooth" (auto-detect BLE vs RFCOMM),
+                           "bluetooth_ble" (force BLE), or "bluetooth_rfcomm" (force RFCOMM)
+            address: Device address (MAC for Bluetooth, port for USB)
+
+        Returns:
+            Transport instance (BleakTransport, RfcommTransport, or SerialTransport)
+
+        Raises:
+            ValueError: Invalid configuration or device not found
+        """
         if connection_type == "bluetooth":
+            # Auto-detect whether device is BLE or Classic Bluetooth
+            if not address:
+                raise ValueError("Bluetooth address required for auto-detection")
+
+            logger.info(f"Auto-detecting Bluetooth device type: {address}")
+
+            # Run async detection in sync context
+            import asyncio
+            try:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                device_info = loop.run_until_complete(
+                    detect_bluetooth_device_type(address)
+                )
+                loop.close()
+            except Exception as e:
+                raise ValueError(f"Bluetooth device detection failed: {e}")
+
+            logger.info(
+                f"Detected device: {device_info.name} (type: {device_info.device_type})"
+            )
+
+            # Choose transport based on device type
+            if device_info.is_rfcomm_printer():
+                logger.info("Device has Serial Port Profile, using RFCOMM transport")
+                return RfcommTransport(address)
+            elif device_info.is_ble():
+                logger.info("Device is BLE, using BleakTransport")
+                return BleakTransport(address)
+            else:
+                raise ValueError(
+                    f"Device {address} does not support printer protocols"
+                )
+
+        elif connection_type == "bluetooth_ble":
+            # Explicit BLE (skip auto-detection)
+            if not address:
+                raise ValueError("Bluetooth address required")
+            logger.info(f"Using explicit BLE transport for {address}")
             return BleakTransport(address)
+
+        elif connection_type == "bluetooth_rfcomm":
+            # Explicit RFCOMM (skip auto-detection)
+            if not address:
+                raise ValueError("Bluetooth address required")
+            logger.info(f"Using explicit RFCOMM transport for {address}")
+            return RfcommTransport(address)
+
+        # USB or unknown type
         return SerialTransport(port=address if address else "auto")
 
     @staticmethod
@@ -153,70 +244,103 @@ class NiimbotPrinterService:
         """
         label = Image.new("L", (label_width, label_height), color=0)
 
-        # 1. Calculate responsive QR size
-        qr_size = NiimbotPrinterService.calculate_responsive_qr_size(label_width, label_height, label_height)
+        # Determine layout based on print direction
+        is_horizontal_feed = print_direction != "left"
 
-        # 2. QR Code placement
+        if is_horizontal_feed:
+            # Horizontal feed (B-series: "top" direction)
+            # Layout: QR on top, text below (stacked vertically)
+            # Calculate QR size as percentage of width
+            max_qr_size = int(label_width * 0.9)
+            qr_size = min(max_qr_size, label_height - 60)  # Leave room for text
+            qr_size = max(qr_size, 40)  # Minimum QR size
+
+            # Center QR horizontally, place at top
+            qr_x = max(5, (label_width - qr_size) // 2)
+            qr_y = 5
+        else:
+            # Vertical feed (D-series: "left" direction)
+            # Layout: QR on left, text on right
+            qr_size = NiimbotPrinterService.calculate_responsive_qr_size(label_width, label_height, label_height)
+            qr_x = 6
+            qr_y = max(5, (label_height - qr_size) // 2)  # Center vertically
+
+        # 1. QR Code placement
         try:
             qr_image = Image.open(io.BytesIO(qr_code_data)).convert("L")
             # Resize to calculated responsive size
             qr_image = qr_image.resize((qr_size, qr_size), Image.NEAREST)
-
-            # Position QR on left side (for "left" direction) with padding
-            qr_x = 6
-            qr_y = max(5, (label_height - qr_size) // 2)  # Center vertically
             label.paste(qr_image, (qr_x, qr_y))
         except Exception as e:
             logger.error(f"QR Error: {e}")
 
-        # 3. Calculate responsive font size
+        # 2. Calculate responsive font size
         font_size = NiimbotPrinterService.calculate_responsive_font_size(label_height, dpi, label_width)
 
-        # 4. Text rendering with responsive sizing
+        # 3. Text rendering with responsive sizing
         try:
             font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size)
         except OSError:
             font = ImageFont.load_default()
 
-        # Text area dimensions (after QR)
-        # Available width after QR and padding
-        text_width = label_width - qr_size - 18  # QR + 2*padding
-        text_height = label_height - 10  # Leave padding
+        # 4. Prepare text image
+        if is_horizontal_feed:
+            # Horizontal: full width text area below QR
+            text_width = label_width - 10  # Leave padding
+            text_height = label_height - qr_size - 15  # Space below QR
+            txt_img = Image.new("L", (text_width, text_height), color=0)
+            draw_txt = ImageDraw.Draw(txt_img)
 
-        # Create text image for rotation (if needed)
-        txt_img = Image.new("L", (text_width, text_height), color=0)
-        draw_txt = ImageDraw.Draw(txt_img)
+            # Support multiline text
+            lines = location_name.split('\n')
+            line_count = len(lines)
 
-        # Support multiline text
-        lines = location_name.split('\n')
-        line_count = len(lines)
+            if line_count > 1:
+                # For multiline, scale down font slightly
+                try:
+                    small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", max(8, int(font_size * 0.75)))
+                except OSError:
+                    small_font = ImageFont.load_default()
+                draw_txt.multiline_text((5, 5), location_name, fill=255, font=small_font, spacing=4)
+            else:
+                # Center text horizontally in available space
+                text_bbox = draw_txt.textbbox((0, 0), location_name, font=font)
+                text_w = text_bbox[2] - text_bbox[0]
+                text_x = max(5, (text_width - text_w) // 2)
+                draw_txt.text((text_x, 5), location_name, fill=255, font=font)
 
-        if line_count > 1:
-            # For multiline, scale down font slightly
-            try:
-                small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", max(8, int(font_size * 0.75)))
-            except OSError:
-                small_font = ImageFont.load_default()
-
-            # Draw multiline text
-            draw_txt.multiline_text((5, 10), location_name, fill=255, font=small_font, spacing=4)
+            # Place text below QR
+            text_x = 5
+            text_y = qr_y + qr_size + 5
+            label.paste(txt_img, (text_x, text_y))
         else:
-            # Center single line text vertically
-            text_y = max(0, (text_height - font_size) // 2)
-            draw_txt.text((5, text_y), location_name, fill=255, font=font)
+            # Vertical: text on right side, rotated -90
+            text_width = label_width - qr_size - 18
+            text_height = label_height - 10
+            txt_img = Image.new("L", (text_width, text_height), color=0)
+            draw_txt = ImageDraw.Draw(txt_img)
 
-        # 5. Place text based on print direction
-        if print_direction == "left":
-            # Vertical feed: rotate text -90 for proper orientation
+            # Support multiline text
+            lines = location_name.split('\n')
+            line_count = len(lines)
+
+            if line_count > 1:
+                # For multiline, scale down font slightly
+                try:
+                    small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", max(8, int(font_size * 0.75)))
+                except OSError:
+                    small_font = ImageFont.load_default()
+                draw_txt.multiline_text((5, 10), location_name, fill=255, font=small_font, spacing=4)
+            else:
+                # Center single line text vertically
+                text_y = max(0, (text_height - font_size) // 2)
+                draw_txt.text((5, text_y), location_name, fill=255, font=font)
+
+            # Rotate and place text
             rotated_txt = txt_img.rotate(-90, expand=True)
             text_x = qr_x + qr_size + 6
             text_y = 5
             label.paste(rotated_txt, (text_x, text_y))
-        else:
-            # Horizontal feed: no rotation
-            text_x = 6
-            text_y = qr_y + qr_size + 6
-            label.paste(txt_img, (text_x, text_y))
 
         return label
 
@@ -244,8 +368,14 @@ class NiimbotPrinterService:
                 qr_code_data, location_name, target_w, target_h, p_dir, dpi
             )
 
+            # Resolve the actual connection type based on bluetooth_type
+            actual_connection_type = NiimbotPrinterService.resolve_connection_type(
+                config["connection_type"],
+                config.get("bluetooth_type")
+            )
+
             transport = NiimbotPrinterService.create_transport(
-                config["connection_type"], config.get("address")
+                actual_connection_type, config.get("address")
             )
 
             printer = PrinterClient(transport)

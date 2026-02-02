@@ -176,6 +176,7 @@ def verify_google_token(token: str) -> Optional[dict]:
 
 
 async def get_current_user(
+    request: Request,
     token: Optional[str] = Depends(oauth2_scheme),
     api_key: Optional[str] = Depends(api_key_header),
     db: Session = Depends(get_db),
@@ -189,7 +190,7 @@ async def get_current_user(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Your account is pending approval by an administrator",
     )
-    
+
     # First, try API key authentication
     if api_key:
         user = get_user_by_api_key(db, api_key)
@@ -199,8 +200,13 @@ async def get_current_user(
             return user
         # If API key was provided but invalid, raise error
         raise credentials_exception
-    
+
     # Fall back to JWT token authentication
+    # Try Authorization header first, then fall back to cookie
+    if not token:
+        # Check for token in cookie as fallback
+        token = request.cookies.get("access_token")
+
     if not token:
         raise credentials_exception
     

@@ -24,10 +24,11 @@ logger = logging.getLogger(__name__)
 
 
 class PrinterConfig(BaseModel):
-    """Printer configuration model. Currently supported: D11-H."""
+    """Printer configuration model."""
     enabled: bool = False
     model: str = "d11_h"
     connection_type: str = "usb"
+    bluetooth_type: Optional[str] = "auto"  # "auto", "ble", or "rfcomm" (only used if connection_type="bluetooth")
     address: Optional[str] = None
     density: int = 3
     label_width: Optional[int] = None
@@ -78,6 +79,7 @@ def get_printer_config(
         "enabled": config.get("enabled", False),
         "model": config.get("model", "d11_h"),
         "connection_type": config.get("connection_type", "usb"),
+        "bluetooth_type": config.get("bluetooth_type", "auto"),
         "address": config.get("address"),
         "density": config.get("density", 3),
         "label_width": config.get("label_width"),
@@ -257,10 +259,16 @@ def test_connection(
         
         # Validate configuration
         validated_config = NiimbotPrinterService.validate_printer_config(config_dict)
-        
+
+        # Resolve the actual connection type based on bluetooth_type
+        actual_connection_type = NiimbotPrinterService.resolve_connection_type(
+            validated_config["connection_type"],
+            validated_config.get("bluetooth_type")
+        )
+
         # Try to create transport to verify connection
         transport = NiimbotPrinterService.create_transport(
-            validated_config["connection_type"],
+            actual_connection_type,
             validated_config.get("address")
         )
         
@@ -305,9 +313,15 @@ def get_printer_status(
                 detail="Printer is not enabled"
             )
 
+        # Resolve the actual connection type based on bluetooth_type
+        actual_connection_type = NiimbotPrinterService.resolve_connection_type(
+            config.get("connection_type", "usb"),
+            config.get("bluetooth_type")
+        )
+
         # Connect
         transport = NiimbotPrinterService.create_transport(
-            config.get("connection_type", "usb"),
+            actual_connection_type,
             config.get("address")
         )
         printer = PrinterClient(transport)

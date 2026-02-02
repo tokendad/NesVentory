@@ -3,6 +3,7 @@ import asyncio
 import enum
 import logging
 import math
+import socket
 import struct
 import threading
 import time
@@ -229,6 +230,287 @@ class SerialTransport(BaseTransport):
         if self._serial and self._serial.is_open:
             self._serial.close()
 
+class RfcommTransport(BaseTransport):
+    """Classic Bluetooth RFCOMM transport for NIIMBOT printers.
+
+    Uses Python sockets with BTPROTO_RFCOMM (Serial Port Profile).
+    No external commands or device binding required.
+    Works directly with Classic Bluetooth devices like NIImbot B1.
+    """
+
+    def __init__(self, address: str, channel: int = 1):
+        """
+        Initialize RFCOMM socket connection to a Bluetooth device.
+
+        Args:
+            address: Bluetooth MAC address (e.g., "03:01:08:82:81:4D")
+            channel: RFCOMM channel (default: 1 for Serial Port Profile)
+
+        Raises:
+            ConnectionError: If connection fails
+        """
+        self._address = address.upper()
+        self._channel = channel
+        self._sock = None
+
+        logging.info(f"RfcommTransport: Connecting to {self._address} channel {self._channel}")
+
+        try:
+            # Create Bluetooth socket
+            self._sock = socket.socket(
+                socket.AF_BLUETOOTH,
+                socket.SOCK_STREAM,
+                socket.BTPROTO_RFCOMM
+            )
+            # Set connection timeout
+            self._sock.settimeout(30)
+            # Connect to remote device
+            self._sock.connect((self._address, self._channel))
+            # Set read timeout to match SerialTransport
+            self._sock.settimeout(0.5)
+            logging.info(f"RfcommTransport: Connected successfully")
+        except socket.timeout:
+            if self._sock:
+                self._sock.close()
+            raise ConnectionError(
+                f"Connection timeout connecting to {self._address}. "
+                f"Please check if the device is powered on and in range."
+            )
+        except ConnectionRefusedError:
+            if self._sock:
+                self._sock.close()
+            raise ConnectionError(
+                f"Connection refused by {self._address}. "
+                f"The device may not support this connection or is not ready."
+            )
+        except OSError as e:
+            if self._sock:
+                self._sock.close()
+            # Provide specific error messages for common issues
+            if e.errno == 112:  # EHOSTDOWN
+                raise ConnectionError(
+                    f"Device {self._address} is not responding. "
+                    f"Please check if it's powered on and in Bluetooth range."
+                )
+            elif e.errno == 113:  # EHOSTUNREACH
+                raise ConnectionError(
+                    f"Device {self._address} is not reachable. "
+                    f"Please check Bluetooth connectivity."
+                )
+            elif e.errno == 16:  # EBUSY
+                raise ConnectionError(
+                    f"Device {self._address} is busy. "
+                    f"Please disconnect from other devices and try again."
+                )
+            else:
+                raise ConnectionError(f"Failed to connect to {self._address}: {e}")
+        except Exception as e:
+            if self._sock:
+                self._sock.close()
+            raise ConnectionError(f"Failed to connect to {self._address}: {e}")
+
+    def read(self, length: int) -> bytes:
+        """Read data from RFCOMM socket.
+
+        Args:
+            length: Number of bytes to read
+
+        Returns:
+            Bytes read from socket, empty bytes on timeout
+        """
+        try:
+            return self._sock.recv(length)
+        except socket.timeout:
+            return bytes()
+        except Exception as e:
+            logging.error(f"RfcommTransport: Read error: {e}")
+            return bytes()
+
+    def write(self, data: bytes):
+        """Write data to RFCOMM socket.
+
+        Args:
+            data: Bytes to write
+
+        Returns:
+            Number of bytes sent
+        """
+        try:
+            return self._sock.send(data)
+        except Exception as e:
+            logging.error(f"RfcommTransport: Write error: {e}")
+            raise
+
+    def disconnect(self):
+        """Close the RFCOMM socket."""
+        if self._sock:
+            try:
+                self._sock.close()
+                logging.info("RfcommTransport: Socket closed")
+            except Exception as e:
+                logging.warning(f"RfcommTransport: Error closing socket: {e}")
+            finally:
+                self._sock = None
+
+class BluetoothDeviceInfo:
+    """Information about a detected Bluetooth device."""
+
+    def __init__(self, address: str, name: str, device_type: str, uuids: list):
+        self.address = address.upper()
+        self.name = name
+        self.device_type = device_type  # "ble", "classic", or "dual"
+        self.uuids = uuids
+
+    def is_ble(self) -> bool:
+        """Check if device supports BLE (GATT)."""
+        return self.device_type in ["ble", "dual"]
+
+    def is_classic(self) -> bool:
+        """Check if device supports Classic Bluetooth (RFCOMM)."""
+        return self.device_type in ["classic", "dual"]
+
+    def is_rfcomm_printer(self) -> bool:
+        """Check if device is likely an RFCOMM printer (Serial Port Profile)."""
+        # Serial Port Profile UUID
+        SPP_UUID = "00001101-0000-1000-8000-00805f9b34fb"
+        return SPP_UUID.lower() in [u.lower() for u in self.uuids]
+
+
+async def detect_bluetooth_device_type(address: str) -> BluetoothDeviceInfo:
+    """
+    Detect whether a Bluetooth device is BLE, Classic, or Dual-mode.
+
+    Strategy:
+    1. Try Bleak scan to detect BLE devices
+    2. If not found, use bluetoothctl to check for Classic Bluetooth
+    3. Return device info with type classification
+
+    Args:
+        address: Bluetooth MAC address
+
+    Returns:
+        BluetoothDeviceInfo with device type and UUIDs
+
+    Raises:
+        ValueError: Device not found or Bluetooth unavailable
+    """
+    import subprocess
+
+    address_upper = address.upper()
+
+    # Step 1: Check for Classic Bluetooth first (higher priority for RFCOMM printers)
+    # This is important because some Classic Bluetooth devices advertise BLE services
+    classic_info = await _check_classic_bluetooth(address_upper)
+
+    if classic_info:
+        # Device supports Classic Bluetooth
+        # Check if it's an RFCOMM printer (has Serial Port Profile)
+        if any(uuid.lower() == "00001101-0000-1000-8000-00805f9b34fb"
+               for uuid in classic_info.get("uuids", [])):
+            logging.info(f"Found Classic Bluetooth printer with SPP: {classic_info.get('name', 'Unknown')}")
+            return BluetoothDeviceInfo(
+                address_upper,
+                classic_info.get("name", "Unknown"),
+                "classic",
+                classic_info.get("uuids", [])
+            )
+
+    # Step 2: Check for BLE using Bleak (lower priority)
+    try:
+        from bleak import BleakScanner
+
+        logging.info(f"Scanning for BLE device: {address_upper}")
+        devices = await BleakScanner.discover(timeout=10.0)
+
+        for device in devices:
+            if device.address.upper() == address_upper:
+                logging.info(f"Found BLE device: {device.name} ({device.address})")
+
+                # Get BLE UUIDs safely
+                ble_uuids = []
+                try:
+                    if hasattr(device, 'metadata') and device.metadata:
+                        ble_uuids = list(device.metadata.get("uuids", []))
+                except (AttributeError, TypeError):
+                    pass
+
+                # If we also have classic info, it's dual-mode
+                if classic_info:
+                    return BluetoothDeviceInfo(
+                        address_upper,
+                        device.name or classic_info.get("name", "Unknown"),
+                        "dual",
+                        ble_uuids + classic_info.get("uuids", [])
+                    )
+
+                # BLE only
+                return BluetoothDeviceInfo(
+                    address_upper,
+                    device.name or "Unknown",
+                    "ble",
+                    ble_uuids
+                )
+    except Exception as e:
+        logging.warning(f"BLE scan failed: {e}")
+
+    # Step 3: If we got here and have classic_info, return it as classic
+    if classic_info:
+        return BluetoothDeviceInfo(
+            address_upper,
+            classic_info.get("name", "Unknown"),
+            "classic",
+            classic_info.get("uuids", [])
+        )
+
+    raise ValueError(f"Bluetooth device {address_upper} not found or not responding")
+
+
+async def _check_classic_bluetooth(address: str) -> dict:
+    """
+    Check if a device supports Classic Bluetooth using bluetoothctl.
+
+    Returns dict with name and UUIDs, or None if not found.
+    """
+    import asyncio
+    import subprocess
+
+    try:
+        # Use bluetoothctl to get device info
+        proc = await asyncio.create_subprocess_exec(
+            "bluetoothctl", "info", address,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=5.0)
+
+        if proc.returncode != 0:
+            return None
+
+        output = stdout.decode('utf-8')
+
+        # Parse output for name and UUIDs
+        name = None
+        uuids = []
+
+        for line in output.split('\n'):
+            line = line.strip()
+            if line.startswith("Name:"):
+                name = line.split("Name:", 1)[1].strip()
+            elif line.startswith("UUID:"):
+                # Format: "UUID: Serial Port (00001101-...)"
+                uuid_part = line.split("UUID:", 1)[1].strip()
+                if "(" in uuid_part and ")" in uuid_part:
+                    uuid = uuid_part.split("(")[1].split(")")[0].strip()
+                    uuids.append(uuid)
+
+        if name or uuids:
+            return {"name": name, "uuids": uuids}
+
+    except Exception as e:
+        logging.debug(f"Classic Bluetooth check failed: {e}")
+
+    return None
+
 class PrinterClient:
     def __init__(self, transport):
         self._transport = transport
@@ -265,51 +547,59 @@ class PrinterClient:
         return bool(packet)
 
     def print_image(self, image: Image, density: int = 3, model: str = None):
-        """Print method matching testusb.py's custom_print_image exactly.
+        """Print method supporting both V5 and B1 protocol variants.
 
-        V5 Protocol sequence (from working testusb.py):
+        B1 Protocol (Classic Bluetooth RFCOMM):
         1. set_label_density (transceive)
-        2. start_print (transceive)
-        3. start_page_print (transceive)
-        4. V5 start print packet 0x01 with 9-byte payload (_send, no wait)
-        5. V5 dimension packet 0x13 (_send, no wait)
-        6. Image data rows 0x85 (_send, no wait)
-        7. end_page_print (transceive)
-        8. sleep 0.3s
+        2. set_label_type (transceive)
+        3. start_print (transceive)
+        4. start_page_print (transceive)
+        5. B1 start print packet 0x01 with 7-byte payload (_send)
+        6. B1 set page size packet 0x13 with 6-byte payload (_send)
+        7. Image data rows 0x85 (_send)
+        8. end_page_print (transceive)
         9. end_print (transceive)
+
+        V5 Protocol (BLE):
+        Similar sequence but with different payload formats for 0x01 and 0x13
         """
         logging.info(f"Starting print: {image.width}x{image.height}px, model={model}")
 
-        # V5 protocol models (most modern NIIMBOT printers)
-        # Source: https://printers.niim.blue/
+        # Model-specific protocol variants
+        is_b1 = model and model.lower() == "b1"
         is_v5 = model and model.lower() in [
             "d11_h", "d101", "d110", "d110_m",
-            "b21_pro", "b21_c2b", "m2_h"
+            "b21", "b21_pro", "b21_c2b", "m2_h"
         ]
 
-        # Exactly match testusb.py sequence
+        # Common setup for all models
         self.set_label_density(density)
+        if is_b1:
+            self.set_label_type(1)  # B1 requires label type setting
         self.start_print()
         self.start_page_print()
 
-        if is_v5:
-            # V5: Use _send (fire-and-forget) NOT _transceive - matches testusb.py
-            # 1. Start Print Command (0x01) with 9-byte payload
-            sp_payload = struct.pack(">H", 1) + b'\x00\x00\x00\x00' + b'\x00\x00\x01'
+        if is_b1:
+            # B1 Protocol (7-byte and 6-byte payloads) - verified with niim.blue logs
+            logging.info("Using B1 Classic Bluetooth protocol variant")
+
+            # 1. Start Print Command (0x01) with B1 7-byte payload
+            sp_payload = b'\x00\x01\x00\x00\x00\x00\x00'
             self._send(NiimbotPacket(0x01, sp_payload))
-            time.sleep(0.2)  # Critical delay for BLE stability
+            time.sleep(0.2)
 
-            # 2. Set Dimension Command (0x13)
+            # 2. Set Page Size Command (0x13) with B1 6-byte payload: width, height, qty
             w, h = image.width, image.height
-            sd_payload = struct.pack(">HHH H B B B H", h, w, 1, 0, 0, 0, 1, 0)
+            sd_payload = struct.pack(">HHH", w, h, 1)
             self._send(NiimbotPacket(0x13, sd_payload))
-            time.sleep(0.2)  # Critical delay for BLE stability
+            time.sleep(0.2)
 
-            # 3. Image Data (0x85) - inline encoding exactly like testusb.py
+            # 3. Image Data (0x85) - B1 format
             img_l = image.convert("L")
             for y in range(img_l.height):
                 line_pixels = [img_l.getpixel((x, y)) for x in range(img_l.width)]
-                line_bits_str = "".join("1" if pix > 128 else "0" for pix in line_pixels)
+                # Dark pixels (< 128) = 1 (ink), Bright pixels (>= 128) = 0 (no ink)
+                line_bits_str = "".join("1" if pix < 128 else "0" for pix in line_pixels)
 
                 if len(line_bits_str) % 8 != 0:
                     line_bits_str += "0" * (8 - (len(line_bits_str) % 8))
@@ -320,11 +610,43 @@ class PrinterClient:
                 t_l, t_h = total_pixels & 0xff, (total_pixels >> 8) & 0xff
                 header = struct.pack(">H B B B B", y, 0, t_l, t_h, 1)
                 self._send(NiimbotPacket(0x85, header + line_data))
+                time.sleep(0.01)
 
-                # Slow down significantly for BLE (0.01s per line = ~4.7s total)
+        elif is_v5:
+            # V5 Protocol (9-byte and 13-byte payloads) - for BLE printers
+            logging.info("Using V5 protocol variant")
+
+            # 1. Start Print Command (0x01) with V5 9-byte payload
+            sp_payload = struct.pack(">H", 1) + b'\x00\x00\x00\x00' + b'\x00\x00\x01'
+            self._send(NiimbotPacket(0x01, sp_payload))
+            time.sleep(0.2)
+
+            # 2. Set Dimension Command (0x13) with V5 13-byte payload
+            w, h = image.width, image.height
+            sd_payload = struct.pack(">HHH H B B B H", h, w, 1, 0, 0, 0, 1, 0)
+            self._send(NiimbotPacket(0x13, sd_payload))
+            time.sleep(0.2)
+
+            # 3. Image Data (0x85) - V5 format
+            img_l = image.convert("L")
+            for y in range(img_l.height):
+                line_pixels = [img_l.getpixel((x, y)) for x in range(img_l.width)]
+                # Dark pixels (< 128) = 1 (ink), Bright pixels (>= 128) = 0 (no ink)
+                line_bits_str = "".join("1" if pix < 128 else "0" for pix in line_pixels)
+
+                if len(line_bits_str) % 8 != 0:
+                    line_bits_str += "0" * (8 - (len(line_bits_str) % 8))
+
+                total_pixels = line_bits_str.count("1")
+                line_data = int(line_bits_str, 2).to_bytes(len(line_bits_str) // 8, "big")
+
+                t_l, t_h = total_pixels & 0xff, (total_pixels >> 8) & 0xff
+                header = struct.pack(">H B B B B", y, 0, t_l, t_h, 1)
+                self._send(NiimbotPacket(0x85, header + line_data))
                 time.sleep(0.01)
         else:
             # Legacy path for non-V5 printers
+            logging.info("Using legacy protocol variant")
             self.set_dimension(image.width, image.height)
             for pkt in self._encode_image(image):
                 self._send(pkt)
@@ -338,7 +660,8 @@ class PrinterClient:
         img = image.convert("L")
         for y in range(img.height):
             line_pixels = [img.getpixel((x, y)) for x in range(img.width)]
-            line_bits_str = "".join("1" if pix > 128 else "0" for pix in line_pixels)
+            # Dark pixels (< 128) = 1 (ink), Bright pixels (>= 128) = 0 (no ink)
+            line_bits_str = "".join("1" if pix < 128 else "0" for pix in line_pixels)
 
             if len(line_bits_str) % 8 != 0:
                 line_bits_str += "0" * (8 - (len(line_bits_str) % 8))

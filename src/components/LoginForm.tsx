@@ -39,8 +39,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick, onMus
         console.warn("Could not parse email from Google credential");
       }
       localStorage.setItem("NesVentory_user_email", userEmail);
-      // Pass empty string as token since it's in HttpOnly cookie now
-      onSuccess("", userEmail);
+      // Token is stored in HttpOnly cookie, pass a truthy value to indicate authenticated state
+      onSuccess("authenticated", userEmail);
     } catch (err: any) {
       setError(err.message || "Google sign-in failed");
       setGoogleLoading(false);
@@ -125,8 +125,9 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick, onMus
         return;
       }
 
-      // Pass empty string as token since it's in HttpOnly cookie now
-      onSuccess("", email);
+      // Token is stored in HttpOnly cookie, pass a truthy value to indicate authenticated state
+      // The actual token value doesn't matter since it's in the cookie, but must be truthy
+      onSuccess("authenticated", email);
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {
