@@ -146,6 +146,67 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
     return loc !== null && loc !== "create";
   };
 
+  // Get all descendant IDs of a location (for circular reference prevention)
+  const getDescendantIds = useCallback((locationId: string | number): Set<string> => {
+    const descendants = new Set<string>();
+    const findDescendants = (parentId: string) => {
+      locations.forEach(loc => {
+        if (loc.parent_id?.toString() === parentId) {
+          const locIdStr = loc.id.toString();
+          descendants.add(locIdStr);
+          findDescendants(locIdStr);
+        }
+      });
+    };
+    findDescendants(locationId.toString());
+    return descendants;
+  }, [locations]);
+
+  // Build hierarchical location list for parent dropdown
+  // Shows all locations with indentation, excluding self and descendants (circular ref prevention)
+  const getParentOptions = useMemo(() => {
+    const options: { id: string; label: string; depth: number }[] = [];
+
+    // Build tree structure for proper ordering
+    const buildOptions = (parentId: string | null, depth: number) => {
+      const children = locations.filter(loc =>
+        parentId === null
+          ? (loc.is_primary_location || !loc.parent_id)
+          : loc.parent_id?.toString() === parentId
+      );
+
+      // Sort by name for consistent ordering
+      children.sort((a, b) => (a.friendly_name || a.name).localeCompare(b.friendly_name || b.name));
+
+      children.forEach(loc => {
+        options.push({
+          id: loc.id.toString(),
+          label: loc.friendly_name || loc.name,
+          depth
+        });
+        buildOptions(loc.id.toString(), depth + 1);
+      });
+    };
+
+    buildOptions(null, 0);
+    return options;
+  }, [locations]);
+
+  // Filter parent options to exclude self and descendants (when editing)
+  const availableParentOptions = useMemo(() => {
+    if (showLocationSettings === "create") {
+      return getParentOptions;
+    }
+    if (!isEditingLocation(showLocationSettings)) {
+      return getParentOptions;
+    }
+    const editingId = showLocationSettings.id.toString();
+    const descendantIds = getDescendantIds(showLocationSettings.id);
+    return getParentOptions.filter(opt =>
+      opt.id !== editingId && !descendantIds.has(opt.id)
+    );
+  }, [getParentOptions, showLocationSettings, getDescendantIds]);
+
   // Get the location being edited in settings modal (if any)
   const editingLocation = isEditingLocation(showLocationSettings) ? showLocationSettings : null;
 
@@ -1081,18 +1142,11 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                   onChange={(e) => setEditFormData({ ...editFormData, parent_id: e.target.value })}
                 >
                   <option value="">-- No Parent (Top Level) --</option>
-                  {locations
-                    .filter(loc => loc.is_primary_location || !loc.parent_id)
-                    .filter(loc => {
-                      // In create mode, show all locations. In edit mode, exclude the location being edited
-                      if (showLocationSettings === "create") return true;
-                      return loc.id.toString() !== showLocationSettings.id.toString();
-                    })
-                    .map((loc) => (
-                      <option key={loc.id} value={loc.id.toString()}>
-                        {loc.friendly_name || loc.name}
-                      </option>
-                    ))}
+                  {availableParentOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {"—".repeat(opt.depth)}{opt.depth > 0 ? " " : ""}{opt.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 

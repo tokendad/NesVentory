@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import type { Location, LocationCreate, Item } from "../lib/api";
 import { updateLocation, getLocationCategories } from "../lib/api";
 import InsuranceTab from "./InsuranceTab";
@@ -85,6 +85,60 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
     estimated_property_value: location.estimated_property_value || null,
     estimated_value_with_items: location.estimated_value_with_items || null,
   });
+
+  // Get all descendant IDs of a location (for circular reference prevention)
+  const getDescendantIds = useCallback((locationId: string | number): Set<string> => {
+    const descendants = new Set<string>();
+    const findDescendants = (parentId: string) => {
+      allLocations.forEach(loc => {
+        if (loc.parent_id?.toString() === parentId) {
+          const locIdStr = loc.id.toString();
+          descendants.add(locIdStr);
+          findDescendants(locIdStr);
+        }
+      });
+    };
+    findDescendants(locationId.toString());
+    return descendants;
+  }, [allLocations]);
+
+  // Build hierarchical location list for parent dropdown
+  const getParentOptions = useMemo(() => {
+    const options: { id: string; label: string; depth: number }[] = [];
+
+    // Build tree structure for proper ordering
+    const buildOptions = (parentId: string | null, depth: number) => {
+      const children = allLocations.filter(loc =>
+        parentId === null
+          ? (loc.is_primary_location || !loc.parent_id)
+          : loc.parent_id?.toString() === parentId
+      );
+
+      // Sort by name for consistent ordering
+      children.sort((a, b) => (a.friendly_name || a.name).localeCompare(b.friendly_name || b.name));
+
+      children.forEach(loc => {
+        options.push({
+          id: loc.id.toString(),
+          label: loc.friendly_name || loc.name,
+          depth
+        });
+        buildOptions(loc.id.toString(), depth + 1);
+      });
+    };
+
+    buildOptions(null, 0);
+    return options;
+  }, [allLocations]);
+
+  // Filter parent options to exclude self and descendants (circular ref prevention)
+  const availableParentOptions = useMemo(() => {
+    const editingId = location.id.toString();
+    const descendantIds = getDescendantIds(location.id);
+    return getParentOptions.filter(opt =>
+      opt.id !== editingId && !descendantIds.has(opt.id)
+    );
+  }, [getParentOptions, location.id, getDescendantIds]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -240,6 +294,24 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
                   ))}
                 </select>
               </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="parent_id">Parent Location</label>
+              <select
+                id="parent_id"
+                name="parent_id"
+                value={formData.parent_id?.toString() || ""}
+                onChange={handleChange}
+                disabled={formLoading}
+              >
+                <option value="">-- No Parent (Top Level) --</option>
+                {availableParentOptions.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {"—".repeat(opt.depth)}{opt.depth > 0 ? " " : ""}{opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Conditionally show Location Type and Address only for Primary Location */}

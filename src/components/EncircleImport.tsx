@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { importEncircle, previewEncircle, fetchLocations, type EncircleImportResult, type Location } from "../lib/api";
 import { getLocationPath } from "../lib/utils";
 
@@ -37,13 +37,40 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
   const imagesInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
+  // Build hierarchical location list for parent dropdown
+  const getParentOptions = useMemo(() => {
+    const options: { id: string; label: string; depth: number }[] = [];
+
+    // Build tree structure for proper ordering
+    const buildOptions = (parentId: string | null, depth: number) => {
+      const children = locations.filter(loc =>
+        parentId === null
+          ? (loc.is_primary_location || !loc.parent_id)
+          : loc.parent_id?.toString() === parentId
+      );
+
+      // Sort by name for consistent ordering
+      children.sort((a, b) => (a.friendly_name || a.name).localeCompare(b.friendly_name || b.name));
+
+      children.forEach(loc => {
+        options.push({
+          id: loc.id.toString(),
+          label: loc.friendly_name || loc.name,
+          depth
+        });
+        buildOptions(loc.id.toString(), depth + 1);
+      });
+    };
+
+    buildOptions(null, 0);
+    return options;
+  }, [locations]);
+
   // Fetch available locations on mount
   useEffect(() => {
     fetchLocations()
       .then((locs) => {
-        // Filter to only show primary/root locations (those without parents)
-        const rootLocations = locs.filter(loc => !loc.parent_id);
-        setLocations(rootLocations);
+        setLocations(locs);
       })
       .catch((err) => {
         console.error("Failed to fetch locations:", err);
@@ -347,9 +374,9 @@ const EncircleImport: React.FC<EncircleImportProps> = ({ onClose, onSuccess }) =
                     }}
                   >
                     <option value="">Select a location...</option>
-                    {locations.map((loc) => (
-                      <option key={String(loc.id)} value={String(loc.id)}>
-                        {getLocationPath(loc.id, locations)}
+                    {getParentOptions.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {"—".repeat(opt.depth)}{opt.depth > 0 ? " " : ""}{opt.label}
                       </option>
                     ))}
                   </select>
