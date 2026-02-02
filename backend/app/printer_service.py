@@ -86,64 +86,137 @@ class NiimbotPrinterService:
         return SerialTransport(port=address if address else "auto")
 
     @staticmethod
+    def calculate_responsive_qr_size(label_width_px: int, label_height_px: int, printhead_width: int) -> int:
+        """
+        Calculate optimal QR code size based on label dimensions.
+        QR should take ~35-40% of the smallest dimension, leaving 60-65% for text.
+        """
+        # For "left" direction (vertical feed), height is printhead width and width is label length
+        # For "top" direction, width is printhead width and height is label length
+        # Use the smaller dimension for QR sizing
+        min_dimension = min(label_width_px, label_height_px)
+
+        # Target: 35-40% of available space
+        max_qr = int(min_dimension * 0.35)
+
+        # QR code must be reasonable size (minimum 50px, maximum bounded by dimensions)
+        qr_size = max(50, min(max_qr, min_dimension - 10))
+
+        # Round to nearest multiple of 10 for cleaner sizing
+        return (qr_size // 10) * 10
+
+    @staticmethod
+    def calculate_responsive_font_size(label_height_px: int, dpi: int, label_width_px: int) -> int:
+        """
+        Calculate optimal font size based on DPI and label dimensions.
+        Higher DPI = can use smaller font for same readability.
+        Smaller label = smaller font needed.
+        """
+        # Base font size: 25% of available height (after QR)
+        qr_size = NiimbotPrinterService.calculate_responsive_qr_size(label_width_px, label_height_px, label_height_px)
+        available_height = label_height_px - qr_size - 10
+
+        # For "left" direction: available width is around printhead width
+        # Font should be ~20% of available height
+        base_font = max(8, int(available_height * 0.2))
+
+        # Adjust for DPI: normalize to 203 DPI baseline
+        # 203 DPI = 1.0, 300 DPI = 1.48, lower DPI = smaller multiplier
+        dpi_factor = dpi / 203.0
+
+        # Apply DPI factor but with a reasonable range (0.6 to 1.5)
+        dpi_adjusted = base_font * min(max(dpi_factor, 0.6), 1.5)
+
+        # Ensure minimum readability (at least 8pt)
+        return max(8, int(dpi_adjusted))
+
+    @staticmethod
     def create_qr_label_image(
         qr_code_data: bytes,
         location_name: str,
         label_width: int = 136,
         label_height: int = 472,
         print_direction: str = "left",
+        dpi: int = 203,
     ) -> Image.Image:
         """
-        Maps 12x40mm label: Width=12mm side, Height=40mm side.
+        Creates a responsive QR label image that scales with label dimensions.
+        Supports both "left" (vertical feed) and "top" (horizontal feed) directions.
+
+        Args:
+            qr_code_data: Binary QR code image data
+            location_name: Text to display below QR
+            label_width: Label width in pixels
+            label_height: Label height in pixels
+            print_direction: "left" for vertical feed, "top" for horizontal feed
+            dpi: Printer DPI for font optimization
         """
         label = Image.new("L", (label_width, label_height), color=0)
 
-        # 1. QR Code: Position matches testusb.py (6, 5)
+        # 1. Calculate responsive QR size
+        qr_size = NiimbotPrinterService.calculate_responsive_qr_size(label_width, label_height, label_height)
+
+        # 2. QR Code placement
         try:
             qr_image = Image.open(io.BytesIO(qr_code_data)).convert("L")
-            # No inversion - matches testusb.py which pastes QR directly
-            qr_image = qr_image.resize((124, 124), Image.NEAREST)
-            label.paste(qr_image, (6, 5))
+            # Resize to calculated responsive size
+            qr_image = qr_image.resize((qr_size, qr_size), Image.NEAREST)
+
+            # Position QR on left side (for "left" direction) with padding
+            qr_x = 6
+            qr_y = max(5, (label_height - qr_size) // 2)  # Center vertically
+            label.paste(qr_image, (qr_x, qr_y))
         except Exception as e:
             logger.error(f"QR Error: {e}")
 
-        # 2. Text: Maximize use of available label space
-        # Label: 136x472, QR: 124x124 at (6,5) ends at y=129
-        # Available for text: y=132 to y=468 = 336px length, full width ~130px
+        # 3. Calculate responsive font size
+        font_size = NiimbotPrinterService.calculate_responsive_font_size(label_height, dpi, label_width)
+
+        # 4. Text rendering with responsive sizing
         try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 32)
+            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", font_size)
         except OSError:
             font = ImageFont.load_default()
 
-        # Maximize text area: 336px length x 124px height (matches QR width)
-        # After -90 rotation: 124x336, fitting nicely below QR
-        txt_img = Image.new("L", (336, 124), color=0)
+        # Text area dimensions (after QR)
+        # Available width after QR and padding
+        text_width = label_width - qr_size - 18  # QR + 2*padding
+        text_height = label_height - 10  # Leave padding
+
+        # Create text image for rotation (if needed)
+        txt_img = Image.new("L", (text_width, text_height), color=0)
         draw_txt = ImageDraw.Draw(txt_img)
-        
-        # Support multiline text (e.g. for test prints)
+
+        # Support multiline text
         lines = location_name.split('\n')
         line_count = len(lines)
-        
+
         if line_count > 1:
-            # For multiline, use smaller font if needed and draw multiline
+            # For multiline, scale down font slightly
             try:
-                small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 24)
+                small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", max(8, int(font_size * 0.75)))
             except OSError:
                 small_font = ImageFont.load_default()
-            
-            # Draw multiline text centered
+
+            # Draw multiline text
             draw_txt.multiline_text((5, 10), location_name, fill=255, font=small_font, spacing=4)
         else:
-            # Center single line text vertically in the 124px height
-            draw_txt.text((5, 44), location_name, fill=255, font=font)
+            # Center single line text vertically
+            text_y = max(0, (text_height - font_size) // 2)
+            draw_txt.text((5, text_y), location_name, fill=255, font=font)
 
+        # 5. Place text based on print direction
         if print_direction == "left":
+            # Vertical feed: rotate text -90 for proper orientation
             rotated_txt = txt_img.rotate(-90, expand=True)
-            # After rotation: 124x336, position at x=6 (align with QR), y=132
-            label.paste(rotated_txt, (6, 132))
+            text_x = qr_x + qr_size + 6
+            text_y = 5
+            label.paste(rotated_txt, (text_x, text_y))
         else:
-            # Top (Standard Landscape on Strip) - No rotation
-            label.paste(txt_img, (6, 132))
+            # Horizontal feed: no rotation
+            text_x = 6
+            text_y = qr_y + qr_size + 6
+            label.paste(txt_img, (text_x, text_y))
 
         return label
 
@@ -165,9 +238,10 @@ class NiimbotPrinterService:
             target_w = label_width or config.get("label_width") or model_specs["width"]
             target_h = label_height or config.get("label_height") or model_specs["height"]
             p_dir = config.get("print_direction") or model_specs["direction"]
+            dpi = model_specs.get("dpi", 203)
 
             label_image = NiimbotPrinterService.create_qr_label_image(
-                qr_code_data, location_name, target_w, target_h, p_dir
+                qr_code_data, location_name, target_w, target_h, p_dir, dpi
             )
 
             transport = NiimbotPrinterService.create_transport(

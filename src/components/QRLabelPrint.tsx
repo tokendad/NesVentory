@@ -409,6 +409,37 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
     return rotatedCtx.getImageData(0, 0, height, width);
   };
 
+  // Calculate responsive QR size based on label dimensions
+  const calculateResponsiveQRSize = (labelWidth: number, labelHeight: number, printheadPixels: number): number => {
+      // QR should take ~35-40% of the smallest dimension
+      const minDimension = Math.min(labelWidth, labelHeight);
+      const maxQr = Math.floor(minDimension * 0.35);
+
+      // QR code minimum 50px, bounded by dimensions
+      const qrSize = Math.max(50, Math.min(maxQr, minDimension - 10));
+
+      // Round to nearest multiple of 10 for cleaner sizing
+      return Math.floor(qrSize / 10) * 10;
+  };
+
+  // Calculate responsive font size based on DPI and available space
+  const calculateResponsiveFontSize = (labelHeight: number, dpi: number, labelWidth: number): number => {
+      const qrSize = calculateResponsiveQRSize(labelWidth, labelHeight, Math.min(labelWidth, labelHeight));
+      const availableHeight = labelHeight - qrSize - 10;
+
+      // Font should be ~20% of available height
+      let baseFont = Math.max(8, Math.floor(availableHeight * 0.2));
+
+      // Adjust for DPI: normalize to 203 DPI baseline
+      const dpiFactor = dpi / 203.0;
+
+      // Apply DPI factor with reasonable range (0.6 to 1.5)
+      const dpiAdjusted = baseFont * Math.min(Math.max(dpiFactor, 0.6), 1.5);
+
+      // Ensure minimum readability
+      return Math.max(8, Math.floor(dpiAdjusted));
+  };
+
   // Draw label to canvas using model-specific dimensions
   // For "left" direction printers: width = label length, height = printheadPixels (rotated later)
   // For "top" direction printers: width = printheadPixels, height = label length
@@ -450,11 +481,10 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
       // Get the label title
       const labelTitle = getLabelName();
 
-      // Scale factors based on printhead size (96px as baseline)
-      const scaleFactor = printheadPixels / 96;
-      const qrSize = Math.min(Math.round(printheadPixels * 0.9), canvasHeight - 10, canvasWidth - 10);
-      const fontSize = Math.max(12, Math.round(16 * scaleFactor));
-      const padding = Math.round(4 * scaleFactor);
+      // Calculate responsive sizes
+      const qrSize = calculateResponsiveQRSize(canvasWidth, canvasHeight, printheadPixels);
+      const fontSize = calculateResponsiveFontSize(canvasHeight, dpi, canvasWidth);
+      const padding = Math.round(4 * (printheadPixels / 96)); // Scale padding with printhead
 
       if (printMode !== 'items_only' && qrDataUrl) {
           const img = new Image();
