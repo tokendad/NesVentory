@@ -1,0 +1,20 @@
+{
+  "name": "niimbot-test",
+  "version": "1.0.0",
+  "description": "Niimbot B1 Bluetooth test print script with QR code",
+  "type": "module",
+  "main": "print-test.mjs",
+  "scripts": {
+    "scan": "node print-test.mjs scan",
+    "print": "node print-test.mjs print",
+    "test": "node print-test.mjs"
+  },
+  "keywords": ["niimbot", "b1", "bluetooth", "label", "printer"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@mmote/niimblue-node": "^0.0.12",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.34.5"
+  }
+}
