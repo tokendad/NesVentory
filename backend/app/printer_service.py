@@ -242,7 +242,7 @@ class NiimbotPrinterService:
             print_direction: "left" for vertical feed, "top" for horizontal feed
             dpi: Printer DPI for font optimization
         """
-        label = Image.new("L", (label_width, label_height), color=0)
+        label = Image.new("L", (label_width, label_height), color=255)  # WHITE background
 
         # Determine layout based on print direction
         is_horizontal_feed = print_direction != "left"
@@ -283,12 +283,12 @@ class NiimbotPrinterService:
         except OSError:
             font = ImageFont.load_default()
 
-        # 4. Prepare text image
+        # 4. Prepare text image (WHITE background, BLACK text for thermal printing)
         if is_horizontal_feed:
             # Horizontal: full width text area below QR
             text_width = label_width - 10  # Leave padding
             text_height = label_height - qr_size - 15  # Space below QR
-            txt_img = Image.new("L", (text_width, text_height), color=0)
+            txt_img = Image.new("L", (text_width, text_height), color=255)  # WHITE background
             draw_txt = ImageDraw.Draw(txt_img)
 
             # Support multiline text
@@ -301,13 +301,13 @@ class NiimbotPrinterService:
                     small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", max(8, int(font_size * 0.75)))
                 except OSError:
                     small_font = ImageFont.load_default()
-                draw_txt.multiline_text((5, 5), location_name, fill=255, font=small_font, spacing=4)
+                draw_txt.multiline_text((5, 5), location_name, fill=0, font=small_font, spacing=4)  # BLACK text
             else:
                 # Center text horizontally in available space
                 text_bbox = draw_txt.textbbox((0, 0), location_name, font=font)
                 text_w = text_bbox[2] - text_bbox[0]
                 text_x = max(5, (text_width - text_w) // 2)
-                draw_txt.text((text_x, 5), location_name, fill=255, font=font)
+                draw_txt.text((text_x, 5), location_name, fill=0, font=font)  # BLACK text
 
             # Place text below QR
             text_x = 5
@@ -317,7 +317,7 @@ class NiimbotPrinterService:
             # Vertical: text on right side, rotated -90
             text_width = label_width - qr_size - 18
             text_height = label_height - 10
-            txt_img = Image.new("L", (text_width, text_height), color=0)
+            txt_img = Image.new("L", (text_width, text_height), color=255)  # WHITE background
             draw_txt = ImageDraw.Draw(txt_img)
 
             # Support multiline text
@@ -330,11 +330,11 @@ class NiimbotPrinterService:
                     small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", max(8, int(font_size * 0.75)))
                 except OSError:
                     small_font = ImageFont.load_default()
-                draw_txt.multiline_text((5, 10), location_name, fill=255, font=small_font, spacing=4)
+                draw_txt.multiline_text((5, 10), location_name, fill=0, font=small_font, spacing=4)  # BLACK text
             else:
                 # Center single line text vertically
                 text_y = max(0, (text_height - font_size) // 2)
-                draw_txt.text((5, text_y), location_name, fill=255, font=font)
+                draw_txt.text((5, text_y), location_name, fill=0, font=font)  # BLACK text
 
             # Rotate and place text
             rotated_txt = txt_img.rotate(-90, expand=True)
@@ -359,14 +359,32 @@ class NiimbotPrinterService:
             model = config["model"]
 
             model_specs = NiimbotPrinterService.get_model_specs(model)
-            target_w = label_width or config.get("label_width") or model_specs["width"]
-            target_h = label_height or config.get("label_height") or model_specs["height"]
-            p_dir = config.get("print_direction") or model_specs["direction"]
+
+            # For B1/B21 series, always use model specs unless RFID provides valid dimensions
+            # This prevents stale config values from overriding correct dimensions
+            if model.lower() in ["b1", "b21", "b21_pro", "b21_c2b"]:
+                # Use RFID-detected dimensions if provided and reasonable, else model specs
+                if label_width and label_height and label_width > 100:
+                    target_w = label_width
+                    target_h = label_height
+                else:
+                    target_w = model_specs["width"]
+                    target_h = model_specs["height"]
+            else:
+                # Legacy behavior for D-series
+                target_w = label_width or config.get("label_width") or model_specs["width"]
+                target_h = label_height or config.get("label_height") or model_specs["height"]
+
+            p_dir = model_specs["direction"]  # Always use model's direction
             dpi = model_specs.get("dpi", 203)
+
+            logger.info(f"Print dimensions: model={model}, target_w={target_w}, target_h={target_h}, direction={p_dir}")
 
             label_image = NiimbotPrinterService.create_qr_label_image(
                 qr_code_data, location_name, target_w, target_h, p_dir, dpi
             )
+
+            logger.info(f"Created label image: {label_image.width}x{label_image.height}px")
 
             # Resolve the actual connection type based on bluetooth_type
             actual_connection_type = NiimbotPrinterService.resolve_connection_type(

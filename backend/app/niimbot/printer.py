@@ -572,49 +572,73 @@ class PrinterClient:
             "b21", "b21_pro", "b21_c2b", "m2_h"
         ]
 
-        # Common setup for all models
-        self.set_label_density(density)
+        # B1 uses different command sequence than other models
         if is_b1:
-            self.set_label_type(1)  # B1 requires label type setting
-        self.start_print()
-        self.start_page_print()
-
-        if is_b1:
-            # B1 Protocol (7-byte and 6-byte payloads) - verified with niim.blue logs
+            # B1 Protocol - verified against working niimblue implementation
             logging.info("Using B1 Classic Bluetooth protocol variant")
 
-            # 1. Start Print Command (0x01) with B1 7-byte payload
-            sp_payload = b'\x00\x01\x00\x00\x00\x00\x00'
+            # 1. SetDensity (0x21) - uses transceive for response
+            self.set_label_density(density)
+
+            # 2. SetLabelType (0x23) - B1 requires this
+            self.set_label_type(1)
+
+            # 3. PrintStart (0x01) with B1 7-byte payload (BIG-ENDIAN!)
+            # Working example: 00 01 00 00 00 00 00
+            total_pages = 1
+            sp_payload = struct.pack(">H", total_pages) + b'\x00\x00\x00\x00\x00'
             self._send(NiimbotPacket(0x01, sp_payload))
             time.sleep(0.2)
 
-            # 2. Set Page Size Command (0x13) with B1 6-byte payload: width, height, qty
+            # 4. PageStart (0x03)
+            self._send(NiimbotPacket(0x03, b'\x01'))
+            time.sleep(0.1)
+
+            # 5. SetPageSize (0x13) with B1 6-byte payload: rows, cols, qty (BIG-ENDIAN!)
+            # Working example: 00 f0 01 80 00 01 = rows=240, cols=384, qty=1
             w, h = image.width, image.height
-            sd_payload = struct.pack(">HHH", w, h, 1)
+            sd_payload = struct.pack(">HHH", h, w, 1)  # rows=height, cols=width, qty=1
+            logging.info(f"B1 image: {w}x{h}px, SetPageSize: rows={h}, cols={w} -> {sd_payload.hex()}")
             self._send(NiimbotPacket(0x13, sd_payload))
             time.sleep(0.2)
 
-            # 3. Image Data (0x85) - B1 format
+            # 3. Image Data (0x85) - B1 format with split-mode pixel counts
             img_l = image.convert("L")
-            for y in range(img_l.height):
-                line_pixels = [img_l.getpixel((x, y)) for x in range(img_l.width)]
+            cols = img_l.width
+            rows = img_l.height
+            bytes_per_row = cols // 8
+            chunk_size = bytes_per_row // 3  # Split row into 3 chunks for B1
+
+            for y in range(rows):
+                line_pixels = [img_l.getpixel((x, y)) for x in range(cols)]
                 # Dark pixels (< 128) = 1 (ink), Bright pixels (>= 128) = 0 (no ink)
                 line_bits_str = "".join("1" if pix < 128 else "0" for pix in line_pixels)
 
                 if len(line_bits_str) % 8 != 0:
                     line_bits_str += "0" * (8 - (len(line_bits_str) % 8))
 
-                total_pixels = line_bits_str.count("1")
                 line_data = int(line_bits_str, 2).to_bytes(len(line_bits_str) // 8, "big")
 
-                t_l, t_h = total_pixels & 0xff, (total_pixels >> 8) & 0xff
-                header = struct.pack(">H B B B B", y, 0, t_l, t_h, 1)
+                # Count black pixels in each of 3 chunks (split mode for B1)
+                counts = [0, 0, 0]
+                for byte_idx, byte_val in enumerate(line_data):
+                    chunk_idx = min(byte_idx // chunk_size, 2)  # 0, 1, or 2
+                    # Count set bits in this byte
+                    counts[chunk_idx] += bin(byte_val).count('1')
+
+                # Header: [row_high, row_low, count0, count1, count2, repeat=1]
+                header = struct.pack(">H B B B B", y, counts[0], counts[1], counts[2], 1)
                 self._send(NiimbotPacket(0x85, header + line_data))
                 time.sleep(0.01)
 
         elif is_v5:
             # V5 Protocol (9-byte and 13-byte payloads) - for BLE printers
             logging.info("Using V5 protocol variant")
+
+            # Common setup for V5
+            self.set_label_density(density)
+            self.start_print()
+            self.start_page_print()
 
             # 1. Start Print Command (0x01) with V5 9-byte payload
             sp_payload = struct.pack(">H", 1) + b'\x00\x00\x00\x00' + b'\x00\x00\x01'
@@ -647,6 +671,9 @@ class PrinterClient:
         else:
             # Legacy path for non-V5 printers
             logging.info("Using legacy protocol variant")
+            self.set_label_density(density)
+            self.start_print()
+            self.start_page_print()
             self.set_dimension(image.width, image.height)
             for pkt in self._encode_image(image):
                 self._send(pkt)
@@ -751,3 +778,126 @@ class PrinterClient:
     def set_quantity(self, n):
         packet = self._transceive(RequestCodeEnum.SET_QUANTITY, struct.pack(">H", n))
         return bool(packet.data[0]) if packet else False
+
+    def get_rfid(self):
+        """Query RFID tag on loaded label roll.
+
+        Returns:
+            dict with keys: width_mm, height_mm, type, raw_data, product_code
+            Returns None if RFID read fails or no label loaded
+
+        Note: Niimbot RFID uses TLV encoding. Format:
+            - Bytes 0-1: Tag (0x88) and length
+            - Bytes 2+: Encoded product data including dimensions
+        """
+        packet = self._transceive(RequestCodeEnum.GET_RFID, b"\x01")
+
+        if not packet or len(packet.data) < 4:
+            logging.warning(f"RFID response too short or invalid: {packet.data.hex() if packet else 'None'}")
+            return None
+
+        try:
+            raw_hex = packet.data.hex()
+            logging.info(f"RFID raw response ({len(packet.data)} bytes): {raw_hex}")
+
+            # Parse TLV structure
+            # Format: 88 1d [length] [data...]
+            # The response contains encoded product/label information
+
+            if packet.data[0] != 0x88:
+                logging.warning(f"Unexpected RFID tag: 0x{packet.data[0]:02x} (expected 0x88)")
+                return None
+
+            data_length = packet.data[1]
+            rfid_payload = packet.data[2:2+data_length]
+
+            logging.info(f"RFID payload ({len(rfid_payload)} bytes): {rfid_payload.hex()}")
+
+            # Extract product code from ASCII-encoded portion
+            # The RFID contains product information that maps to label dimensions
+            # For now, return the raw data - dimensions will be looked up by profile detector
+
+            # Try to extract any ASCII-readable product code
+            product_code = ""
+            try:
+                # Look for ASCII-printable sections
+                ascii_portion = ""
+                for byte in rfid_payload:
+                    if 32 <= byte <= 126:  # Printable ASCII range
+                        ascii_portion += chr(byte)
+                    elif ascii_portion:
+                        if len(ascii_portion) > 3:
+                            product_code = ascii_portion
+                            break
+                        ascii_portion = ""
+            except Exception as e:
+                logging.debug(f"Could not extract ASCII product code: {e}")
+
+            # Since Niimbot RFID encodes product info (not raw dimensions),
+            # we'll use a different approach: query the printer for label info
+            # or use profile detection based on the raw RFID data signature
+
+            # For B1 50x30mm labels, the RFID response has a specific pattern
+            # We'll detect this by checking the response signature
+
+            dimensions = self._detect_dimensions_from_rfid_response(packet.data, raw_hex)
+
+            if dimensions:
+                rfid_data = {
+                    "width_mm": dimensions["width_mm"],
+                    "height_mm": dimensions["height_mm"],
+                    "type": 0,
+                    "raw_data": raw_hex,
+                    "product_code": product_code,
+                    "response_signature": raw_hex[:8]  # First 4 bytes as signature
+                }
+                logging.info(f"RFID detected: {dimensions['width_mm']}x{dimensions['height_mm']}mm (signature: {raw_hex[:8]})")
+                return rfid_data
+            else:
+                logging.warning(
+                    f"Could not determine dimensions from RFID response. "
+                    f"Raw: {raw_hex}, Product code: {product_code}"
+                )
+                return None
+
+        except Exception as e:
+            logging.error(f"Error parsing RFID data: {e}", exc_info=True)
+            return None
+
+    def _detect_dimensions_from_rfid_response(self, response_bytes: bytes, hex_string: str) -> dict | None:
+        """Detect label dimensions from RFID response signature.
+
+        Since Niimbot RFID encodes product information (not raw dimensions),
+        we detect known label types by their RFID response pattern.
+        """
+        # Map of known RFID response signatures to label dimensions
+        # Format: (start_hex_pattern): {width_mm, height_mm}
+
+        KNOWN_RFID_SIGNATURES = {
+            # B1 50mm x 30mm labels - verified signature
+            "881d86286c121080": {"width_mm": 50, "height_mm": 30},
+            # Add more signatures as we discover them
+        }
+
+        # Check if response matches any known signature
+        for signature, dimensions in KNOWN_RFID_SIGNATURES.items():
+            if hex_string.startswith(signature):
+                logging.info(f"Matched RFID signature: {signature}")
+                return dimensions
+
+        # If no signature match, try to parse dimensions from specific byte positions
+        # This is a fallback that may work for some label types
+        try:
+            # Some Niimbot labels encode dimensions at predictable offsets
+            # Try offset 32 (byte 16) for width, offset 34 (byte 17) for height
+            if len(response_bytes) > 17:
+                width = response_bytes[16]
+                height = response_bytes[17]
+
+                if 10 <= width <= 200 and 10 <= height <= 200:
+                    logging.info(f"Extracted dimensions from byte offsets: {width}x{height}mm")
+                    return {"width_mm": width, "height_mm": height}
+        except Exception as e:
+            logging.debug(f"Could not extract dimensions from byte offsets: {e}")
+
+        return None
