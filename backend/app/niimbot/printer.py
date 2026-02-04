@@ -383,13 +383,20 @@ class PrinterClient:
             logging.info("Using B1 Classic Bluetooth protocol variant (Node.js verified)")
 
             # =====================================================
-            # DEBUG: Save image to /tmp
+            # CRITICAL: B1 with "top" print direction requires 90° CCW rotation
+            # Input: 384x240 (width x height) -> After rotation: 240x384
+            # This matches niimbluelib's ImageEncoder behavior
             # =====================================================
+            original_size = f"{image.width}x{image.height}"
+            image = image.transpose(Image.Transpose.ROTATE_270)
+            logging.info(f"B1: Rotated image 90° CCW from {original_size} to {image.width}x{image.height}px")
+
+            # DEBUG: Save rotated image to /tmp
             try:
                 ts = int(time.time())
                 debug_path = f"/tmp/b1_print_{ts}.png"
                 image.save(debug_path)
-                logging.info(f"DEBUG IMAGE SAVED: {debug_path}")
+                logging.info(f"DEBUG IMAGE SAVED (rotated): {debug_path}")
             except Exception:
                 pass
 
@@ -401,8 +408,6 @@ class PrinterClient:
             time.sleep(0.1)
 
             # 3. PrintStart (0x01) - 7-byte payload
-            # Node log: 01 07 00 01 00 00 00 00 00 07
-            # Payload: 00 01 00 00 00 00 00
             sp_payload = b'\x00\x01\x00\x00\x00\x00\x00'
             logging.info(f"PrintStart payload: {sp_payload.hex()}")
             self._send(NiimbotPacket(0x01, sp_payload))
@@ -413,11 +418,13 @@ class PrinterClient:
             time.sleep(0.1)
 
             # 5. SetPageSize (0x13) - 6-byte payload
-            # Node log: 13 06 00 f0 01 80 00 01
-            # Payload: 00 f0 (240) 01 80 (384) 00 01 (1) -> Height, Width, Qty
+            # After 90° CCW rotation: 384x240 becomes 240x384
+            # SetPageSize expects: rows (height), cols (width), qty
+            # For rotated image: rows=384, cols=240, qty=1
+            # Payload: 01 80 (384) 00 f0 (240) 00 01 (1)
             w, h = image.width, image.height
             sd_payload = struct.pack(">HHH", h, w, 1)
-            logging.info(f"SetPageSize: height={h}, width={w} -> payload={sd_payload.hex()}")
+            logging.info(f"SetPageSize: rows={h}, cols={w}, bytes_per_row={w//8} -> payload={sd_payload.hex()}")
             self._send(NiimbotPacket(0x13, sd_payload))
             time.sleep(0.2)
 
@@ -436,7 +443,7 @@ class PrinterClient:
             if bytes_per_row % 3 > 0:
                 chunk_size += 1
                 
-            logging.info(f"Encoding Compressed V5: rows={rows}, cols={cols}, bytes={bytes_per_row}")
+            logging.info(f"Encoding image data: rows={rows}, cols={cols}, bytes_per_row={bytes_per_row}")
 
             y = 0
             while y < rows:
