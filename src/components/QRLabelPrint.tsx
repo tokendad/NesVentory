@@ -381,13 +381,12 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
         return;
       }
 
-      // Pass detected dimensions if RFID detection found a profile
+      // RFID detection disabled - using fixed model specs instead
       const result = await printLabel({
         location_id: location!.id.toString(),
         location_name: location!.friendly_name || location!.name,
         is_container: location!.is_container || false,
-        label_width_mm: detectedProfile?.width_mm,
-        label_height_mm: detectedProfile?.height_mm,
+        // label_width_mm and label_height_mm removed - using model specs
       });
 
       if (result.success) {
@@ -940,38 +939,38 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
           </div>
         )}
 
-        {/* RFID Detection Section (Server Printer Only) */}
+        {/* RFID Detection Section - TEMPORARILY DISABLED */}
         {connectionType === 'server' && printerConfig?.enabled && (
           <div style={{
-            background: "rgba(76, 175, 80, 0.1)",
-            border: "2px solid rgba(76, 175, 80, 0.6)",
+            background: "rgba(158, 158, 158, 0.1)",
+            border: "2px solid rgba(158, 158, 158, 0.4)",
             borderRadius: "8px",
             padding: "1rem",
             marginBottom: "1rem",
+            opacity: 0.7,
           }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
               <strong style={{ fontSize: "0.95rem", color: "var(--text)" }}>
-                🔍 Auto-Detect Label Profile
+                🔍 Auto-Detect Label Profile (Disabled)
               </strong>
               <button
-                onClick={handleDetectRfid}
-                disabled={isDetecting}
+                disabled={true}
                 style={{
                   padding: "0.5rem 1rem",
-                  background: isDetecting ? "#ccc" : "var(--accent)",
+                  background: "#ccc",
                   color: "white",
                   border: "none",
                   borderRadius: "4px",
-                  cursor: isDetecting ? "not-allowed" : "pointer",
+                  cursor: "not-allowed",
                   fontSize: "0.9rem",
                 }}
               >
-                {isDetecting ? "Detecting..." : "Detect Label"}
+                Disabled
               </button>
             </div>
 
             <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", margin: "0 0 0.75rem 0" }}>
-              Automatically detect your label size via RFID. Load a labeled roll in your printer and click "Detect Label".
+              RFID label detection temporarily disabled. Using fixed model specs (384×240px for B1).
             </p>
 
             {/* Detection Error */}

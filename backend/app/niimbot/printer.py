@@ -387,9 +387,13 @@ class PrinterClient:
             # Input: 384x240 (width x height) -> After rotation: 240x384
             # This matches niimbluelib's ImageEncoder behavior
             # =====================================================
-            original_size = f"{image.width}x{image.height}"
-            image = image.transpose(Image.Transpose.ROTATE_270)
-            logging.info(f"B1: Rotated image 90° CCW from {original_size} to {image.width}x{image.height}px")
+            # Rotation disabled - developer notes confirmed no rotation gives correct orientation
+            # image = image.transpose(Image.Transpose.ROTATE_0)
+            # ROTATE_90  Words to the right of qr Code
+            # ROTATE_270  words to the left of qr code
+            # ROTATE_180  words on top
+            # No rotation = correct orientation, but was cutoff due to RFID dimension mismatch (now fixed)
+            logging.info(f"B1: Image {image.width}x{image.height}px (no rotation applied)")
 
             # DEBUG: Save rotated image to /tmp
             try:
@@ -428,136 +432,29 @@ class PrinterClient:
             self._send(NiimbotPacket(0x13, sd_payload))
             time.sleep(0.2)
 
-            # 6. Image Data (0x85) - SPLIT COUNT FORMAT WITH COMPRESSION
-            # Node log strategy:
-            # - Use 0x84 for empty rows (Row, Count)
-            # - Use 0x85 with Rep count for identical rows (Row, C1, C2, C3, Rep, Data)
-            
+            # 6. Image Data - SIMPLE ROW-BY-ROW ENCODING (Fix 3 from analysis)
+            # Diagnostic mode: no compression, no empty row skipping, no indexed mode
+            # This helps isolate if compression/optimization is causing issues
+
             img_l = image.convert("L")
             cols = img_l.width
             rows = img_l.height
-            
-            # Calculate chunk size for 3 splits
             bytes_per_row = (cols + 7) // 8
-            chunk_size = bytes_per_row // 3
-            if bytes_per_row % 3 > 0:
-                chunk_size += 1
-                
-            logging.info(f"Encoding image data: rows={rows}, cols={cols}, bytes_per_row={bytes_per_row}")
 
-            y = 0
-            while y < rows:
-                # 1. Check for Empty Rows
-                # Scan ahead to count how many consecutive rows are empty
-                empty_count = 0
-                for scan_y in range(y, rows):
-                    is_empty = True
-                    for x in range(cols):
-                        if img_l.getpixel((x, scan_y)) < 128:
-                            is_empty = False
-                            break
-                    if is_empty:
-                        empty_count += 1
-                        if empty_count >= 255: # Max byte value
-                            break
-                    else:
-                        break
-                
-                if empty_count > 0:
-                    # Send 0x84 PrintEmptyRow
-                    # Payload: Row(2), Count(1)
-                    header = struct.pack(">H B", y, empty_count)
-                    logging.info(f"Row {y}: Skipping {empty_count} empty rows (0x84)")
-                    self._send(NiimbotPacket(0x84, header))
-                    time.sleep(0.005)
-                    y += empty_count
-                    continue
+            logging.info(f"Simple encoding (diagnostic): rows={rows}, cols={cols}, bytes_per_row={bytes_per_row}")
 
-                # 2. Process Non-Empty Row
-                # Get data for current row
-                current_line_data = self._get_line_data(img_l, y, cols)
-                
-                # Check for repetition (identical subsequent rows)
-                repeat_count = 1
-                for scan_y in range(y + 1, rows):
-                    next_line_data = self._get_line_data(img_l, scan_y, cols)
-                    if next_line_data == current_line_data:
-                        repeat_count += 1
-                        if repeat_count >= 255:
-                            break
-                    else:
-                        break
-                
-                # Calculate Split Counts for the row
-                c1 = 0
-                c2 = 0
-                c3 = 0
-                
-                # Check for 0x83 opportunity (Sparse row)
-                # Count total black pixels to decide between 0x83 and 0x85
-                total_pixels = 0
-                for i, byte_val in enumerate(current_line_data):
-                    bits = bin(byte_val).count('1')
-                    total_pixels += bits
-                    if i < chunk_size:
-                        c1 += bits
-                    elif i < chunk_size * 2:
-                        c2 += bits
-                    else:
-                        c3 += bits
+            for y in range(rows):
+                line_data = self._get_line_data(img_l, y, cols)
 
-                # Header: Row(2), C1(1), C2(1), C3(1), Rep(1)
-                header = struct.pack(">H B B B B", y, c1, c2, c3, repeat_count)
-                
-                use_indexed_mode = total_pixels <= 6
-                
-                if use_indexed_mode:
-                    # 0x83 PrintBitmapRowIndexed
-                    # Payload: Header + List of Pixel Indexes (2 bytes each, Big Endian)
-                    pixel_indexes = bytearray()
-                    # Re-scan line to find pixel positions
-                    for x in range(cols):
-                        # Optimization: check byte first
-                        byte_idx = x // 8
-                        if current_line_data[byte_idx] == 0:
-                            x += 7 # Skip rest of byte (loop increments by 1, so skip 7 more)
-                            continue
-                            
-                        # Check specific bit
-                        if img_l.getpixel((x, y)) < 128:
-                            pixel_indexes.extend(struct.pack(">H", x))
-                    
-                    if y % 50 == 0:
-                        logging.info(f"Row {y}: Indexed Mode (0x83), {total_pixels} pixels, {repeat_count} repeats")
-                        
-                    self._send(NiimbotPacket(0x83, header + pixel_indexes))
-                else:
-                    # 0x85 PrintBitmapRow
-                    # Payload: Header + Full Bitmap Data
-                    if y % 50 == 0 or repeat_count > 1:
-                        logging.info(f"Row {y}: Full Mode (0x85), {repeat_count} repeats")
+                # Simple header: Row(2), C1=0, C2=0, C3=0, Rep=1
+                header = struct.pack(">H B B B B", y, 0, 0, 0, 1)
+                self._send(NiimbotPacket(0x85, header + line_data))
+                time.sleep(0.015)
 
-                    self._send(NiimbotPacket(0x85, header + current_line_data))
-                
-                # Critical: Adaptive Flow Control
-                # Optimized delay: 15ms per packet (matches ~5s total print time)
-                delay = 0.015
-                
-                # Buffer Drain: Every 20 rows, pause slightly and read
-                if y % 20 == 0:
-                    delay = 0.05
-                    try:
-                        # Clear any pending responses from the printer
-                        # This prevents the printer's TX buffer from filling up and blocking
-                        self._transport.read(1024)
-                    except:
-                        pass
-                
-                time.sleep(delay)
-                
-                y += repeat_count
+                if y % 50 == 0:
+                    logging.info(f"Sent row {y}/{rows}")
 
-            logging.info(f"Sent all image data (compressed)")
+            logging.info(f"Sent all {rows} rows (simple encoding)")
 
         elif is_v5:
             logging.info("Using V5 protocol variant")
@@ -595,8 +492,15 @@ class PrinterClient:
             for pkt in self._encode_image(image):
                 self._send(pkt)
 
+        logging.info("Sending PageEnd...")
         self.end_page_print()
-        time.sleep(0.3)
+
+        # Wait for printer to finish processing (B1 needs more time)
+        # niimbluelib polls status, but simple wait should work for now
+        logging.info("Waiting for print to complete...")
+        time.sleep(3.0)  # Increased from 0.3 to 3.0 seconds
+
+        logging.info("Sending PrintEnd...")
         self.end_print()
         logging.info(f"========== PRINT_IMAGE END ==========")
 

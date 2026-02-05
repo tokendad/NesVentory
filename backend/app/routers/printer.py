@@ -15,7 +15,8 @@ from ..auth import get_current_user
 from .. import models
 from ..printer_service import NiimbotPrinterService
 from ..system_printer_service import SystemPrinterService
-from ..services.rfid_service import RfidDetectionService
+# DISABLED: RFID detection causing dimension issues with B1 printer
+# from ..services.rfid_service import RfidDetectionService
 from ..niimbot import PrinterClient
 from ..niimbot.printer import InfoEnum
 from ..config import settings
@@ -42,8 +43,9 @@ class PrintLabelRequest(BaseModel):
     location_id: str
     location_name: str
     is_container: bool = False
-    label_width_mm: Optional[float] = None  # Detected label width in mm from RFID
-    label_height_mm: Optional[float] = None  # Detected label height in mm from RFID
+    # DISABLED: RFID detection causing dimension issues with B1 printer
+    # label_width_mm: Optional[float] = None  # Detected label width in mm from RFID
+    # label_height_mm: Optional[float] = None  # Detected label height in mm from RFID
 
 
 class SystemPrinterInfo(BaseModel):
@@ -163,27 +165,28 @@ def print_label(
         img_byte_arr = io.BytesIO()
         qr_image.save(img_byte_arr, format='PNG')
         qr_code_data = img_byte_arr.getvalue()
-        
-        # Convert detected dimensions (mm) to pixels if provided
-        label_width_px = None
-        label_height_px = None
-        if request.label_width_mm and request.label_height_mm:
-            model = config.get("model", "d11_h")
-            model_specs = NiimbotPrinterService.get_model_specs(model)
-            dpi = model_specs.get("dpi", 203)
-            # Convert mm to inches to pixels: mm / 25.4 * dpi
-            label_width_px = int((request.label_width_mm / 25.4) * dpi)
-            label_height_px = int((request.label_height_mm / 25.4) * dpi)
-            logger.info(f"Using detected dimensions: {request.label_width_mm}x{request.label_height_mm}mm → {label_width_px}x{label_height_px}px @ {dpi}DPI")
 
-        # Print the label
+        # DISABLED: RFID detection causing dimension issues with B1 printer
+        # Convert detected dimensions (mm) to pixels if provided
+        # label_width_px = None
+        # label_height_px = None
+        # if request.label_width_mm and request.label_height_mm:
+        #     model = config.get("model", "d11_h")
+        #     model_specs = NiimbotPrinterService.get_model_specs(model)
+        #     dpi = model_specs.get("dpi", 203)
+        #     # Convert mm to inches to pixels: mm / 25.4 * dpi
+        #     label_width_px = int((request.label_width_mm / 25.4) * dpi)
+        #     label_height_px = int((request.label_height_mm / 25.4) * dpi)
+        #     logger.info(f"Using detected dimensions: {request.label_width_mm}x{request.label_height_mm}mm → {label_width_px}x{label_height_px}px @ {dpi}DPI")
+
+        # Print the label (using model specs, not RFID dimensions)
         result = NiimbotPrinterService.print_qr_label(
             qr_code_data=qr_code_data,
             location_name=request.location_name,
             printer_config=config,
             is_container=request.is_container,
-            label_width=label_width_px,
-            label_height=label_height_px,
+            label_width=None,  # Use model specs
+            label_height=None,  # Use model specs
         )
         
         if result["success"]:
@@ -627,6 +630,7 @@ def print_item_to_system_printer(
         raise HTTPException(status_code=500, detail="Failed to print label. Please try again.")
 
 
+# DISABLED: RFID detection causing dimension issues with B1 printer
 @router.post("/detect-rfid")
 def detect_rfid(
     current_user: models.User = Depends(get_current_user),
@@ -635,56 +639,40 @@ def detect_rfid(
     """
     Detect loaded label via RFID and return matched profile.
 
-    This endpoint queries the printer's RFID tag to automatically detect
-    the label size and type, then matches it to a known printer profile.
-
-    Response:
-    {
-        "success": bool,
-        "detected_profile": {
-            "name": str,
-            "model": str,
-            "width_mm": int,
-            "height_mm": int,
-            "dpi": int,
-            "confidence": float
-        },
-        "rfid_data": {
-            "width_mm": int,
-            "height_mm": int,
-            "type": int,
-            "raw_data": str (hex)
-        },
-        "confidence": float,
-        "error": str (if failed)
-    }
+    TEMPORARILY DISABLED: RFID dimension detection causing issues with B1 printer.
+    Using fixed model specs instead.
     """
-    try:
-        # Get printer config from user
-        if not current_user.niimbot_printer_config:
-            raise HTTPException(
-                status_code=400,
-                detail="NIIMBOT printer is not configured"
-            )
-
-        printer_config = current_user.niimbot_printer_config
-
-        if not printer_config.get("enabled"):
-            raise HTTPException(
-                status_code=400,
-                detail="NIIMBOT printer is not enabled"
-            )
-
-        # Detect label via RFID
-        result = RfidDetectionService.detect_loaded_label(printer_config)
-
-        return result
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"RFID detection error: {e}", exc_info=True)
-        return {
-            "success": False,
-            "error": f"RFID detection failed: {str(e)}"
-        }
+    return {
+        "success": False,
+        "error": "RFID detection temporarily disabled. Using fixed model specs for label dimensions."
+    }
+    # Original implementation commented out below:
+    # try:
+    #     # Get printer config from user
+    #     if not current_user.niimbot_printer_config:
+    #         raise HTTPException(
+    #             status_code=400,
+    #             detail="NIIMBOT printer is not configured"
+    #         )
+    #
+    #     printer_config = current_user.niimbot_printer_config
+    #
+    #     if not printer_config.get("enabled"):
+    #         raise HTTPException(
+    #             status_code=400,
+    #             detail="NIIMBOT printer is not enabled"
+    #         )
+    #
+    #     # Detect label via RFID
+    #     result = RfidDetectionService.detect_loaded_label(printer_config)
+    #
+    #     return result
+    #
+    # except HTTPException:
+    #     raise
+    # except Exception as e:
+    #     logger.error(f"RFID detection error: {e}", exc_info=True)
+    #     return {
+    #         "success": False,
+    #         "error": f"RFID detection failed: {str(e)}"
+    #     }

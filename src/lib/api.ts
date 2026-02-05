@@ -2266,8 +2266,9 @@ export interface PrintLabelRequest {
   location_id: string;
   location_name: string;
   is_container: boolean;
-  label_width_mm?: number;  // Optional detected label width in mm
-  label_height_mm?: number; // Optional detected label height in mm
+  // DISABLED: RFID detection causing dimension issues with B1 printer
+  // label_width_mm?: number;  // Optional detected label width in mm
+  // label_height_mm?: number; // Optional detected label height in mm
 }
 
 export interface PrinterResponse {

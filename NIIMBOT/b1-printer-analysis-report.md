@@ -314,3 +314,82 @@ Where:
 2. Verify SetPageSize payload shows `0180 00f0 0001`
 3. Confirm 384 rows are sent with 30 bytes each
 4. Visual confirmation of complete label print
+
+
+**************Response to fix***********************
+I can see the debug image and logs. The debug image looks correct - it shows "Master Bedroom" with a QR code, properly rotated. The data IS being sent (I can see rows processing with 0x85 Full Mode). But the output is blank.
+I've identified several issues:
+
+Issue #1: Wrong Image Dimensions
+Expected: 384×240 (B1 model spec)
+Actual: 399×239
+Input image: 399x239px, mode=L, model=b1
+The image dimensions don't match the B1's 384×240 spec. After rotation, you have 239×399 instead of 240×384. This dimension mismatch could cause the printer to misinterpret the data stream.
+Root cause: Somewhere the RFID dimensions or label configuration is overriding the correct model specs.
+
+Issue #2: ROTATE_270 vs ROTATE_90
+The comment says "90° CCW" but ROTATE_270 is actually 90° clockwise (270° CCW = 90° CW).
+According to PIL:
+
+ROTATE_90 = 90° counter-clockwise
+ROTATE_270 = 90° clockwise
+       ***Developer notes***
+            ### ROTATE_90   result Words to the right of qr Code "b1_print_1770234484.png"
+            ### ROTATE_270  result words to the left of qr code  
+            ### ROTATE_180  result words on top b1_print_1770234733.png"
+            ### removing the rotation does set the image to the correct orientation,  and a label starts ### to print but it is cut off
+
+
+The niimbluelib reference code uses counter-clockwise rotation for "top" direction.
+
+Issue #3: Mismatch in bytes_per_row Logging
+SetPageSize: rows=399, cols=239, bytes_per_row=29
+Encoding image data: rows=399, cols=239, bytes_per_row=30
+The SetPageSize logs w//8 = 29 but encoding uses (cols+7)//8 = 30. This is just a logging inconsistency, but it highlights that 239 pixels doesn't evenly divide into bytes.
+
+Recommended Fixes
+Fix 1: Force Correct Dimensions
+In printer_service.py, change the B1 section to always use model specs:
+pythonif model.lower() in ["b1", "b21", "b21_pro", "b21_c2b"]:
+    # ALWAYS use model specs for B-series - RFID dimensions can be unreliable
+    target_w = model_specs["width"]   # 384
+    target_h = model_specs["height"]  # 240
+Fix 2: Try ROTATE_90 Instead
+In printer.py line 391, change:
+python# FROM:
+image = image.transpose(Image.Transpose.ROTATE_270)
+
+   ***** Developer note-  Rotation change prodcued only a blank label
+
+# TO:
+image = image.transpose(Image.Transpose.ROTATE_90)
+Fix 3: Simplify Encoding (Diagnostic Test)
+Temporarily disable the compression/optimization to test basic printing. Replace the complex encoding loop (lines 448-558) with simple row-by-row encoding:
+python# Simple encoding - no compression, no empty row skipping
+img_l = image.convert("L")
+cols = img_l.width
+rows = img_l.height
+bytes_per_row = (cols + 7) // 8
+
+logging.info(f"Simple encoding: {rows} rows, {cols} cols, {bytes_per_row} bytes/row")
+
+for y in range(rows):
+    line_data = self._get_line_data(img_l, y, cols)
+
+    # Simple header with no repeat, no split counts
+    header = struct.pack(">H B B B B", y, 0, 0, 0, 1)
+    self._send(NiimbotPacket(0x85, header + line_data))
+    time.sleep(0.015)
+
+    if y % 50 == 0:
+        logging.info(f"Sent row {y}/{rows}")
+
+logging.info(f"Sent all {rows} rows")
+
+Testing Priority
+
+First: Fix the dimensions to 384×240 - this is the most likely cause
+Second: Try ROTATE_90 instead of ROTATE_270
+Third: If still blank, use the simplified encoding to rule out compression issues
+
+The blank output suggests the printer is receiving data but can't interpret it correctly - most likely due to the dimension mismatch (239 cols doesn't match B1's expected 240-pixel row width).

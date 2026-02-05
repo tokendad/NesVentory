@@ -360,16 +360,12 @@ class NiimbotPrinterService:
 
             model_specs = NiimbotPrinterService.get_model_specs(model)
 
-            # For B1/B21 series, always use model specs unless RFID provides valid dimensions
-            # This prevents stale config values from overriding correct dimensions
+            # For B1/B21 series, ALWAYS use model specs
+            # RFID detection disabled due to dimension mismatch issues causing cutoff
             if model.lower() in ["b1", "b21", "b21_pro", "b21_c2b"]:
-                # Use RFID-detected dimensions if provided and reasonable, else model specs
-                if label_width and label_height and label_width > 100:
-                    target_w = label_width
-                    target_h = label_height
-                else:
-                    target_w = model_specs["width"]
-                    target_h = model_specs["height"]
+                target_w = model_specs["width"]   # 384 for B1
+                target_h = model_specs["height"]  # 240 for B1
+                logger.info(f"B-series: Using model specs {target_w}x{target_h}px (RFID disabled)")
             else:
                 # Legacy behavior for D-series
                 target_w = label_width or config.get("label_width") or model_specs["width"]
