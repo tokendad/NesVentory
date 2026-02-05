@@ -173,6 +173,13 @@ We use **main** as the primary branch:
 | `main` | Primary production branch |
 | `feature/*` | Development branches for new features |
 
+## Acknowledgements
+
+Special thanks to the following projects for their contributions to the printing capabilities:
+- [NiimPrintX](https://github.com/labbots/NiimPrintX)
+- [niimprint](https://github.com/AndBondStyle/niimprint)
+- [niimblue](https://github.com/MultiMote/niimblue)
+
 ## 📞 Support
 
 For issues and support, please visit:
