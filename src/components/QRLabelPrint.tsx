@@ -111,6 +111,7 @@ interface PrintPreferences {
   printMode: PrintMode;
   holiday: string;
   printerModel: string;  // NIIMBOT model for direct printing
+  labelLengthMm?: number;  // User-configurable label length in mm (overrides model default)
 }
 
 const loadPrintPreferences = (): Partial<PrintPreferences> => {
@@ -150,6 +151,7 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
   const [selectedHoliday, setSelectedHoliday] = useState(savedPrefs.holiday || "none");
   const [selectedSize] = useState("12x40");
   const [connectionType, setConnectionType] = useState<ConnectionType>(savedPrefs.connectionType || "server");
+  const [labelLengthMm, setLabelLengthMm] = useState<number | null>(savedPrefs.labelLengthMm || null);
 
   // NIIMBOT printer model selection for direct printing (Bluetooth/USB)
   const [selectedPrinterModel, setSelectedPrinterModel] = useState<string>(
@@ -219,10 +221,23 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
     savePrintPreferences({ printerModel: selectedPrinterModel });
   }, [selectedPrinterModel]);
 
+  useEffect(() => {
+    if (labelLengthMm !== null) {
+      savePrintPreferences({ labelLengthMm });
+    }
+  }, [labelLengthMm]);
+
   // Get current model spec for direct printing
   const currentModelSpec = useMemo(() => {
     return getModelSpec(selectedPrinterModel) || getDefaultModel();
   }, [selectedPrinterModel]);
+
+  // Effective label length: user override or model default, clamped to model max
+  const effectiveLabelLengthMm = useMemo(() => {
+    const spec = currentModelSpec;
+    const userLen = labelLengthMm || spec.defaultLabelLengthMm;
+    return Math.min(userLen, spec.maxLabelLengthMm);
+  }, [currentModelSpec, labelLengthMm]);
 
   // Fetch printer configuration on mount
   useEffect(() => {
@@ -381,12 +396,12 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
         return;
       }
 
-      // RFID detection disabled - using fixed model specs instead
+      // Pass label length override if user has customized it
       const result = await printLabel({
         location_id: location!.id.toString(),
         location_name: location!.friendly_name || location!.name,
         is_container: location!.is_container || false,
-        // label_width_mm and label_height_mm removed - using model specs
+        label_length_mm: labelLengthMm || undefined,
       });
 
       if (result.success) {
@@ -499,10 +514,9 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
   const drawLabelForModel = async (modelSpec: NiimbotModelSpec): Promise<ImageData | null> => {
       const { printheadPixels, dpi, printDirection } = modelSpec;
 
-      // Calculate label dimensions based on DPI and common 40mm label length
-      // 40mm at 203 DPI = ~320px, at 300 DPI = ~472px
-      const labelLengthMm = 40;
-      const labelLengthPx = Math.round((labelLengthMm / 25.4) * dpi);
+      // Use effective label length from component state (user override or model default)
+      const effectiveLength = effectiveLabelLengthMm;
+      const labelLengthPx = Math.round((effectiveLength / 25.4) * dpi);
 
       // For "left" direction: canvas width = label length, height = printhead width
       // Image will be rotated +90° before printing
@@ -1136,20 +1150,37 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
         <div className="qr-options">
           <div className="form-row">
             <div className="form-group">
-              <label>Label Size</label>
-              <div style={{ padding: "0.5rem", backgroundColor: "var(--bg-secondary)", borderRadius: "4px" }}>
-                {(connectionType === 'bluetooth' || connectionType === 'usb') ? (
-                  <>
-                    {currentModelSpec.label} ({currentModelSpec.printheadPixels}px width @ {currentModelSpec.dpi} DPI)
-                  </>
-                ) : (
-                  <>12x40mm (standard label)</>
+              <label>Label Length (mm)</label>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <input
+                  type="number"
+                  min={10}
+                  max={currentModelSpec.maxLabelLengthMm}
+                  step={1}
+                  value={effectiveLabelLengthMm}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val) && val >= 10) {
+                      setLabelLengthMm(Math.min(val, currentModelSpec.maxLabelLengthMm));
+                    }
+                  }}
+                  style={{ width: "80px", padding: "0.4rem", borderRadius: "4px", border: "1px solid var(--border)" }}
+                />
+                <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                  {currentModelSpec.label} (max {currentModelSpec.maxLabelLengthMm}mm)
+                </span>
+                {labelLengthMm !== null && labelLengthMm !== currentModelSpec.defaultLabelLengthMm && (
+                  <button
+                    onClick={() => setLabelLengthMm(null)}
+                    style={{ fontSize: "0.8rem", padding: "0.2rem 0.4rem", background: "transparent", border: "1px solid var(--border)", borderRadius: "3px", cursor: "pointer", color: "var(--text-secondary)" }}
+                    title="Reset to model default"
+                  >
+                    Reset
+                  </button>
                 )}
               </div>
               <span className="help-text">
-                {(connectionType === 'bluetooth' || connectionType === 'usb')
-                  ? "Label dimensions based on selected printer model"
-                  : "Server/system printing uses configured label size"}
+                Default: {currentModelSpec.defaultLabelLengthMm}mm. Printhead width: {currentModelSpec.printheadPixels}px @ {currentModelSpec.dpi} DPI
               </span>
             </div>
 

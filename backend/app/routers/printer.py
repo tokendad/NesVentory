@@ -35,6 +35,7 @@ class PrinterConfig(BaseModel):
     density: int = 3
     label_width: Optional[int] = None
     label_height: Optional[int] = None
+    label_length_mm: Optional[float] = None  # User-configurable label length in mm
     print_direction: Optional[str] = "left"
 
 
@@ -43,6 +44,7 @@ class PrintLabelRequest(BaseModel):
     location_id: str
     location_name: str
     is_container: bool = False
+    label_length_mm: Optional[float] = None  # Per-print label length override (mm)
     # DISABLED: RFID detection causing dimension issues with B1 printer
     # label_width_mm: Optional[float] = None  # Detected label width in mm from RFID
     # label_height_mm: Optional[float] = None  # Detected label height in mm from RFID
@@ -87,6 +89,7 @@ def get_printer_config(
         "density": config.get("density", 3),
         "label_width": config.get("label_width"),
         "label_height": config.get("label_height"),
+        "label_length_mm": config.get("label_length_mm"),
         "print_direction": config.get("print_direction", "left"),
     }
 
@@ -179,14 +182,18 @@ def print_label(
         #     label_height_px = int((request.label_height_mm / 25.4) * dpi)
         #     logger.info(f"Using detected dimensions: {request.label_width_mm}x{request.label_height_mm}mm → {label_width_px}x{label_height_px}px @ {dpi}DPI")
 
-        # Print the label (using model specs, not RFID dimensions)
+        # Apply per-print label length override if provided
+        effective_config = dict(config)
+        if request.label_length_mm:
+            effective_config["label_length_mm"] = request.label_length_mm
+            logger.info(f"Per-print label length override: {request.label_length_mm}mm")
+
+        # Print the label using model specs + label_length_mm (per-print or user config)
         result = NiimbotPrinterService.print_qr_label(
             qr_code_data=qr_code_data,
             location_name=request.location_name,
-            printer_config=config,
+            printer_config=effective_config,
             is_container=request.is_container,
-            label_width=None,  # Use model specs
-            label_height=None,  # Use model specs
         )
         
         if result["success"]:

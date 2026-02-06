@@ -22,30 +22,46 @@ class NiimbotPrinterService:
     """Service for printing labels using NIIMBOT printers."""
 
     # Printer model specifications: width, height (pixels), DPI, print direction
-    # Source: https://printers.niim.blue/hardware/models/
+    # width = printhead width (hardware-fixed), height = default label length in feed direction
+    # Source: NIIMBOT manufacturer API (print.niimbot.com/api/hardware/list)
+    # Heights set to manufacturer default label lengths (30mm for most models)
     PRINTER_MODELS = {
-        "d11_h": {"width": 136, "height": 472, "dpi": 300, "direction": "left"},
-        "d101": {"width": 192, "height": 180, "dpi": 203, "direction": "left"},
-        "d110": {"width": 96, "height": 96, "dpi": 203, "direction": "left"},
-        "d110_m": {"width": 96, "height": 96, "dpi": 203, "direction": "left"},
-        "b1": {"width": 384, "height": 240, "dpi": 203, "direction": "top"},
-        "b21": {"width": 384, "height": 240, "dpi": 203, "direction": "top"},
-        "b21_pro": {"width": 591, "height": 240, "dpi": 300, "direction": "top"},
-        "b21_c2b": {"width": 384, "height": 240, "dpi": 203, "direction": "top"},
-        "m2_h": {"width": 591, "height": 240, "dpi": 300, "direction": "top"},
+        "d11_h": {"width": 136, "height": 472, "dpi": 300, "direction": "left"},    # 12mm head, 40mm label (tested/working)
+        "d101": {"width": 192, "height": 240, "dpi": 203, "direction": "left"},     # 24mm head, 30mm default (mfr: 30x25mm)
+        "d110": {"width": 96, "height": 240, "dpi": 203, "direction": "left"},      # 12mm head, 30mm default (mfr: 30x12mm)
+        "d110_m": {"width": 96, "height": 240, "dpi": 203, "direction": "left"},    # 12mm head, 30mm default (mfr: 30x12mm)
+        "b1": {"width": 384, "height": 240, "dpi": 203, "direction": "top"},        # 48mm head, 30mm default (mfr: 50x30mm)
+        "b21": {"width": 384, "height": 240, "dpi": 203, "direction": "top"},       # 48mm head, 30mm default (mfr: 50x30mm)
+        "b21_pro": {"width": 591, "height": 354, "dpi": 300, "direction": "top"},   # 50mm head, 30mm default (mfr: 50x30mm)
+        "b21_c2b": {"width": 384, "height": 240, "dpi": 203, "direction": "top"},   # 48mm head, 30mm default (mfr: 50x30mm)
+        "m2_h": {"width": 591, "height": 354, "dpi": 300, "direction": "top"},      # 48mm head, 30mm default (mfr: 50x30mm)
     }
 
-    # Density limits for specific models (D-series: 1-3, B-series: 1-5)
+    # Maximum label dimensions (mm) per model - from manufacturer API
+    # Format: (max_width_mm, max_length_mm)
+    MAX_LABEL_MM = {
+        "d11_h": (15, 200),
+        "d101": (25, 100),
+        "d110": (15, 100),
+        "d110_m": (15, 100),
+        "b1": (50, 200),
+        "b21": (50, 200),
+        "b21_pro": (50, 200),
+        "b21_c2b": (50, 200),
+        "m2_h": (50, 240),
+    }
+
+    # Density limits per model - from manufacturer API
     DENSITY_LIMITS = {
-        "d11_h": 3,
-        "d101": 3,
-        "d110": 3,
-        "d110_m": 3,
-        "b1": 5,
-        "b21": 5,
-        "b21_pro": 5,
-        "b21_c2b": 5,
-        "m2_h": 5,
+        "d11_h": 5,     # Mfr: 1-5, default 3
+        "d101": 3,      # Mfr: 1-3, default 2
+        "d110": 3,      # Mfr: 1-3, default 2
+        "d110_m": 5,    # Mfr: 1-5, default 3
+        "b1": 5,        # Mfr: 1-5, default 3
+        "b21": 5,       # Mfr: 1-5, default 3
+        "b21_pro": 5,   # Mfr: 1-5, default 3
+        "b21_c2b": 5,   # Mfr: 1-5, default 3
+        "m2_h": 5,      # Mfr: 1-5, default 3
     }
 
     @staticmethod
@@ -54,6 +70,18 @@ class NiimbotPrinterService:
         return NiimbotPrinterService.PRINTER_MODELS.get(
             model.lower(),
             NiimbotPrinterService.PRINTER_MODELS["d11_h"]
+        )
+
+    @staticmethod
+    def label_mm_to_pixels(length_mm: float, dpi: int) -> int:
+        """Convert label dimension from mm to pixels at given DPI."""
+        return round(length_mm / 25.4 * dpi)
+
+    @staticmethod
+    def get_max_label_mm(model: str) -> tuple:
+        """Get maximum label dimensions (width_mm, length_mm) for a model."""
+        return NiimbotPrinterService.MAX_LABEL_MM.get(
+            model.lower(), (50, 200)
         )
 
     @staticmethod
@@ -359,22 +387,27 @@ class NiimbotPrinterService:
             model = config["model"]
 
             model_specs = NiimbotPrinterService.get_model_specs(model)
-
-            # For B1/B21 series, ALWAYS use model specs
-            # RFID detection disabled due to dimension mismatch issues causing cutoff
-            if model.lower() in ["b1", "b21", "b21_pro", "b21_c2b"]:
-                target_w = model_specs["width"]   # 384 for B1
-                target_h = model_specs["height"]  # 240 for B1
-                logger.info(f"B-series: Using model specs {target_w}x{target_h}px (RFID disabled)")
-            else:
-                # Legacy behavior for D-series
-                target_w = label_width or config.get("label_width") or model_specs["width"]
-                target_h = label_height or config.get("label_height") or model_specs["height"]
-
-            p_dir = model_specs["direction"]  # Always use model's direction
             dpi = model_specs.get("dpi", 203)
 
-            logger.info(f"Print dimensions: model={model}, target_w={target_w}, target_h={target_h}, direction={p_dir}")
+            # Width is always the printhead width (hardware-fixed)
+            target_w = model_specs["width"]
+
+            # Height (label length): use user-configured value, then fallback to model default
+            # User config stores label_length_mm which gets converted to pixels
+            label_length_mm = config.get("label_length_mm")
+            if label_length_mm:
+                max_w_mm, max_l_mm = NiimbotPrinterService.get_max_label_mm(model)
+                clamped_mm = min(float(label_length_mm), max_l_mm)
+                target_h = NiimbotPrinterService.label_mm_to_pixels(clamped_mm, dpi)
+                logger.info(f"Using user-configured label length: {clamped_mm}mm = {target_h}px")
+            elif label_height:
+                target_h = label_height
+            else:
+                target_h = config.get("label_height") or model_specs["height"]
+
+            p_dir = model_specs["direction"]  # Always use model's direction
+
+            logger.info(f"Print dimensions: model={model}, target_w={target_w}, target_h={target_h}, direction={p_dir}, dpi={dpi}")
 
             label_image = NiimbotPrinterService.create_qr_label_image(
                 qr_code_data, location_name, target_w, target_h, p_dir, dpi

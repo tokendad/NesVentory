@@ -2253,6 +2253,7 @@ export interface PrinterConfig {
   density: number;
   label_width?: number | null;
   label_height?: number | null;
+  label_length_mm?: number | null;
   print_direction?: string | null;
 }
 
@@ -2266,6 +2267,7 @@ export interface PrintLabelRequest {
   location_id: string;
   location_name: string;
   is_container: boolean;
+  label_length_mm?: number;  // Per-print label length override (mm)
   // DISABLED: RFID detection causing dimension issues with B1 printer
   // label_width_mm?: number;  // Optional detected label width in mm
   // label_height_mm?: number; // Optional detected label height in mm

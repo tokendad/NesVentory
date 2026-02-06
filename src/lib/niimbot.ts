@@ -19,26 +19,28 @@ export interface NiimbotModelSpec {
   densityMin: number;
   densityMax: number;
   densityDefault: number;
+  defaultLabelLengthMm: number;  // Manufacturer default label length in mm
+  maxLabelLengthMm: number;      // Manufacturer max label length in mm
 }
 
 // Common NIIMBOT models supported for direct printing
-// Specs from: https://printers.niim.blue/ and https://github.com/MultiMote/niimbluelib
+// Specs from: NIIMBOT manufacturer API (print.niimbot.com/api/hardware/list)
 export const NIIMBOT_MODELS: NiimbotModelSpec[] = [
-  // D-series (compact label printers)
-  { model: 'D11', label: 'D11 (12mm)', dpi: 203, printDirection: 'left', printheadPixels: 96, densityMin: 1, densityMax: 3, densityDefault: 2 },
-  { model: 'D11S', label: 'D11S (12mm)', dpi: 203, printDirection: 'left', printheadPixels: 96, densityMin: 1, densityMax: 3, densityDefault: 2 },
-  { model: 'D101', label: 'D101 (24mm)', dpi: 203, printDirection: 'left', printheadPixels: 192, densityMin: 1, densityMax: 3, densityDefault: 2 },
-  { model: 'D110', label: 'D110 (12mm)', dpi: 203, printDirection: 'left', printheadPixels: 96, densityMin: 1, densityMax: 3, densityDefault: 2 },
-  { model: 'D110_M', label: 'D110-M (12mm)', dpi: 203, printDirection: 'left', printheadPixels: 96, densityMin: 1, densityMax: 5, densityDefault: 3 },
-  { model: 'D11_H', label: 'D11-H (12mm HD)', dpi: 300, printDirection: 'left', printheadPixels: 142, densityMin: 1, densityMax: 5, densityDefault: 3 },
-  // B-series (wider label printers)
-  { model: 'B1', label: 'B1 (48mm)', dpi: 203, printDirection: 'top', printheadPixels: 384, densityMin: 1, densityMax: 5, densityDefault: 3 },
-  { model: 'B18', label: 'B18 (12mm)', dpi: 203, printDirection: 'left', printheadPixels: 96, densityMin: 1, densityMax: 3, densityDefault: 2 },
-  { model: 'B21', label: 'B21 (48mm)', dpi: 203, printDirection: 'top', printheadPixels: 384, densityMin: 1, densityMax: 5, densityDefault: 3 },
-  { model: 'B21_PRO', label: 'B21 Pro (50mm HD)', dpi: 300, printDirection: 'top', printheadPixels: 591, densityMin: 1, densityMax: 5, densityDefault: 3 },
-  { model: 'B21_C2B', label: 'B21-C2B (48mm)', dpi: 203, printDirection: 'top', printheadPixels: 384, densityMin: 1, densityMax: 5, densityDefault: 3 },
+  // D-series (compact label printers) - printDirection: 'left' = 90° rotation
+  { model: 'D11', label: 'D11 (12mm)', dpi: 203, printDirection: 'left', printheadPixels: 96, densityMin: 1, densityMax: 3, densityDefault: 2, defaultLabelLengthMm: 30, maxLabelLengthMm: 100 },
+  { model: 'D11S', label: 'D11S (12mm)', dpi: 203, printDirection: 'left', printheadPixels: 96, densityMin: 1, densityMax: 3, densityDefault: 2, defaultLabelLengthMm: 30, maxLabelLengthMm: 75 },
+  { model: 'D101', label: 'D101 (24mm)', dpi: 203, printDirection: 'left', printheadPixels: 192, densityMin: 1, densityMax: 3, densityDefault: 2, defaultLabelLengthMm: 30, maxLabelLengthMm: 100 },
+  { model: 'D110', label: 'D110 (12mm)', dpi: 203, printDirection: 'left', printheadPixels: 96, densityMin: 1, densityMax: 3, densityDefault: 2, defaultLabelLengthMm: 30, maxLabelLengthMm: 100 },
+  { model: 'D110_M', label: 'D110-M (12mm)', dpi: 203, printDirection: 'left', printheadPixels: 96, densityMin: 1, densityMax: 5, densityDefault: 3, defaultLabelLengthMm: 30, maxLabelLengthMm: 100 },
+  { model: 'D11_H', label: 'D11-H (12mm HD)', dpi: 300, printDirection: 'left', printheadPixels: 142, densityMin: 1, densityMax: 5, densityDefault: 3, defaultLabelLengthMm: 40, maxLabelLengthMm: 200 },
+  // B-series (wider label printers) - printDirection: 'top' = 0° rotation
+  { model: 'B1', label: 'B1 (48mm)', dpi: 203, printDirection: 'top', printheadPixels: 384, densityMin: 1, densityMax: 5, densityDefault: 3, defaultLabelLengthMm: 30, maxLabelLengthMm: 200 },
+  { model: 'B18', label: 'B18 (12mm)', dpi: 203, printDirection: 'left', printheadPixels: 96, densityMin: 1, densityMax: 3, densityDefault: 2, defaultLabelLengthMm: 30, maxLabelLengthMm: 120 },
+  { model: 'B21', label: 'B21 (48mm)', dpi: 203, printDirection: 'top', printheadPixels: 384, densityMin: 1, densityMax: 5, densityDefault: 3, defaultLabelLengthMm: 30, maxLabelLengthMm: 200 },
+  { model: 'B21_PRO', label: 'B21 Pro (50mm HD)', dpi: 300, printDirection: 'top', printheadPixels: 591, densityMin: 1, densityMax: 5, densityDefault: 3, defaultLabelLengthMm: 30, maxLabelLengthMm: 200 },
+  { model: 'B21_C2B', label: 'B21-C2B (48mm)', dpi: 203, printDirection: 'top', printheadPixels: 384, densityMin: 1, densityMax: 5, densityDefault: 3, defaultLabelLengthMm: 30, maxLabelLengthMm: 200 },
   // Other models
-  { model: 'M2_H', label: 'M2-H (48mm HD)', dpi: 300, printDirection: 'top', printheadPixels: 567, densityMin: 1, densityMax: 5, densityDefault: 3 },
+  { model: 'M2_H', label: 'M2-H (48mm HD)', dpi: 300, printDirection: 'top', printheadPixels: 567, densityMin: 1, densityMax: 5, densityDefault: 3, defaultLabelLengthMm: 30, maxLabelLengthMm: 240 },
 ];
 
 export const getModelSpec = (model: string): NiimbotModelSpec | undefined => {
