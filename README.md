@@ -17,42 +17,6 @@ NesVentory is a modern home inventory management application that helps you trac
 - **Admin Management** - Dedicated interface for managing location categories
 - **Enhanced Organization** - Better sorting and filtering capabilities for your locations
 
-## Previous Version Highlights
-
-### 🔧 **Standardization** (v6.7.3)
-- **Unified Port Configuration** - Standardized default port to 8181 across all documentation and configs
-
-### 🖨️ **NIIMBOT Printer Improvements** (v6.5.1)
-- **Fixed D11-H printer support** - Improved reliability and compatibility
-- **Bluetooth/USB print options** - Added flexible printing options for thermal printers
-- **Better host compatibility** - Relaxed document host check for various environments
-
-### ✨ **Custom Fields** (v6.5.0)
-- **Dynamic custom fields** - Add custom fields for links, notes, or other information to items
-- **Multiple field types** - Support for text, URL, date, and number field types
-- **Brand and retailer autocomplete** - Enhanced item entry with top 100 brands and retailers
-- **Updated international formats** - Improved currency symbol positioning and date formatting
-
-### 🖨️ **NIIMBOT Printer Support** (v6.4.1)
-- **Direct label printing** - Print QR code labels directly to NIIMBOT thermal printers
-- **Multiple printer models** - Support for B1, B18, B21, D11, D110 models
-- **USB and Bluetooth** - Connect via USB (recommended) or Bluetooth
-- **Configurable settings** - Adjust print density, test connection, and configure in User Settings
-- See [NIIMBOT Printer Guide](docs/nimmbott/NIIMBOT_PRINTER_GUIDE.md) for setup instructions
-
-### 🔐 **OIDC Authentication** (v6.4.0)
-- **OpenID Connect support** - Integrate with OIDC providers like Authelia and Keycloak
-- **Flexible authentication** - Use alongside Google OAuth and local accounts
-- **Customizable branding** - Configure provider name and button text
-- **Enterprise-ready** - Perfect for self-hosted authentication solutions
-
-### 🏠 **Insurance Documentation** (v6.3.0)
-- **Insurance tab for primary locations** - Manage comprehensive insurance documentation for your home
-- **Policy holder management** - Track primary and additional policy holders with contact information
-- **Automatic value calculation** - Total and estimated values including all items in location
-- **Print functionality** - Basic and comprehensive insurance reports with photos
-- **CSV export** - RFC 4180 compliant export of all items for insurance claims
-- See [Insurance Tab Guide](docs/Guides/INSURANCE_TAB_GUIDE.md) for detailed instructions
 
 ## Features
 
@@ -97,19 +61,6 @@ NesVentory is a modern home inventory management application that helps you trac
 - **Database**: SQLite (embedded, file-based)
 - **Containerization**: Docker (single unified container)
 
-## 📸 Screenshots
-
-### Login Screen
-![Login Screen](screenshots/login.png)
-
-### Dashboard
-![Dashboard](screenshots/dashboard.png)
-
-### Items List
-![Items List](screenshots/items.png)
-
-### Item Details
-![Item Details](screenshots/item-details.png)
 
 ## 🚀 Getting Started
 
