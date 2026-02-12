@@ -160,20 +160,23 @@ def update_printer_config(
         if config.enabled:
             config_dict = config.model_dump()
             NiimbotPrinterService.validate_printer_config(config_dict)
-        
+
         # Store configuration
         current_user.niimbot_printer_config = config.model_dump()
         db.commit()
-        
+
         return {
             "success": True,
             "message": "Printer configuration updated successfully"
         }
+    except HTTPException:
+        raise
     except ValueError as e:
+        logger.error(f"Validation error in update_printer_config: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to update printer config: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to update configuration: {str(e)}")
+        logger.error(f"Unexpected error in update_printer_config: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to update printer configuration")
 
 
 @router.post("/print-label")
@@ -340,9 +343,9 @@ def test_connection(
     try:
         if not config.enabled:
             raise HTTPException(status_code=400, detail="Printer must be enabled to test connection")
-        
+
         config_dict = config.model_dump()
-        
+
         # Validate configuration
         validated_config = NiimbotPrinterService.validate_printer_config(config_dict)
 
@@ -357,13 +360,13 @@ def test_connection(
             actual_connection_type,
             validated_config.get("address")
         )
-        
+
         # Create printer client and try to get device info
         printer = PrinterClient(transport)
         try:
             if not printer.connect():
                 raise ValueError("Protocol handshake failed (no response to CONNECT packet)")
-            
+
             # If we get here, connection is successful
             return {
                 "success": True,
@@ -371,15 +374,15 @@ def test_connection(
             }
         finally:
             printer.disconnect()
-        
+
+    except HTTPException:
+        raise
     except ValueError as e:
+        logger.error(f"Validation error in test_connection: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Connection test failed: {str(e)}")
-        return {
-            "success": False,
-            "message": "Connection failed while testing printer connection. Please verify the configuration and try again."
-        }
+        logger.error(f"Unexpected error in test_connection: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Connection test failed. Please verify the configuration and try again.")
 
 
 @router.get("/status")
@@ -426,11 +429,14 @@ def get_printer_status(
         finally:
             printer.disconnect()
 
+    except HTTPException:
+        raise
     except ValueError as e:
+        logger.error(f"Validation error in get_printer_status: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to get printer status: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to get printer status: {str(e)}")
+        logger.error(f"Unexpected error in get_printer_status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get printer status")
 
 
 @router.get("/models")
