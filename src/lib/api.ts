@@ -2249,6 +2249,7 @@ export interface PrinterConfig {
   enabled: boolean;
   model: string;
   connection_type: string;
+  bluetooth_type?: string | null;
   address?: string | null;
   density: number;
   label_width?: number | null;
