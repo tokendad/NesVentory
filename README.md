@@ -4,13 +4,21 @@
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
-## 🚀 What's New in Version 6.8.0
+## 🚀 What's New in Version 6.11.2
 
-### 🖨️ **Enhanced Label Printing** (v6.8.0)
-- **System Printer Support** - Print QR labels to any printer configured via CUPS (not just NIIMBOT)
+### 🖨️ **Enhanced NIIMBOT Printer Support** (v6.9.0 - v6.11.2)
+- **9 Printer Models Supported** - D101, D110, D110_M, D11_H, B1, B18, B21, B21_Pro, M2_H
+- **Connection Pooling** - 87-90% faster sequential prints with printer reuse
+- **Async I/O Threading** - Non-blocking Bluetooth operations for better performance
+- **Pre-flight Status Checking** - Prevents silent print failures with paper/battery validation
+- **Configurable Label Lengths** - User-adjustable label sizes for different stock
+- **Classic Bluetooth Support** - RFCOMM transport for older printers like B1
+- **Improved Error Handling** - Standardized error messages across all printer endpoints
+
+### 🖨️ **System Printer Support** (v6.8.0)
+- **CUPS Integration** - Print QR labels to any printer configured via CUPS (not just NIIMBOT)
 - **Item Label Printing** - New "Print Label" button on Item Details page for individual item QR codes
-- **Improved Discoverability** - First-time user guidance and more visible print options (Issue #464)
-- **Print Preferences** - Your connection type and settings are now remembered between sessions
+- **Print Preferences** - Connection type and settings remembered between sessions
 
 ### 🏷️ **Dynamic Location Categories** (v6.7.0)
 - **Custom Categories** - Create and manage custom categories for locations (e.g., Room, Garage, Box)
@@ -32,7 +40,7 @@ NesVentory is a modern home inventory management application that helps you trac
 - 📍 **Location Hierarchy** - Organize items by rooms and sub-locations
 - 🏷️ **Location Categories** - Categorize locations (e.g., Room, Garage, Container) for better sorting and filtering
 - 📱 **QR Code Labels** - Print QR labels for locations, containers, and individual items
-- 🖨️ **NIIMBOT Printer Support** - Direct printing to NIIMBOT thermal label printers (B1, B18, B21, D11, D110)
+- 🖨️ **NIIMBOT Printer Support** - Direct printing to 9 NIIMBOT thermal label printer models (D101, D110, D110_M, D11_H, B1, B18, B21, B21_Pro, M2_H)
 - 🖥️ **System Printer (CUPS)** - Print labels to any printer configured on your system via CUPS
 - 📦 **Container Support** - Mark locations as boxes/bins for seasonal storage
 - 🏠 **Insurance Documentation** - Comprehensive insurance tracking for primary locations with print and CSV export
@@ -106,6 +114,14 @@ The application comes with pre-seeded test users:
 - **[docs/Guides/INSURANCE_TAB_GUIDE.md](docs/Guides/INSURANCE_TAB_GUIDE.md)** - Guide for using the insurance documentation features
 - **[docs/nimmbott/NIIMBOT_PRINTER_GUIDE.md](docs/nimmbott/NIIMBOT_PRINTER_GUIDE.md)** - Setup and usage guide for NIIMBOT thermal label printers
 - **[docs/Guides/WINDOWS_LPD_PRINTING_GUIDE.md](docs/Guides/WINDOWS_LPD_PRINTING_GUIDE.md)** - Guide for printing from Docker to Windows printers via LPD
+
+## 🌐 Related Projects
+
+NesVentory has companion projects for extended functionality:
+
+- **[NesVentory Mobile App](https://github.com/tokendad/NesventoryApp)** - Native mobile app for iOS and Android
+- **[NesVentory Home Assistant Add-on](https://github.com/tokendad/Nesventory-HA-Addon)** - Home Assistant integration for smart home automation
+- **[NesVentory LLM Plugin](https://github.com/tokendad/Plugin-Nesventory-LLM)** - Custom AI/LLM plugin for enhanced item detection
 
 ## 📄 License
 
