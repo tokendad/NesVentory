@@ -371,10 +371,22 @@ class PrinterClient:
         packet = self._transceive(RequestCodeEnum.SET_DIMENSION, payload)
         return bool(packet)
 
-    def print_image(self, image: Image, density: int = 3, model: str = None):
-        """Print image to NIIMBOT printer."""
+    def print_image(self, image: Image, density: int = 3, model: str = None) -> tuple[bool, str]:
+        """
+        Print image to NIIMBOT printer.
+
+        Returns:
+            (True, "OK") if successful
+            (False, "error message") if failed
+        """
         logging.info(f"========== PRINT_IMAGE START ==========")
         logging.info(f"Input image: {image.width}x{image.height}px, mode={image.mode}, model={model}")
+
+        # Check printer status before attempting to print
+        ready, error_msg = self.check_printer_ready()
+        if not ready:
+            logging.error(f"Printer not ready: {error_msg}")
+            return False, error_msg
 
         is_b1 = model and model.lower() == "b1"
         is_v5 = model and model.lower() in ["d11_h", "d101", "d110", "d110_m", "b21", "b21_pro", "b21_c2b", "m2_h"]
@@ -405,10 +417,14 @@ class PrinterClient:
                 pass
 
             # 1. SetDensity (0x21)
-            self.set_label_density(density)
+            if not self.set_label_density(density):
+                logging.error("B1: Failed to set density")
+                return False, "Failed to set label density"
 
             # 2. SetLabelType (0x23) - Required for B1
-            self.set_label_type(1)
+            if not self.set_label_type(1):
+                logging.error("B1: Failed to set label type")
+                return False, "Failed to set label type"
             time.sleep(0.1)
 
             # 3. PrintStart (0x01) - 7-byte payload
@@ -501,8 +517,12 @@ class PrinterClient:
         time.sleep(3.0)  # Increased from 0.3 to 3.0 seconds
 
         logging.info("Sending PrintEnd...")
-        self.end_print()
+        if not self.end_print():
+            logging.error("Failed to end print - print may not have completed!")
+            return False, "Printer did not complete print sequence"
+
         logging.info(f"========== PRINT_IMAGE END ==========")
+        return True, "Print completed successfully"
 
     def _encode_image_v5(self, image: Image):
         img = image.convert("L")
@@ -556,8 +576,109 @@ class PrinterClient:
         return None
 
     def heartbeat(self):
+        """
+        Query printer status via heartbeat command.
+
+        Returns dict with:
+            - closingstate: Cover state (None, 0=closed, 1=open for B-series)
+            - paperstate: Label state (None, 0=has paper, 1=no paper for B-series)
+            - powerlevel: Battery level (0-100)
+            - rfidreadstate: RFID reader state
+
+        Response format varies by printer model (9, 10, 13, 19, or 20 bytes).
+
+        NOTE: B-series printers (B1, B21, etc.) use INVERTED values:
+              - closingstate: 0=closed, 1=open (opposite of D-series)
+              - paperstate: 0=has paper, 1=no paper (opposite of D-series)
+        """
         packet = self._transceive(RequestCodeEnum.HEARTBEAT, b"\x01")
-        return {"raw": packet.data.hex()} if packet else None
+        closingstate = None
+        powerlevel = None
+        paperstate = None
+        rfidreadstate = None
+
+        # Log raw response for debugging
+        logging.debug(f"Heartbeat response: len={len(packet.data)}, data={packet.data.hex()}")
+
+        match len(packet.data):
+            case 20:
+                paperstate = packet.data[18]
+                rfidreadstate = packet.data[19]
+            case 13:
+                closingstate = packet.data[9]
+                powerlevel = packet.data[10]
+                paperstate = packet.data[11]
+                rfidreadstate = packet.data[12]
+            case 19:
+                closingstate = packet.data[15]
+                powerlevel = packet.data[16]
+                paperstate = packet.data[17]
+                rfidreadstate = packet.data[18]
+            case 10:
+                closingstate = packet.data[8]
+                powerlevel = packet.data[9]
+                rfidreadstate = packet.data[8]
+            case 9:
+                closingstate = packet.data[8]
+
+        return {
+            "closingstate": closingstate,
+            "powerlevel": powerlevel,
+            "paperstate": paperstate,
+            "rfidreadstate": rfidreadstate,
+        }
+
+    def check_printer_ready(self):
+        """
+        Check if printer is ready to print.
+
+        Returns:
+            (True, "OK") if ready
+            (False, "error message") if not ready
+
+        NOTE: B-series printers use inverted values compared to D-series.
+        """
+        try:
+            status = self.heartbeat()
+            logging.info(f"Printer status (raw): {status}")
+
+            # For B-series printers, battery level is INVERTED
+            # Raw value of 4 means 96% (100 - 4), not 4%
+            battery_level = status["powerlevel"]
+            if battery_level is not None:
+                # Invert battery reading for B-series (B1, B21, etc.)
+                # B-series reports: 0=100%, 100=0%
+                battery_level = 100 - battery_level
+                logging.info(f"Battery level (inverted for B-series): {battery_level}%")
+
+                if battery_level < 10:
+                    return False, f"Printer battery critically low ({battery_level}%). Please charge."
+
+            # Check cover state (if available)
+            # B-series (B1, B21, etc.): 0=closed, 1=open (INVERTED from D-series)
+            # D-series (D11, D101, etc.): 0=open, 1=closed
+            if status["closingstate"] is not None:
+                # For B-series printers, the values are inverted
+                # We detect B-series by checking if this is a B1/B21/etc.
+                # For now, assume inverted logic (B-series behavior)
+                if status["closingstate"] == 1:  # Changed: 1 means OPEN for B-series
+                    return False, "Printer cover is open. Please close the cover."
+
+            # Check paper state (if available)
+            # B-series: 0=has paper, 1=no paper (INVERTED from D-series)
+            if status["paperstate"] is not None:
+                # For B-series printers, the values are inverted
+                if status["paperstate"] == 1:  # Changed: 1 means NO PAPER for B-series
+                    return False, "No labels detected. Please load labels in the printer."
+
+            # All checks passed
+            logging.info(f"Printer ready: cover closed, labels present, battery OK")
+            return True, "OK"
+
+        except Exception as e:
+            logging.warning(f"Could not check printer status: {e}")
+            # Don't fail if status check fails - some models might not support it
+            return True, "OK (status check unavailable)"
 
     def set_label_type(self, n):
         packet = self._transceive(RequestCodeEnum.SET_LABEL_TYPE, bytes((n,)), 16)

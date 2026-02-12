@@ -431,9 +431,21 @@ class NiimbotPrinterService:
                 if not printer.connect():
                     return {"success": False, "message": "Handshake failed"}
 
-                # Execute V5 Print Sequence
-                printer.print_image(label_image, density=config["density"], model=model)
+                # Execute print sequence with status validation
+                success, message = printer.print_image(
+                    label_image,
+                    density=config["density"],
+                    model=model
+                )
 
+                if not success:
+                    logger.error(f"Print failed: {message}")
+                    return {
+                        "success": False,
+                        "message": f"Print failed: {message}"
+                    }
+
+                logger.info("Print completed successfully")
                 return {"success": True, "message": "Label Printed"}
             finally:
                 printer.disconnect()
