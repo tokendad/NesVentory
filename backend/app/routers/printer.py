@@ -9,6 +9,7 @@ from typing import Optional, List
 import qrcode
 import io
 import logging
+import asyncio
 from functools import lru_cache
 
 from ..deps import get_db
@@ -180,7 +181,7 @@ def update_printer_config(
 
 
 @router.post("/print-label")
-def print_label(
+async def print_label(
     request: PrintLabelRequest,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -254,7 +255,9 @@ def print_label(
         logger.info(f"Config re-validated before print: {validated_config.get('model')}, density={validated_config.get('density')}")
 
         # Print the label using model specs + label_length_mm (per-print or user config)
-        result = NiimbotPrinterService.print_qr_label(
+        # Run blocking printer I/O in thread pool to avoid blocking event loop
+        result = await asyncio.to_thread(
+            NiimbotPrinterService.print_qr_label,
             qr_code_data=qr_code_data,
             location_name=label_text,
             printer_config=validated_config,
@@ -277,7 +280,7 @@ def print_label(
 
 
 @router.post("/print-test-label")
-def print_test_label(
+async def print_test_label(
     current_user: models.User = Depends(get_current_user),
 ):
     """
@@ -311,7 +314,9 @@ def print_test_label(
         # Re-validate config before printing
         validated_config = NiimbotPrinterService.validate_printer_config(config)
 
-        result = NiimbotPrinterService.print_qr_label(
+        # Run blocking printer I/O in thread pool to avoid blocking event loop
+        result = await asyncio.to_thread(
+            NiimbotPrinterService.print_qr_label,
             qr_code_data=qr_code_data,
             location_name=test_text,
             printer_config=validated_config,
@@ -333,13 +338,27 @@ def print_test_label(
 
 
 @router.post("/test-connection")
-def test_connection(
+async def test_connection(
     config: PrinterConfig = Body(...),
     current_user: models.User = Depends(get_current_user),
 ):
     """
     Test the connection to a NIIMBOT printer with the given configuration.
     """
+    def _test_printer_connection():
+        """Helper function for blocking printer connection test."""
+        # Create printer client and try to connect
+        printer = PrinterClient(transport)
+        try:
+            if not printer.connect():
+                raise ValueError("Protocol handshake failed (no response to CONNECT packet)")
+            return {
+                "success": True,
+                "message": "Successfully connected to printer"
+            }
+        finally:
+            printer.disconnect()
+
     try:
         if not config.enabled:
             raise HTTPException(status_code=400, detail="Printer must be enabled to test connection")
@@ -361,19 +380,8 @@ def test_connection(
             validated_config.get("address")
         )
 
-        # Create printer client and try to get device info
-        printer = PrinterClient(transport)
-        try:
-            if not printer.connect():
-                raise ValueError("Protocol handshake failed (no response to CONNECT packet)")
-
-            # If we get here, connection is successful
-            return {
-                "success": True,
-                "message": "Successfully connected to printer"
-            }
-        finally:
-            printer.disconnect()
+        # Run blocking connection test in thread pool to avoid blocking event loop
+        return await asyncio.to_thread(_test_printer_connection)
 
     except HTTPException:
         raise
@@ -386,13 +394,31 @@ def test_connection(
 
 
 @router.get("/status")
-def get_printer_status(
+async def get_printer_status(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Get detailed status of the connected printer.
     """
+    def _get_printer_info():
+        """Helper function for blocking printer info retrieval."""
+        printer = PrinterClient(transport)
+        try:
+            if not printer.connect():
+                raise ValueError("Protocol handshake failed")
+
+            # Fetch Info
+            info = {
+                "serial": printer.get_info(InfoEnum.DEVICESERIAL),
+                "soft_version": printer.get_info(InfoEnum.SOFTVERSION),
+                "hard_version": printer.get_info(InfoEnum.HARDVERSION),
+            }
+
+            return info
+        finally:
+            printer.disconnect()
+
     try:
         # Get printer configuration
         config = current_user.niimbot_printer_config
@@ -413,21 +439,9 @@ def get_printer_status(
             actual_connection_type,
             config.get("address")
         )
-        printer = PrinterClient(transport)
-        try:
-            if not printer.connect():
-                 raise ValueError("Protocol handshake failed")
 
-            # Fetch Info
-            info = {
-                "serial": printer.get_info(InfoEnum.DEVICESERIAL),
-                "soft_version": printer.get_info(InfoEnum.SOFTVERSION),
-                "hard_version": printer.get_info(InfoEnum.HARDVERSION),
-            }
-
-            return info
-        finally:
-            printer.disconnect()
+        # Run blocking printer info retrieval in thread pool to avoid blocking event loop
+        return await asyncio.to_thread(_get_printer_info)
 
     except HTTPException:
         raise
