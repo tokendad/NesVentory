@@ -8,9 +8,6 @@ import {
   getSystemPrinters,
   printToSystemPrinter,
   printItemToSystemPrinter,
-  detectRfidProfile,
-  type RfidDetectionResult,
-  type RfidProfile,
 } from "../lib/api";
 import {
   NiimbotClient,
@@ -170,14 +167,6 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
   const [systemPrinters, setSystemPrinters] = useState<SystemPrinter[]>([]);
   const [selectedSystemPrinter, setSelectedSystemPrinter] = useState<string>("");
   const [loadingSystemPrinters, setLoadingSystemPrinters] = useState(false);
-
-  // RFID detection state
-  const [detectedProfile, setDetectedProfile] = useState<RfidProfile | null>(null);
-  const [isDetecting, setIsDetecting] = useState(false);
-  const [detectionError, setDetectionError] = useState<string | null>(null);
-  const [detectionConfidence, setDetectionConfidence] = useState<number>(0);
-  const [manualOverride, setManualOverride] = useState(false);
-  const [overrideWarningDismissed, setOverrideWarningDismissed] = useState(false);
 
   // Browser capability detection
   const browserCapabilities = useMemo(() => {
@@ -342,72 +331,41 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
     generateQR();
   }, [isItemMode ? item?.id : location?.id]);
 
-  // Handle RFID detection
-  const handleDetectRfid = async () => {
-    try {
-      setIsDetecting(true);
-      setDetectionError(null);
-      setDetectedProfile(null);
-      setManualOverride(false);
-      setOverrideWarningDismissed(false);
-
-      const result: RfidDetectionResult = await detectRfidProfile();
-
-      if (!result.success) {
-        setDetectionError(result.error || "RFID detection failed");
-        return;
-      }
-
-      if (result.detected_profile) {
-        setDetectedProfile(result.detected_profile);
-        setDetectionConfidence(result.confidence || 0);
-        // Auto-select the detected printer model
-        setSelectedPrinterModel(result.detected_profile.model);
-      } else {
-        setDetectionError("Could not match RFID label to any known profile. Please select a profile manually.");
-      }
-    } catch (err: any) {
-      console.error("RFID detection error:", err);
-      setDetectionError(`Error communicating with printer: ${err.message || "Unknown error"}`);
-    } finally {
-      setIsDetecting(false);
-    }
-  };
-
-  // Handle profile override toggle
-  const handleToggleOverride = () => {
-    if (!overrideWarningDismissed) {
-      // First click shows warning, second click enables override
-      setOverrideWarningDismissed(true);
-      return;
-    }
-    setManualOverride(!manualOverride);
-  };
-
   const handleServerPrint = async () => {
     try {
       setIsPrinting(true);
       setPrintError(null);
       setPrintSuccess(null);
 
-      if (isItemMode) {
-        // Item printing via server not yet supported - use direct printing
-        setPrintError("Server printing for items is not yet supported. Please use USB or Bluetooth direct printing.");
-        return;
-      }
+      if (isItemMode && item) {
+        // Item printing now supported!
+        const result = await printLabel({
+          item_id: item.id.toString(),
+          item_name: item.name,
+          label_length_mm: labelLengthMm || undefined,
+        });
 
-      // Pass label length override if user has customized it
-      const result = await printLabel({
-        location_id: location!.id.toString(),
-        location_name: location!.friendly_name || location!.name,
-        is_container: location!.is_container || false,
-        label_length_mm: labelLengthMm || undefined,
-      });
+        if (result.success) {
+          setPrintSuccess(result.message);
+        } else {
+          setPrintError(result.message);
+        }
+      } else if (location) {
+        // Location printing
+        const result = await printLabel({
+          location_id: location.id.toString(),
+          location_name: location.friendly_name || location.name,
+          is_container: location.is_container || false,
+          label_length_mm: labelLengthMm || undefined,
+        });
 
-      if (result.success) {
-        setPrintSuccess(result.message);
+        if (result.success) {
+          setPrintSuccess(result.message);
+        } else {
+          setPrintError(result.message);
+        }
       } else {
-        setPrintError(result.message);
+        setPrintError("No location or item specified.");
       }
     } catch (err) {
       console.error("Failed to print to NIIMBOT:", err);
@@ -950,199 +908,6 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
           }}>
             <strong>Direct {connectionType === 'bluetooth' ? 'Bluetooth' : 'USB'} Printing</strong> - Select your
             printer model below for correct label sizing, then click print.
-          </div>
-        )}
-
-        {/* RFID Detection Section - TEMPORARILY DISABLED */}
-        {connectionType === 'server' && printerConfig?.enabled && (
-          <div style={{
-            background: "rgba(158, 158, 158, 0.1)",
-            border: "2px solid rgba(158, 158, 158, 0.4)",
-            borderRadius: "8px",
-            padding: "1rem",
-            marginBottom: "1rem",
-            opacity: 0.7,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
-              <strong style={{ fontSize: "0.95rem", color: "var(--text)" }}>
-                🔍 Auto-Detect Label Profile (Disabled)
-              </strong>
-              <button
-                disabled={true}
-                style={{
-                  padding: "0.5rem 1rem",
-                  background: "#ccc",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "4px",
-                  cursor: "not-allowed",
-                  fontSize: "0.9rem",
-                }}
-              >
-                Disabled
-              </button>
-            </div>
-
-            <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", margin: "0 0 0.75rem 0" }}>
-              RFID label detection temporarily disabled. Using fixed model specs (384×240px for B1).
-            </p>
-
-            {/* Detection Error */}
-            {detectionError && (
-              <div style={{
-                background: "#ffebee",
-                border: "1px solid #ef5350",
-                borderRadius: "4px",
-                padding: "0.75rem",
-                marginBottom: "0.75rem",
-                color: "#c62828",
-                fontSize: "0.9rem",
-              }}>
-                ⚠️ {detectionError}
-              </div>
-            )}
-
-            {/* Detected Profile Display */}
-            {detectedProfile && !manualOverride && (
-              <div style={{
-                background: "rgba(76, 175, 80, 0.2)",
-                border: "1px solid rgba(76, 175, 80, 0.8)",
-                borderRadius: "4px",
-                padding: "0.75rem",
-                marginBottom: "0.75rem",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", marginBottom: "0.5rem" }}>
-                  <strong style={{ color: "#2e7d32", marginRight: "0.5rem" }}>✓ Detected:</strong>
-                  <span style={{ fontSize: "0.95rem" }}>{detectedProfile.name}</span>
-                  <span style={{ marginLeft: "auto", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-                    Confidence: {Math.round(detectionConfidence * 100)}%
-                  </span>
-                </div>
-                <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-                  {detectedProfile.width_mm}×{detectedProfile.height_mm}mm @ {detectedProfile.dpi} DPI
-                </div>
-              </div>
-            )}
-
-            {/* Override Warning */}
-            {detectedProfile && !overrideWarningDismissed && manualOverride === false && (
-              <button
-                onClick={handleToggleOverride}
-                style={{
-                  width: "100%",
-                  padding: "0.5rem",
-                  background: "transparent",
-                  border: "1px dashed rgba(76, 175, 80, 0.6)",
-                  color: "var(--text-secondary)",
-                  borderRadius: "4px",
-                  cursor: "pointer",
-                  fontSize: "0.85rem",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                Override detected profile (advanced users only)
-              </button>
-            )}
-
-            {/* Override Confirmation Dialog */}
-            {overrideWarningDismissed && manualOverride === false && (
-              <div style={{
-                background: "#fff3e0",
-                border: "2px solid #ff9800",
-                borderRadius: "4px",
-                padding: "0.75rem",
-                marginBottom: "0.75rem",
-              }}>
-                <strong style={{ color: "#e65100", display: "block", marginBottom: "0.5rem" }}>
-                  ⚠️ Warning: Manual Override
-                </strong>
-                <p style={{ fontSize: "0.85rem", color: "#bf360c", margin: "0.5rem 0" }}>
-                  Manual override may result in misaligned or missing content on your labels. Only use if you know what you're doing.
-                </p>
-                <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
-                  <button
-                    onClick={handleToggleOverride}
-                    style={{
-                      flex: 1,
-                      padding: "0.5rem",
-                      background: "#ff9800",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      fontSize: "0.85rem",
-                    }}
-                  >
-                    I understand, enable override
-                  </button>
-                  <button
-                    onClick={() => {
-                      setOverrideWarningDismissed(false);
-                      setManualOverride(false);
-                    }}
-                    style={{
-                      flex: 1,
-                      padding: "0.5rem",
-                      background: "transparent",
-                      color: "#ff9800",
-                      border: "1px solid #ff9800",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      fontSize: "0.85rem",
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Override Active Indicator */}
-            {manualOverride && detectedProfile && (
-              <div style={{
-                background: "#ffebee",
-                border: "1px dashed #f44336",
-                borderRadius: "4px",
-                padding: "0.75rem",
-                marginBottom: "0.75rem",
-              }}>
-                <strong style={{ color: "#c62828", display: "block", marginBottom: "0.5rem" }}>
-                  🚨 Profile Override Active
-                </strong>
-                <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: "0.75rem" }}>
-                  <div>Detected: <strong>{detectedProfile.name}</strong></div>
-                  <div>Selected: <strong id="selected-model-display">{selectedPrinterModel}</strong></div>
-                </div>
-                <div style={{
-                  background: "white",
-                  border: "1px solid #ffcccc",
-                  borderRadius: "4px",
-                  padding: "0.5rem",
-                }}>
-                  <label htmlFor="overrideModel" style={{ fontSize: "0.85rem", fontWeight: "bold", display: "block", marginBottom: "0.35rem" }}>
-                    Select Override Profile:
-                  </label>
-                  <select
-                    id="overrideModel"
-                    value={selectedPrinterModel}
-                    onChange={(e) => setSelectedPrinterModel(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "0.4rem",
-                      fontSize: "0.85rem",
-                      borderRadius: "3px",
-                      border: "1px solid #ddd",
-                    }}
-                  >
-                    {NIIMBOT_MODELS.map((model) => (
-                      <option key={model.model} value={model.model}>
-                        {model.label} - {model.dpi} DPI
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
           </div>
         )}
 

@@ -16,8 +16,6 @@ from ..auth import get_current_user
 from .. import models
 from ..printer_service import NiimbotPrinterService
 from ..system_printer_service import SystemPrinterService
-# DISABLED: RFID detection causing dimension issues with B1 printer
-# from ..services.rfid_service import RfidDetectionService
 from ..niimbot import PrinterClient
 from ..niimbot.printer import InfoEnum
 from ..config import settings
@@ -84,9 +82,6 @@ class PrintLabelRequest(BaseModel):
     # Common fields
     is_container: bool = False
     label_length_mm: Optional[float] = None  # Per-print label length override (mm)
-    # DISABLED: RFID detection causing dimension issues with B1 printer
-    # label_width_mm: Optional[float] = None  # Detected label width in mm from RFID
-    # label_height_mm: Optional[float] = None  # Detected label height in mm from RFID
 
     @field_validator('location_id', 'location_name', 'item_id', 'item_name', mode='after')
     @classmethod
@@ -393,7 +388,7 @@ def get_printer_status(
     db: Session = Depends(get_db)
 ):
     """
-    Get detailed status of the connected printer including RFID info.
+    Get detailed status of the connected printer.
     """
     try:
         # Get printer configuration
@@ -419,15 +414,14 @@ def get_printer_status(
         try:
             if not printer.connect():
                  raise ValueError("Protocol handshake failed")
-            
+
             # Fetch Info
             info = {
                 "serial": printer.get_info(InfoEnum.DEVICESERIAL),
                 "soft_version": printer.get_info(InfoEnum.SOFTVERSION),
                 "hard_version": printer.get_info(InfoEnum.HARDVERSION),
-                "rfid": printer.get_rfid()
             }
-            
+
             return info
         finally:
             printer.disconnect()
@@ -705,49 +699,3 @@ def print_item_to_system_printer(
         raise HTTPException(status_code=500, detail="Failed to print label. Please try again.")
 
 
-# DISABLED: RFID detection causing dimension issues with B1 printer
-@router.post("/detect-rfid")
-def detect_rfid(
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Detect loaded label via RFID and return matched profile.
-
-    TEMPORARILY DISABLED: RFID dimension detection causing issues with B1 printer.
-    Using fixed model specs instead.
-    """
-    return {
-        "success": False,
-        "error": "RFID detection temporarily disabled. Using fixed model specs for label dimensions."
-    }
-    # Original implementation commented out below:
-    # try:
-    #     # Get printer config from user
-    #     if not current_user.niimbot_printer_config:
-    #         raise HTTPException(
-    #             status_code=400,
-    #             detail="NIIMBOT printer is not configured"
-    #         )
-    #
-    #     printer_config = current_user.niimbot_printer_config
-    #
-    #     if not printer_config.get("enabled"):
-    #         raise HTTPException(
-    #             status_code=400,
-    #             detail="NIIMBOT printer is not enabled"
-    #         )
-    #
-    #     # Detect label via RFID
-    #     result = RfidDetectionService.detect_loaded_label(printer_config)
-    #
-    #     return result
-    #
-    # except HTTPException:
-    #     raise
-    # except Exception as e:
-    #     logger.error(f"RFID detection error: {e}", exc_info=True)
-    #     return {
-    #         "success": False,
-    #         "error": f"RFID detection failed: {str(e)}"
-    #     }

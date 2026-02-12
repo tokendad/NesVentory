@@ -2264,44 +2264,20 @@ export interface PrinterModel {
 }
 
 export interface PrintLabelRequest {
-  location_id: string;
-  location_name: string;
-  is_container: boolean;
+  // Location-based printing
+  location_id?: string;
+  location_name?: string;
+  // Item-based printing (NEW)
+  item_id?: string;
+  item_name?: string;
+  // Common fields
+  is_container?: boolean;
   label_length_mm?: number;  // Per-print label length override (mm)
-  // DISABLED: RFID detection causing dimension issues with B1 printer
-  // label_width_mm?: number;  // Optional detected label width in mm
-  // label_height_mm?: number; // Optional detected label height in mm
 }
 
 export interface PrinterResponse {
   success: boolean;
   message: string;
-}
-
-export interface RfidData {
-  width_mm: number;
-  height_mm: number;
-  type: number;
-  raw_data: string;
-}
-
-export interface RfidProfile {
-  name: string;
-  model: string;
-  width_mm: number;
-  height_mm: number;
-  width_px: number;
-  height_px: number;
-  dpi: number;
-  print_direction: string;
-}
-
-export interface RfidDetectionResult {
-  success: boolean;
-  detected_profile?: RfidProfile | null;
-  rfid_data?: RfidData;
-  confidence?: number;
-  error?: string | null;
 }
 
 export async function getPrinterConfig(): Promise<PrinterConfig> {
@@ -2372,19 +2348,6 @@ export async function getPrinterModels(): Promise<{ models: PrinterModel[] }> {
     },
   });
   return handleResponse<{ models: PrinterModel[] }>(res);
-}
-
-export async function detectRfidProfile(): Promise<RfidDetectionResult> {
-  const res = await fetch(`${API_BASE_URL}/api/printer/detect-rfid`, {
-    method: "POST",
-    headers: {
-      "Accept": "application/json",
-      ...authHeaders(),
-    },
-  });
-  const data = await res.json();
-  // Don't use handleResponse here because this endpoint returns non-standard format
-  return data as RfidDetectionResult;
 }
 
 // ====================================
