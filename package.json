@@ -13,11 +13,11 @@
     "react-dom": "^19.2.4"
   },
   "devDependencies": {
-    "@types/react": "^19.2.8",
+    "@types/react": "^19.2.13",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react-swc": "^4.1.0",
+    "@vitejs/plugin-react-swc": "^4.2.3",
     "typescript": "^5.6.3",
     "vite": "^7.3.1"
   },
-  "version": "6.11.1"
+  "version": "6.11.2"
 }
