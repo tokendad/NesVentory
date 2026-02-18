@@ -634,3 +634,69 @@ class MediaListResponse(BaseModel):
     page: int
     pages: int
 
+
+# --- Phase 2D: Printer and Label Profile Schemas ---
+
+class PrinterProfileCreate(BaseModel):
+    name: str
+    model: str
+    connection_type: str
+    bluetooth_type: Optional[str] = "auto"
+    address: Optional[str] = None
+    default_density: int = 3
+
+
+class PrinterProfileResponse(PrinterProfileCreate):
+    id: UUID
+    printhead_width_px: int
+    dpi: int
+    print_direction: str
+    max_width_mm: float
+    max_length_mm: float
+    is_enabled: bool
+    is_default: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class LabelProfileCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    width_mm: float
+    length_mm: float
+
+
+class LabelProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    width_mm: Optional[float] = None
+    length_mm: Optional[float] = None
+
+
+class LabelProfileResponse(LabelProfileCreate):
+    id: UUID
+    is_default: bool
+    is_custom: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UserPrinterConfigResponse(BaseModel):
+    id: UUID
+    printer_profile: PrinterProfileResponse
+    label_profile: LabelProfileResponse
+    density: int
+    is_active: bool
+    is_default: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+

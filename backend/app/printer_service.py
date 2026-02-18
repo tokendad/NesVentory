@@ -208,6 +208,47 @@ class NiimbotPrinterService:
         }
 
     @staticmethod
+    def validate_printer_config_v2(printer_profile, label_profile) -> dict:
+        """
+        Validate printer profile + label profile combination.
+        Used by Phase 2D label profile system.
+        Returns complete config dict for use by print functions.
+        """
+        specs = NiimbotPrinterService.get_model_specs(printer_profile.model)
+        max_w_mm, max_l_mm = NiimbotPrinterService.get_max_label_mm(printer_profile.model)
+
+        # Validate label dimensions against printer max
+        if label_profile.width_mm > printer_profile.max_width_mm:
+            raise ValueError(
+                f"Label width {label_profile.width_mm}mm exceeds {printer_profile.name} max {printer_profile.max_width_mm}mm"
+            )
+        if label_profile.length_mm > printer_profile.max_length_mm:
+            raise ValueError(
+                f"Label length {label_profile.length_mm}mm exceeds {printer_profile.name} max {printer_profile.max_length_mm}mm"
+            )
+
+        # Convert mm to pixels
+        label_width_px = NiimbotPrinterService.label_mm_to_pixels(
+            label_profile.width_mm, printer_profile.dpi
+        )
+        label_height_px = NiimbotPrinterService.label_mm_to_pixels(
+            label_profile.length_mm, printer_profile.dpi
+        )
+
+        return {
+            "model": printer_profile.model,
+            "connection_type": printer_profile.connection_type,
+            "bluetooth_type": printer_profile.bluetooth_type,
+            "address": printer_profile.address,
+            "density": printer_profile.default_density,
+            "label_width": label_width_px,
+            "label_height": label_height_px,
+            "label_length_mm": label_profile.length_mm,
+            "print_direction": printer_profile.print_direction,
+            "dpi": printer_profile.dpi,
+        }
+
+    @staticmethod
     def resolve_connection_type(connection_type: str, bluetooth_type: Optional[str] = None) -> str:
         """
         Resolve the actual connection type based on connection_type and bluetooth_type.
@@ -299,38 +340,47 @@ class NiimbotPrinterService:
         return SerialTransport(port=address if address else "auto")
 
     @staticmethod
-    def calculate_responsive_qr_size(label_width_px: int, label_height_px: int, printhead_width: int) -> int:
+    def calculate_responsive_qr_size(label_width_px: int, label_height_px: int, printhead_width: int, print_direction: str = "left") -> int:
         """
-        Calculate optimal QR code size based on label dimensions.
-        QR should take ~35-40% of the smallest dimension, leaving 60-65% for text.
+        Calculate optimal QR code size based on label dimensions and print direction.
+
+        Args:
+            label_width_px: Width dimension in pixels
+            label_height_px: Height dimension in pixels
+            printhead_width: Printhead width in pixels (for reference)
+            print_direction: "left" (D-series, vertical feed) or "top" (B-series, horizontal feed)
+
+        Returns:
+            QR code size in pixels
         """
-        # For "left" direction (vertical feed), height is printhead width and width is label length
-        # For "top" direction, width is printhead width and height is label length
-        # Use the smaller dimension for QR sizing
-        min_dimension = min(label_width_px, label_height_px)
-
-        # Target: 35-40% of available space
-        max_qr = int(min_dimension * 0.35)
-
-        # QR code must be reasonable size (minimum 50px, maximum bounded by dimensions)
-        qr_size = max(50, min(max_qr, min_dimension - 10))
+        if print_direction == "left":
+            # D-series (vertical feed): QR should fill ~80-85% of printhead width
+            # In "left" direction: label_height is the printhead width
+            qr_size = int(label_height_px * 0.85)
+            # Constrain within reasonable bounds
+            qr_size = max(50, min(qr_size, label_height_px - 10))
+        else:
+            # B-series (horizontal feed): use responsive sizing based on available space
+            # 35-40% of the smallest dimension, leaving 60-65% for text
+            min_dimension = min(label_width_px, label_height_px)
+            max_qr = int(min_dimension * 0.35)
+            qr_size = max(50, min(max_qr, min_dimension - 10))
 
         # Round to nearest multiple of 10 for cleaner sizing
         return (qr_size // 10) * 10
 
     @staticmethod
-    def calculate_responsive_font_size(label_height_px: int, dpi: int, label_width_px: int) -> int:
+    def calculate_responsive_font_size(label_height_px: int, dpi: int, label_width_px: int, print_direction: str = "left") -> int:
         """
-        Calculate optimal font size based on DPI and label dimensions.
+        Calculate optimal font size based on DPI, label dimensions, and print direction.
         Higher DPI = can use smaller font for same readability.
         Smaller label = smaller font needed.
         """
         # Base font size: 25% of available height (after QR)
-        qr_size = NiimbotPrinterService.calculate_responsive_qr_size(label_width_px, label_height_px, label_height_px)
+        qr_size = NiimbotPrinterService.calculate_responsive_qr_size(label_width_px, label_height_px, label_height_px, print_direction)
         available_height = label_height_px - qr_size - 10
 
-        # For "left" direction: available width is around printhead width
-        # Font should be ~20% of available height
+        # Font should be ~20% of available height (after accounting for QR)
         base_font = max(8, int(available_height * 0.2))
 
         # Adjust for DPI: normalize to 203 DPI baseline
@@ -383,7 +433,7 @@ class NiimbotPrinterService:
         else:
             # Vertical feed (D-series: "left" direction)
             # Layout: QR on left, text on right
-            qr_size = NiimbotPrinterService.calculate_responsive_qr_size(label_width, label_height, label_height)
+            qr_size = NiimbotPrinterService.calculate_responsive_qr_size(label_width, label_height, label_height, print_direction)
             qr_x = 6
             qr_y = max(5, (label_height - qr_size) // 2)  # Center vertically
 
@@ -397,7 +447,7 @@ class NiimbotPrinterService:
             logger.error(f"QR Error: {e}")
 
         # 2. Calculate responsive font size
-        font_size = NiimbotPrinterService.calculate_responsive_font_size(label_height, dpi, label_width)
+        font_size = NiimbotPrinterService.calculate_responsive_font_size(label_height, dpi, label_width, print_direction)
 
         # 3. Text rendering with responsive sizing
         try:

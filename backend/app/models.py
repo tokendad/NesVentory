@@ -15,6 +15,8 @@ from sqlalchemy import (
     Date,
     JSON,
     Table,
+    Float,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID, JSONB
 from sqlalchemy.orm import relationship
@@ -129,6 +131,11 @@ class User(Base):
     
     # Living items associated with this user (for "is_current_user" items)
     living_items = relationship("Item", foreign_keys="[Item.associated_user_id]", back_populates="associated_user")
+
+    # Phase 2D: Printer and label profile relationships
+    printer_profiles = relationship("PrinterProfile", back_populates="user", cascade="all, delete-orphan")
+    label_profiles = relationship("LabelProfile", back_populates="user", cascade="all, delete-orphan")
+    user_printer_configs = relationship("UserPrinterConfig", back_populates="user", cascade="all, delete-orphan")
 
 
 # Association table for many-to-many relationship between items and tags
@@ -494,7 +501,71 @@ class Plugin(Base):
     
     # Priority order (lower number = higher priority)
     priority = Column(Integer, default=100, nullable=False)
-    
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+# Phase 2D: Printer and Label Profile Models
+class PrinterProfile(Base):
+    __tablename__ = "printer_profiles"
+
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(), ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    model = Column(String(50), nullable=False)
+    connection_type = Column(String(50), nullable=False)
+    bluetooth_type = Column(String(50), nullable=True)
+    address = Column(String(255), nullable=True)
+    printhead_width_px = Column(Integer, nullable=False)
+    dpi = Column(Integer, nullable=False)
+    print_direction = Column(String(50), nullable=False)
+    max_width_mm = Column(Float, nullable=False)
+    max_length_mm = Column(Float, nullable=False)
+    default_density = Column(Integer, default=3)
+    is_default = Column(Boolean, default=False)
+    is_enabled = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    user = relationship("User", back_populates="printer_profiles")
+    user_printer_configs = relationship("UserPrinterConfig", back_populates="printer_profile", cascade="all, delete-orphan")
+
+
+class LabelProfile(Base):
+    __tablename__ = "label_profiles"
+
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(), ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    width_mm = Column(Float, nullable=False)
+    length_mm = Column(Float, nullable=False)
+    is_default = Column(Boolean, default=False)
+    is_custom = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    user = relationship("User", back_populates="label_profiles")
+    user_printer_configs = relationship("UserPrinterConfig", back_populates="label_profile", cascade="all, delete-orphan")
+
+
+class UserPrinterConfig(Base):
+    __tablename__ = "user_printer_configs"
+
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(), ForeignKey("users.id"), nullable=False, index=True)
+    printer_profile_id = Column(UUID(), ForeignKey("printer_profiles.id"), nullable=False)
+    label_profile_id = Column(UUID(), ForeignKey("label_profiles.id"), nullable=False)
+    density = Column(Integer, default=3)
+    is_active = Column(Boolean, default=True)
+    is_default = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (UniqueConstraint("user_id", "printer_profile_id", "label_profile_id", name="unique_user_printer_label"),)
+
+    user = relationship("User", back_populates="user_printer_configs")
+    printer_profile = relationship("PrinterProfile", back_populates="user_printer_configs")
+    label_profile = relationship("LabelProfile", back_populates="user_printer_configs")
 
