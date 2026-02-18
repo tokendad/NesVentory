@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Depends
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from pathlib import Path
 from werkzeug.utils import secure_filename
@@ -23,7 +22,7 @@ from .seed_data import seed_database
 from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins, location_photos, csv_import, media, oidc, printer
 from .routers import settings as settings_router
 from .routers.auth import perform_password_login
-from .middleware import RequestTracingMiddleware
+from .middleware import RequestTracingMiddleware, DynamicCORSMiddleware
 
 
 def run_migrations():
@@ -163,11 +162,8 @@ def get_cors_origins():
     return settings.CORS_ORIGINS or []
 
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=get_cors_origins(),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    DynamicCORSMiddleware,
+    allowed_origins=get_cors_origins(),
 )
 
 # Request tracing middleware (generates request IDs and logs requests)
@@ -259,24 +255,6 @@ def version():
 @app.get("/{full_path:path}")
 async def serve_frontend(full_path: str):
     """Serve the frontend application for all non-API routes."""
-    # Redirect API paths without trailing slash to include trailing slash
-    # This allows FastAPI's routers to properly handle the request
-    import re
-    def is_safe_api_path(path: str) -> bool:
-        # Allow only api or api/<subpath> where subpath consists of allowed chars.
-        if not path:
-            return False
-        # Only allow api or api/...
-        if path == "api":
-            return True
-        m = re.fullmatch(r"api/[\w\-/]*", path)
-        return bool(m)
-    
-    if is_safe_api_path(full_path):
-        # Only return redirect to safe API paths, always as relative URL
-        safe_redirect = "/" + full_path.strip("/") + "/"
-        return RedirectResponse(url=safe_redirect, status_code=307)
-    
     # Prevent path traversal attacks
     if ".." in full_path or full_path.startswith("/"):
         return FileResponse(STATIC_DIR / "index.html")
