@@ -2429,4 +2429,191 @@ export async function printItemToSystemPrinter(
   return handleResponse<PrinterResponse>(res);
 }
 
+// ============================================================================
+// Phase 2D: Printer and Label Profile Management
+// ============================================================================
+
+export interface PrinterProfile {
+  id: string;
+  name: string;
+  model: string;
+  connection_type: string;
+  bluetooth_type?: string | null;
+  address?: string | null;
+  printhead_width_px: number;
+  dpi: number;
+  print_direction: string;
+  max_width_mm: number;
+  max_length_mm: number;
+  is_enabled: boolean;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PrinterProfileCreate {
+  name: string;
+  model: string;
+  connection_type: string;
+  bluetooth_type?: string;
+  address?: string;
+  default_density?: number;
+}
+
+export interface LabelProfile {
+  id: string;
+  name: string;
+  description?: string;
+  width_mm: number;
+  length_mm: number;
+  is_default: boolean;
+  is_custom: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LabelProfileCreate {
+  name: string;
+  description?: string;
+  width_mm: number;
+  length_mm: number;
+}
+
+export interface LabelProfileUpdate {
+  name?: string;
+  description?: string;
+  width_mm?: number;
+  length_mm?: number;
+}
+
+export interface ActivePrinterConfig {
+  id: string;
+  printer_profile: PrinterProfile;
+  label_profile: LabelProfile;
+  density: number;
+  is_active: boolean;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Printer Profile API Functions
+export async function getPrinterProfiles(): Promise<PrinterProfile[]> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/profiles/printer`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    credentials: 'include',
+  });
+  return handleResponse<PrinterProfile[]>(res);
+}
+
+export async function createPrinterProfile(profile: PrinterProfileCreate): Promise<PrinterProfile> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/profiles/printer`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    credentials: 'include',
+    body: JSON.stringify(profile),
+  });
+  return handleResponse<PrinterProfile>(res);
+}
+
+export async function deletePrinterProfile(profileId: string): Promise<{ status: string; id: string }> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/profiles/printer/${profileId}`, {
+    method: "DELETE",
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    credentials: 'include',
+  });
+  return handleResponse<{ status: string; id: string }>(res);
+}
+
+// Label Profile API Functions
+export async function getLabelProfiles(): Promise<LabelProfile[]> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/profiles/label`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    credentials: 'include',
+  });
+  return handleResponse<LabelProfile[]>(res);
+}
+
+export async function createLabelProfile(profile: LabelProfileCreate): Promise<LabelProfile> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/profiles/label`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    credentials: 'include',
+    body: JSON.stringify(profile),
+  });
+  return handleResponse<LabelProfile>(res);
+}
+
+export async function updateLabelProfile(profileId: string, profile: LabelProfileUpdate): Promise<LabelProfile> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/profiles/label/${profileId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    credentials: 'include',
+    body: JSON.stringify(profile),
+  });
+  return handleResponse<LabelProfile>(res);
+}
+
+export async function deleteLabelProfile(profileId: string): Promise<{ status: string; id: string }> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/profiles/label/${profileId}`, {
+    method: "DELETE",
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    credentials: 'include',
+  });
+  return handleResponse<{ status: string; id: string }>(res);
+}
+
+// Printer Configuration API Functions
+export async function getActivePrinterConfig(): Promise<ActivePrinterConfig> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/config/active`, {
+    headers: {
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    credentials: 'include',
+  });
+  return handleResponse<ActivePrinterConfig>(res);
+}
+
+export async function activatePrinterConfig(printerId: string, labelId: string): Promise<ActivePrinterConfig> {
+  const res = await fetch(`${API_BASE_URL}/api/printer/config/activate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...authHeaders(),
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+      printer_profile_id: printerId,
+      label_profile_id: labelId,
+    }),
+  });
+  return handleResponse<ActivePrinterConfig>(res);
+}
+
 

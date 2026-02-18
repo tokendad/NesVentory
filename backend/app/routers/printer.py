@@ -192,13 +192,29 @@ async def print_label(
     Either (location_id + location_name) or (item_id + item_name) must be provided, not both.
     """
     try:
-        # Get printer configuration
-        config = current_user.niimbot_printer_config
-        if not config or not config.get("enabled"):
-            raise HTTPException(
-                status_code=400,
-                detail="NIIMBOT printer is not configured or enabled. Please configure in User Settings."
+        # Phase 2D: Try new profile-based config first, fall back to old JSON config
+        user_config = db.query(models.UserPrinterConfig).filter(
+            models.UserPrinterConfig.user_id == current_user.id,
+            models.UserPrinterConfig.is_active == True
+        ).first()
+
+        if user_config:
+            # Use new schema (Phase 2D)
+            config = NiimbotPrinterService.validate_printer_config_v2(
+                user_config.printer_profile,
+                user_config.label_profile
             )
+            logger.info(f"Using Phase 2D profile-based config: {user_config.printer_profile.model}")
+        else:
+            # Fall back to old JSON schema
+            config = current_user.niimbot_printer_config
+            if not config or not config.get("enabled"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="NIIMBOT printer is not configured or enabled. Please configure in User Settings."
+                )
+            # Re-validate old config
+            config = NiimbotPrinterService.validate_printer_config(config)
 
         # Determine target type and generate QR URL
         if request.location_id and request.location_name:

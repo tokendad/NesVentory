@@ -123,6 +123,125 @@ def run_migrations():
             except Exception as e:
                 print(f"Migration warning: Could not add column '{column_name}' to '{table_name}': {e}")
 
+    # Phase 2D: Migrate old niimbot_printer_config to new profile-based schema
+    migrate_niimbot_configs_to_profiles(conn)
+
+
+def migrate_niimbot_configs_to_profiles(conn):
+    """
+    Migrate existing niimbot_printer_config JSON to new Phase 2D profile-based schema.
+    Creates PrinterProfile, LabelProfile, and UserPrinterConfig records from old config.
+    """
+    from .printer_service import NiimbotPrinterService
+
+    try:
+        # Get all users with enabled niimbot_printer_config
+        users = conn.execute(text("SELECT id, niimbot_printer_config FROM users WHERE niimbot_printer_config IS NOT NULL")).fetchall()
+
+        for user_id, config_json in users:
+            if not config_json or not config_json.get('enabled'):
+                continue
+
+            # Check if this user already has printer profiles (skip if already migrated)
+            existing = conn.execute(
+                text("SELECT id FROM printer_profiles WHERE user_id = :user_id LIMIT 1"),
+                {"user_id": str(user_id)}
+            ).fetchone()
+            if existing:
+                continue
+
+            try:
+                import uuid as uuid_module
+                from datetime import datetime as dt_module
+
+                model = config_json.get('model', 'd11_h').lower()
+                if model not in NiimbotPrinterService.PRINTER_MODELS:
+                    model = 'd11_h'
+
+                specs = NiimbotPrinterService.get_model_specs(model)
+                max_w_mm, max_l_mm = NiimbotPrinterService.get_max_label_mm(model)
+
+                # Create PrinterProfile
+                printer_profile_id = str(uuid_module.uuid4())
+                now = dt_module.utcnow()
+
+                conn.execute(text("""
+                    INSERT INTO printer_profiles
+                    (id, user_id, name, model, connection_type, bluetooth_type, address,
+                     printhead_width_px, dpi, print_direction, max_width_mm, max_length_mm,
+                     default_density, is_default, is_enabled, created_at, updated_at)
+                    VALUES (:id, :user_id, :name, :model, :connection_type, :bluetooth_type, :address,
+                            :printhead_width_px, :dpi, :print_direction, :max_width_mm, :max_length_mm,
+                            :default_density, 1, 1, :created_at, :updated_at)
+                """), {
+                    "id": printer_profile_id,
+                    "user_id": str(user_id),
+                    "name": f"{model.upper()} Printer",
+                    "model": model,
+                    "connection_type": config_json.get('connection_type', 'usb'),
+                    "bluetooth_type": config_json.get('bluetooth_type', 'auto'),
+                    "address": config_json.get('address'),
+                    "printhead_width_px": specs['width'],
+                    "dpi": specs['dpi'],
+                    "print_direction": specs['direction'],
+                    "max_width_mm": max_w_mm,
+                    "max_length_mm": max_l_mm,
+                    "default_density": config_json.get('density', 3),
+                    "created_at": now,
+                    "updated_at": now,
+                })
+
+                # Create LabelProfile from label_length_mm
+                label_profile_id = str(uuid_module.uuid4())
+                if config_json.get('label_length_mm'):
+                    length_mm = float(config_json['label_length_mm'])
+                else:
+                    # Estimate from label_height in pixels
+                    height_px = config_json.get('label_height', specs['height'])
+                    length_mm = height_px / (specs['dpi'] / 25.4)
+
+                width_mm = config_json.get('label_width')
+                if width_mm:
+                    width_mm = width_mm / (specs['dpi'] / 25.4)
+                else:
+                    width_mm = specs['width'] / (specs['dpi'] / 25.4)
+
+                conn.execute(text("""
+                    INSERT INTO label_profiles
+                    (id, user_id, name, description, width_mm, length_mm, is_default, is_custom, created_at, updated_at)
+                    VALUES (:id, :user_id, :name, :description, :width_mm, :length_mm, 1, 1, :created_at, :updated_at)
+                """), {
+                    "id": label_profile_id,
+                    "user_id": str(user_id),
+                    "name": "Migrated Label (Phase 2C)",
+                    "description": "Automatically migrated from v6.11 config",
+                    "width_mm": width_mm,
+                    "length_mm": length_mm,
+                    "created_at": now,
+                    "updated_at": now,
+                })
+
+                # Create UserPrinterConfig to link them
+                conn.execute(text("""
+                    INSERT INTO user_printer_configs
+                    (id, user_id, printer_profile_id, label_profile_id, density, is_active, is_default, created_at, updated_at)
+                    VALUES (:id, :user_id, :printer_profile_id, :label_profile_id, :density, 1, 1, :created_at, :updated_at)
+                """), {
+                    "id": str(uuid_module.uuid4()),
+                    "user_id": str(user_id),
+                    "printer_profile_id": printer_profile_id,
+                    "label_profile_id": label_profile_id,
+                    "density": config_json.get('density', 3),
+                    "created_at": now,
+                    "updated_at": now,
+                })
+
+                print(f"Migration: Migrated niimbot config for user {user_id}")
+            except Exception as e:
+                print(f"Migration warning: Could not migrate config for user {user_id}: {e}")
+    except Exception as e:
+        print(f"Migration warning: Phase 2D data migration failed: {e}")
+
 
 # Auto-create tables on startup and seed with test data
 Base.metadata.create_all(bind=engine)
