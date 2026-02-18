@@ -435,25 +435,34 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
     return rotatedCtx.getImageData(0, 0, height, width);
   };
 
-  // Calculate responsive QR size based on label dimensions
-  const calculateResponsiveQRSize = (labelWidth: number, labelHeight: number, printheadPixels: number): number => {
-      // QR should take ~35-40% of the smallest dimension
-      const minDimension = Math.min(labelWidth, labelHeight);
-      const maxQr = Math.floor(minDimension * 0.35);
+  // Calculate responsive QR size based on label dimensions and print direction
+  const calculateResponsiveQRSize = (labelWidth: number, labelHeight: number, printheadPixels: number, printDirection: string = 'left'): number => {
+      let qrSize: number;
 
-      // QR code minimum 50px, bounded by dimensions
-      const qrSize = Math.max(50, Math.min(maxQr, minDimension - 10));
+      if (printDirection === 'left') {
+          // D-series (vertical feed): QR should fill ~80-85% of printhead width
+          // In "left" direction: labelHeight is the printhead width
+          qrSize = Math.floor(labelHeight * 0.85);
+          // Constrain within reasonable bounds
+          qrSize = Math.max(50, Math.min(qrSize, labelHeight - 10));
+      } else {
+          // B-series (horizontal feed): use responsive sizing based on available space
+          // 35-40% of the smallest dimension, leaving 60-65% for text
+          const minDimension = Math.min(labelWidth, labelHeight);
+          const maxQr = Math.floor(minDimension * 0.35);
+          qrSize = Math.max(50, Math.min(maxQr, minDimension - 10));
+      }
 
       // Round to nearest multiple of 10 for cleaner sizing
       return Math.floor(qrSize / 10) * 10;
   };
 
-  // Calculate responsive font size based on DPI and available space
-  const calculateResponsiveFontSize = (labelHeight: number, dpi: number, labelWidth: number): number => {
-      const qrSize = calculateResponsiveQRSize(labelWidth, labelHeight, Math.min(labelWidth, labelHeight));
+  // Calculate responsive font size based on DPI, available space, and print direction
+  const calculateResponsiveFontSize = (labelHeight: number, dpi: number, labelWidth: number, printDirection: string = 'left'): number => {
+      const qrSize = calculateResponsiveQRSize(labelWidth, labelHeight, Math.min(labelWidth, labelHeight), printDirection);
       const availableHeight = labelHeight - qrSize - 10;
 
-      // Font should be ~20% of available height
+      // Font should be ~20% of available height (after accounting for QR)
       let baseFont = Math.max(8, Math.floor(availableHeight * 0.2));
 
       // Adjust for DPI: normalize to 203 DPI baseline
@@ -507,8 +516,8 @@ const QRLabelPrint: React.FC<QRLabelPrintProps> = (props) => {
       const labelTitle = getLabelName();
 
       // Calculate responsive sizes
-      const qrSize = calculateResponsiveQRSize(canvasWidth, canvasHeight, printheadPixels);
-      const fontSize = calculateResponsiveFontSize(canvasHeight, dpi, canvasWidth);
+      const qrSize = calculateResponsiveQRSize(canvasWidth, canvasHeight, printheadPixels, printDirection);
+      const fontSize = calculateResponsiveFontSize(canvasHeight, dpi, canvasWidth, printDirection);
       const padding = Math.round(4 * (printheadPixels / 96)); // Scale padding with printhead
 
       if (printMode !== 'items_only' && qrDataUrl) {
