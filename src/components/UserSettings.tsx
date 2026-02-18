@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { 
-  updateUser, 
-  generateApiKey, 
-  revokeApiKey, 
+import {
+  updateUser,
+  generateApiKey,
+  revokeApiKey,
   fetchItems,
   getUserLocationAccess,
   type User,
@@ -14,6 +14,21 @@ import {
   printTestLabel,
   type PrinterConfig,
   type PrinterModel,
+  getPrinterProfiles,
+  createPrinterProfile,
+  deletePrinterProfile,
+  getLabelProfiles,
+  createLabelProfile,
+  updateLabelProfile,
+  deleteLabelProfile,
+  getActivePrinterConfig,
+  activatePrinterConfig,
+  type PrinterProfile,
+  type PrinterProfileCreate,
+  type LabelProfile,
+  type LabelProfileCreate,
+  type LabelProfileUpdate,
+  type ActivePrinterConfig,
 } from "../lib/api";
 import { useTheme } from "./ThemeContext";
 import { THEME_MODES, COLOR_PALETTES, type ThemeMode, type ColorPalette } from "../lib/theme";
@@ -64,7 +79,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
   const [localeConfig, setLocaleConfig] = useState<LocaleConfig>(getLocaleConfig());
   const [localeSaved, setLocaleSaved] = useState(false);
   
-  // Printer settings states
+  // Printer settings states (old schema)
   const [printerConfig, setPrinterConfig] = useState<PrinterConfig>({
     enabled: false,
     model: "d11_h",
@@ -76,6 +91,35 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
   const [printerLoading, setPrinterLoading] = useState(false);
   const [printerSaved, setPrinterSaved] = useState(false);
   const [printerTestResult, setPrinterTestResult] = useState<string | null>(null);
+
+  // Phase 2D: New printer/label profile states
+  const [printerProfiles, setPrinterProfiles] = useState<PrinterProfile[]>([]);
+  const [labelProfiles, setLabelProfiles] = useState<LabelProfile[]>([]);
+  const [activeConfig, setActiveConfig] = useState<ActivePrinterConfig | null>(null);
+  const [profilesLoading, setProfilesLoading] = useState(false);
+  const [profilesError, setProfilesError] = useState<string | null>(null);
+
+  // Form states for new printer profile
+  const [newPrinterForm, setNewPrinterForm] = useState<Partial<PrinterProfileCreate>>({
+    name: "",
+    model: "d11_h",
+    connection_type: "usb",
+    bluetooth_type: "auto",
+    address: undefined,
+    default_density: 3,
+  });
+
+  // Form states for new label profile
+  const [newLabelForm, setNewLabelForm] = useState<Partial<LabelProfileCreate>>({
+    name: "",
+    description: "",
+    width_mm: 50,
+    length_mm: 30,
+  });
+
+  // Edit mode for label profile
+  const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
+  const [editingLabelForm, setEditingLabelForm] = useState<Partial<LabelProfileUpdate>>({});
   
   // Load user stats on mount
   useEffect(() => {
@@ -107,12 +151,30 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
         console.error("Failed to load printer models:", err);
       }
 
-      // Load printer config
+      // Load old printer config (for backward compat)
       try {
         const config = await getPrinterConfig();
         setPrinterConfig(config);
       } catch (err) {
         console.error("Failed to load printer config:", err);
+      }
+
+      // Load new Phase 2D profiles
+      setProfilesLoading(true);
+      try {
+        const [printers, labels, active] = await Promise.all([
+          getPrinterProfiles(),
+          getLabelProfiles(),
+          getActivePrinterConfig().catch(() => null),
+        ]);
+        setPrinterProfiles(printers);
+        setLabelProfiles(labels);
+        setActiveConfig(active);
+      } catch (err) {
+        console.error("Failed to load printer/label profiles:", err);
+        setProfilesError("Failed to load profiles");
+      } finally {
+        setProfilesLoading(false);
       }
     }
     loadData();
@@ -277,6 +339,119 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
       setPrinterTestResult("❌ " + errorMessage);
     } finally {
       setPrinterLoading(false);
+    }
+  }
+
+  // Phase 2D: Printer Profile handlers
+  async function handleCreatePrinterProfile() {
+    try {
+      setProfilesError(null);
+      setProfilesLoading(true);
+      const profile = await createPrinterProfile(newPrinterForm as PrinterProfileCreate);
+      setPrinterProfiles([...printerProfiles, profile]);
+      setNewPrinterForm({
+        name: "",
+        model: "d11_h",
+        connection_type: "usb",
+        bluetooth_type: "auto",
+        address: undefined,
+        default_density: 3,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to create printer profile";
+      setProfilesError(msg);
+    } finally {
+      setProfilesLoading(false);
+    }
+  }
+
+  async function handleDeletePrinterProfile(profileId: string) {
+    if (!window.confirm("Delete this printer profile? This will also delete all associated configurations.")) return;
+    try {
+      setProfilesLoading(true);
+      await deletePrinterProfile(profileId);
+      setPrinterProfiles(printerProfiles.filter(p => p.id !== profileId));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to delete printer profile";
+      setProfilesError(msg);
+    } finally {
+      setProfilesLoading(false);
+    }
+  }
+
+  // Phase 2D: Label Profile handlers
+  async function handleCreateLabelProfile() {
+    try {
+      setProfilesError(null);
+      setProfilesLoading(true);
+      const profile = await createLabelProfile(newLabelForm as LabelProfileCreate);
+      setLabelProfiles([...labelProfiles, profile]);
+      setNewLabelForm({
+        name: "",
+        description: "",
+        width_mm: 50,
+        length_mm: 30,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to create label profile";
+      setProfilesError(msg);
+    } finally {
+      setProfilesLoading(false);
+    }
+  }
+
+  async function handleStartEditLabel(profile: LabelProfile) {
+    setEditingLabelId(profile.id);
+    setEditingLabelForm({
+      name: profile.name,
+      description: profile.description,
+      width_mm: profile.width_mm,
+      length_mm: profile.length_mm,
+    });
+  }
+
+  async function handleSaveEditLabel(profileId: string) {
+    try {
+      setProfilesError(null);
+      setProfilesLoading(true);
+      const updated = await updateLabelProfile(profileId, editingLabelForm as LabelProfileUpdate);
+      setLabelProfiles(labelProfiles.map(p => p.id === profileId ? updated : p));
+      setEditingLabelId(null);
+      setEditingLabelForm({});
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to update label profile";
+      setProfilesError(msg);
+    } finally {
+      setProfilesLoading(false);
+    }
+  }
+
+  async function handleDeleteLabelProfile(profileId: string) {
+    if (!window.confirm("Delete this label profile? This will also delete all associated configurations.")) return;
+    try {
+      setProfilesLoading(true);
+      await deleteLabelProfile(profileId);
+      setLabelProfiles(labelProfiles.filter(p => p.id !== profileId));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to delete label profile";
+      setProfilesError(msg);
+    } finally {
+      setProfilesLoading(false);
+    }
+  }
+
+  // Phase 2D: Configuration handler
+  async function handleActivateConfig(printerId: string, labelId: string) {
+    try {
+      setProfilesError(null);
+      setProfilesLoading(true);
+      const config = await activatePrinterConfig(printerId, labelId);
+      setActiveConfig(config);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to activate configuration";
+      setProfilesError(msg);
+    } finally {
+      setProfilesLoading(false);
     }
   }
 
@@ -762,21 +937,441 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
         <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-subtle)" }} />
       </div>
 
-      {/* Server Configuration Section */}
+      {profilesError && (
+        <div style={{
+          backgroundColor: "#fee",
+          border: "1px solid #fcc",
+          borderRadius: "6px",
+          padding: "0.75rem",
+          marginBottom: "1rem",
+          color: "#c33"
+        }}>
+          {profilesError}
+        </div>
+      )}
+
+      {profilesLoading && (
+        <div style={{
+          backgroundColor: "#e3f2fd",
+          border: "1px solid #64b5f6",
+          borderRadius: "6px",
+          padding: "0.75rem",
+          marginBottom: "1rem",
+          color: "#1565c0"
+        }}>
+          ⏳ Loading printer profiles...
+        </div>
+      )}
+
+      {/* SECTION 1: Printer Profiles */}
+      <div style={{ marginBottom: "2rem" }}>
+        <h3 style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <span>🖨️</span> Printer Profiles
+        </h3>
+
+        {printerProfiles.length > 0 && (
+          <div style={{
+            border: "1px solid var(--border-subtle)",
+            borderRadius: "6px",
+            overflow: "hidden",
+            marginBottom: "1rem"
+          }}>
+            {printerProfiles.map(profile => (
+              <div
+                key={profile.id}
+                style={{
+                  padding: "0.75rem",
+                  borderBottom: "1px solid var(--border-subtle)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "1rem"
+                }}
+              >
+                <div>
+                  <strong>{profile.name}</strong>
+                  <div style={{ fontSize: "0.85rem", color: "var(--muted)" }}>
+                    {profile.model.toUpperCase()} • {profile.connection_type.toUpperCase()} • {profile.printhead_width_px}px width
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn-outline"
+                  onClick={() => handleDeletePrinterProfile(profile.id)}
+                  disabled={profilesLoading}
+                  style={{ color: "#d32f2f", borderColor: "#d32f2f", whiteSpace: "nowrap" }}
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{
+          backgroundColor: "rgba(33, 150, 243, 0.05)",
+          border: "1px solid rgba(33, 150, 243, 0.3)",
+          borderRadius: "6px",
+          padding: "1rem"
+        }}>
+          <h4 style={{ margin: "0 0 0.75rem 0", fontSize: "0.95rem" }}>Add Printer Profile</h4>
+
+          <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+            <label htmlFor="new-printer-name">Profile Name</label>
+            <input
+              id="new-printer-name"
+              type="text"
+              value={newPrinterForm.name || ""}
+              onChange={(e) => setNewPrinterForm(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="e.g., Home D101, Office B21"
+            />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+            <label htmlFor="new-printer-model">Model</label>
+            <select
+              id="new-printer-model"
+              value={newPrinterForm.model || "d11_h"}
+              onChange={(e) => setNewPrinterForm(prev => ({ ...prev, model: e.target.value }))}
+            >
+              {printerModels.map(model => (
+                <option key={model.value} value={model.value}>{model.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+            <label htmlFor="new-printer-conn">Connection Type</label>
+            <select
+              id="new-printer-conn"
+              value={newPrinterForm.connection_type || "usb"}
+              onChange={(e) => setNewPrinterForm(prev => ({ ...prev, connection_type: e.target.value }))}
+            >
+              <option value="usb">USB</option>
+              <option value="bluetooth">Bluetooth</option>
+            </select>
+          </div>
+
+          {(newPrinterForm.connection_type === "bluetooth") && (
+            <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+              <label htmlFor="new-printer-bt-type">Bluetooth Type</label>
+              <select
+                id="new-printer-bt-type"
+                value={newPrinterForm.bluetooth_type || "auto"}
+                onChange={(e) => setNewPrinterForm(prev => ({ ...prev, bluetooth_type: e.target.value }))}
+              >
+                <option value="auto">Auto-detect</option>
+                <option value="ble">BLE (GATT)</option>
+                <option value="rfcomm">Classic Bluetooth</option>
+              </select>
+            </div>
+          )}
+
+          <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+            <label htmlFor="new-printer-addr">Address {newPrinterForm.connection_type === "bluetooth" ? "(MAC)" : "(Port)"}</label>
+            <input
+              id="new-printer-addr"
+              type="text"
+              value={newPrinterForm.address || ""}
+              onChange={(e) => setNewPrinterForm(prev => ({ ...prev, address: e.target.value || undefined }))}
+              placeholder={newPrinterForm.connection_type === "bluetooth" ? "AA:BB:CC:DD:EE:FF" : "auto-detect"}
+            />
+          </div>
+
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleCreatePrinterProfile}
+            disabled={!newPrinterForm.name || profilesLoading}
+            style={{ width: "100%" }}
+          >
+            {profilesLoading ? "Creating..." : "Create Profile"}
+          </button>
+        </div>
+      </div>
+
+      {/* SECTION 2: Label Profiles */}
+      <div style={{ marginBottom: "2rem" }}>
+        <h3 style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <span>📋</span> Label Profiles
+        </h3>
+
+        {labelProfiles.length > 0 && (
+          <div style={{
+            border: "1px solid var(--border-subtle)",
+            borderRadius: "6px",
+            overflow: "hidden",
+            marginBottom: "1rem"
+          }}>
+            {labelProfiles.map(profile => (
+              <div key={profile.id}>
+                {editingLabelId === profile.id ? (
+                  <div style={{ padding: "0.75rem", borderBottom: "1px solid var(--border-subtle)" }}>
+                    <div className="form-group" style={{ marginBottom: "0.5rem" }}>
+                      <label style={{ fontSize: "0.85rem" }}>Name</label>
+                      <input
+                        type="text"
+                        value={editingLabelForm.name || ""}
+                        onChange={(e) => setEditingLabelForm(prev => ({ ...prev, name: e.target.value }))}
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: "0.5rem" }}>
+                      <label style={{ fontSize: "0.85rem" }}>Width (mm)</label>
+                      <input
+                        type="number"
+                        value={editingLabelForm.width_mm || ""}
+                        onChange={(e) => setEditingLabelForm(prev => ({ ...prev, width_mm: parseFloat(e.target.value) }))}
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+                      <label style={{ fontSize: "0.85rem" }}>Length (mm)</label>
+                      <input
+                        type="number"
+                        value={editingLabelForm.length_mm || ""}
+                        onChange={(e) => setEditingLabelForm(prev => ({ ...prev, length_mm: parseFloat(e.target.value) }))}
+                      />
+                    </div>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => handleSaveEditLabel(profile.id)}
+                        disabled={profilesLoading}
+                        style={{ flex: 1, fontSize: "0.85rem", padding: "0.5rem" }}
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-outline"
+                        onClick={() => setEditingLabelId(null)}
+                        disabled={profilesLoading}
+                        style={{ flex: 1, fontSize: "0.85rem", padding: "0.5rem" }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      padding: "0.75rem",
+                      borderBottom: "1px solid var(--border-subtle)",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: "1rem"
+                    }}
+                  >
+                    <div>
+                      <strong>{profile.name}</strong>
+                      <div style={{ fontSize: "0.85rem", color: "var(--muted)" }}>
+                        {profile.width_mm}mm × {profile.length_mm}mm
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button
+                        type="button"
+                        className="btn-outline"
+                        onClick={() => handleStartEditLabel(profile)}
+                        disabled={profilesLoading}
+                        style={{ fontSize: "0.85rem", padding: "0.25rem 0.5rem" }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-outline"
+                        onClick={() => handleDeleteLabelProfile(profile.id)}
+                        disabled={profilesLoading}
+                        style={{ color: "#d32f2f", borderColor: "#d32f2f", fontSize: "0.85rem", padding: "0.25rem 0.5rem" }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{
+          backgroundColor: "rgba(76, 175, 80, 0.05)",
+          border: "1px solid rgba(76, 175, 80, 0.3)",
+          borderRadius: "6px",
+          padding: "1rem"
+        }}>
+          <h4 style={{ margin: "0 0 0.75rem 0", fontSize: "0.95rem" }}>Add Label Profile</h4>
+
+          <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+            <label htmlFor="new-label-name">Profile Name</label>
+            <input
+              id="new-label-name"
+              type="text"
+              value={newLabelForm.name || ""}
+              onChange={(e) => setNewLabelForm(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="e.g., Small 30×12, Large 50×30"
+            />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+            <label htmlFor="new-label-width">Width (mm)</label>
+            <input
+              id="new-label-width"
+              type="number"
+              step="0.1"
+              value={newLabelForm.width_mm || ""}
+              onChange={(e) => setNewLabelForm(prev => ({ ...prev, width_mm: parseFloat(e.target.value) }))}
+              placeholder="e.g., 50"
+            />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+            <label htmlFor="new-label-length">Length (mm)</label>
+            <input
+              id="new-label-length"
+              type="number"
+              step="0.1"
+              value={newLabelForm.length_mm || ""}
+              onChange={(e) => setNewLabelForm(prev => ({ ...prev, length_mm: parseFloat(e.target.value) }))}
+              placeholder="e.g., 30"
+            />
+          </div>
+
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleCreateLabelProfile}
+            disabled={!newLabelForm.name || !newLabelForm.width_mm || !newLabelForm.length_mm || profilesLoading}
+            style={{ width: "100%" }}
+          >
+            {profilesLoading ? "Creating..." : "Create Profile"}
+          </button>
+        </div>
+      </div>
+
+      {/* SECTION 3: Active Configuration */}
+      <div>
+        <h3 style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <span>⚙️</span> Active Configuration
+        </h3>
+
+        {activeConfig ? (
+          <div style={{
+            backgroundColor: "rgba(76, 175, 80, 0.1)",
+            border: "1px solid rgba(76, 175, 80, 0.3)",
+            borderRadius: "6px",
+            padding: "1rem",
+            marginBottom: "1rem"
+          }}>
+            <div style={{ marginBottom: "0.5rem" }}>
+              <strong>Printer:</strong> {activeConfig.printer_profile.name}
+            </div>
+            <div style={{ marginBottom: "0.5rem" }}>
+              <strong>Label Size:</strong> {activeConfig.label_profile.width_mm}mm × {activeConfig.label_profile.length_mm}mm
+            </div>
+            <div>
+              <strong>Density:</strong> {activeConfig.density}
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            backgroundColor: "rgba(255, 152, 0, 0.1)",
+            border: "1px solid rgba(255, 152, 0, 0.3)",
+            borderRadius: "6px",
+            padding: "1rem",
+            marginBottom: "1rem",
+            color: "#e65100"
+          }}>
+            No active configuration. Create profiles and select below to activate.
+          </div>
+        )}
+
+        {printerProfiles.length > 0 && labelProfiles.length > 0 ? (
+          <div style={{
+            backgroundColor: "rgba(33, 150, 243, 0.05)",
+            border: "1px solid rgba(33, 150, 243, 0.3)",
+            borderRadius: "6px",
+            padding: "1rem"
+          }}>
+            <h4 style={{ margin: "0 0 0.75rem 0", fontSize: "0.95rem" }}>Activate Configuration</h4>
+
+            <div className="form-group" style={{ marginBottom: "0.75rem" }}>
+              <label htmlFor="activate-printer-select">Printer Profile</label>
+              <select id="activate-printer-select">
+                <option value="">Select printer...</option>
+                {printerProfiles.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: "1rem" }}>
+              <label htmlFor="activate-label-select">Label Profile</label>
+              <select id="activate-label-select">
+                <option value="">Select label...</option>
+                {labelProfiles.map(l => (
+                  <option key={l.id} value={l.id}>{l.name} ({l.width_mm}×{l.length_mm}mm)</option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => {
+                const printerSelect = document.getElementById("activate-printer-select") as HTMLSelectElement;
+                const labelSelect = document.getElementById("activate-label-select") as HTMLSelectElement;
+                if (printerSelect.value && labelSelect.value) {
+                  handleActivateConfig(printerSelect.value, labelSelect.value);
+                }
+              }}
+              disabled={profilesLoading}
+              style={{ width: "100%" }}
+            >
+              {profilesLoading ? "Activating..." : "Activate Configuration"}
+            </button>
+          </div>
+        ) : (
+          <div style={{
+            backgroundColor: "rgba(244, 67, 54, 0.1)",
+            border: "1px solid rgba(244, 67, 54, 0.3)",
+            borderRadius: "6px",
+            padding: "1rem",
+            color: "#c62828"
+          }}>
+            Create at least one Printer Profile and one Label Profile to activate a configuration.
+          </div>
+        )}
+      </div>
+
+      {/* Divider for Legacy Config */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        margin: "2rem 0 1.5rem 0",
+        gap: "1rem"
+      }}>
+        <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-subtle)" }} />
+        <span style={{ color: "var(--muted)", fontSize: "0.85rem", fontWeight: 500 }}>LEGACY</span>
+        <div style={{ flex: 1, height: "1px", backgroundColor: "var(--border-subtle)" }} />
+      </div>
+
+      {/* Server Configuration Section (Legacy) */}
       <h3 style={{ marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        <span>🖨️</span> Server-Side Printer Configuration
+        <span>🖨️</span> Server-Side Printer Configuration (Legacy)
       </h3>
       <div style={{
-        backgroundColor: "rgba(33, 150, 243, 0.1)",
-        border: "1px solid rgba(33, 150, 243, 0.3)",
+        backgroundColor: "rgba(244, 67, 54, 0.1)",
+        border: "1px solid rgba(244, 67, 54, 0.3)",
         borderRadius: "6px",
         padding: "0.75rem",
         marginBottom: "1rem",
         fontSize: "0.85rem"
       }}>
         <p style={{ margin: 0 }}>
-          <strong>When to use:</strong> Configure this if you have a printer connected directly to the NesVentory <strong>server</strong>
-          that you want to share with all users on the network.
+          <strong>Note:</strong> This section is for backward compatibility. New users should use the Printer Profiles and Label Profiles sections above.
         </p>
       </div>
 
@@ -788,7 +1383,7 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
             checked={printerConfig.enabled}
             onChange={(e) => setPrinterConfig(prev => ({ ...prev, enabled: e.target.checked }))}
           />
-          Enable Server Printer
+          Enable Server Printer (Legacy)
         </label>
       </div>
 
@@ -807,9 +1402,6 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
                 </option>
               ))}
             </select>
-            <small style={{ color: "#666", fontSize: "0.875rem" }}>
-              Supported models: D11-H, D101, D110, B1, B21, and others
-            </small>
           </div>
 
           <div className="form-group">
@@ -836,9 +1428,6 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
                 <option value="ble">BLE (GATT) - for modern BLE printers</option>
                 <option value="rfcomm">Classic Bluetooth (RFCOMM) - for older/classic printers like B1</option>
               </select>
-              <small style={{ color: "#666", fontSize: "0.875rem" }}>
-                Auto-detect will automatically determine if your printer uses BLE or Classic Bluetooth (RFCOMM)
-              </small>
             </div>
           )}
 
@@ -853,11 +1442,6 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
               onChange={(e) => setPrinterConfig(prev => ({ ...prev, address: e.target.value || null }))}
               placeholder={printerConfig.connection_type === "bluetooth" ? "AA:BB:CC:DD:EE:FF" : "auto-detect or /dev/ttyACM0"}
             />
-            <small style={{ color: "#666", fontSize: "0.875rem" }}>
-              {printerConfig.connection_type === "bluetooth"
-                ? "Enter the Bluetooth MAC address of your printer (e.g., 03:01:08:82:81:4D for B1)"
-                : "Leave empty for auto-detection, or specify port like /dev/ttyACM0 (Linux) or COM3 (Windows)"}
-            </small>
           </div>
 
           <div className="form-group">
@@ -870,15 +1454,12 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user, onClose, onUpdate, em
               value={printerConfig.density}
               onChange={(e) => setPrinterConfig(prev => ({ ...prev, density: parseInt(e.target.value) || 3 }))}
             />
-            <small style={{ color: "#666", fontSize: "0.875rem" }}>
-              Higher values produce darker prints ({["b1", "b21", "b21_c2b"].includes(printerConfig.model) ? "1-5 for B-series" : "1-3 for D-series"}).
-            </small>
           </div>
 
           {printerTestResult && (
-            <div style={{ 
-              padding: "0.75rem", 
-              borderRadius: "4px", 
+            <div style={{
+              padding: "0.75rem",
+              borderRadius: "4px",
               marginBottom: "1rem",
               background: printerTestResult.startsWith("✅") ? "#d4edda" : "#f8d7da",
               color: printerTestResult.startsWith("✅") ? "#155724" : "#721c24"
