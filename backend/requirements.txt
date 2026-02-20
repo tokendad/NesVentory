@@ -1,14 +1,14 @@
-fastapi==0.128.2
+fastapi==0.129.0
 publicsuffix2==2.20191221
 werkzeug==3.1.5
-uvicorn[standard]==0.40.0
+uvicorn[standard]==0.41.0
 SQLAlchemy==2.0.46
 psycopg2-binary==2.9.11
 asyncpg==0.31.0
 python-jose[cryptography]==3.5.0
 bcrypt==5.0.0
 pydantic==2.12.5
-pydantic-settings==2.12.0
+pydantic-settings==2.13.0
 email-validator==2.3.0
 python-multipart==0.0.22
 python-dotenv==1.2.1
@@ -23,7 +23,7 @@ googleapis-common-protos
 grpcio
 grpcio-status
 google-generativeai==0.8.6
-google-api-python-client==2.189.0
+google-api-python-client==2.190.0
 google-auth-oauthlib==1.2.4
 boto3>=1.35.0
 # NIIMBOT printer support
