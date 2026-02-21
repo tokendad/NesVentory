@@ -332,12 +332,12 @@ function createFetchOptions(options?: RequestInit): RequestInit {
 }
 
 export async function fetchItems(): Promise<Item[]> {
-  const res = await fetch(`${API_BASE_URL}/api/items`, createFetchOptions());
+  const res = await fetch(`${API_BASE_URL}/api/items/`, createFetchOptions());
   return handleResponse<Item[]>(res);
 }
 
 export async function fetchLocations(): Promise<Location[]> {
-  const res = await fetch(`${API_BASE_URL}/api/locations`, {
+  const res = await fetch(`${API_BASE_URL}/api/locations/`, {
     headers: {
       "Accept": "application/json",
       ...authHeaders(),
@@ -969,7 +969,7 @@ export async function getUserLocationAccess(userId: string): Promise<Location[]>
 
 // Tag API functions
 export async function fetchTags(): Promise<Tag[]> {
-  const res = await fetch(`${API_BASE_URL}/api/tags`, {
+  const res = await fetch(`${API_BASE_URL}/api/tags/`, {
     headers: {
       "Accept": "application/json",
       ...authHeaders(),
