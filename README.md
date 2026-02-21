@@ -4,6 +4,30 @@
 
 NesVentory is a modern home inventory management application that helps you track and organize your household items, their locations, warranties, and maintenance schedules.
 
+## 📸 Screenshots
+
+### Web Interface
+
+| Main Dashboard | Admin Settings |
+|---|---|
+| ![Main Dashboard](screenshots/Main%20Dashboard.png) | ![Admin Settings](screenshots/Admin%20Settings.png) |
+
+| Media Management | User Settings |
+|---|---|
+| ![Media Management](screenshots/Media%20Management..png) | ![User Settings](screenshots/User%20Settings.png) |
+
+### Mobile Browser
+
+![Main Dashboard - Mobile](screenshots/Main%20Dashboard-%20Mobile.jpg)
+
+### Mobile App
+
+| Dashboard | Inventory | Locations | Server Settings |
+|---|---|---|---|
+| ![Dashboard](screenshots/Main%20Dashboard-%20Mobile%20App.jpg) | ![Inventory](screenshots/Inventory%20-%20Mobil%20App.jpg) | ![Locations](screenshots/Locations%20-%20Mobile%20App.jpg) | ![Server Settings](screenshots/Server%20Settings%20-%20Mobile%20App.jpg) |
+
+*(via [NesVentory Mobile App](https://github.com/tokendad/NesventoryApp))*
+
 ## 🚀 What's New in Version 6.11.2
 
 ### 🖨️ **Enhanced NIIMBOT Printer Support** (v6.9.0 - v6.11.2)
