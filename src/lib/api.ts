@@ -302,6 +302,7 @@ export async function login(
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
+    credentials: 'include',
     body,
   });
 

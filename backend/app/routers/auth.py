@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -119,6 +119,7 @@ async def google_oauth_status(db: Session = Depends(get_db)):
 @router.post("/auth/google")
 async def google_auth(
     request: GoogleAuthRequest,
+    http_request: Request,
     db: Session = Depends(get_db)
 ):
     """
@@ -225,20 +226,30 @@ async def google_auth(
     })
 
     # Set HttpOnly secure cookie with auth token
+    is_https = http_request.url.scheme == "https"
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=True,
-        samesite="strict",
+        secure=is_https,
+        samesite="lax",
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
 
     return response
 
 
+@router.post("/auth/logout")
+async def logout():
+    """Clear the auth cookie and log the user out."""
+    response = JSONResponse(content={"message": "Logged out"})
+    response.delete_cookie(key="access_token", httponly=True, samesite="lax")
+    return response
+
+
 @router.post("/token")
 async def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
@@ -256,12 +267,13 @@ async def login(
     })
 
     # Set HttpOnly secure cookie with auth token
+    is_https = request.url.scheme == "https"
     response.set_cookie(
         key="access_token",
         value=result["access_token"],
         httponly=True,
-        secure=True,
-        samesite="strict",
+        secure=is_https,
+        samesite="lax",
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
     )
 
