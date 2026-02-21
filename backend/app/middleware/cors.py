@@ -3,9 +3,13 @@ Dynamic CORS Middleware for NesVentory.
 
 When CORS_ORIGINS is not configured (the default for self-hosted deployments),
 this middleware reflects the requesting Origin back in Access-Control-Allow-Origin.
-This is safe for a self-hosted app because:
-  - Auth cookies use SameSite=strict, preventing cross-site cookie theft
-  - The app is a single-origin deployment; legitimate browsers send the same host they loaded from
+Notes on the security model:
+  - Auth cookies use SameSite=lax. Cross-site POSTs/PUTs/DELETEs do not send the
+    cookie (browser blocks it), so state-changing CSRF attacks are prevented.
+    Cross-site credentialed GET requests are technically possible; data exposure
+    risk is low for typical self-hosted LAN deployments but should be noted.
+  - The app is a single-origin deployment; legitimate browsers send the same host
+    they loaded from. Use CORS_ORIGINS to lock down multi-origin deployments.
 
 When CORS_ORIGINS IS configured, only explicitly listed origins are allowed.
 """
@@ -31,7 +35,10 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
 
     Mode 1 - Reflect (no CORS_ORIGINS configured):
         Echoes the requesting Origin back, so any origin is allowed.
-        Safe because HttpOnly SameSite=strict cookies prevent CSRF.
+        Auth cookies are SameSite=lax: cross-site state-changing requests
+        (POST/PUT/DELETE) do not carry the cookie. Cross-site GET requests
+        do carry the cookie under lax, so read-only data exposure is possible
+        from attacker-controlled pages. Acceptable for LAN self-hosted use.
 
     Mode 2 - Allowlist (CORS_ORIGINS is set):
         Only explicitly listed origins are permitted. All others get no

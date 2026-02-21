@@ -226,7 +226,10 @@ async def google_auth(
     })
 
     # Set HttpOnly secure cookie with auth token
-    is_https = http_request.url.scheme == "https"
+    is_https = (
+        http_request.headers.get("x-forwarded-proto", "").lower() == "https"
+        or http_request.url.scheme == "https"
+    )
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -240,10 +243,14 @@ async def google_auth(
 
 
 @router.post("/auth/logout")
-async def logout():
+async def logout(request: Request):
     """Clear the auth cookie and log the user out."""
     response = JSONResponse(content={"message": "Logged out"})
-    response.delete_cookie(key="access_token", httponly=True, samesite="lax")
+    is_https = (
+        request.headers.get("x-forwarded-proto", "").lower() == "https"
+        or request.url.scheme == "https"
+    )
+    response.delete_cookie(key="access_token", httponly=True, samesite="lax", secure=is_https)
     return response
 
 
@@ -267,7 +274,10 @@ async def login(
     })
 
     # Set HttpOnly secure cookie with auth token
-    is_https = request.url.scheme == "https"
+    is_https = (
+        request.headers.get("x-forwarded-proto", "").lower() == "https"
+        or request.url.scheme == "https"
+    )
     response.set_cookie(
         key="access_token",
         value=result["access_token"],

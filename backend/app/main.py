@@ -123,8 +123,8 @@ def run_migrations():
             except Exception as e:
                 print(f"Migration warning: Could not add column '{column_name}' to '{table_name}': {e}")
 
-    # Phase 2D: Migrate old niimbot_printer_config to new profile-based schema
-    migrate_niimbot_configs_to_profiles(conn)
+        # Phase 2D: Migrate old niimbot_printer_config to new profile-based schema
+        migrate_niimbot_configs_to_profiles(conn)
 
 
 def migrate_niimbot_configs_to_profiles(conn):

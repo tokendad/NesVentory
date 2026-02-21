@@ -337,12 +337,7 @@ export async function fetchItems(): Promise<Item[]> {
 }
 
 export async function fetchLocations(): Promise<Location[]> {
-  const res = await fetch(`${API_BASE_URL}/api/locations/`, {
-    headers: {
-      "Accept": "application/json",
-      ...authHeaders(),
-    },
-  });
+  const res = await fetch(`${API_BASE_URL}/api/locations/`, createFetchOptions());
   return handleResponse<Location[]>(res);
 }
 
@@ -969,12 +964,7 @@ export async function getUserLocationAccess(userId: string): Promise<Location[]>
 
 // Tag API functions
 export async function fetchTags(): Promise<Tag[]> {
-  const res = await fetch(`${API_BASE_URL}/api/tags/`, {
-    headers: {
-      "Accept": "application/json",
-      ...authHeaders(),
-    },
-  });
+  const res = await fetch(`${API_BASE_URL}/api/tags/`, createFetchOptions());
   return handleResponse<Tag[]>(res);
 }
 
@@ -1498,6 +1488,7 @@ export async function googleAuth(credential: string): Promise<GoogleAuthResponse
       "Content-Type": "application/json",
       "Accept": "application/json",
     },
+    credentials: 'include',
     body: JSON.stringify({ credential }),
   });
   return handleResponse<GoogleAuthResponse>(res);
@@ -2189,6 +2180,7 @@ export async function oidcCallback(code: string, redirectUri: string): Promise<O
     headers: {
       "Accept": "application/json",
     },
+    credentials: 'include',
   });
   return handleResponse<OIDCCallbackResponse>(res);
 }
