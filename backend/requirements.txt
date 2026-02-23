@@ -1,4 +1,4 @@
-fastapi==0.129.0
+fastapi==0.131.0
 publicsuffix2==2.20191221
 werkzeug==3.1.6
 uvicorn[standard]==0.41.0
