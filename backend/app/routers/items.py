@@ -298,16 +298,15 @@ async def _enrich_item_with_gemini(
     Returns enriched data with confidence score, or None if enrichment fails.
     """
     try:
-        import google.generativeai as genai
+        import google.genai as genai
         from ..settings_service import get_effective_gemini_model
         import re
         import json
         from decimal import Decimal
-        
-        # Configure Gemini
-        genai.configure(api_key=api_key)
+
+        # Create the client
+        client = genai.Client(api_key=api_key)
         gemini_model = get_effective_gemini_model(db)
-        model = genai.GenerativeModel(gemini_model)
         
         # Build item context for the prompt
         item_context = []
@@ -360,7 +359,7 @@ Important:
 - Estimated value should be current market/replacement value"""
 
         # Generate response
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(model=gemini_model, contents=prompt)
         response_text = response.text
         
         # Parse JSON response with better error handling
@@ -438,7 +437,7 @@ Important:
         )
         
     except ImportError:
-        logger.error("google-generativeai package not installed")
+        logger.error("google-genai package not installed")
         return None
     except Exception as e:
         # Re-raise Google API exceptions so they can be caught and handled with user-friendly messages

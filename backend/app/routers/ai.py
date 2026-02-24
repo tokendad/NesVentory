@@ -11,7 +11,6 @@ from typing import List, Optional, Tuple
 from pydantic import BaseModel
 from datetime import datetime, timezone
 from pathlib import Path
-import base64
 import json
 import logging
 import re
@@ -534,15 +533,14 @@ async def test_ai_connection(
             else:
                 # Try to make a simple API call to test the connection
                 try:
-                    import google.generativeai as genai
-                    genai.configure(api_key=gemini_api_key)
+                    import google.genai as genai
 
                     # Get the configured model
                     gemini_model = get_effective_gemini_model(db)
-                    model = genai.GenerativeModel(gemini_model)
+                    client = genai.Client(api_key=gemini_api_key)
 
                     # Make a simple test call with minimal tokens
-                    response = model.generate_content("Say 'OK' in one word.")
+                    response = client.models.generate_content(model=gemini_model, contents="Say 'OK' in one word.")
 
                     if response and response.text:
                         results.append(schemas.AIProviderTestResult(
@@ -755,21 +753,18 @@ async def detect_items(
     
     try:
         # Import Gemini SDK
-        import google.generativeai as genai
-        
-        # Configure the API with effective key
-        genai.configure(api_key=gemini_api_key)
-        
-        # Read and encode the image
+        import google.genai as genai
+        from google.genai import types
+
+        # Read the image
         image_data = await file.read()
-        image_base64 = base64.b64encode(image_data).decode("utf-8")
-        
-        # Create the model with effective model selection
+
+        # Create the client and model with effective model selection
         gemini_model = get_effective_gemini_model(db)
-        model = genai.GenerativeModel(gemini_model)
-        
+        client = genai.Client(api_key=gemini_api_key)
+
         # Construct the prompt
-        prompt = """Analyze this image and identify all visible household items, furniture, electronics, 
+        prompt = """Analyze this image and identify all visible household items, furniture, electronics,
 and other objects that would be valuable to track in a home inventory system.
 
 For each item detected, provide:
@@ -789,25 +784,22 @@ Focus on items that would be important for home insurance or inventory purposes.
 Return an empty array [] if no identifiable items are found."""
 
         # Create the image part for the API
-        image_part = {
-            "mime_type": file.content_type,
-            "data": image_base64
-        }
-        
+        image_part = types.Part.from_bytes(data=image_data, mime_type=file.content_type)
+
         # Generate the response
-        response = model.generate_content([prompt, image_part])
-        
+        response = client.models.generate_content(model=gemini_model, contents=[prompt, image_part])
+
         # Parse the response
         response_text = response.text
         items = parse_gemini_response(response_text)
-        
+
         return DetectionResult(
             items=items,
             raw_response=response_text if not items else None
         )
-        
+
     except ImportError:
-        logger.error("google-generativeai package not installed")
+        logger.error("google-genai package not installed")
         raise HTTPException(
             status_code=503,
             detail="AI detection is not available. Required package not installed."
@@ -889,22 +881,19 @@ async def parse_data_tag(
     
     try:
         # Import Gemini SDK
-        import google.generativeai as genai
-        
+        import google.genai as genai
+        from google.genai import types
+
         # Get the effective Gemini model
         from ..settings_service import get_effective_gemini_model
-        
-        # Configure the API with effective key
-        genai.configure(api_key=gemini_api_key)
-        
-        # Read and encode the image
+
+        # Read the image
         image_data = await file.read()
-        image_base64 = base64.b64encode(image_data).decode("utf-8")
-        
-        # Create the model with effective model selection
+
+        # Create the client and model with effective model selection
         gemini_model = get_effective_gemini_model(db)
-        model = genai.GenerativeModel(gemini_model)
-        
+        client = genai.Client(api_key=gemini_api_key)
+
         # Construct the prompt for data tag parsing
         prompt = """Analyze this image of a product data tag, label, or identification plate.
 
@@ -941,27 +930,24 @@ If no data tag information can be read from the image, return:
 {"manufacturer": null, "brand": null, "model_number": null, "serial_number": null, "production_date": null, "estimated_value": null}"""
 
         # Create the image part for the API
-        image_part = {
-            "mime_type": file.content_type,
-            "data": image_base64
-        }
-        
+        image_part = types.Part.from_bytes(data=image_data, mime_type=file.content_type)
+
         # Generate the response
-        response = model.generate_content([prompt, image_part])
-        
+        response = client.models.generate_content(model=gemini_model, contents=[prompt, image_part])
+
         # Parse the response
         response_text = response.text
         result = parse_data_tag_response(response_text)
-        
+
         # If parsing failed, include raw response
-        if not any([result.manufacturer, result.brand, result.model_number, 
+        if not any([result.manufacturer, result.brand, result.model_number,
                     result.serial_number, result.production_date]):
             result.raw_response = response_text
-        
+
         return result
-        
+
     except ImportError:
-        logger.error("google-generativeai package not installed")
+        logger.error("google-genai package not installed")
         raise HTTPException(
             status_code=503,
             detail="AI detection is not available. Required package not installed."
@@ -1145,21 +1131,18 @@ async def lookup_barcode(
     
     try:
         # Import Gemini SDK
-        import google.generativeai as genai
-        
+        import google.genai as genai
+
         # Get the effective Gemini model
         from ..settings_service import get_effective_gemini_model
-        
+
         # Throttle requests to avoid rate limits
         throttle_ai_request()
-        
-        # Configure the API with effective key
-        genai.configure(api_key=gemini_api_key)
-        
-        # Create the model with effective model selection
+
+        # Create the client and model with effective model selection
         gemini_model = get_effective_gemini_model(db)
-        model = genai.GenerativeModel(gemini_model)
-        
+        client = genai.Client(api_key=gemini_api_key)
+
         # Construct the prompt for barcode lookup
         prompt = f"""Look up the product associated with this UPC/barcode: {upc_clean}
 
@@ -1200,20 +1183,20 @@ Important: Only return found: true if you are reasonably confident about the pro
 If the UPC is not in your knowledge base or you cannot identify it, return found: false."""
 
         # Generate the response
-        response = model.generate_content(prompt)
-        
+        response = client.models.generate_content(model=gemini_model, contents=prompt)
+
         # Parse the response
         response_text = response.text
         result = parse_barcode_lookup_response(response_text)
-        
+
         # If parsing failed or not found, include raw response
         if not result.found and not result.raw_response:
             result.raw_response = response_text
-        
+
         return result
-        
+
     except ImportError:
-        logger.error("google-generativeai package not installed")
+        logger.error("google-genai package not installed")
         raise HTTPException(
             status_code=503,
             detail="AI detection is not available. Required package not installed."
@@ -1466,18 +1449,17 @@ async def scan_qr_code(
         )
     
     try:
-        import google.generativeai as genai
+        import google.genai as genai
+        from google.genai import types
         from ..settings_service import get_effective_gemini_model
-        
+
         throttle_ai_request()
-        genai.configure(api_key=gemini_api_key)
-        
+
         image_data = await file.read()
-        image_base64 = base64.b64encode(image_data).decode("utf-8")
-        
+
         gemini_model = get_effective_gemini_model(db)
-        model = genai.GenerativeModel(gemini_model)
-        
+        client = genai.Client(api_key=gemini_api_key)
+
         prompt = """Analyze this image and look for any QR code.
 
 If you find a QR code, extract its text content or URL exactly as it appears.
@@ -1498,12 +1480,9 @@ Example format if no QR is found:
   "content": null
 }"""
 
-        image_part = {
-            "mime_type": file.content_type,
-            "data": image_base64
-        }
-        
-        response = model.generate_content([prompt, image_part])
+        image_part = types.Part.from_bytes(data=image_data, mime_type=file.content_type)
+
+        response = client.models.generate_content(model=gemini_model, contents=[prompt, image_part])
         result = parse_qr_scan_response(response.text)
         
         if not result.found and not result.raw_response:
@@ -1511,6 +1490,9 @@ Example format if no QR is found:
         
         return result
         
+    except ImportError:
+        logger.error("google-genai package not installed")
+        raise HTTPException(status_code=503, detail="AI detection is not available. Required package not installed.")
     except Exception as e:
         logger.exception("Error during QR image scanning")
         if is_quota_error(e):
@@ -1635,25 +1617,22 @@ async def scan_barcode_image(
     
     try:
         # Import Gemini SDK
-        import google.generativeai as genai
-        
+        import google.genai as genai
+        from google.genai import types
+
         # Get the effective Gemini model
         from ..settings_service import get_effective_gemini_model
-        
+
         # Throttle requests to avoid rate limits
         throttle_ai_request()
-        
-        # Configure the API with effective key
-        genai.configure(api_key=gemini_api_key)
-        
-        # Read and encode the image
+
+        # Read the image
         image_data = await file.read()
-        image_base64 = base64.b64encode(image_data).decode("utf-8")
-        
-        # Create the model with effective model selection
+
+        # Create the client and model with effective model selection
         gemini_model = get_effective_gemini_model(db)
-        model = genai.GenerativeModel(gemini_model)
-        
+        client = genai.Client(api_key=gemini_api_key)
+
         # Construct the prompt for barcode scanning
         prompt = """Analyze this image and look for any barcode or UPC code.
 
@@ -1681,26 +1660,23 @@ Important:
 - If the barcode is blurry or partially visible, return found: false"""
 
         # Create the image part for the API
-        image_part = {
-            "mime_type": file.content_type,
-            "data": image_base64
-        }
-        
+        image_part = types.Part.from_bytes(data=image_data, mime_type=file.content_type)
+
         # Generate the response
-        response = model.generate_content([prompt, image_part])
-        
+        response = client.models.generate_content(model=gemini_model, contents=[prompt, image_part])
+
         # Parse the response
         response_text = response.text
         result = parse_barcode_scan_response(response_text)
-        
+
         # If parsing failed or not found, include raw response
         if not result.found and not result.raw_response:
             result.raw_response = response_text
-        
+
         return result
-        
+
     except ImportError:
-        logger.error("google-generativeai package not installed")
+        logger.error("google-genai package not installed")
         raise HTTPException(
             status_code=503,
             detail="AI detection is not available. Required package not installed."
@@ -1740,19 +1716,16 @@ def estimate_item_value_with_ai(item: models.Item, gemini_api_key: str, db: Sess
         db: Database session for getting effective model
     """
     try:
-        import google.generativeai as genai
+        import google.genai as genai
         from ..settings_service import get_effective_gemini_model
-        
+
         # Throttle requests to avoid rate limits
         throttle_ai_request()
-        
-        # Configure the API with provided key
-        genai.configure(api_key=gemini_api_key)
-        
-        # Create the model with effective model selection
+
+        # Create the client and model with effective model selection
         gemini_model = get_effective_gemini_model(db)
-        model = genai.GenerativeModel(gemini_model)
-        
+        client = genai.Client(api_key=gemini_api_key)
+
         # Build item description for AI
         item_details = []
         if item.name:
@@ -1786,9 +1759,9 @@ Example: {{"estimated_value": 150}}
 If you cannot determine a reasonable estimate, return: {{"estimated_value": null}}"""
 
         # Generate the response
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(model=gemini_model, contents=prompt)
         response_text = response.text
-        
+
         # Parse the response with explicit JSON error handling
         json_match = re.search(r'\{[\s\S]*\}', response_text)
         if json_match:
@@ -1945,9 +1918,10 @@ def enrich_item_from_data_tag_photo(
         db: Database session for getting effective model
     """
     try:
-        import google.generativeai as genai
+        import google.genai as genai
+        from google.genai import types
         from ..settings_service import get_effective_gemini_model
-        
+
         # Resolve the photo path
         # Photos are stored with paths like "/uploads/photos/filename.jpg"
         # The actual file is at "/app/data/media/photos/filename.jpg"
@@ -1955,25 +1929,21 @@ def enrich_item_from_data_tag_photo(
             actual_path = Path("/app/data/media") / photo_path.replace("/uploads/", "")
         else:
             actual_path = Path(photo_path)
-        
+
         if not actual_path.exists():
             logger.warning(f"Data tag photo not found at {actual_path}")
             return False, None, None, None, None
-        
+
         # Throttle requests to avoid rate limits
         throttle_ai_request()
-        
-        # Configure the API with provided key
-        genai.configure(api_key=gemini_api_key)
-        
-        # Create the model with effective model selection
+
+        # Create the client and model with effective model selection
         gemini_model = get_effective_gemini_model(db)
-        model = genai.GenerativeModel(gemini_model)
-        
-        # Read and encode the image
+        client = genai.Client(api_key=gemini_api_key)
+
+        # Read the image
         with open(actual_path, "rb") as f:
             image_data = f.read()
-        image_base64 = base64.b64encode(image_data).decode("utf-8")
         
         # Determine MIME type from file extension
         ext = actual_path.suffix.lower()
@@ -2004,14 +1974,11 @@ Example format:
   "estimated_value": 450
 }"""
 
-        image_part = {
-            "mime_type": mime_type,
-            "data": image_base64
-        }
-        
-        response = model.generate_content([prompt, image_part])
+        image_part = types.Part.from_bytes(data=image_data, mime_type=mime_type)
+
+        response = client.models.generate_content(model=gemini_model, contents=[prompt, image_part])
         response_text = response.text
-        
+
         # Parse the response
         json_match = re.search(r'\{[\s\S]*\}', response_text)
         if json_match:

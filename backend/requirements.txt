@@ -14,15 +14,7 @@ python-multipart==0.0.22
 python-dotenv==1.2.1
 httpx==0.28.1
 openpyxl==3.1.5
-# Pin transitive dependencies to avoid backtracking during pip resolution
-# Note: protobuf version is determined by compatibility between:
-# - google-ai-generativelanguage (requires protobuf<6.0.0)
-# - grpcio-status and googleapis-common-protos (require protobuf>=3.20.2)
-# Using grpcio/grpcio-status 1.67.0 allows pip to resolve to protobuf ~5.29.x
-googleapis-common-protos
-grpcio
-grpcio-status
-google-generativeai==0.8.6
+google-genai>=1.0.0,<2.0.0
 google-api-python-client==2.190.0
 google-auth-oauthlib==1.2.4
 boto3>=1.35.0

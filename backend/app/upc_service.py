@@ -147,13 +147,12 @@ class GeminiUPCDatabase(UPCDatabase):
             return UPCLookupResult(found=False, source="gemini", raw_response="Gemini API not configured")
         
         try:
-            import google.generativeai as genai
-            
+            import google.genai as genai
+
             self._throttle()
-            
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            model = genai.GenerativeModel(settings.GEMINI_MODEL)
-            
+
+            client = genai.Client(api_key=settings.GEMINI_API_KEY)
+
             prompt = f"""Look up the product associated with this UPC/barcode: {upc}
 
 Based on your knowledge, provide information about this product. If you can identify the product, return:
@@ -192,7 +191,7 @@ Example format if product is NOT found:
 Important: Only return found: true if you are reasonably confident about the product identification.
 If the UPC is not in your knowledge base or you cannot identify it, return found: false."""
 
-            response = model.generate_content(prompt)
+            response = client.models.generate_content(model=settings.GEMINI_MODEL, contents=prompt)
             response_text = response.text
             
             return self._parse_response(response_text)

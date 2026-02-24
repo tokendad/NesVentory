@@ -23,7 +23,6 @@ import tempfile
 from datetime import datetime, date, timezone
 from io import BytesIO
 from openpyxl import load_workbook
-import base64
 import json
 
 from .. import models, schemas
@@ -509,23 +508,21 @@ def estimate_value_from_image(image_path: Path) -> Tuple[Optional[float], Option
         return None, None, None, None
     
     try:
-        import google.generativeai as genai
-        
+        import google.genai as genai
+        from google.genai import types
+
         # Throttle requests to avoid rate limits
         throttle_ai_request()
-        
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        
-        # Read and encode the image
+
+        # Read the image
         with open(image_path, "rb") as f:
             image_data = f.read()
-        image_base64 = base64.b64encode(image_data).decode("utf-8")
-        
-        model = genai.GenerativeModel(settings.GEMINI_MODEL)
-        
+
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+
         # Determine MIME type
         mime_type = get_mime_type(image_path)
-        
+
         prompt = """Analyze this image which may be a product data tag, label, or photo of an item.
 
 Extract the following information if visible or identifiable:
@@ -544,12 +541,9 @@ Example format:
   "estimated_value": 850
 }"""
 
-        image_part = {
-            "mime_type": mime_type,
-            "data": image_base64
-        }
-        
-        response = model.generate_content([prompt, image_part])
+        image_part = types.Part.from_bytes(data=image_data, mime_type=mime_type)
+
+        response = client.models.generate_content(model=settings.GEMINI_MODEL, contents=[prompt, image_part])
         response_text = response.text
         
         # Parse the response
@@ -603,14 +597,13 @@ def estimate_value_from_description(
         return None
     
     try:
-        import google.generativeai as genai
-        
+        import google.genai as genai
+
         # Throttle requests to avoid rate limits
         throttle_ai_request()
-        
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        model = genai.GenerativeModel(settings.GEMINI_MODEL)
-        
+
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+
         # Build context about the item
         item_info = f"Item: {name}"
         if brand:
@@ -630,9 +623,9 @@ Return ONLY a JSON object with the estimated value. Example:
 If you cannot make a reasonable estimate, return:
 {{"estimated_value": null}}"""
 
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(model=settings.GEMINI_MODEL, contents=prompt)
         response_text = response.text
-        
+
         # Parse the response
         json_match = re.search(r'\{[\s\S]*\}', response_text)
         if json_match:
