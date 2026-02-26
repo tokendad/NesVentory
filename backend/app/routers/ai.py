@@ -321,6 +321,15 @@ def parse_gemini_response(response_text: str) -> List[DetectedItem]:
                             None
                         )
                         
+                        model_number = (
+                            item_data.get("model_number") or
+                            item_data.get("model") or
+                            item_data.get("model_no") or
+                            item_data.get("part_number") or
+                            item_data.get("item_number") or
+                            None
+                        )
+                        
                         # Parse estimated value
                         estimated_value = None
                         value_str = item_data.get("estimated_value") or item_data.get("value")
@@ -357,6 +366,7 @@ def parse_gemini_response(response_text: str) -> List[DetectedItem]:
                             name=name,
                             description=description,
                             brand=brand,
+                            model_number=model_number,
                             estimated_value=estimated_value,
                             confidence=confidence,
                             estimation_date=estimation_date,
@@ -955,19 +965,21 @@ async def detect_items(
 
         # Construct the prompt
         prompt = """Analyze this image and identify all visible household items, furniture, electronics,
-and other objects that would be valuable to track in a home inventory system.
+collectibles, and other objects that would be valuable to track in a home inventory system.
 
 For each item detected, provide:
 1. name: A clear, specific name for the item
 2. description: A brief description including color, size, or notable features
 3. brand: The brand/manufacturer if visible or identifiable
-4. estimated_value: An approximate value in USD (just the number)
-5. confidence: Your confidence in the identification (0.0 to 1.0)
+4. model_number: The model number, item number, part number, or catalog number if known or visible (e.g. for Department 56 collectibles this is the item/SKU number printed on the box)
+5. estimated_value: An approximate value in USD (just the number)
+6. confidence: Your confidence in the identification (0.0 to 1.0)
 
 Return ONLY a JSON array of objects with these fields. Example format:
 [
-  {"name": "Samsung 55-inch TV", "description": "Flat screen smart TV mounted on wall", "brand": "Samsung", "estimated_value": 500, "confidence": 0.9},
-  {"name": "Leather Sofa", "description": "Brown leather 3-seater sofa", "brand": null, "estimated_value": 800, "confidence": 0.85}
+  {"name": "Samsung 55-inch TV", "description": "Flat screen smart TV mounted on wall", "brand": "Samsung", "model_number": "UN55TU8000FXZA", "estimated_value": 500, "confidence": 0.9},
+  {"name": "Hogwarts Great Hall & Tower", "description": "Department 56 Harry Potter Villages collectible building", "brand": "Department 56", "model_number": "6002311", "estimated_value": 150, "confidence": 0.95},
+  {"name": "Leather Sofa", "description": "Brown leather 3-seater sofa", "brand": null, "model_number": null, "estimated_value": 800, "confidence": 0.85}
 ]
 
 Focus on items that would be important for home insurance or inventory purposes.
