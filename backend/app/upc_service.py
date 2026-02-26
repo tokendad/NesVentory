@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
 from .config import settings
+from .upload_utils import sanitize_raw_response
 
 logger = logging.getLogger(__name__)
 
@@ -218,7 +219,7 @@ If the UPC is not in your knowledge base or you cannot identify it, return found
                     if found is True or (isinstance(found, str) and found.lower() == "true"):
                         result.found = True
                     else:
-                        result.raw_response = response_text
+                        result.raw_response = sanitize_raw_response(response_text)
                         return result
                     
                     result.name = parsed.get("name") or parsed.get("product_name") or parsed.get("title")
@@ -245,9 +246,7 @@ If the UPC is not in your knowledge base or you cannot identify it, return found
                         
         except json.JSONDecodeError:
             logger.warning("Failed to parse JSON from Gemini response")
-            result.raw_response = response_text
-        
-        return result
+            result.raw_response = sanitize_raw_response(response_text)
 
 
 class UPCDatabaseOrg(UPCDatabase):
@@ -339,7 +338,7 @@ class UPCDatabaseOrg(UPCDatabase):
         
         # Check if the response indicates success
         if not data.get("success", False):
-            result.raw_response = json.dumps(data)
+            result.raw_response = sanitize_raw_response(json.dumps(data))
             return result
         
         result.found = True
@@ -446,7 +445,7 @@ class BarcodeLookupDatabase(UPCDatabase):
         # Check if the response contains products
         products = data.get("products", [])
         if not products:
-            result.raw_response = json.dumps(data)
+            result.raw_response = sanitize_raw_response(json.dumps(data))
             return result
         
         # Get the first product from the results

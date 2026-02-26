@@ -14,6 +14,7 @@ from .. import models, schemas
 from ..deps import get_db
 from ..storage import get_storage
 from ..config import settings
+from ..upload_utils import MAX_DOCUMENT_BYTES, read_limited
 import httpx
 import socket
 
@@ -112,9 +113,13 @@ async def upload_document(
     # Save file using storage backend
     storage = get_storage()
     try:
-        file_url = storage.save(file.file, storage_path, content_type=file.content_type)
+        doc_data = await read_limited(file, MAX_DOCUMENT_BYTES)
+        file_url = storage.save(io.BytesIO(doc_data), storage_path, content_type=file.content_type)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+        logger.error(f"Failed to save document: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save file.")
     
     # Create document record
     document = models.Document(
@@ -297,10 +302,11 @@ async def upload_document_from_url(
             detail=f"Failed to download file from URL: HTTP {e.response.status_code}"
         )
     except httpx.RequestError as e:
+        logger.error(f"Network error downloading document URL: {e}")
         raise HTTPException(
             status_code=400,
-            detail=f"Failed to download file from URL: {str(e)}"
+            detail="Failed to download file from URL: network error."
         )
     except Exception as e:
         logger.error(f"Failed to upload document from URL: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to save file.")

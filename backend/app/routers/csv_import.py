@@ -27,6 +27,7 @@ import re
 from .. import models, schemas
 from ..deps import get_db
 from ..config import settings
+from ..upload_utils import MAX_DOCUMENT_BYTES, read_limited
 
 logger = logging.getLogger(__name__)
 
@@ -494,7 +495,7 @@ async def import_csv(
         )
     
     # Read CSV content
-    csv_content = await csv_file.read()
+    csv_content = await read_limited(csv_file, MAX_DOCUMENT_BYTES)
     
     # Process import
     result = await process_csv_import(

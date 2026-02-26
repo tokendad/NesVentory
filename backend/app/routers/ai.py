@@ -22,6 +22,7 @@ from ..deps import get_db
 from .. import models, schemas, auth
 from ..settings_service import get_effective_gemini_api_key
 from ..plugin_service import get_enabled_ai_scan_plugins, detect_items_with_plugin, parse_data_tag_with_plugin, lookup_barcode_with_plugin, scan_barcode_with_plugin
+from ..upload_utils import MAX_IMAGE_BYTES, read_limited, sanitize_raw_response
 
 logger = logging.getLogger(__name__)
 
@@ -38,27 +39,6 @@ SERVICE_UNAVAILABLE_MESSAGE = (
     "The AI feature is temporarily unavailable — Google's servers appear to be down. "
     "This is usually brief. Please wait a moment and try again."
 )
-
-MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB
-
-
-async def read_limited(file: UploadFile, max_bytes: int = MAX_IMAGE_BYTES) -> bytes:
-    """Read an uploaded file with a size cap to prevent memory exhaustion."""
-    data = await file.read(max_bytes + 1)
-    if len(data) > max_bytes:
-        raise HTTPException(status_code=413, detail="Image exceeds 10 MB limit.")
-    return data
-
-
-def sanitize_raw_response(text: str, max_length: int = 500) -> str:
-    """Truncate and sanitize raw AI response text for client consumption."""
-    if not text:
-        return ""
-    # Truncate to prevent large payloads
-    if len(text) > max_length:
-        return text[:max_length] + "... [truncated]"
-    return text
-
 
 # Track last AI request time for throttling
 _last_ai_request_time: float = 0.0
@@ -862,7 +842,7 @@ async def detect_items(
                     items = [DetectedItem(**item) for item in result.get("items", [])]
                     return DetectionResult(
                         items=items,
-                        raw_response=result.get("raw_response")
+                        raw_response=sanitize_raw_response(result.get("raw_response") or "")
                     )
             
             logger.info("All plugins failed, falling back to Gemini AI")

@@ -294,7 +294,7 @@ async def connect_gdrive(
         logger.error(f"Failed to connect Google Drive for user {current_user.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to connect Google Drive: {str(e)}"
+            detail="Failed to connect Google Drive. Check your credentials and try again."
         )
 
 
@@ -388,7 +388,7 @@ async def create_backup(
         logger.error(f"Failed to create backup for user {current_user.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create backup: {str(e)}"
+            detail="Failed to create backup."
         )
 
 
@@ -450,7 +450,7 @@ async def list_backups(
         logger.error(f"Failed to list backups for user {current_user.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list backups: {str(e)}"
+            detail="Failed to list backups."
         )
 
 
@@ -487,5 +487,5 @@ async def delete_backup(
         logger.error(f"Failed to delete backup {backup_id} for user {current_user.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete backup: {str(e)}"
+            detail="Failed to delete backup."
         )

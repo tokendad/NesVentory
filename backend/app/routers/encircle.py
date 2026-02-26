@@ -28,6 +28,7 @@ import json
 from .. import models, schemas
 from ..deps import get_db
 from ..config import settings
+from ..upload_utils import MAX_IMAGE_BYTES, MAX_DOCUMENT_BYTES, read_limited
 
 logger = logging.getLogger(__name__)
 
@@ -1114,7 +1115,7 @@ async def preview_encircle(
         )
     
     # Read xlsx content
-    xlsx_content = await xlsx_file.read()
+    xlsx_content = await read_limited(xlsx_file, MAX_DOCUMENT_BYTES)
     
     # Preview the file (pass filename for fallback location extraction)
     result = preview_encircle_import(xlsx_content, xlsx_file.filename)
@@ -1165,7 +1166,7 @@ async def import_encircle(
         )
     
     # Read xlsx content
-    xlsx_content = await xlsx_file.read()
+    xlsx_content = await read_limited(xlsx_file, MAX_DOCUMENT_BYTES)
     
     # Read images if provided
     image_data: List[tuple] = []
@@ -1174,7 +1175,7 @@ async def import_encircle(
             if img.filename:
                 ext = Path(img.filename).suffix.lower()
                 if ext in ALLOWED_IMAGE_EXTENSIONS:
-                    content = await img.read()
+                    content = await read_limited(img, MAX_IMAGE_BYTES)
                     image_data.append((img.filename, content))
     
     # Process import (pass filename for fallback location extraction)

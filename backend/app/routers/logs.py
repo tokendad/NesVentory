@@ -342,7 +342,7 @@ async def rotate_logs_now(
             return {"message": "No log file to rotate or file is empty", "rotated": False}
     except Exception as e:
         logger.error(f"Failed to rotate log: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to rotate log: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to rotate log.")
 
 
 @router.post("/cleanup", response_model=dict)
@@ -380,7 +380,7 @@ async def cleanup_logs_now(
         }
     except Exception as e:
         logger.error(f"Failed to cleanup logs: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to cleanup logs: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to cleanup logs.")
 
 
 @router.get("/files", response_model=list[dict])
@@ -449,7 +449,8 @@ async def get_log_content(
             returned_lines=len(returned_lines)
         )
     except OSError as e:
-        raise HTTPException(status_code=500, detail=f"Failed to read log file: {str(e)}")
+        logger.error(f"Failed to read log file: {e}")
+        raise HTTPException(status_code=500, detail="Failed to read log file.")
 
 
 @router.get("/issue-report", response_model=IssueReportData)

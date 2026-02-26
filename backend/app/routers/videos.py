@@ -2,12 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 from typing import Optional
 from uuid import UUID
+import io
 import logging
 from pathlib import Path
 from datetime import datetime
 from .. import models, schemas
 from ..deps import get_db
 from ..storage import get_storage, extract_storage_path
+from ..upload_utils import MAX_VIDEO_BYTES, read_limited
 
 logger = logging.getLogger(__name__)
 
@@ -67,9 +69,13 @@ async def upload_video(
     # Save file using storage backend
     storage = get_storage()
     try:
-        file_url = storage.save(file.file, storage_path, content_type=file.content_type)
+        video_data = await read_limited(file, MAX_VIDEO_BYTES)
+        file_url = storage.save(io.BytesIO(video_data), storage_path, content_type=file.content_type)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to save file: {str(e)}")
+        logger.error(f"Failed to save video: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save file.")
     
     # Create video record
     video = models.Video(
