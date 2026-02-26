@@ -1292,6 +1292,33 @@ Enrich items using their data tag photos.
 }
 ```
 
+### Get Available Gemini Models
+
+#### GET /api/ai/gemini-models
+
+Fetch the live list of Gemini models available for the configured API key. Only models that include `generateContent` in their `supportedGenerationMethods` are returned. Authentication required.
+
+**Response:**
+```json
+{
+  "models": [
+    {
+      "id": "gemini-2.0-flash-exp",
+      "display_name": "Gemini 2.0 Flash (Experimental)"
+    }
+  ],
+  "source": "live"
+}
+```
+
+**Error Responses:**
+- `400 Bad Request`: No Gemini API key configured, or the configured key is invalid
+- `401 Unauthorized`: Authentication required
+- `429 Too Many Requests`: Gemini API quota exceeded
+- `502 Bad Gateway`: Network error communicating with Google, or unexpected upstream HTTP status
+- `503 Service Unavailable`: Google AI service is temporarily unavailable
+- `504 Gateway Timeout`: Request to the Google API timed out
+
 ## Google Drive Integration
 
 Endpoints for Google Drive backup integration.

@@ -32,6 +32,7 @@ import {
   getAIProviderSettings,
   updateAIProviderSettings,
   updateApiKeys,
+  fetchGeminiModels,
   fetchPlugins,
   createPlugin,
   updatePlugin,
@@ -62,7 +63,8 @@ import {
   type PluginUpdate,
   type PluginConnectionTestResult,
   type AIConnectionTestResponse,
-  type DynamicField
+  type DynamicField,
+  type GeminiModelInfo
 } from "../lib/api";
 import Status from "./Status";
 
@@ -186,6 +188,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
   const [editingGeminiKey, setEditingGeminiKey] = useState(false);
   const [geminiApiKeyInput, setGeminiApiKeyInput] = useState("");
   const [geminiModelInput, setGeminiModelInput] = useState("");
+  const [geminiModels, setGeminiModels] = useState<GeminiModelInfo[]>([]);
+  const [geminiModelsLoading, setGeminiModelsLoading] = useState(false);
+  const [geminiModelsLoaded, setGeminiModelsLoaded] = useState(false);
+  const [geminiModelsError, setGeminiModelsError] = useState<string | null>(null);
+  const [geminiModelFallback, setGeminiModelFallback] = useState(false);
   const [editingGoogleOAuth, setEditingGoogleOAuth] = useState(false);
   const [googleClientIdInput, setGoogleClientIdInput] = useState("");
   const [googleSecretInput, setGoogleSecretInput] = useState("");
@@ -292,6 +299,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
         getGoogleOAuthStatus().catch(() => null)
       ]);
       setConfigStatus(status);
+      if (status.gemini_configured) {
+        loadGeminiModels(status);
+      }
       setAiStatus(aiStatusResult);
       if (gdriveStatusResult) {
         setGdriveStatus(gdriveStatusResult);
@@ -310,6 +320,28 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     }
   }
   
+  async function loadGeminiModels(freshConfigStatus?: typeof configStatus) {
+    setGeminiModelsLoading(true);
+    setGeminiModelsError(null);
+    setGeminiModelFallback(false);
+    const effectiveStatus = freshConfigStatus ?? configStatus;
+    try {
+      const result = await fetchGeminiModels();
+      setGeminiModels(result.models);
+      if (!geminiModelInput && effectiveStatus?.gemini_model) {
+        const found = result.models.find(m => m.id === effectiveStatus.gemini_model);
+        if (found) setGeminiModelInput(effectiveStatus.gemini_model);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to fetch model list";
+      setGeminiModelsError(message);
+      setGeminiModelFallback(true);
+    } finally {
+      setGeminiModelsLoading(false);
+      setGeminiModelsLoaded(true);
+    }
+  }
+
   async function loadUpcDatabases() {
     setUpcDatabasesLoading(true);
     try {
@@ -1129,7 +1161,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
       setEditingGeminiKey(false);
       setGeminiApiKeyInput("");
       setGeminiModelInput("");
-      await loadConfigStatus(); // Refresh status
+      await loadConfigStatus(); // Refresh status (triggers loadGeminiModels internally)
       setTimeout(() => setServerSuccess(null), 3000);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Failed to update Gemini settings";
@@ -1165,6 +1197,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     setEditingGeminiKey(false);
     setGeminiApiKeyInput("");
     setGeminiModelInput("");
+    setGeminiModelsError(null);
+    setGeminiModelFallback(false);
   }
 
   function handleCancelGoogleOAuthEdit() {
@@ -2986,56 +3020,114 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
                           </label>
                           {editingGeminiKey ? (
                             <div>
-                              <select
-                                value={geminiModelInput || configStatus?.gemini_model || (configStatus?.available_gemini_models?.[0]?.id || "")}
-                                onChange={(e) => setGeminiModelInput(e.target.value)}
-                                style={{ width: "100%", padding: "0.5rem", fontSize: "0.85rem" }}
-                                disabled={configStatus?.gemini_model_from_env}
-                              >
-                                {/* Add current model if it's not in the available list (e.g., deprecated model from env) */}
-                                {configStatus?.gemini_model && 
-                                 !configStatus?.available_gemini_models?.find(m => m.id === configStatus.gemini_model) && (
-                                  <option value={configStatus.gemini_model}>
-                                    {configStatus.gemini_model} (current)
-                                  </option>
-                                )}
-                                {configStatus?.available_gemini_models?.map((model) => (
-                                  <option key={model.id} value={model.id}>
-                                    {model.name}
-                                  </option>
-                                ))}
-                              </select>
-                              <small style={{ color: "var(--muted)", fontSize: "0.7rem", display: "block", marginTop: "0.25rem" }}>
-                                {configStatus?.available_gemini_models?.find(m => m.id === (geminiModelInput || configStatus?.gemini_model))?.description || 
-                                 (configStatus?.gemini_model && !configStatus?.available_gemini_models?.find(m => m.id === configStatus.gemini_model) ? 
-                                  "⚠️ Current model may be deprecated or custom" : "")}
-                              </small>
+                              {/* Hint when no API key is configured yet */}
+                              {!configStatus?.gemini_configured && !geminiModelsLoaded && !geminiModelsLoading && (
+                                <small style={{ color: "var(--muted)", fontSize: "0.75rem", display: "block", padding: "0.5rem 0" }}>
+                                  Save your API key first to load the available model list.
+                                </small>
+                              )}
+
+                              {/* Loading state */}
+                              {geminiModelsLoading && (
+                                <div style={{ fontSize: "0.8rem", color: "var(--muted)", padding: "0.5rem 0" }}>
+                                  Fetching available models...
+                                </div>
+                              )}
+
+                              {/* Loaded — show dropdown */}
+                              {!geminiModelsLoading && !geminiModelFallback && geminiModels.length > 0 && (
+                                <>
+                                  <select
+                                    value={geminiModelInput || configStatus?.gemini_model || ""}
+                                    onChange={(e) => setGeminiModelInput(e.target.value)}
+                                    style={{ width: "100%", padding: "0.5rem", fontSize: "0.85rem" }}
+                                    disabled={configStatus?.gemini_model_from_env}
+                                  >
+                                    <option value="" disabled>-- Select a model --</option>
+                                    {configStatus?.gemini_model &&
+                                     !geminiModels.find(m => m.id === configStatus.gemini_model) && (
+                                      <option value={configStatus.gemini_model}>
+                                        {configStatus.gemini_model} (current — not in live list)
+                                      </option>
+                                    )}
+                                    {geminiModels.map((model) => (
+                                      <option key={model.id} value={model.id}>
+                                        {model.display_name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <small style={{ color: "var(--muted)", fontSize: "0.7rem", marginTop: "0.25rem", display: "block" }}>
+                                    {geminiModels.length} models available · Filtered for text generation
+                                  </small>
+                                </>
+                              )}
+
+                              {/* Error / Fallback — manual text input */}
+                              {!geminiModelsLoading && geminiModelsLoaded && (geminiModelFallback || geminiModels.length === 0) && (
+                                <>
+                                  {geminiModelsError && (
+                                    <div style={{ fontSize: "0.75rem", color: "#e65100", marginBottom: "0.25rem" }}>
+                                      Could not load model list: {geminiModelsError}
+                                    </div>
+                                  )}
+                                  <input
+                                    type="text"
+                                    value={geminiModelInput || configStatus?.gemini_model || ""}
+                                    onChange={(e) => setGeminiModelInput(e.target.value)}
+                                    placeholder="e.g. gemini-2.0-flash-exp"
+                                    disabled={configStatus?.gemini_model_from_env}
+                                    style={{ width: "100%", padding: "0.5rem", fontSize: "0.85rem", fontFamily: "monospace" }}
+                                  />
+                                  <small style={{ color: "var(--muted)", fontSize: "0.7rem", marginTop: "0.25rem", display: "block" }}>
+                                    Enter the model ID manually
+                                  </small>
+                                  <button
+                                    type="button"
+                                    className="btn-outline"
+                                    onClick={loadGeminiModels}
+                                    style={{ fontSize: "0.7rem", marginTop: "0.25rem" }}
+                                  >
+                                    Retry
+                                  </button>
+                                </>
+                              )}
+
                               {configStatus?.gemini_model_from_env && (
                                 <small style={{ color: "var(--muted)", fontSize: "0.7rem", display: "block", marginTop: "0.25rem" }}>
-                                  ⚠️ Model is set via GEMINI_MODEL environment variable (read-only)
+                                  Model is set via GEMINI_MODEL environment variable (read-only)
                                 </small>
                               )}
                             </div>
                           ) : (
                             <div>
-                              <div style={{ 
-                                fontSize: "0.85rem", 
+                              <div style={{
+                                fontSize: "0.85rem",
                                 padding: "0.5rem",
                                 backgroundColor: "var(--bg-elevated-softer)",
                                 borderRadius: "4px",
                                 marginBottom: "0.25rem"
                               }}>
                                 {configStatus?.gemini_configured && configStatus?.gemini_model ? (
-                                  configStatus?.available_gemini_models?.find(m => m.id === configStatus.gemini_model)?.name || configStatus.gemini_model
+                                  geminiModels.find(m => m.id === configStatus.gemini_model)?.display_name || configStatus.gemini_model
                                 ) : (
                                   "Not configured"
                                 )}
                               </div>
                               {configStatus?.gemini_configured && configStatus?.gemini_model && (
                                 <small style={{ color: "var(--muted)", fontSize: "0.7rem", display: "block" }}>
-                                  {configStatus?.available_gemini_models?.find(m => m.id === configStatus.gemini_model)?.description}
-                                  {configStatus?.gemini_model_from_env && " • Set via GEMINI_MODEL environment variable"}
+                                  {configStatus?.gemini_model_from_env && "Set via GEMINI_MODEL environment variable"}
                                 </small>
+                              )}
+                              {configStatus?.gemini_configured && !configStatus?.gemini_model_from_env && (
+                                <button
+                                  type="button"
+                                  className="btn-outline"
+                                  onClick={loadGeminiModels}
+                                  disabled={geminiModelsLoading}
+                                  style={{ fontSize: "0.7rem", marginTop: "0.25rem" }}
+                                >
+                                  {geminiModelsLoading ? "Refreshing..." : "Refresh Model List"}
+                                </button>
                               )}
                             </div>
                           )}

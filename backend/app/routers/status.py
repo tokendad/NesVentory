@@ -348,14 +348,12 @@ async def update_api_keys(
             detail="Cannot update Gemini model - it is set via GEMINI_MODEL environment variable"
         )
     
-    # Validate Gemini model if provided
+    # Validate Gemini model if provided (lightweight format check only —
+    # strict whitelist removed to support dynamically-fetched models)
     if api_keys.gemini_model is not None:
-        valid_model_ids = [model["id"] for model in AVAILABLE_GEMINI_MODELS]
-        if api_keys.gemini_model and api_keys.gemini_model not in valid_model_ids:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid Gemini model. Must be one of: {', '.join(valid_model_ids)}"
-            )
+        model_str = api_keys.gemini_model.strip()
+        if model_str and len(model_str) > 200:
+            raise HTTPException(status_code=400, detail="Gemini model name is too long.")
     
     if (api_keys.google_client_id is not None or api_keys.google_client_secret is not None) and google_from_env:
         raise HTTPException(
@@ -374,7 +372,8 @@ async def update_api_keys(
         db_settings.gemini_api_key = api_keys.gemini_api_key if api_keys.gemini_api_key else None
     
     if api_keys.gemini_model is not None:
-        db_settings.gemini_model = api_keys.gemini_model if api_keys.gemini_model else None
+        model_trimmed = api_keys.gemini_model.strip()
+        db_settings.gemini_model = model_trimmed if model_trimmed else None
     
     if api_keys.google_client_id is not None:
         db_settings.google_client_id = api_keys.google_client_id if api_keys.google_client_id else None

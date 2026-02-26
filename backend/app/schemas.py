@@ -210,6 +210,18 @@ class AIConnectionTestResponse(BaseModel):
     failed_providers: int
 
 
+class GeminiModelInfo(BaseModel):
+    """A single Gemini model returned from the live API."""
+    id: str            # short form e.g. "gemini-2.5-flash"
+    display_name: str  # e.g. "Gemini 2.5 Flash"
+
+
+class GeminiModelsResponse(BaseModel):
+    """Response from GET /api/ai/gemini-models."""
+    models: List[GeminiModelInfo]
+    source: str        # "live"
+
+
 # --- UPC Database Configuration Schemas ---
 
 class UPCDatabaseConfig(BaseModel):

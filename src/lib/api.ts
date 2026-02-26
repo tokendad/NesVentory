@@ -1769,7 +1769,7 @@ export async function getIssueReportData(): Promise<IssueReportData> {
 export interface GeminiModel {
   id: string;
   name: string;
-  description: string;
+  description?: string;
 }
 
 export interface ConfigStatusResponse {
@@ -1820,6 +1820,24 @@ export async function updateApiKeys(apiKeys: ApiKeysUpdate): Promise<ApiKeysUpda
     body: JSON.stringify(apiKeys),
   });
   return handleResponse<ApiKeysUpdateResponse>(res);
+}
+
+export interface GeminiModelInfo {
+  id: string;
+  display_name: string;
+}
+
+export interface GeminiModelsApiResponse {
+  models: GeminiModelInfo[];
+  source: string;
+}
+
+export async function fetchGeminiModels(): Promise<GeminiModelsApiResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/ai/gemini-models`, {
+    credentials: 'include',
+    headers: { "Accept": "application/json", ...authHeaders() },
+  });
+  return handleResponse<GeminiModelsApiResponse>(res);
 }
 
 // --- Maintenance Task APIs ---

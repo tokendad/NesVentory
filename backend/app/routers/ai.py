@@ -11,6 +11,7 @@ from typing import List, Optional, Tuple
 from pydantic import BaseModel
 from datetime import datetime, timezone
 from pathlib import Path
+import httpx
 import json
 import logging
 import re
@@ -476,6 +477,68 @@ def get_ai_status(db: Session = Depends(get_db)):
         plugins_enabled=len(plugins) > 0,
         plugin_count=len(plugins)
     )
+
+
+@router.get("/gemini-models", response_model=schemas.GeminiModelsResponse)
+async def list_gemini_models(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """
+    Fetch the list of Gemini models available for the configured API key.
+    Only models supporting generateContent are returned.
+    """
+    api_key = get_effective_gemini_api_key(db)
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="Gemini API key is not configured. Save a valid API key first."
+        )
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(url)
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail="Timed out fetching Gemini model list. Check network connectivity."
+        )
+    except httpx.RequestError:
+        raise HTTPException(
+            status_code=502,
+            detail="Network error fetching Gemini model list."
+        )
+
+    if response.status_code in (400, 401, 403):
+        raise HTTPException(
+            status_code=400,
+            detail="Authentication failed. The API key is invalid or revoked."
+        )
+    if response.status_code == 429:
+        raise HTTPException(status_code=429, detail=QUOTA_EXCEEDED_MESSAGE)
+    if response.status_code == 503:
+        raise HTTPException(status_code=503, detail=SERVICE_UNAVAILABLE_MESSAGE)
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Google API returned unexpected status {response.status_code}."
+        )
+
+    data = response.json()
+    raw_models = data.get("models", [])
+
+    filtered = [
+        schemas.GeminiModelInfo(
+            id=m["name"].removeprefix("models/"),
+            display_name=m.get("displayName", m["name"].removeprefix("models/"))
+        )
+        for m in raw_models
+        if "name" in m and "generateContent" in m.get("supportedGenerationMethods", [])
+    ]
+    filtered.sort(key=lambda m: m.display_name)
+
+    return schemas.GeminiModelsResponse(models=filtered, source="live")
 
 
 @router.post("/test-connection", response_model=schemas.AIConnectionTestResponse)
