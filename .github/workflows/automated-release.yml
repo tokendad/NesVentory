@@ -237,6 +237,49 @@ jobs:
             echo "EOF"
           } >> $GITHUB_OUTPUT
 
+      - name: Determine release tags
+        id: release_tags
+        if: steps.check_release.outputs.needed == 'true'
+        env:
+          COMMIT_FEATURES: ${{ steps.get_changes.outputs.features }}
+          COMMIT_FIXES: ${{ steps.get_changes.outputs.fixes }}
+          BUMP_TYPE: ${{ steps.determine_bump.outputs.bump_type }}
+        run: |
+          DISPLAY_TAGS=()
+          SLUG_TAGS=()
+
+          if [[ -n "$COMMIT_FEATURES" ]]; then
+            DISPLAY_TAGS+=("New Feature")
+            SLUG_TAGS+=("new-feature")
+          fi
+
+          if [[ -n "$COMMIT_FIXES" ]]; then
+            DISPLAY_TAGS+=("Bug Fix")
+            SLUG_TAGS+=("bug-fix")
+          fi
+
+          if [[ "$BUMP_TYPE" == "major" ]]; then
+            DISPLAY_TAGS+=("Breaking Change")
+            SLUG_TAGS+=("breaking-change")
+          fi
+
+          if [[ ${#DISPLAY_TAGS[@]} -eq 0 ]]; then
+            DISPLAY_TAGS+=("Maintenance")
+            SLUG_TAGS+=("maintenance")
+          fi
+
+          DISPLAY_CSV=$(IFS=', '; echo "${DISPLAY_TAGS[*]}")
+          SLUG_CSV=$(IFS=','; echo "${SLUG_TAGS[*]}")
+          DISPLAY_BULLETS=$(printf -- '- %s\n' "${DISPLAY_TAGS[@]}")
+
+          {
+            echo "display_csv=$DISPLAY_CSV"
+            echo "slug_csv=$SLUG_CSV"
+            echo "display_bullets<<EOF"
+            echo "$DISPLAY_BULLETS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
       - name: Generate release documentation
         if: steps.check_release.outputs.needed == 'true'
         env:
@@ -249,6 +292,7 @@ jobs:
           COMMIT_FEATURES: ${{ steps.get_changes.outputs.features }}
           COMMIT_FIXES: ${{ steps.get_changes.outputs.fixes }}
           COMMIT_CHANGES: ${{ steps.get_changes.outputs.changes }}
+          RELEASE_TAGS: ${{ steps.release_tags.outputs.display_bullets }}
         run: |
           mkdir -p docs/releases
           RELEASE_FILE="docs/releases/RELEASE_NOTES_v${NEW_VERSION}.md"
@@ -261,6 +305,12 @@ jobs:
             echo "## Summary"
             echo "${RELEASE_TITLE:-Automated Nightly Release}"
             echo ""
+
+            if [[ -n "$RELEASE_TAGS" ]]; then
+              echo "## Tags"
+              echo -e "${RELEASE_TAGS}"
+              echo ""
+            fi
             
             if [[ -n "$RELEASE_NOTES" ]]; then
               echo "## Notes"
@@ -300,13 +350,14 @@ jobs:
         env:
           NEW_VERSION: ${{ steps.bump_version.outputs.new_version }}
           BUMP_TYPE: ${{ steps.determine_bump.outputs.bump_type }}
+          RELEASE_TAGS: ${{ steps.release_tags.outputs.display_csv }}
         run: |
           DATE=$(date +%Y-%m-%d)
           if [[ "$BUMP_TYPE" == "major" ]]; then HEADER="### Changed"; 
           elif [[ "$BUMP_TYPE" == "minor" ]]; then HEADER="### Added";
           else HEADER="### Fixed"; fi
           
-          ENTRY="\n## [$NEW_VERSION] - $DATE\n$HEADER\n- Automated release $NEW_VERSION\n"
+          ENTRY="\n## [$NEW_VERSION] - $DATE\n$HEADER\n- Automated release $NEW_VERSION\n- Tags: $RELEASE_TAGS\n"
           
           if [[ -f "CHANGELOG.md" ]]; then
              sed -i "/^# Changelog/a $ENTRY" CHANGELOG.md
@@ -336,17 +387,37 @@ jobs:
 
       - name: Create and Push Tag
         if: steps.check_release.outputs.needed == 'true'
+        env:
+          TAG_SLUGS: ${{ steps.release_tags.outputs.slug_csv }}
         run: |
           TAG_NAME="v${{ steps.bump_version.outputs.new_version }}"
-          git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
-          git push origin "$TAG_NAME"
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Version tag $TAG_NAME already exists. Skipping."
+          else
+            git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+            git push origin "$TAG_NAME"
+          fi
+
+          IFS=',' read -ra EXTRA_TAGS <<< "$TAG_SLUGS"
+          for slug in "${EXTRA_TAGS[@]}"; do
+            if [[ -z "$slug" ]]; then
+              continue
+            fi
+            EXTRA_TAG="release/${slug}/v${{ steps.bump_version.outputs.new_version }}"
+            if git rev-parse "$EXTRA_TAG" >/dev/null 2>&1; then
+              echo "Classification tag $EXTRA_TAG already exists. Skipping."
+            else
+              git tag -a "$EXTRA_TAG" -m "Release classification ${slug} for v${{ steps.bump_version.outputs.new_version }}"
+              git push origin "$EXTRA_TAG"
+            fi
+          done
 
       - name: Publish GitHub Release
         if: steps.check_release.outputs.needed == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.bump_version.outputs.new_version }}
-          name: Release ${{ steps.bump_version.outputs.new_version }}
+          name: Release ${{ steps.bump_version.outputs.new_version }} [${{ steps.release_tags.outputs.display_csv }}]
           body_path: RELEASE_NOTES.md
           draft: false
           prerelease: false
