@@ -1,8 +1,8 @@
-fastapi==0.129.0
+fastapi==0.133.1
 publicsuffix2==2.20191221
 werkzeug==3.1.6
 uvicorn[standard]==0.41.0
-SQLAlchemy==2.0.46
+SQLAlchemy==2.0.47
 psycopg2-binary==2.9.11
 asyncpg==0.31.0
 python-jose[cryptography]==3.5.0
