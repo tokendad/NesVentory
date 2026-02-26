@@ -1135,6 +1135,13 @@ export interface DetectedItem {
   estimated_value?: number | null;
   confidence?: number | null;
   estimation_date?: string | null;  // Date when AI estimated the value (MM/DD/YY format)
+  // Department 56 enrichment fields
+  is_department_56?: boolean | null;
+  series?: string | null;
+  estimated_condition?: string | null;
+  estimated_value_range?: string | null;
+  is_limited_edition?: boolean | null;
+  is_signed?: boolean | null;
 }
 
 export interface DetectionResult {
@@ -2625,6 +2632,63 @@ export async function activatePrinterConfig(printerId: string, labelId: string):
     }),
   });
   return handleResponse<ActivePrinterConfig>(res);
+}
+
+// --- Category Agent APIs ---
+
+export async function predictCategory(name: string, description: string): Promise<{
+  series?: string;
+  confidence?: number;
+  model_version?: number;
+  training_samples?: number;
+} | null> {
+  const response = await fetch(`${API_BASE_URL}/api/agents/categorize/predict`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', "Accept": "application/json", ...authHeaders() },
+    body: JSON.stringify({ name, description }),
+    credentials: 'include',
+  });
+  if (!response.ok) return null;
+  const data = await response.json();
+  return Object.keys(data).length > 0 ? data : null;
+}
+
+export async function submitCategoryFeedback(feedback: {
+  item_id?: string | null;
+  input_text: string;
+  predicted_series?: string | null;
+  accepted_series: string;
+  was_override: boolean;
+  user_action: 'ACCEPTED' | 'REJECTED';
+}): Promise<void> {
+  await fetch(`${API_BASE_URL}/api/agents/categorize/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', "Accept": "application/json", ...authHeaders() },
+    body: JSON.stringify(feedback),
+    credentials: 'include',
+  });
+}
+
+export async function getCategoryAgentStatus(): Promise<{
+  training_samples: number;
+  model_version: number;
+  last_trained_at?: string;
+  series_distribution?: Record<string, number>;
+} | null> {
+  const response = await fetch(`${API_BASE_URL}/api/agents/categorize/status`, {
+    headers: { "Accept": "application/json", ...authHeaders() },
+    credentials: 'include',
+  });
+  if (!response.ok) return null;
+  return response.json();
+}
+
+export async function resetCategoryAgent(): Promise<void> {
+  await fetch(`${API_BASE_URL}/api/agents/categorize/reset`, {
+    method: 'DELETE',
+    headers: { "Accept": "application/json", ...authHeaders() },
+    credentials: 'include',
+  });
 }
 
 

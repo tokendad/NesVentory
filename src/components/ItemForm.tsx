@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { ItemCreate, Location, Tag, ContactInfo, DataTagInfo, AIStatusResponse, BarcodeLookupResult, BarcodeScanResult, Warranty, MultiBarcodeLookupResult, Photo, Document, DetectionResult, DynamicField } from "../lib/api";
-import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode, scanBarcodeImage, lookupBarcodeMulti, getApiBaseUrl, detectItemsFromImage } from "../lib/api";
+import { uploadPhoto, fetchTags, createTag, parseDataTagImage, getAIStatus, lookupBarcode, scanBarcodeImage, lookupBarcodeMulti, getApiBaseUrl, detectItemsFromImage, predictCategory, submitCategoryFeedback } from "../lib/api";
 import { formatPhotoType, getLocationPath, getFilenameFromUrl } from "../lib/utils";
 import { PHOTO_TYPES, ALLOWED_PHOTO_MIME_TYPES, ALLOWED_DOCUMENT_MIME_TYPES, DOCUMENT_TYPES, LIVING_TAG_NAME, RELATIONSHIP_LABELS, RETAILERS, BRANDS } from "../lib/constants";
 import type { PhotoUpload, DocumentUpload } from "../lib/types";
@@ -121,6 +121,17 @@ const ItemForm: React.FC<ItemFormProps> = ({
   const [detectingFromPhoto, setDetectingFromPhoto] = useState(false);
   const [photoDetectionResult, setPhotoDetectionResult] = useState<DetectionResult | null>(null);
 
+  // Category Agent suggestion state
+  const [aiSeriesSuggestion, setAiSeriesSuggestion] = useState<{
+    series?: string;
+    confidence?: number;
+    model_version?: number;
+    training_samples?: number;
+  } | null>(null);
+  const [aiSuggestionDismissed, setAiSuggestionDismissed] = useState(false);
+  const [aiSuggestionApplied, setAiSuggestionApplied] = useState(false);
+  const aiDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Tab state for non-mobile view
   const [activeTab, setActiveTab] = useState<TabId>("basic");
 
@@ -228,6 +239,46 @@ const ItemForm: React.FC<ItemFormProps> = ({
       photos.forEach((photo) => URL.revokeObjectURL(photo.preview));
     };
   }, [photos]);
+
+  // Debounced Category Agent prediction: fires 600ms after name or description changes
+  useEffect(() => {
+    // Skip prediction for living items (people/pets/plants) — not D56 collectibles
+    if (formData.is_living) return;
+
+    const name = formData.name?.trim() || '';
+    const description = (formData.description || '').trim();
+
+    // Need at least a name to predict
+    if (!name) {
+      setAiSeriesSuggestion(null);
+      setAiSuggestionDismissed(false);
+      return;
+    }
+
+    // Clear any pending debounce
+    if (aiDebounceRef.current) clearTimeout(aiDebounceRef.current);
+
+    aiDebounceRef.current = setTimeout(async () => {
+      try {
+        const result = await predictCategory(name, description);
+        if (result && result.series) {
+          setAiSeriesSuggestion(result);
+          // Reset dismiss/apply state whenever a new prediction comes in
+          setAiSuggestionDismissed(false);
+          setAiSuggestionApplied(false);
+        } else {
+          setAiSeriesSuggestion(null);
+        }
+      } catch {
+        // Silent fail — prediction is best-effort
+        setAiSeriesSuggestion(null);
+      }
+    }, 600);
+
+    return () => {
+      if (aiDebounceRef.current) clearTimeout(aiDebounceRef.current);
+    };
+  }, [formData.name, formData.description, formData.is_living]);
 
   // Update is_living flag and clear irrelevant fields when switching between living/non-living modes.
   // This is intentional behavior: Living items (people, pets, plants) don't have purchase dates, 
@@ -376,12 +427,44 @@ const ItemForm: React.FC<ItemFormProps> = ({
         warranties: warranties.length > 0 ? warranties : undefined,
       };
       await onSubmit(sanitizedData, photos, documents);
+
+      // Fire-and-forget Category Agent feedback (only if a suggestion was shown)
+      if (aiSeriesSuggestion?.series) {
+        const seriesField = (formData.additional_info || []).find(f => f.label === 'Series');
+        const acceptedSeries = seriesField?.value || formData.name;
+        const wasAccepted = aiSuggestionApplied && !aiSuggestionDismissed;
+        submitCategoryFeedback({
+          input_text: `${formData.name} ${formData.description || ''}`.trim(),
+          predicted_series: aiSeriesSuggestion.series,
+          accepted_series: acceptedSeries,
+          was_override: !wasAccepted,
+          user_action: wasAccepted ? 'ACCEPTED' : 'REJECTED',
+        }).catch(() => {/* silent */});
+      }
     } catch (err: any) {
       setError(err.message || "Failed to save item");
     } finally {
       setLoading(false);
     }
   };
+
+  // Category Agent: apply suggested series as a dynamic "Series" field
+  const handleApplyAiSuggestion = useCallback(() => {
+    if (!aiSeriesSuggestion?.series) return;
+    const seriesValue = aiSeriesSuggestion.series;
+    setFormData(prev => {
+      const existing = [...(prev.additional_info || [])];
+      const idx = existing.findIndex(f => f.label === 'Series');
+      if (idx >= 0) {
+        existing[idx] = { ...existing[idx], value: seriesValue };
+      } else {
+        existing.unshift({ label: 'Series', value: seriesValue, type: 'text' });
+      }
+      return { ...prev, additional_info: existing };
+    });
+    setAiSuggestionApplied(true);
+    setAiSuggestionDismissed(false);
+  }, [aiSeriesSuggestion]);
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>, type: string) => {
     const files = e.target.files;
@@ -804,6 +887,79 @@ const ItemForm: React.FC<ItemFormProps> = ({
           placeholder={livingMode ? "Notes about this person, pet, or plant" : "Item description"}
         />
       </div>
+
+      {/* Category Agent AI Suggestion Badge */}
+      {!livingMode &&
+        aiSeriesSuggestion?.series &&
+        (aiSeriesSuggestion.confidence ?? 0) >= 0.70 &&
+        !aiSuggestionDismissed && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              flexWrap: 'wrap',
+              padding: '0.5rem 0.75rem',
+              borderRadius: '6px',
+              background: 'color-mix(in srgb, var(--color-primary, #6c63ff) 10%, var(--bg-card, #fff))',
+              border: '1px solid color-mix(in srgb, var(--color-primary, #6c63ff) 30%, transparent)',
+              marginBottom: '0.75rem',
+              fontSize: '0.82rem',
+            }}
+          >
+            <span style={{ color: 'var(--color-primary, #6c63ff)', fontWeight: 600 }}>
+              🤖 AI suggests:
+            </span>
+            <span style={{ fontStyle: 'italic', color: 'var(--text-primary, inherit)' }}>
+              &ldquo;{aiSeriesSuggestion.series}&rdquo;
+            </span>
+            <span style={{ color: 'var(--text-muted)', marginLeft: '0.1rem' }}>
+              ({Math.round((aiSeriesSuggestion.confidence ?? 0) * 100)}% confidence)
+            </span>
+            {aiSuggestionApplied ? (
+              <span style={{ color: 'var(--color-success, #4caf50)', fontWeight: 500, marginLeft: '0.25rem' }}>
+                ✓ Applied
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleApplyAiSuggestion}
+                disabled={loading}
+                style={{
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '4px',
+                  border: '1px solid var(--color-primary, #6c63ff)',
+                  background: 'var(--color-primary, #6c63ff)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  marginLeft: '0.25rem',
+                }}
+              >
+                Apply
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setAiSuggestionDismissed(true)}
+              disabled={loading}
+              aria-label="Dismiss AI suggestion"
+              style={{
+                padding: '0.2rem 0.5rem',
+                borderRadius: '4px',
+                border: '1px solid var(--border-color, #ccc)',
+                background: 'transparent',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                fontSize: '0.78rem',
+                marginLeft: 'auto',
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
       {/* Living Item Fields */}
       {livingMode && (

@@ -41,6 +41,8 @@ import {
   testAIConnection,
   getSystemSettings,
   updateSystemSettings,
+  getCategoryAgentStatus,
+  resetCategoryAgent,
   type User,
   type Location,
   type AdminUserCreate,
@@ -254,6 +256,19 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
   const [testingConnection, setTestingConnection] = useState<Record<string, boolean>>({});
   const [connectionTestResults, setConnectionTestResults] = useState<Record<string, PluginConnectionTestResult | null>>({});
 
+  // Category Agent states
+  const [categoryAgentStatus, setCategoryAgentStatus] = useState<{
+    training_samples: number;
+    model_version: number;
+    last_trained_at?: string;
+    series_distribution?: Record<string, number>;
+  } | null>(null);
+  const [categoryAgentLoading, setCategoryAgentLoading] = useState(false);
+  const [categoryAgentError, setCategoryAgentError] = useState<string | null>(null);
+  const [categoryAgentResetting, setCategoryAgentResetting] = useState(false);
+  const [categoryAgentResetSuccess, setCategoryAgentResetSuccess] = useState<string | null>(null);
+  const [pluginGeminiBannerDismissed, setPluginGeminiBannerDismissed] = useState(false);
+
 
   async function loadUsers() {
     setLoading(true);
@@ -423,6 +438,37 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     }
   }
 
+  async function loadCategoryAgentStatus() {
+    setCategoryAgentLoading(true);
+    setCategoryAgentError(null);
+    try {
+      const status = await getCategoryAgentStatus();
+      setCategoryAgentStatus(status);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to load Category Agent status";
+      setCategoryAgentError(errorMessage);
+    } finally {
+      setCategoryAgentLoading(false);
+    }
+  }
+
+  async function handleResetCategoryAgent() {
+    if (!window.confirm("Reset the Category Agent? This will delete all training data and cannot be undone.")) return;
+    setCategoryAgentResetting(true);
+    setCategoryAgentResetSuccess(null);
+    setCategoryAgentError(null);
+    try {
+      await resetCategoryAgent();
+      setCategoryAgentResetSuccess("Category Agent reset successfully. Training data cleared.");
+      await loadCategoryAgentStatus();
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to reset Category Agent";
+      setCategoryAgentError(errorMessage);
+    } finally {
+      setCategoryAgentResetting(false);
+    }
+  }
+
   async function loadLocationCategories() {
     setCategoriesLoading(true);
     setCategoriesError(null);
@@ -539,6 +585,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
     }
     if (mainTab === 'plugins') {
       loadPlugins();
+      loadCategoryAgentStatus();
     }
     if (mainTab === 'custom-fields') {
       loadLocationCategories();
@@ -3334,6 +3381,44 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
         Configure custom LLM plugins for AI-powered features like data tag parsing and barcode lookup.
       </p>
 
+      {/* Plugin-Gemini deprecation banner */}
+      {!pluginGeminiBannerDismissed &&
+        plugins.some(p => /plugin-gemini/i.test(p.endpoint_url)) && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.75rem',
+            padding: '0.85rem 1rem',
+            borderRadius: '6px',
+            background: '#fffbea',
+            border: '1px solid #f0c000',
+            marginBottom: '1.25rem',
+            fontSize: '0.875rem',
+          }}>
+            <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>⚠️</span>
+            <div style={{ flex: 1 }}>
+              <strong>Plugin-Gemini detected:</strong> The built-in Department 56 Category Agent now
+              provides equivalent functionality. You can safely remove this plugin from the list below.
+            </div>
+            <button
+              type="button"
+              onClick={() => setPluginGeminiBannerDismissed(true)}
+              aria-label="Dismiss warning"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#888',
+                fontSize: '1rem',
+                flexShrink: 0,
+                padding: '0 0.25rem',
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
       {pluginsError && (
         <div className="error-message" style={{ marginBottom: '1rem' }}>
           {pluginsError}
@@ -3803,6 +3888,129 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
           ))}
         </div>
       )}
+
+      {/* ─── Category Agent Status Card ─────────────────────────────── */}
+      <div className="panel" style={{ marginTop: '2rem' }}>
+        <div className="panel-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h4 style={{ margin: 0 }}>🤖 Department 56 Category Agent</h4>
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={loadCategoryAgentStatus}
+            disabled={categoryAgentLoading}
+            style={{ fontSize: '0.8rem', padding: '0.25rem 0.6rem' }}
+          >
+            {categoryAgentLoading ? 'Loading…' : '↻ Refresh'}
+          </button>
+        </div>
+        <div className="panel-content">
+          <p style={{ color: 'var(--color-text-secondary)', marginBottom: '1rem', fontSize: '0.875rem' }}>
+            Built-in machine-learning agent that predicts the Department 56 series for inventory items.
+            It learns from user feedback over time.
+          </p>
+
+          {categoryAgentError && (
+            <div className="error-message" style={{ marginBottom: '1rem' }}>
+              {categoryAgentError}
+            </div>
+          )}
+
+          {categoryAgentResetSuccess && (
+            <div className="success-message" style={{ marginBottom: '1rem' }}>
+              {categoryAgentResetSuccess}
+            </div>
+          )}
+
+          {categoryAgentLoading && !categoryAgentStatus ? (
+            <p style={{ color: 'var(--text-muted)' }}>Loading status…</p>
+          ) : categoryAgentStatus ? (
+            <div>
+              {/* Key metrics row */}
+              <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--color-primary, #6c63ff)' }}>
+                    {categoryAgentStatus.training_samples.toLocaleString()}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Training Samples</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--color-primary, #6c63ff)' }}>
+                    v{categoryAgentStatus.model_version}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Model Version</div>
+                </div>
+                {categoryAgentStatus.last_trained_at && (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '1rem', fontWeight: 600 }}>
+                      {new Date(categoryAgentStatus.last_trained_at).toLocaleDateString(undefined, {
+                        year: 'numeric', month: 'short', day: 'numeric',
+                      })}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Last Trained</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Series distribution */}
+              {categoryAgentStatus.series_distribution &&
+                Object.keys(categoryAgentStatus.series_distribution).length > 0 && (
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <h5 style={{ marginBottom: '0.6rem', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Series Distribution
+                    </h5>
+                    {(() => {
+                      const dist = categoryAgentStatus.series_distribution!;
+                      const total = Object.values(dist).reduce((s, v) => s + v, 0) || 1;
+                      return Object.entries(dist)
+                        .sort(([, a], [, b]) => b - a)
+                        .slice(0, 12)
+                        .map(([series, count]) => {
+                          const pct = Math.round((count / total) * 100);
+                          return (
+                            <div key={series} style={{ marginBottom: '0.35rem' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.15rem' }}>
+                                <span>{series}</span>
+                                <span style={{ color: 'var(--text-muted)' }}>{count} ({pct}%)</span>
+                              </div>
+                              <div style={{ height: '6px', borderRadius: '3px', background: 'var(--border-color, #e0e0e0)', overflow: 'hidden' }}>
+                                <div style={{
+                                  height: '100%',
+                                  width: `${pct}%`,
+                                  borderRadius: '3px',
+                                  background: 'var(--color-primary, #6c63ff)',
+                                  transition: 'width 0.4s ease',
+                                }} />
+                              </div>
+                            </div>
+                          );
+                        });
+                    })()}
+                  </div>
+                )}
+
+              {/* Reset button */}
+              <div style={{ borderTop: '1px solid var(--border-color, #e0e0e0)', paddingTop: '1rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="btn-outline btn-danger-outline"
+                  onClick={handleResetCategoryAgent}
+                  disabled={categoryAgentResetting}
+                  style={{ fontSize: '0.85rem' }}
+                >
+                  {categoryAgentResetting ? 'Resetting…' : '🗑️ Reset Agent'}
+                </button>
+                <span style={{ marginLeft: '0.75rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  Deletes all training data. Cannot be undone.
+                </span>
+              </div>
+            </div>
+          ) : (
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+              No status available. The Category Agent may not be configured on the server.
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 

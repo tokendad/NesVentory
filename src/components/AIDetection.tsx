@@ -395,6 +395,33 @@ const AIDetection: React.FC<AIDetectionProps> = ({ onClose, onAddItems, location
                                   {item.description}
                                 </div>
                               )}
+                              {/* Department 56 enrichment details */}
+                              {item.is_department_56 && (
+                                <div style={{
+                                  marginTop: "0.35rem",
+                                  fontSize: "0.72rem",
+                                  color: "var(--text-muted)",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: "0.15rem",
+                                }}>
+                                  {item.series && (
+                                    <span>📦 Series: <em>{item.series}</em></span>
+                                  )}
+                                  {item.estimated_condition && (
+                                    <span>🏷️ Est. Condition: {item.estimated_condition}</span>
+                                  )}
+                                  {item.estimated_value_range && (
+                                    <span>💰 Est. Value Range: {item.estimated_value_range}</span>
+                                  )}
+                                  {item.is_limited_edition && (
+                                    <span>⭐ Limited Edition</span>
+                                  )}
+                                  {item.is_signed && (
+                                    <span>✍️ Signed</span>
+                                  )}
+                                </div>
+                              )}
                             </td>
                             <td>{item.brand || "—"}</td>
                             <td>{formatValue(item.estimated_value)}</td>

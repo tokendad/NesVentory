@@ -569,3 +569,33 @@ class UserPrinterConfig(Base):
     printer_profile = relationship("PrinterProfile", back_populates="user_printer_configs")
     label_profile = relationship("LabelProfile", back_populates="user_printer_configs")
 
+
+class AgentModel(Base):
+    __tablename__ = "agent_models"
+
+    id = Column(String(100), primary_key=True)  # e.g., 'category_agent_v1'
+    agent_type = Column(String(50), nullable=False)  # e.g., 'categorization'
+    version = Column(Integer, default=1, nullable=False)
+    # base64-encoded pickle of CategoryAgent state
+    model_data = Column(Text, nullable=True)
+    training_samples = Column(Integer, default=0, nullable=False)
+    last_trained_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class AgentTrainingLog(Base):
+    __tablename__ = "agent_training_log"
+
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    agent_id = Column(String(100), nullable=False)
+    item_id = Column(UUID(), nullable=True)  # nullable — item may be deleted
+    input_text = Column(Text, nullable=False)
+    predicted_series = Column(String(100), nullable=True)
+    accepted_series = Column(String(100), nullable=False)
+    was_override = Column(Boolean, nullable=False)
+    reward = Column(Numeric(4, 3), nullable=False)
+    user_action = Column(String(20), nullable=True)  # 'ACCEPTED' | 'REJECTED'
+    source = Column(String(50), default='nesventory', nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+

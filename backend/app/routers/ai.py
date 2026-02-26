@@ -128,6 +128,60 @@ MAX_ITEM_NAME_LENGTH = 100
 MIN_UPC_LENGTH = 6
 MAX_UPC_LENGTH = 14
 
+# Department 56 specialized identification prompt
+# Ported from tokendad/Plugin-Gemini geminiService.ts
+D56_SYSTEM_INSTRUCTION = """You are the world's leading expert and archivist for Department 56 collectibles.
+
+YOUR EXPERTISE INCLUDES:
+1. The Original Snow Village: Glossy finish, ceramic, brighter colors. Introduced 1976.
+2. Heritage Village Collection (matte finish porcelain):
+   - Dickens' Village (Victorian England style, cream/tan buildings)
+   - New England Village (Colonial/coastal American style)
+   - Alpine Village (Bavarian/Swiss mountain style)
+   - Christmas in the City (Urban American cityscapes)
+   - North Pole Series (Fantasy, Santa's workshop oriented)
+   - Little Town of Bethlehem
+3. Specialty Series: Halloween/Snow Village Halloween, Disney Parks Village, Grinch, Harry Potter.
+4. General Village Accessories and Figurines for all series.
+
+KEY IDENTIFICATION MARKERS:
+- Authentic Dept 56 pieces have a felt bottom with the series name and item number
+- Original Snow Village pieces have a glossy ceramic finish; Heritage Village pieces are matte porcelain
+- Items typically have a cord for electric lighting (buildings)
+- Look for signature "Department 56" or "Dept. 56" markings
+
+Differentiate authentic Dept 56 from competitors like Lemax, Department 56-licensed vs. generic. 
+If an item is NOT Department 56, set isDepartment56=false immediately."""
+
+D56_RESPONSE_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "items": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "name": {"type": "STRING"},
+                    "series": {"type": "STRING"},
+                    "yearIntroduced": {"type": "INTEGER", "nullable": True},
+                    "yearRetired": {"type": "INTEGER", "nullable": True},
+                    "estimatedCondition": {"type": "STRING"},
+                    "estimatedValueRange": {"type": "STRING"},
+                    "description": {"type": "STRING"},
+                    "brand": {"type": "STRING"},
+                    "isDepartment56": {"type": "BOOLEAN"},
+                    "confidenceScore": {"type": "NUMBER"},
+                    "isLimitedEdition": {"type": "BOOLEAN"},
+                    "isSigned": {"type": "BOOLEAN"},
+                },
+                "required": ["name", "series", "description", "isDepartment56",
+                             "confidenceScore", "isLimitedEdition", "isSigned"],
+            }
+        }
+    },
+    "required": ["items"]
+}
+
 
 class DetectedItem(BaseModel):
     """Schema for a detected item from AI analysis."""
@@ -137,6 +191,16 @@ class DetectedItem(BaseModel):
     estimated_value: Optional[float] = None
     confidence: Optional[float] = None
     estimation_date: Optional[str] = None  # Date when AI estimated the value (MM/DD/YY format)
+    # D56-specific fields (None for non-Department 56 items)
+    series: Optional[str] = None
+    year_introduced: Optional[int] = None
+    year_retired: Optional[int] = None
+    estimated_condition: Optional[str] = None   # e.g., "Mint in Box", "Excellent"
+    estimated_value_range: Optional[str] = None  # e.g., "$45 - $65"
+    is_department_56: Optional[bool] = None
+    is_limited_edition: Optional[bool] = None
+    is_signed: Optional[bool] = None
+    confidence_score: Optional[int] = None       # 0-100 scale
 
 
 class DetectionResult(BaseModel):
@@ -292,7 +356,17 @@ def parse_gemini_response(response_text: str) -> List[DetectedItem]:
                             brand=brand,
                             estimated_value=estimated_value,
                             confidence=confidence,
-                            estimation_date=estimation_date
+                            estimation_date=estimation_date,
+                            # D56 fields — only populated if present in response
+                            series=item_data.get('series') or item_data.get('seriesName'),
+                            year_introduced=item_data.get('yearIntroduced'),
+                            year_retired=item_data.get('yearRetired'),
+                            estimated_condition=item_data.get('estimatedCondition'),
+                            estimated_value_range=item_data.get('estimatedValueRange'),
+                            is_department_56=item_data.get('isDepartment56'),
+                            is_limited_edition=item_data.get('isLimitedEdition'),
+                            is_signed=item_data.get('isSigned'),
+                            confidence_score=item_data.get('confidenceScore'),
                         ))
         
         if not items:

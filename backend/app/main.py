@@ -21,6 +21,7 @@ from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
 from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins, location_photos, csv_import, media, oidc, printer, printer_profiles
 from .routers import settings as settings_router
+from .routers import agents as agents_router
 from .routers.auth import perform_password_login
 from .middleware import RequestTracingMiddleware, DynamicCORSMiddleware
 
@@ -122,6 +123,37 @@ def run_migrations():
                 print(f"Migration: Added column '{column_name}' to table '{table_name}'")
             except Exception as e:
                 print(f"Migration warning: Could not add column '{column_name}' to '{table_name}': {e}")
+
+        # Create agent_models table for RL categorization agent
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS agent_models (
+                id VARCHAR(100) PRIMARY KEY,
+                agent_type VARCHAR(50) NOT NULL,
+                version INTEGER NOT NULL DEFAULT 1,
+                model_data TEXT,
+                training_samples INTEGER NOT NULL DEFAULT 0,
+                last_trained_at TIMESTAMP,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
+            )
+        """))
+
+        # Create agent_training_log table for RL training feedback
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS agent_training_log (
+                id VARCHAR(36) PRIMARY KEY,
+                agent_id VARCHAR(100) NOT NULL,
+                item_id VARCHAR(36),
+                input_text TEXT NOT NULL,
+                predicted_series VARCHAR(100),
+                accepted_series VARCHAR(100) NOT NULL,
+                was_override BOOLEAN NOT NULL,
+                reward NUMERIC(4,3) NOT NULL,
+                user_action VARCHAR(20),
+                source VARCHAR(50) NOT NULL DEFAULT 'nesventory',
+                created_at TIMESTAMP NOT NULL
+            )
+        """))
 
         # Phase 2D: Migrate old niimbot_printer_config to new profile-based schema
         migrate_niimbot_configs_to_profiles(conn)
@@ -311,6 +343,7 @@ app.include_router(oidc.router, prefix="/api")
 app.include_router(printer.router)
 app.include_router(printer_profiles.router)
 app.include_router(settings_router.router, prefix="/api")
+app.include_router(agents_router.router, prefix="/api")
 
 # Root-level /token endpoint for backward compatibility with mobile apps
 @app.post("/token", response_model=Token)

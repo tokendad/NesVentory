@@ -26,3 +26,4 @@ qrcode==8.2
 bleak>=0.21.0
 # System printer support (CUPS) - optional, requires libcups2-dev on system
 pycups>=2.0.1
+scikit-learn>=1.4.0
