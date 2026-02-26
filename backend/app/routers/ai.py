@@ -829,7 +829,7 @@ async def detect_items(
         
         if plugins:
             # Read the image data once
-            image_data = await read_limited(file)
+            image_data = await read_limited(file, MAX_IMAGE_BYTES)
 
             # Try each plugin in priority order
             for plugin in plugins:
@@ -870,7 +870,7 @@ async def detect_items(
         from google.genai import types
 
         # Read the image
-        image_data = await read_limited(file)
+        image_data = await read_limited(file, MAX_IMAGE_BYTES)
 
         # Create the client and model with effective model selection
         gemini_model = get_effective_gemini_model(db)
@@ -911,6 +911,8 @@ Return an empty array [] if no identifiable items are found."""
             raw_response=sanitize_raw_response(response_text) if not items else None
         )
 
+    except HTTPException:
+        raise
     except ImportError:
         logger.error("google-genai package not installed")
         raise HTTPException(
@@ -967,7 +969,7 @@ async def parse_data_tag(
         
         if plugins:
             # Read the image data once
-            image_data = await read_limited(file)
+            image_data = await read_limited(file, MAX_IMAGE_BYTES)
 
             # Try each plugin in priority order
             for plugin in plugins:
@@ -1008,7 +1010,7 @@ async def parse_data_tag(
         from ..settings_service import get_effective_gemini_model
 
         # Read the image
-        image_data = await read_limited(file)
+        image_data = await read_limited(file, MAX_IMAGE_BYTES)
 
         # Create the client and model with effective model selection
         gemini_model = get_effective_gemini_model(db)
@@ -1066,6 +1068,8 @@ If no data tag information can be read from the image, return:
 
         return result
 
+    except HTTPException:
+        raise
     except ImportError:
         logger.error("google-genai package not installed")
         raise HTTPException(
@@ -1589,7 +1593,7 @@ async def scan_qr_code(
 
         throttle_ai_request()
 
-        image_data = await read_limited(file)
+        image_data = await read_limited(file, MAX_IMAGE_BYTES)
 
         gemini_model = get_effective_gemini_model(db)
         client = genai.Client(api_key=gemini_api_key)
@@ -1624,6 +1628,8 @@ Example format if no QR is found:
 
         return result
         
+    except HTTPException:
+        raise
     except ImportError:
         logger.error("google-genai package not installed")
         raise HTTPException(status_code=503, detail="AI detection is not available. Required package not installed.")
@@ -1727,7 +1733,7 @@ async def scan_barcode_image(
         
         if plugins:
             # Read the image data once
-            image_data = await read_limited(file)
+            image_data = await read_limited(file, MAX_IMAGE_BYTES)
 
             # Try each plugin in priority order
             for plugin in plugins:
@@ -1769,7 +1775,7 @@ async def scan_barcode_image(
         throttle_ai_request()
 
         # Read the image
-        image_data = await read_limited(file)
+        image_data = await read_limited(file, MAX_IMAGE_BYTES)
 
         # Create the client and model with effective model selection
         gemini_model = get_effective_gemini_model(db)
@@ -1817,6 +1823,8 @@ Important:
 
         return result
 
+    except HTTPException:
+        raise
     except ImportError:
         logger.error("google-genai package not installed")
         raise HTTPException(

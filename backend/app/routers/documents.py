@@ -124,7 +124,7 @@ async def upload_document(
     # Create document record
     document = models.Document(
         item_id=item_id,
-        filename=file.filename or filename,
+        filename=f"{safe_name}{file_extension}",
         path=file_url,
         mime_type=file.content_type,
         document_type=document_type
@@ -250,6 +250,13 @@ async def upload_document_from_url(
         async with httpx.AsyncClient(timeout=30.0, max_redirects=3) as client:
             response = await client.get(safe_url)
             response.raise_for_status()
+
+            # Enforce size limit before buffering content
+            content_length = response.headers.get("content-length")
+            if content_length and int(content_length) > MAX_DOCUMENT_BYTES:
+                raise HTTPException(status_code=413, detail="File too large")
+            if len(response.content) > MAX_DOCUMENT_BYTES:
+                raise HTTPException(status_code=413, detail="File too large")
             
             # Get content type from response
             content_type = response.headers.get("content-type", "").split(";")[0].strip()

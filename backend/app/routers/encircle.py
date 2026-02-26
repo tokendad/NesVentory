@@ -26,6 +26,7 @@ from openpyxl import load_workbook
 import json
 
 from .. import models, schemas
+from .. import auth
 from ..deps import get_db
 from ..config import settings
 from ..upload_utils import MAX_IMAGE_BYTES, MAX_DOCUMENT_BYTES, read_limited
@@ -1100,7 +1101,8 @@ def preview_encircle_import(xlsx_content: bytes, filename: Optional[str] = None)
 
 @router.post("/encircle/preview")
 async def preview_encircle(
-    xlsx_file: UploadFile = File(..., description="Encircle XLSX export file to preview")
+    xlsx_file: UploadFile = File(..., description="Encircle XLSX export file to preview"),
+    current_user: models.User = Depends(auth.get_current_user)
 ):
     """
     Preview an Encircle XLSX file to extract the parent location name
@@ -1138,7 +1140,8 @@ async def import_encircle(
     match_by_name: bool = Form(True, description="Match images by description name"),
     parent_location_id: Optional[str] = Form(None, description="ID of existing parent location to use"),
     create_parent_from_file: bool = Form(True, description="Create parent location from file if no parent_location_id provided"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
 ):
     """
     Import items from an Encircle detailed XLSX export file.

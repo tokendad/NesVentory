@@ -25,6 +25,7 @@ import httpx
 import re
 
 from .. import models, schemas
+from .. import auth
 from ..deps import get_db
 from ..config import settings
 from ..upload_utils import MAX_DOCUMENT_BYTES, read_limited
@@ -428,7 +429,8 @@ async def process_csv_import(
                             result.log.append(f"  Failed to download: {url}")
                     except Exception as e:
                         result.photos_failed += 1
-                        result.log.append(f"  Error downloading {url}: {str(e)}")
+                        logger.warning("Error downloading image from URL: %s", e)
+                        result.log.append(f"  Error downloading {url}: image download failed")
                 
                 result.log.append(f"Row {row_num}: {item_name} -> {len(image_urls)} image URL(s)")
             else:
@@ -444,9 +446,9 @@ async def process_csv_import(
         
     except Exception as e:
         db.rollback()
-        result.errors.append(f"Import failed: {str(e)}")
-        result.log.append("Import failed due to an error.")
         logger.exception("CSV import failed")
+        result.errors.append("Import failed due to an internal error.")
+        result.log.append("Import failed due to an error.")
     
     return result
 
@@ -456,7 +458,8 @@ async def import_csv(
     csv_file: UploadFile = File(..., description="CSV file to import"),
     parent_location_id: Optional[str] = Form(None, description="ID of parent location for created locations"),
     create_locations: bool = Form(True, description="Create locations that don't exist in the CSV"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
 ):
     """
     Import items from a CSV file.

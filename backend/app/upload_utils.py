@@ -1,6 +1,7 @@
 """Shared upload helpers: size-limiting file reads and response sanitization."""
 
 import io
+from typing import Optional
 from fastapi import HTTPException, UploadFile
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024     # 10 MB — AI image uploads
@@ -21,7 +22,7 @@ async def read_limited(file: UploadFile, max_bytes: int) -> bytes:
     return data
 
 
-def sanitize_raw_response(text: str, max_length: int = 500) -> str:
+def sanitize_raw_response(text: Optional[str], max_length: int = 500) -> str:
     """Truncate and sanitize raw AI response text for client consumption."""
     if not text:
         return ""

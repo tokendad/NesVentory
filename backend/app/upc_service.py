@@ -248,6 +248,8 @@ If the UPC is not in your knowledge base or you cannot identify it, return found
             logger.warning("Failed to parse JSON from Gemini response")
             result.raw_response = sanitize_raw_response(response_text)
 
+        return result
+
 
 class UPCDatabaseOrg(UPCDatabase):
     """UPC lookup using upcdatabase.org API."""
