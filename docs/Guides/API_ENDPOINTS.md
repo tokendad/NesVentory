@@ -9,42 +9,47 @@ This document provides comprehensive documentation for all API endpoints in the 
 - [Items](#items)
 - [Locations](#locations)
 - [Photos](#photos)
+- [Location Photos](#location-photos)
 - [Documents](#documents)
 - [Videos](#videos)
 - [Tags](#tags)
 - [Maintenance Tasks](#maintenance-tasks)
 - [AI/ML Features](#aiml-features)
 - [Google Drive Integration](#google-drive-integration)
-- [Encircle Export](#encircle-export)
+- [Encircle Export/Import](#encircle-exportimport)
 - [CSV Import](#csv-import)
 - [Media Management](#media-management)
 - [Plugins](#plugins)
 - [Logs](#logs)
 - [System Status](#system-status)
+- [System Settings](#system-settings)
+- [Printer (NIIMBOT)](#printer-niimbot)
+- [Printer Profiles (Phase 2D)](#printer-profiles-phase-2d)
+- [Error Responses](#error-responses)
+- [Authentication Headers](#authentication-headers)
+- [File Upload Limits](#file-upload-limits)
 
 ## Base URL
 
 All API endpoints are prefixed with `/api` unless otherwise specified.
 
-Example: `http://localhost:8000/api/items`
+Example: `http://localhost:8181/api/items`
+
+The application runs on port **8181** by default (configurable via `APP_PORT` environment variable).
 
 ## Authentication
 
-NesVentory uses JWT (JSON Web Token) based authentication. Most endpoints require authentication via Bearer token.
+NesVentory uses JWT (JSON Web Token) based authentication. Most endpoints require authentication via Bearer token or HttpOnly cookie.
 
 ### Login (Password-based)
 
 #### POST /api/token
 
-OAuth2-compatible token login endpoint.
+OAuth2-compatible token login endpoint. Sets an HttpOnly cookie with the access token and also returns the token in the response body.
 
-**Request:**
-```json
-{
-  "username": "user@example.com",
-  "password": "yourpassword"
-}
-```
+**Request:** (`application/x-www-form-urlencoded`)
+- `username`: User's email address
+- `password`: User's password
 
 **Response:**
 ```json
@@ -55,7 +60,20 @@ OAuth2-compatible token login endpoint.
 }
 ```
 
-**Note:** There's also a root-level `POST /token` endpoint (without `/api` prefix) for backward compatibility with mobile apps.
+**Note:** There is also a root-level `POST /token` endpoint (without the `/api` prefix) for backward compatibility with mobile apps. It has identical behavior.
+
+### Logout
+
+#### POST /api/auth/logout
+
+Clear the auth cookie and log the user out. No request body required.
+
+**Response:**
+```json
+{
+  "message": "Logged out"
+}
+```
 
 ### Login (Google OAuth)
 
@@ -238,6 +256,7 @@ Get profile for the currently authenticated user.
   "full_name": "John Doe",
   "role": "viewer",
   "is_approved": true,
+  "must_change_password": false,
   "allowed_location_ids": [],
   "api_key": null,
   "ai_schedule_enabled": false,
@@ -596,7 +615,7 @@ Update location on multiple items at once.
 
 #### POST /api/items/{item_id}/enrich
 
-Enrich an item's data using configured AI providers.
+Enrich an item's data using configured AI providers (Google Gemini via `google-genai` SDK).
 
 **Response:**
 ```json
@@ -817,7 +836,7 @@ Upload a document from a URL.
 - `url`: URL to download document from
 - `document_type`: Optional string
 
-**Note:** URLs must be from allowed hosts (configured in ALLOWED_HOSTS).
+**Note:** URLs must be from allowed hosts (configured in `ALLOWED_HOSTS`).
 
 ### Delete Document
 
@@ -968,20 +987,36 @@ Delete a maintenance task.
 
 ## AI/ML Features
 
-Endpoints for AI-powered features like object detection, barcode lookup, and data tag parsing.
+Endpoints for AI-powered features using Google Gemini (via `google-genai` SDK), barcode lookup, and data tag parsing.
+
+**SDK Note:** The backend uses the `google-genai` SDK (not the deprecated `google-generativeai` SDK). The API client is instantiated with `genai.Client(api_key=...)` and model calls use `client.models.generate_content(model=..., contents=...)`.
+
+**Supported Gemini Models:**
+| Model ID | Name | Description |
+|---|---|---|
+| `gemini-2.0-flash-exp` | Gemini 2.0 Flash (Experimental) | Default model. Improved speed and intelligence |
+| `gemini-1.5-flash` | Gemini 1.5 Flash | Fast, efficient for high-throughput tasks |
+| `gemini-1.5-flash-8b` | Gemini 1.5 Flash-8B | Smaller, faster for simple tasks |
+| `gemini-1.5-pro` | Gemini 1.5 Pro | Complex reasoning, long context |
+| `gemini-exp-1206` | Gemini Experimental (1206) | Latest experimental features |
+
+The model is selected via the `GEMINI_MODEL` environment variable or through the admin panel. The default is `gemini-2.0-flash-exp`.
+
+**Rate Limiting:** A configurable throttle delay (default: 4 seconds) is applied between AI requests to avoid hitting free-tier quota limits. This is controlled by the `GEMINI_REQUEST_DELAY` environment variable.
 
 ### Get AI Status
 
 #### GET /api/ai/status
 
-Get the status of AI services.
+Get the status of AI services. No authentication required.
 
 **Response:**
 ```json
 {
-  "gemini_configured": true,
-  "openai_configured": false,
-  "plugins_configured": 1
+  "enabled": true,
+  "model": "gemini-2.0-flash-exp",
+  "plugins_enabled": false,
+  "plugin_count": 0
 }
 ```
 
@@ -989,10 +1024,10 @@ Get the status of AI services.
 
 #### POST /api/ai/detect-items
 
-Detect items in an image using AI.
+Detect items in an image using AI (Gemini or enabled plugins).
 
 **Request:** (multipart/form-data)
-- `file`: Image file
+- `file`: Image file (JPEG, PNG, GIF, WebP)
 - `use_plugins`: Boolean (default: false)
 
 **Response:**
@@ -1001,11 +1036,14 @@ Detect items in an image using AI.
   "items": [
     {
       "name": "Laptop",
+      "description": "A Dell XPS laptop",
+      "brand": "Dell",
+      "estimated_value": 1200.00,
       "confidence": 0.95,
-      "bounding_box": [100, 200, 300, 400]
+      "estimation_date": "01/15/24"
     }
   ],
-  "source": "Google Gemini AI"
+  "raw_response": null
 }
 ```
 
@@ -1013,20 +1051,24 @@ Detect items in an image using AI.
 
 #### POST /api/ai/parse-data-tag
 
-Extract information from a data tag/label photo.
+Extract information from a data tag/label photo using AI.
 
 **Request:** (multipart/form-data)
-- `file`: Image file
+- `file`: Image file (JPEG, PNG, GIF, WebP)
 - `use_plugins`: Boolean (default: false)
 
 **Response:**
 ```json
 {
+  "manufacturer": "Dell",
   "brand": "Dell",
   "model_number": "XPS-15-9510",
   "serial_number": "SN123456",
-  "confidence": 0.90,
-  "source": "Google Gemini AI"
+  "production_date": "2023-01",
+  "estimated_value": 1200.00,
+  "estimation_date": "01/15/24",
+  "additional_info": {},
+  "raw_response": null
 }
 ```
 
@@ -1034,76 +1076,56 @@ Extract information from a data tag/label photo.
 
 #### POST /api/ai/barcode-lookup
 
-Look up product information by barcode/UPC.
+Look up product information by barcode/UPC using the user's configured UPC databases.
 
 **Request:**
 ```json
 {
-  "barcode": "012345678901"
+  "upc": "012345678901"
 }
 ```
-
-**Response:**
-```json
-{
-  "success": true,
-  "barcode": "012345678901",
-  "product": {
-    "name": "Product Name",
-    "brand": "Brand Name",
-    "description": "Product description",
-    "category": "Electronics"
-  },
-  "source": "UPC Item DB"
-}
-```
-
-### Multi Barcode Lookup
-
-#### POST /api/ai/barcode-lookup-multi
-
-Look up multiple barcodes at once.
-
-**Request:**
-```json
-{
-  "barcodes": ["012345678901", "098765432109"]
-}
-```
-
-**Response:**
-```json
-{
-  "results": [
-    {
-      "barcode": "012345678901",
-      "success": true,
-      "product": { ... }
-    },
-    {
-      "barcode": "098765432109",
-      "success": false,
-      "error": "Product not found"
-    }
-  ]
-}
-```
-
-### Scan QR Code from Image
-
-#### POST /api/ai/scan-qr
-
-Scan and decode a QR code from an image.
-
-**Request:** (multipart/form-data)
-- `file`: Image file
 
 **Response:**
 ```json
 {
   "found": true,
-  "content": "https://example.com/#/location/123",
+  "name": "Product Name",
+  "description": "Product description",
+  "brand": "Brand Name",
+  "model_number": "MODEL-123",
+  "estimated_value": 29.99,
+  "estimation_date": "01/15/24",
+  "category": "Electronics",
   "raw_response": null
+}
+```
+
+### Multi-Database Barcode Lookup
+
+#### POST /api/ai/barcode-lookup-multi
+
+Look up a barcode in a specific database or the next database in the user's priority order. Supports iterating through multiple databases sequentially.
+
+**Request:**
+```json
+{
+  "upc": "012345678901",
+  "database_id": null
+}
+```
+
+`database_id` is optional. If omitted, the first database in the user's priority list is used.
+
+**Response:**
+```json
+{
+  "found": true,
+  "source": "UPC Item DB",
+  "name": "Product Name",
+  "brand": "Brand Name",
+  "has_next_database": true,
+  "next_database_id": "barcodelookup",
+  "next_database_name": "Barcode Lookup"
 }
 ```
 
@@ -1111,7 +1133,7 @@ Scan and decode a QR code from an image.
 
 #### POST /api/ai/scan-qr
 
-Scan and decode a QR code from an image.
+Scan and decode a QR code from an image using AI.
 
 **Request:** (multipart/form-data)
 - `file`: Image file
@@ -1129,7 +1151,7 @@ Scan and decode a QR code from an image.
 
 #### POST /api/ai/scan-barcode
 
-Scan and decode barcode from an image.
+Scan and decode a barcode (UPC/EAN) from an image using AI.
 
 **Request:** (multipart/form-data)
 - `file`: Image file
@@ -1187,7 +1209,7 @@ Get list of available AI providers.
 
 #### POST /api/ai/test-connection
 
-Test all enabled AI providers and plugins in priority order. Returns a summary of which providers are working and which have issues. This endpoint is useful for verifying AI configuration and can be used by companion apps.
+Test all enabled AI providers and plugins in priority order. Returns a summary of which providers are working and which have issues. Authentication required.
 
 **Response:**
 ```json
@@ -1215,7 +1237,7 @@ Test all enabled AI providers and plugins in priority order. Returns a summary o
       "provider_id": "chatgpt",
       "provider_name": "ChatGPT (OpenAI)",
       "success": false,
-      "message": "API key not configured. Add your OpenAI API key in AI Provider settings.",
+      "message": "API key not configured.",
       "priority": 2,
       "is_plugin": false
     }
@@ -1226,35 +1248,20 @@ Test all enabled AI providers and plugins in priority order. Returns a summary o
 }
 ```
 
-**Response Fields:**
-- `overall_success`: `true` if at least one provider is working
-- `summary`: Human-readable summary of test results
-- `results`: Array of individual test results, sorted by priority
-  - `provider_id`: Unique identifier (prefixed with `plugin_` for plugins)
-  - `provider_name`: Display name of the provider
-  - `success`: Whether the connection test passed
-  - `message`: Detailed status message or error description
-  - `priority`: Provider priority (lower = higher priority)
-  - `is_plugin`: `true` if this is a custom LLM plugin
-- `total_providers`: Total number of enabled providers tested
-- `working_providers`: Number of providers that passed the test
-- `failed_providers`: Number of providers that failed the test
-
 **Test Order:**
-1. Enabled plugins are tested first (sorted by their priority)
-2. Enabled AI providers are tested next (sorted by their priority)
+1. Enabled plugins (sorted by priority)
+2. Enabled AI providers (sorted by priority)
 
 **Provider-Specific Tests:**
 - **Plugins**: Calls the `/health` endpoint and checks for the `/nesventory/identify/image` endpoint
-- **Gemini**: Makes a minimal API call to verify the API key and model configuration
+- **Gemini**: Makes a minimal `generate_content` call via the `google-genai` SDK to verify the API key and model
 - **ChatGPT/OpenAI**: Verifies the API key by calling the `/v1/models` endpoint
-- **Alexa+**: Reports configuration status (integration not yet fully implemented)
 
 ### Run AI Valuation
 
 #### POST /api/ai/run-valuation
 
-Run AI valuation on all items.
+Run AI valuation on all items that are due for re-valuation based on the user's schedule settings.
 
 **Response:**
 ```json
@@ -1409,8 +1416,8 @@ Import items and images from Encircle XLSX export.
   "locations_created": 1,
   "sublocations_created": 8,
   "parent_location_name": "Maine Cottage",
-  "log": [ ... ],
-  "warnings": [ ... ],
+  "log": [],
+  "warnings": [],
   "quota_exceeded": false
 }
 ```
@@ -1438,8 +1445,8 @@ Import items from a CSV file.
   "photos_attached": 85,
   "photos_failed": 2,
   "locations_created": 5,
-  "log": [ ... ],
-  "warnings": [ ... ]
+  "log": [],
+  "warnings": []
 }
 ```
 
@@ -1487,8 +1494,7 @@ List media files with filtering and pagination options.
       "path": "/uploads/photos/...",
       "thumbnail_path": "/uploads/photos/thumbnails/...",
       "item_name": "Laptop",
-      "location_name": "Living Room",
-      ...
+      "location_name": "Living Room"
     }
   ],
   "total": 150,
@@ -1651,6 +1657,12 @@ Endpoints for managing application logs (admin only).
 
 **Admin only.** Force log rotation.
 
+### Cleanup Old Logs
+
+#### POST /api/logs/cleanup
+
+**Admin only.** Manually trigger cleanup of old log files based on retention settings.
+
 ### List Log Files
 
 #### GET /api/logs/files
@@ -1688,8 +1700,8 @@ Endpoints for managing application logs (admin only).
 ```json
 {
   "version": "1.0.0",
-  "log_entries": [ ... ],
-  "system_info": { ... }
+  "log_entries": [],
+  "system_info": {}
 }
 ```
 
@@ -1724,7 +1736,7 @@ Get comprehensive system status including health, version, and database informat
 
 #### GET /api/health
 
-Simple health check endpoint.
+Simple health check endpoint. No authentication required.
 
 **Response:**
 ```json
@@ -1737,7 +1749,7 @@ Simple health check endpoint.
 
 #### GET /api/version
 
-Get application version information.
+Get application version information. No authentication required.
 
 **Response:**
 ```json
@@ -1751,7 +1763,7 @@ Get application version information.
 
 #### GET /api/config-status
 
-**Authenticated users only.** Get current system configuration status.
+**Authenticated users only.** Get current system configuration status, including Gemini AI and Google OAuth setup.
 
 **Response:**
 ```json
@@ -1761,8 +1773,34 @@ Get application version information.
   "google_client_secret_masked": "••••••••abcd",
   "gemini_configured": true,
   "gemini_api_key_masked": "••••••••xyz",
-  "gemini_model": "gemini-1.5-pro",
-  "available_gemini_models": ["gemini-1.5-pro", "gemini-1.5-flash"],
+  "gemini_model": "gemini-2.0-flash-exp",
+  "available_gemini_models": [
+    {
+      "id": "gemini-2.0-flash-exp",
+      "name": "Gemini 2.0 Flash (Experimental)",
+      "description": "Latest experimental flash model"
+    },
+    {
+      "id": "gemini-1.5-flash",
+      "name": "Gemini 1.5 Flash",
+      "description": "Fast and efficient for high-throughput tasks"
+    },
+    {
+      "id": "gemini-1.5-flash-8b",
+      "name": "Gemini 1.5 Flash-8B",
+      "description": "Smaller, faster for tight latency requirements"
+    },
+    {
+      "id": "gemini-1.5-pro",
+      "name": "Gemini 1.5 Pro",
+      "description": "Best for complex reasoning, long context"
+    },
+    {
+      "id": "gemini-exp-1206",
+      "name": "Gemini Experimental (1206)",
+      "description": "Latest experimental features"
+    }
+  ],
   "gemini_from_env": false,
   "google_from_env": false
 }
@@ -1778,7 +1816,7 @@ Get application version information.
 ```json
 {
   "gemini_api_key": "new_api_key",
-  "gemini_model": "gemini-1.5-pro",
+  "gemini_model": "gemini-2.0-flash-exp",
   "google_client_id": "new_client_id",
   "google_client_secret": "new_client_secret"
 }
@@ -1793,6 +1831,8 @@ Get application version information.
   "google_oauth_configured": true
 }
 ```
+
+**Note:** The `gemini_model` field cannot be updated if the `GEMINI_MODEL` environment variable is set; it will be read-only in that case.
 
 ## System Settings
 
@@ -1809,7 +1849,7 @@ Endpoints for managing global system settings.
 {
   "id": 1,
   "gemini_api_key": "masked",
-  "gemini_model": "gemini-1.5-pro",
+  "gemini_model": "gemini-2.0-flash-exp",
   "custom_location_categories": ["Primary", "Room", "Garage", "Attic"],
   "updated_at": "2024-01-01T00:00:00Z"
 }
@@ -1832,7 +1872,7 @@ Endpoints for managing global system settings.
 
 #### GET /api/settings/location-categories
 
-**Public (Authenticated).** Get the list of configured location categories. Returns default list if none configured.
+**Authenticated users.** Get the list of configured location categories. Returns default list if none configured.
 
 **Response:**
 ```json
@@ -1840,20 +1880,42 @@ Endpoints for managing global system settings.
   "Primary",
   "Room",
   "Garage",
-  "Attic",
-  "Dungeon"
+  "Attic"
 ]
 ```
 
 ## Printer (NIIMBOT)
 
-Endpoints for managing and using NIIMBOT label printers.
+Endpoints for managing and using NIIMBOT label printers. Most printer endpoints require authentication.
 
-### Get Printer Configuration
+**Authentication Exceptions:**
+- `GET /api/printer/models`: No authentication required
+- `GET /api/printer/system/available`: No authentication required
+
+**Supported Models (9 total):**
+
+| Model ID | Label | DPI | Printhead Width | Feed Direction |
+|---|---|---|---|---|
+| `d11_h` | Niimbot D11-H | 300 | 136 px | left (vertical) |
+| `d101` | Niimbot D101 | 203 | 192 px | left (vertical) |
+| `d110` | Niimbot D110 | 203 | 96 px | left (vertical) |
+| `d110_m` | Niimbot D110-M | 203 | 96 px | left (vertical) |
+| `b1` | Niimbot B1 | 203 | 384 px | top (horizontal) |
+| `b21` | Niimbot B21 | 203 | 384 px | top (horizontal) |
+| `b21_pro` | Niimbot B21 Pro | 300 | 591 px | top (horizontal) |
+| `b21_c2b` | Niimbot B21-C2B | 203 | 384 px | top (horizontal) |
+| `m2_h` | Niimbot M2-H | 300 | 591 px | top (horizontal) |
+
+**Connection Types:**
+- `usb`: USB direct connection
+- `bluetooth`: Bluetooth (BLE or RFCOMM, auto-detected or specified via `bluetooth_type`)
+- `server`: Network connection to printer attached to Docker host
+
+### Get Printer Configuration (Legacy)
 
 #### GET /api/printer/config
 
-Get the current user's NIIMBOT printer configuration.
+Get the current user's NIIMBOT printer configuration from the legacy JSON field. For the Phase 2D profile-based configuration, use `GET /api/printer/config/active`.
 
 **Response:**
 ```json
@@ -1861,16 +1923,21 @@ Get the current user's NIIMBOT printer configuration.
   "enabled": true,
   "model": "d11_h",
   "connection_type": "server",
+  "bluetooth_type": "auto",
   "address": "AA:BB:CC:DD:EE:FF",
-  "density": 3
+  "density": 3,
+  "label_width": null,
+  "label_height": null,
+  "label_length_mm": null,
+  "print_direction": "left"
 }
 ```
 
-### Update Printer Configuration
+### Update Printer Configuration (Legacy)
 
 #### PUT /api/printer/config
 
-Update the current user's NIIMBOT printer configuration.
+Update the current user's NIIMBOT printer configuration in the legacy JSON field. For Phase 2D profile-based configuration, use the printer profiles endpoints.
 
 **Request:**
 ```json
@@ -1878,8 +1945,18 @@ Update the current user's NIIMBOT printer configuration.
   "enabled": true,
   "model": "d11_h",
   "connection_type": "server",
+  "bluetooth_type": "auto",
   "address": "AA:BB:CC:DD:EE:FF",
-  "density": 3
+  "density": 3,
+  "label_length_mm": 40.0
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Printer configuration updated successfully"
 }
 ```
 
@@ -1887,14 +1964,56 @@ Update the current user's NIIMBOT printer configuration.
 
 #### POST /api/printer/print-label
 
-Print a QR code label for a location using the configured NIIMBOT printer.
+Print a QR code label for a location or item using the NIIMBOT printer. The print endpoint tries the Phase 2D profile-based configuration first; if none is active, it falls back to the legacy JSON configuration.
+
+Exactly one of (location_id + location_name) or (item_id + item_name) must be provided.
 
 **Request:**
 ```json
 {
   "location_id": "uuid",
   "location_name": "Storage Box 1",
-  "is_container": true
+  "is_container": true,
+  "label_length_mm": 40.0
+}
+```
+
+Or for item labels:
+
+```json
+{
+  "item_id": "uuid",
+  "item_name": "Dell Laptop",
+  "is_container": false,
+  "label_length_mm": null
+}
+```
+
+**Fields:**
+- `location_id` + `location_name`: Print a location QR code
+- `item_id` + `item_name`: Print an item QR code
+- `is_container`: Affects label styling for container locations
+- `label_length_mm`: Optional per-print label length override in millimeters
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Label printed successfully"
+}
+```
+
+### Print Test Label
+
+#### POST /api/printer/print-test-label
+
+Print a test label with a QR code, timestamp, and printer model name. Uses the legacy JSON configuration.
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Test label printed successfully"
 }
 ```
 
@@ -1910,6 +2029,7 @@ Test the connection to a NIIMBOT printer with the provided configuration.
   "enabled": true,
   "model": "d11_h",
   "connection_type": "server",
+  "bluetooth_type": "auto",
   "address": "AA:BB:CC:DD:EE:FF",
   "density": 3
 }
@@ -1923,20 +2043,338 @@ Test the connection to a NIIMBOT printer with the provided configuration.
 }
 ```
 
+### Get Printer Status
+
+#### GET /api/printer/status
+
+Get detailed hardware status of the connected NIIMBOT printer (serial number, firmware version).
+
+**Response:**
+```json
+{
+  "serial": "D11H-XXXXXXXX",
+  "soft_version": "1.0.0",
+  "hard_version": "1.0"
+}
+```
+
 ### Get Printer Models
 
 #### GET /api/printer/models
 
-Get a list of supported NIIMBOT printer models.
+Get a list of all 9 supported NIIMBOT printer models. No authentication required.
 
 **Response:**
 ```json
 {
   "models": [
-    {"value": "d11_h", "label": "Niimbot D11-H (300dpi)", "max_width": 136}
+    {"value": "d11_h", "label": "Niimbot D11-H (300dpi)", "max_width": 136, "dpi": 300},
+    {"value": "d101", "label": "Niimbot D101 (203dpi)", "max_width": 192, "dpi": 203},
+    {"value": "d110", "label": "Niimbot D110 (203dpi)", "max_width": 96, "dpi": 203},
+    {"value": "d110_m", "label": "Niimbot D110-M (203dpi)", "max_width": 96, "dpi": 203},
+    {"value": "b1", "label": "Niimbot B1 (203dpi)", "max_width": 384, "dpi": 203},
+    {"value": "b21", "label": "Niimbot B21 (203dpi)", "max_width": 384, "dpi": 203},
+    {"value": "b21_pro", "label": "Niimbot B21 Pro (300dpi)", "max_width": 591, "dpi": 300},
+    {"value": "b21_c2b", "label": "Niimbot B21-C2B (203dpi)", "max_width": 384, "dpi": 203},
+    {"value": "m2_h", "label": "Niimbot M2-H (300dpi)", "max_width": 591, "dpi": 300}
   ]
 }
 ```
+
+### Check System Printers Available
+
+#### GET /api/printer/system/available
+
+Check if system printer integration (CUPS) is available. No authentication required.
+
+**Response:**
+```json
+{
+  "available": true,
+  "message": "CUPS printing available"
+}
+```
+
+### List System Printers
+
+#### GET /api/printer/system/printers
+
+Get list of available system printers via CUPS. **Authentication required.** Requires CUPS to be running and accessible.
+
+**Response:**
+```json
+[
+  {
+    "name": "HP_LaserJet_Pro",
+    "info": "HP LaserJet Pro",
+    "location": "Office",
+    "make_model": "HP LaserJet Pro 400",
+    "state": 3,
+    "state_message": "Idle",
+    "is_default": true,
+    "accepting_jobs": true
+  }
+]
+```
+
+### Print to System Printer
+
+#### POST /api/printer/system/print
+
+Print a label to a system printer (via CUPS). **Authentication required.** Creates a standard label image with optional QR code.
+
+**Request:**
+```json
+{
+  "printer_name": "HP_LaserJet_Pro",
+  "label_text": "Storage Box 1",
+  "qr_url": "https://example.com/#/location/uuid",
+  "label_type": "location",
+  "target_id": "uuid"
+}
+```
+
+### Print Location Label to System Printer
+
+#### POST /api/printer/system/print-location
+
+Print a location label to a system printer. **Authentication required.** Generates a QR code pointing to the location page.
+
+**Request:**
+```json
+{
+  "printer_name": "HP_LaserJet_Pro",
+  "location_id": "uuid"
+}
+```
+
+### Print Item Label to System Printer
+
+#### POST /api/printer/system/print-item
+
+Print an item label to a system printer. **Authentication required.** Generates a QR code pointing to the item details page.
+
+**Request:**
+```json
+{
+  "printer_name": "HP_LaserJet_Pro",
+  "item_id": "uuid"
+}
+```
+
+## Printer Profiles (Phase 2D)
+
+Phase 2D introduced a separation between printer hardware profiles and label size profiles. This allows independent management of the physical printer configuration and label stock dimensions. All profile endpoints are under `/api/printer/profiles/` and `/api/printer/config/`, and all require authentication.
+
+**Architecture:**
+- `PrinterProfile`: Hardware configuration (model, connection, printhead specs, DPI, max dimensions)
+- `LabelProfile`: Label dimensions in mm (width, length) with a user-defined name
+- `UserPrinterConfig`: Links a PrinterProfile + LabelProfile as the active combination
+
+**Migration:** On startup, existing legacy `niimbot_printer_config` JSON is automatically migrated to the new profile-based schema. The legacy config is preserved for fallback.
+
+### List Printer Profiles
+
+#### GET /api/printer/profiles/printer
+
+Get all printer hardware profiles for the current user.
+
+**Response:**
+```json
+[
+  {
+    "id": "uuid",
+    "name": "My D11-H",
+    "model": "d11_h",
+    "connection_type": "server",
+    "bluetooth_type": "auto",
+    "address": null,
+    "default_density": 3,
+    "printhead_width_px": 136,
+    "dpi": 300,
+    "print_direction": "left",
+    "max_width_mm": 12.0,
+    "max_length_mm": 200.0,
+    "is_enabled": true,
+    "is_default": true,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+]
+```
+
+### Create Printer Profile
+
+#### POST /api/printer/profiles/printer
+
+Create a new printer hardware profile. Hardware specs (printhead width, DPI, direction, max dimensions) are automatically populated from the model ID.
+
+**Request:**
+```json
+{
+  "name": "My D11-H",
+  "model": "d11_h",
+  "connection_type": "server",
+  "bluetooth_type": "auto",
+  "address": null,
+  "default_density": 3
+}
+```
+
+**Fields:**
+- `name`: Display name for this printer profile
+- `model`: One of the 9 supported model IDs (e.g., `d11_h`, `b21`)
+- `connection_type`: `usb`, `bluetooth`, or `server`
+- `bluetooth_type`: `auto`, `ble`, or `rfcomm` (only used when `connection_type` is `bluetooth`)
+- `address`: Bluetooth address or network address (optional depending on connection type)
+- `default_density`: Print density 1-5 (clamped to model maximum)
+
+**Response:** `PrinterProfileResponse` (201 Created)
+
+### Delete Printer Profile
+
+#### DELETE /api/printer/profiles/printer/{profile_id}
+
+Delete a printer profile.
+
+**Response:**
+```json
+{
+  "status": "deleted",
+  "id": "uuid"
+}
+```
+
+### List Label Profiles
+
+#### GET /api/printer/profiles/label
+
+Get all label profiles for the current user.
+
+**Response:**
+```json
+[
+  {
+    "id": "uuid",
+    "name": "40mm Labels",
+    "description": "Standard 12x40mm labels",
+    "width_mm": 12.0,
+    "length_mm": 40.0,
+    "is_default": false,
+    "is_custom": true,
+    "created_at": "2024-01-01T00:00:00Z",
+    "updated_at": "2024-01-01T00:00:00Z"
+  }
+]
+```
+
+### Create Label Profile
+
+#### POST /api/printer/profiles/label
+
+Create a new label profile with custom dimensions.
+
+**Request:**
+```json
+{
+  "name": "40mm Labels",
+  "description": "Standard 12x40mm labels",
+  "width_mm": 12.0,
+  "length_mm": 40.0
+}
+```
+
+**Response:** `LabelProfileResponse` (201 Created)
+
+### Update Label Profile
+
+#### PUT /api/printer/profiles/label/{profile_id}
+
+Update an existing label profile. All fields are optional (partial update).
+
+**Request:**
+```json
+{
+  "name": "Long Labels",
+  "length_mm": 60.0
+}
+```
+
+**Response:** `LabelProfileResponse`
+
+### Delete Label Profile
+
+#### DELETE /api/printer/profiles/label/{profile_id}
+
+Delete a label profile.
+
+**Response:**
+```json
+{
+  "status": "deleted",
+  "id": "uuid"
+}
+```
+
+### Get Active Printer Configuration
+
+#### GET /api/printer/config/active
+
+Get the active printer+label configuration (the linked `UserPrinterConfig`). Falls back with a 404 if no profile-based config exists (use legacy `GET /api/printer/config` in that case).
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "printer_profile": {
+    "id": "uuid",
+    "name": "My D11-H",
+    "model": "d11_h",
+    "printhead_width_px": 136,
+    "dpi": 300,
+    "print_direction": "left",
+    "max_width_mm": 12.0,
+    "max_length_mm": 200.0,
+    "is_enabled": true,
+    "is_default": true
+  },
+  "label_profile": {
+    "id": "uuid",
+    "name": "40mm Labels",
+    "width_mm": 12.0,
+    "length_mm": 40.0,
+    "is_default": false,
+    "is_custom": true
+  },
+  "density": 3,
+  "is_active": true,
+  "is_default": true,
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
+}
+```
+
+### Activate Printer Configuration
+
+#### POST /api/printer/config/activate
+
+Activate a specific printer+label combination. Deactivates any currently active configuration. Validates that the label dimensions fit within the printer's maximum dimensions.
+
+**Request:**
+```json
+{
+  "printer_profile_id": "uuid",
+  "label_profile_id": "uuid"
+}
+```
+
+**Response:** `UserPrinterConfigResponse`
+
+**Validation errors (400):**
+- Label width exceeds printer maximum
+- Label length exceeds printer maximum
+- Printer profile not found
+- Label profile not found
 
 ## Error Responses
 
@@ -1953,11 +2391,12 @@ All endpoints may return error responses in the following format:
 - `200 OK`: Request succeeded
 - `201 Created`: Resource created successfully
 - `204 No Content`: Request succeeded with no response body
-- `400 Bad Request`: Invalid request data
-- `401 Unauthorized`: Authentication required or invalid token
+- `400 Bad Request`: Invalid request data or validation failure
+- `401 Unauthorized`: Authentication required or invalid/expired token
 - `403 Forbidden`: Insufficient permissions
 - `404 Not Found`: Resource not found
-- `500 Internal Server Error`: Server error
+- `503 Service Unavailable`: External service (e.g., CUPS) not available
+- `500 Internal Server Error`: Server-side error
 
 ## Authentication Headers
 
@@ -1967,44 +2406,27 @@ For authenticated endpoints, include the JWT token in the Authorization header:
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-## Rate Limiting
+Alternatively, the HttpOnly cookie `access_token` set during login is accepted automatically by browsers. API key authentication is also supported for programmatic access:
 
-Currently, there is no rate limiting implemented. Consider implementing rate limiting for production use.
-
-## Pagination
-
-Some list endpoints support pagination with the following query parameters:
-
-- `page`: Page number (starting from 1)
-- `per_page`: Number of items per page (max: 100)
-
-Response includes pagination metadata:
-
-```json
-{
-  "items": [ ... ],
-  "total": 500,
-  "page": 1,
-  "per_page": 50,
-  "total_pages": 10
-}
+```
+X-API-Key: your-64-char-hex-api-key
 ```
 
 ## File Upload Limits
 
-- Photos: JPEG, PNG, GIF, WebP
-- Documents: PDF, TXT
-- Videos: MP4, MPEG, MOV, AVI, WebM
+- **Photos:** JPEG, PNG, GIF, WebP
+- **Documents:** PDF, TXT
+- **Videos:** MP4, MPEG, MOV, AVI, WebM
 
-Maximum file sizes are configured at the application level.
+Maximum file sizes are configured at the application/reverse-proxy level.
 
 ## CORS
 
-CORS is configured via the `CORS_ORIGINS` environment variable. Update this to allow requests from your frontend domain.
+CORS is configured via the `CORS_ORIGINS` environment variable. Separate multiple origins with commas.
 
 ## API Versioning
 
-The current API does not include version numbers in the URL. Breaking changes will be communicated through release notes.
+The current API does not include version numbers in the URL. Breaking changes are communicated through release notes.
 
 ## Support
 
