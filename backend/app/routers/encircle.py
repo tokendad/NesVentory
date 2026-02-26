@@ -724,7 +724,7 @@ def process_encircle_import(
         if images:
             temp_dir = Path(tempfile.mkdtemp())
             for filename, content in images:
-                img_path = temp_dir / filename
+                img_path = temp_dir / Path(filename).name  # Strip directory components to prevent path traversal
                 with open(img_path, "wb") as f:
                     f.write(content)
                 image_paths.append(img_path)

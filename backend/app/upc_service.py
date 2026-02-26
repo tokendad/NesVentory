@@ -201,9 +201,9 @@ If the UPC is not in your knowledge base or you cannot identify it, return found
             return UPCLookupResult(
                 found=False,
                 source="gemini",
-                raw_response=f"Error: {str(e)}"
+                raw_response="Service error"
             )
-    
+
     def _parse_response(self, response_text: str) -> UPCLookupResult:
         """Parse the Gemini response text."""
         result = UPCLookupResult(found=False, source="gemini")
@@ -310,9 +310,9 @@ class UPCDatabaseOrg(UPCDatabase):
             return UPCLookupResult(
                 found=False,
                 source="upcdatabase",
-                raw_response=f"Error: {str(e)}"
+                raw_response="Service error"
             )
-    
+
     def _parse_response(self, data: dict) -> UPCLookupResult:
         """
         Parse the upcdatabase.org API response.
@@ -414,9 +414,9 @@ class BarcodeLookupDatabase(UPCDatabase):
             return UPCLookupResult(
                 found=False,
                 source="barcodelookup",
-                raw_response=f"Error: {str(e)}"
+                raw_response="Service error"
             )
-    
+
     def _parse_response(self, data: dict) -> UPCLookupResult:
         """
         Parse the barcodelookup.com API response.

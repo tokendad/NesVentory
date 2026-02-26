@@ -39,6 +39,27 @@ SERVICE_UNAVAILABLE_MESSAGE = (
     "This is usually brief. Please wait a moment and try again."
 )
 
+MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+async def read_limited(file: UploadFile, max_bytes: int = MAX_IMAGE_BYTES) -> bytes:
+    """Read an uploaded file with a size cap to prevent memory exhaustion."""
+    data = await file.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise HTTPException(status_code=413, detail="Image exceeds 10 MB limit.")
+    return data
+
+
+def sanitize_raw_response(text: str, max_length: int = 500) -> str:
+    """Truncate and sanitize raw AI response text for client consumption."""
+    if not text:
+        return ""
+    # Truncate to prevent large payloads
+    if len(text) > max_length:
+        return text[:max_length] + "... [truncated]"
+    return text
+
+
 # Track last AI request time for throttling
 _last_ai_request_time: float = 0.0
 
@@ -448,8 +469,8 @@ def parse_data_tag_response(response_text: str) -> DataTagInfo:
                     result.additional_info = additional
     except json.JSONDecodeError:
         logger.warning("Failed to parse JSON from Gemini data tag response")
-        result.raw_response = response_text
-    
+        result.raw_response = sanitize_raw_response(response_text)
+
     return result
 
 
@@ -576,11 +597,19 @@ async def test_ai_connection(
             ))
         except Exception as e:
             logger.error(f"Error testing plugin {plugin.name}: {e}")
+            if is_quota_error(e):
+                user_msg = "API quota exceeded. Try again later or check your billing."
+            elif "api_key" in str(e).lower() or "api key" in str(e).lower() or "API_KEY_INVALID" in str(e):
+                user_msg = "Invalid or expired API key."
+            elif "permission" in str(e).lower() or "403" in str(e):
+                user_msg = "Permission denied. Check API key permissions."
+            else:
+                user_msg = "Connection test failed. Check server logs for details."
             results.append(schemas.AIProviderTestResult(
                 provider_id=f"plugin_{plugin.id}",
                 provider_name=f"Plugin: {plugin.name}",
                 success=False,
-                message=f"Test failed: {str(e)}",
+                message=user_msg,
                 priority=plugin.priority,
                 is_plugin=True
             ))
@@ -716,11 +745,20 @@ async def test_ai_connection(
                                 is_plugin=False
                             ))
                 except Exception as e:
+                    logger.error(f"ChatGPT connection test failed: {e}")
+                    if is_quota_error(e):
+                        user_msg = "API quota exceeded. Try again later or check your billing."
+                    elif "api_key" in str(e).lower() or "api key" in str(e).lower() or "API_KEY_INVALID" in str(e):
+                        user_msg = "Invalid or expired API key."
+                    elif "permission" in str(e).lower() or "403" in str(e):
+                        user_msg = "Permission denied. Check API key permissions."
+                    else:
+                        user_msg = "Connection test failed. Check server logs for details."
                     results.append(schemas.AIProviderTestResult(
                         provider_id=provider_id,
                         provider_name=provider_name,
                         success=False,
-                        message=f"Connection test failed: {str(e)}",
+                        message=user_msg,
                         priority=priority,
                         is_plugin=False
                     ))
@@ -790,6 +828,7 @@ async def test_ai_connection(
 async def detect_items(
     file: UploadFile = File(..., description="Image file to analyze for items"),
     use_plugin: bool = True,  # Parameter to enable/disable plugin usage
+    current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -810,8 +849,8 @@ async def detect_items(
         
         if plugins:
             # Read the image data once
-            image_data = await file.read()
-            
+            image_data = await read_limited(file)
+
             # Try each plugin in priority order
             for plugin in plugins:
                 logger.info(f"Trying plugin: {plugin.name} for item detection")
@@ -851,7 +890,7 @@ async def detect_items(
         from google.genai import types
 
         # Read the image
-        image_data = await file.read()
+        image_data = await read_limited(file)
 
         # Create the client and model with effective model selection
         gemini_model = get_effective_gemini_model(db)
@@ -889,7 +928,7 @@ Return an empty array [] if no identifiable items are found."""
 
         return DetectionResult(
             items=items,
-            raw_response=response_text if not items else None
+            raw_response=sanitize_raw_response(response_text) if not items else None
         )
 
     except ImportError:
@@ -929,6 +968,7 @@ Return an empty array [] if no identifiable items are found."""
 async def parse_data_tag(
     file: UploadFile = File(..., description="Image of a data tag/label to parse"),
     use_plugin: bool = True,  # New parameter to enable/disable plugin usage
+    current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -947,8 +987,8 @@ async def parse_data_tag(
         
         if plugins:
             # Read the image data once
-            image_data = await file.read()
-            
+            image_data = await read_limited(file)
+
             # Try each plugin in priority order
             for plugin in plugins:
                 logger.info(f"Trying plugin: {plugin.name} for data tag parsing")
@@ -988,7 +1028,7 @@ async def parse_data_tag(
         from ..settings_service import get_effective_gemini_model
 
         # Read the image
-        image_data = await file.read()
+        image_data = await read_limited(file)
 
         # Create the client and model with effective model selection
         gemini_model = get_effective_gemini_model(db)
@@ -1042,7 +1082,7 @@ If no data tag information can be read from the image, return:
         # If parsing failed, include raw response
         if not any([result.manufacturer, result.brand, result.model_number,
                     result.serial_number, result.production_date]):
-            result.raw_response = response_text
+            result.raw_response = sanitize_raw_response(response_text)
 
         return result
 
@@ -1101,9 +1141,9 @@ def parse_barcode_lookup_response(response_text: str) -> BarcodeLookupResult:
                     result.found = True
                 else:
                     result.found = False
-                    result.raw_response = response_text
+                    result.raw_response = sanitize_raw_response(response_text)
                     return result
-                
+
                 # Extract product name
                 result.name = (
                     parsed.get("name") or
@@ -1164,8 +1204,8 @@ def parse_barcode_lookup_response(response_text: str) -> BarcodeLookupResult:
                     
     except json.JSONDecodeError:
         logger.warning("Failed to parse JSON from Gemini barcode lookup response")
-        result.raw_response = response_text
-    
+        result.raw_response = sanitize_raw_response(response_text)
+
     return result
 
 
@@ -1173,6 +1213,7 @@ def parse_barcode_lookup_response(response_text: str) -> BarcodeLookupResult:
 async def lookup_barcode(
     request: BarcodeLookupRequest,
     use_plugin: bool = True,  # New parameter to enable/disable plugin usage
+    current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -1297,7 +1338,7 @@ If the UPC is not in your knowledge base or you cannot identify it, return found
 
         # If parsing failed or not found, include raw response
         if not result.found and not result.raw_response:
-            result.raw_response = response_text
+            result.raw_response = sanitize_raw_response(response_text)
 
         return result
 
@@ -1516,21 +1557,21 @@ def parse_qr_scan_response(response_text: str) -> QRScanResult:
                 result.found = found is True or (isinstance(found, str) and found.lower() == "true")
                 
                 if not result.found:
-                    result.raw_response = response_text
+                    result.raw_response = sanitize_raw_response(response_text)
                     return result
-                
+
                 # Extract content
                 content = parsed.get("content") or parsed.get("url") or parsed.get("text")
                 if content:
                     result.content = str(content)
                 else:
                     result.found = False
-                    result.raw_response = response_text
-                    
+                    result.raw_response = sanitize_raw_response(response_text)
+
     except json.JSONDecodeError:
         logger.warning("Failed to parse JSON from Gemini QR scan response")
-        result.raw_response = response_text
-    
+        result.raw_response = sanitize_raw_response(response_text)
+
     return result
 
 
@@ -1568,7 +1609,7 @@ async def scan_qr_code(
 
         throttle_ai_request()
 
-        image_data = await file.read()
+        image_data = await read_limited(file)
 
         gemini_model = get_effective_gemini_model(db)
         client = genai.Client(api_key=gemini_api_key)
@@ -1597,10 +1638,10 @@ Example format if no QR is found:
 
         response = client.models.generate_content(model=gemini_model, contents=[prompt, image_part])
         result = parse_qr_scan_response(response.text)
-        
+
         if not result.found and not result.raw_response:
-            result.raw_response = response.text
-        
+            result.raw_response = sanitize_raw_response(response.text)
+
         return result
         
     except ImportError:
@@ -1642,9 +1683,9 @@ def parse_barcode_scan_response(response_text: str) -> BarcodeScanResult:
                 result.found = found is True or (isinstance(found, str) and found.lower() == "true")
                 
                 if not result.found:
-                    result.raw_response = response_text
+                    result.raw_response = sanitize_raw_response(response_text)
                     return result
-                
+
                 # Extract UPC/barcode value
                 upc = (
                     parsed.get("upc") or
@@ -1653,7 +1694,7 @@ def parse_barcode_scan_response(response_text: str) -> BarcodeScanResult:
                     parsed.get("ean") or
                     None
                 )
-                
+
                 # Clean and validate the UPC using constants
                 if upc:
                     # Remove any non-digit characters
@@ -1662,15 +1703,15 @@ def parse_barcode_scan_response(response_text: str) -> BarcodeScanResult:
                         result.upc = upc_clean
                     else:
                         result.found = False
-                        result.raw_response = response_text
+                        result.raw_response = sanitize_raw_response(response_text)
                 else:
                     result.found = False
-                    result.raw_response = response_text
-                    
+                    result.raw_response = sanitize_raw_response(response_text)
+
     except json.JSONDecodeError:
         logger.warning("Failed to parse JSON from Gemini barcode scan response")
-        result.raw_response = response_text
-    
+        result.raw_response = sanitize_raw_response(response_text)
+
     return result
 
 
@@ -1706,8 +1747,8 @@ async def scan_barcode_image(
         
         if plugins:
             # Read the image data once
-            image_data = await file.read()
-            
+            image_data = await read_limited(file)
+
             # Try each plugin in priority order
             for plugin in plugins:
                 logger.info(f"Trying plugin: {plugin.name} for barcode scanning")
@@ -1748,7 +1789,7 @@ async def scan_barcode_image(
         throttle_ai_request()
 
         # Read the image
-        image_data = await file.read()
+        image_data = await read_limited(file)
 
         # Create the client and model with effective model selection
         gemini_model = get_effective_gemini_model(db)
@@ -1792,7 +1833,7 @@ Important:
 
         # If parsing failed or not found, include raw response
         if not result.found and not result.raw_response:
-            result.raw_response = response_text
+            result.raw_response = sanitize_raw_response(response_text)
 
         return result
 
