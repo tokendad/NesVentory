@@ -1,4 +1,9 @@
 # Changelog
+n## [6.12.4] - 2026-02-26
+### Fixed
+- Automated release 6.12.4
+- Tags: Bug Fix
+
 n## [6.12.3] - 2026-02-25
 ### Fixed
 - Automated release 6.12.3
