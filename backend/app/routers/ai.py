@@ -130,6 +130,9 @@ MAX_UPC_LENGTH = 14
 
 # Department 56 specialized identification prompt
 # Ported from tokendad/Plugin-Gemini geminiService.ts
+# NOTE: These constants are intentionally reserved for a follow-up PR that will wire
+# them into the detect-items endpoint when D56 mode is active. They are currently
+# unused — see issue #505 for implementation plan.
 D56_SYSTEM_INSTRUCTION = """You are the world's leading expert and archivist for Department 56 collectibles.
 
 YOUR EXPERTISE INCLUDES:

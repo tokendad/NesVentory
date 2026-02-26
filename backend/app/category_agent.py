@@ -1,9 +1,13 @@
 """
 CategoryAgent: TF-IDF + LogisticRegression text classifier for Department 56 item categorization.
 Learns series/category from item name + description via online training.
+
+Serialisation uses JSON (safe) rather than raw pickle to prevent RCE when model data
+is transmitted over the API (e.g. POST /agents/categorize/seed).
 """
-import pickle, base64, io, logging
+import base64, io, json, logging
 from typing import Optional
+import joblib
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
@@ -64,20 +68,36 @@ class CategoryAgent:
         return counts
 
     def serialize(self) -> str:
-        state = {'pipeline': self.pipeline, 'label_encoder': self.label_encoder, 'training_samples': self.training_samples, 'version': self.version, 'X': self._X, 'y': self._y}
-        buf = io.BytesIO()
-        pickle.dump(state, buf)
-        return base64.b64encode(buf.getvalue()).decode()
+        """Serialise agent state to a JSON string (safe — no arbitrary code execution)."""
+        pipeline_b64 = None
+        if self.pipeline is not None:
+            buf = io.BytesIO()
+            joblib.dump(self.pipeline, buf)
+            pipeline_b64 = base64.b64encode(buf.getvalue()).decode()
+        state = {
+            'training_samples': self.training_samples,
+            'version': self.version,
+            'X': self._X,
+            'y': self._y,
+            'pipeline_b64': pipeline_b64,
+        }
+        return json.dumps(state)
 
     @classmethod
     def deserialize(cls, data: str) -> 'CategoryAgent':
-        buf = io.BytesIO(base64.b64decode(data))
-        state = pickle.load(buf)
+        """Deserialise agent from JSON string produced by serialize()."""
+        try:
+            state = json.loads(data)
+        except (json.JSONDecodeError, ValueError) as exc:
+            raise ValueError("Invalid agent data: not valid JSON") from exc
         agent = cls()
-        agent.pipeline = state['pipeline']
-        agent.label_encoder = state['label_encoder']
-        agent.training_samples = state['training_samples']
-        agent.version = state['version']
-        agent._X = state['X']
-        agent._y = state['y']
+        agent.training_samples = int(state['training_samples'])
+        agent.version = int(state['version'])
+        agent._X = [str(x) for x in state.get('X', [])]
+        agent._y = [str(y) for y in state.get('Y') or state.get('y', [])]
+        if state.get('pipeline_b64'):
+            buf = io.BytesIO(base64.b64decode(state['pipeline_b64']))
+            agent.pipeline = joblib.load(buf)
+        if agent._y:
+            agent.label_encoder.fit(list(set(agent._y)))
         return agent

@@ -6,7 +6,7 @@ from typing import Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from ..deps import get_db
@@ -20,6 +20,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 AGENT_ID = "category_agent_v1"
+MAX_TRAINING_SAMPLES = 50_000
+
+# Known D56 series allow-list for feedback validation
+KNOWN_SERIES = {
+    "The Original Snow Village", "Dickens' Village", "New England Village",
+    "Alpine Village", "Christmas in the City", "North Pole Series",
+    "Little Town of Bethlehem", "Snow Village Halloween", "Figurines",
+    "General Village Accessories", "Disney Parks Village Series",
+    "Harry Potter Village", "Grinch Village", "Other",
+}
 
 
 def _load_agent(db: Session) -> CategoryAgent:
@@ -62,11 +72,18 @@ class PredictRequest(BaseModel):
 
 class FeedbackRequest(BaseModel):
     item_id: Optional[str] = None
-    input_text: str
-    predicted_series: Optional[str] = None
-    accepted_series: str
+    input_text: str = Field(..., max_length=500)
+    predicted_series: Optional[str] = Field(None, max_length=100)
+    accepted_series: str = Field(..., max_length=100)
     was_override: bool
     user_action: Optional[str] = None  # 'ACCEPTED' | 'REJECTED'
+
+    @field_validator('accepted_series')
+    @classmethod
+    def series_must_be_known(cls, v: str) -> str:
+        if v not in KNOWN_SERIES:
+            raise ValueError(f"Unknown series: {v!r}")
+        return v
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -88,6 +105,10 @@ def record_feedback(
     current_user: models.User = Depends(auth.get_current_user),
 ):
     agent = _load_agent(db)
+
+    # Reject if corpus is at capacity to prevent memory/storage exhaustion
+    if agent.training_samples >= MAX_TRAINING_SAMPLES:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Training corpus capacity reached")
 
     # Derive reward: +1 if accepted / not overridden, -1 if rejected/overridden
     if payload.user_action == "REJECTED" or payload.was_override:
@@ -125,16 +146,29 @@ def get_status(
 ):
     record = db.get(models.AgentModel, AGENT_ID)
     agent = _load_agent(db)
-    return {
+    result: dict = {
         "training_samples": agent.training_samples,
         "model_version": agent.version,
         "last_trained_at": record.last_trained_at if record else None,
-        "series_distribution": agent.get_series_distribution(),
     }
+    # Only expose detailed distribution to admins (avoids leaking user-submitted series strings)
+    if current_user.role == models.UserRole.ADMIN:
+        result["series_distribution"] = agent.get_series_distribution()
+    return result
 
 
 class SeedRequest(BaseModel):
-    model_data: str  # base64-encoded pickle from pretrain_category_agent.py
+    """Accept raw training data only — no pre-built model objects to prevent arbitrary code execution."""
+    X: list[str] = Field(..., description="Training input texts (item name + description)", max_length=50000)
+    y: list[str] = Field(..., description="Training labels (series names)")
+
+    @field_validator('y')
+    @classmethod
+    def labels_must_be_known(cls, v: list[str]) -> list[str]:
+        unknown = [s for s in v if s not in KNOWN_SERIES]
+        if unknown:
+            raise ValueError(f"Unknown series in labels: {unknown[:5]!r}")
+        return v
 
 
 @router.post("/categorize/seed", status_code=status.HTTP_200_OK)
@@ -143,13 +177,18 @@ def seed_agent(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    """Load a pre-trained CategoryAgent from the pretrain script output."""
+    """Seed the CategoryAgent from raw training data (re-trains server-side, no model upload)."""
     if current_user.role != models.UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-    try:
-        agent = CategoryAgent.deserialize(payload.model_data)
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid model data")
+    if len(payload.X) != len(payload.y):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="X and y must have equal length")
+    if len(payload.X) > MAX_TRAINING_SAMPLES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Too many training samples (max {MAX_TRAINING_SAMPLES})")
+    agent = CategoryAgent()
+    agent._X = [str(x)[:500] for x in payload.X]   # truncate each sample
+    agent._y = payload.y
+    agent.training_samples = len(agent._X)
+    agent._retrain()
     _save_agent(agent, db)
     return {"seeded": True, "training_samples": agent.training_samples, "model_version": agent.version}
 

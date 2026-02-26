@@ -7,8 +7,7 @@ Run once after deployment:
     VILLAGE_CHRONICLER_PATH=/data/thevillagechronicler.com python scripts/pretrain_category_agent.py
 
 Reads: Village Chronicler HTML archive (set VILLAGE_CHRONICLER_PATH env var)
-Writes: pretrained_agent.pkl.b64 — paste this into the agent_models table,
-        or use the /api/agents/categorize/seed endpoint (if implemented).
+Writes: pretrained_seed.json — POST this to /api/agents/categorize/seed (admin required)
 
 IMPORTANT: Image filenames in ItemImages/ do NOT always match official D56 item numbers.
 This script reads item_number from Collection HTML rows (not from image filenames).
@@ -154,25 +153,25 @@ def main():
         status = "✓" if predicted == expected else "✗"
         print(f"  {status} '{name}' → {predicted} ({confidence:.0%}) [expected: {expected}]")
 
-    # Serialize
-    output_file = Path(__file__).parent / 'pretrained_agent.pkl.b64'
-    serialized = agent.serialize()
+    # Save as JSON seed payload for POST /api/agents/categorize/seed
+    output_file = Path(__file__).parent / 'pretrained_seed.json'
+    seed_payload = {'X': agent._X, 'y': agent._y}
     with open(output_file, 'w') as f:
-        f.write(serialized)
-    print(f"\nSaved to: {output_file}")
-    print(f"File size: {len(serialized):,} bytes (base64)")
+        json.dump(seed_payload, f)
+    print(f"\nSaved seed payload to: {output_file}")
+    print(f"File size: {output_file.stat().st_size:,} bytes")
     print("\nTo seed into the database:")
-    print("  Use POST /api/agents/categorize/seed with the file content")
-    print("  Or insert directly into agent_models table with id='category_agent_v1'")
+    print("  POST /api/agents/categorize/seed with the JSON contents")
+    print("  (Admin account required)")
 
     # Also save a JSON summary for reference
     summary = {
         'training_samples': agent.training_samples,
         'model_version': agent.version,
         'series_distribution': counts,
-        'model_file': str(output_file),
+        'seed_file': str(output_file),
     }
-    summary_file = output_file.with_suffix('.json')
+    summary_file = output_file.parent / 'pretrained_summary.json'
     with open(summary_file, 'w') as f:
         json.dump(summary, f, indent=2)
     print(f"Summary saved to: {summary_file}")
