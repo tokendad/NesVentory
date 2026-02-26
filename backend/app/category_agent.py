@@ -37,7 +37,7 @@ class CategoryAgent:
             return {}
         label_idx = proba.argmax()
         predicted = self.label_encoder.inverse_transform([label_idx])[0]
-        return {"series": predicted, "confidence": round(confidence, 3), "training_samples": self.training_samples, "model_version": self.version}
+        return {"series": str(predicted), "confidence": round(confidence, 3), "training_samples": self.training_samples, "model_version": self.version}
 
     def learn(self, name: str, description: str, correct_series: str) -> None:
         text = f"{name} {description}".strip()

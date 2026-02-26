@@ -300,6 +300,51 @@ try:
 except Exception as e:
     print(f"Error seeding database: {e}")
 
+
+def auto_seed_category_agent():
+    """
+    Seed the CategoryAgent with pre-trained D56 data on first startup.
+    Reads backend/data/category_agent_seed.json (bundled in the Docker image).
+    Skips silently if the agent already has training data or the seed file is missing.
+    """
+    import json
+    from .category_agent import CategoryAgent
+    from .routers.agents import AGENT_ID, _save_agent
+
+    seed_file = Path(__file__).parent / "category_agent_seed.json"
+    if not seed_file.exists():
+        return
+
+    try:
+        db = SessionLocal()
+        record = db.get(models.AgentModel, AGENT_ID)
+        if record and record.training_samples and record.training_samples > 0:
+            db.close()
+            return  # Already seeded — skip
+
+        with open(seed_file) as f:
+            seed = json.load(f)
+
+        X = [str(x)[:500] for x in seed.get("X", [])]
+        y = seed.get("y", [])
+        if not X or len(X) != len(y):
+            db.close()
+            return
+
+        agent = CategoryAgent()
+        agent._X = X
+        agent._y = y
+        agent.training_samples = len(X)
+        agent._retrain()
+        _save_agent(agent, db)
+        print(f"CategoryAgent auto-seeded: {agent.training_samples} D56 training samples loaded.")
+        db.close()
+    except Exception as e:
+        print(f"CategoryAgent auto-seed skipped: {e}")
+
+
+auto_seed_category_agent()
+
 app = FastAPI(
     title="Nesventory API",
     version=settings.VERSION,
