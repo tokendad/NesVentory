@@ -32,6 +32,12 @@ QUOTA_EXCEEDED_MESSAGE = (
     "See: https://ai.google.dev/gemini-api/docs/rate-limits"
 )
 
+# Error message for service unavailable
+SERVICE_UNAVAILABLE_MESSAGE = (
+    "The AI feature is temporarily unavailable — Google's servers appear to be down. "
+    "This is usually brief. Please wait a moment and try again."
+)
+
 # Track last AI request time for throttling
 _last_ai_request_time: float = 0.0
 
@@ -80,6 +86,25 @@ def is_quota_error(error: Exception) -> bool:
         "generate_content_free_tier",
     ]
     return any(indicator in error_str for indicator in quota_indicators)
+
+
+def is_service_unavailable_error(error: Exception) -> bool:
+    """
+    Check if the error indicates the Google AI service is temporarily unavailable.
+
+    Anchors to google.genai.errors.ClientError so that unrelated network or
+    database errors containing "503" or "unavailable" are not misclassified.
+    Falls back to string matching only when the SDK is not importable.
+    """
+    try:
+        from google.genai import errors as genai_errors
+        if not isinstance(error, genai_errors.ClientError):
+            return False
+    except ImportError:
+        pass  # SDK not installed; fall through to string check
+
+    error_str = str(error).lower()
+    return "503" in error_str or "unavailable" in error_str
 
 
 class QuotaExceededError(Exception):
@@ -561,14 +586,20 @@ async def test_ai_connection(
                             is_plugin=False
                         ))
                 except Exception as e:
-                    error_msg = str(e)
                     if is_quota_error(e):
-                        error_msg = "API quota exceeded. Try again later or upgrade your tier."
+                        friendly_msg = "API quota exceeded. Try again later or consider upgrading your tier."
+                    elif is_service_unavailable_error(e):
+                        friendly_msg = "Google's AI servers are temporarily unavailable. Please try again in a few minutes."
+                    elif "api key" in str(e).lower() or "authentication" in str(e).lower():
+                        friendly_msg = "Authentication failed. Please check your Gemini API key configuration."
+                    else:
+                        friendly_msg = "Connection test failed. Please verify your API key and try again."
+                    logger.warning(f"Gemini connection test failed: {e}")
                     results.append(schemas.AIProviderTestResult(
                         provider_id=provider_id,
                         provider_name=provider_name,
                         success=False,
-                        message=f"Connection test failed: {error_msg}",
+                        message=friendly_msg,
                         priority=priority,
                         is_plugin=False
                     ))
@@ -813,6 +844,12 @@ Return an empty array [] if no identifiable items are found."""
                 status_code=429,
                 detail=QUOTA_EXCEEDED_MESSAGE
             )
+        # Check for service unavailable error
+        if is_service_unavailable_error(e):
+            raise HTTPException(
+                status_code=503,
+                detail=SERVICE_UNAVAILABLE_MESSAGE
+            )
         # Don't expose internal error details
         if "API key" in error_msg.lower() or "authentication" in error_msg.lower():
             raise HTTPException(
@@ -960,6 +997,12 @@ If no data tag information can be read from the image, return:
             raise HTTPException(
                 status_code=429,
                 detail=QUOTA_EXCEEDED_MESSAGE
+            )
+        # Check for service unavailable error
+        if is_service_unavailable_error(e):
+            raise HTTPException(
+                status_code=503,
+                detail=SERVICE_UNAVAILABLE_MESSAGE
             )
         # Don't expose internal error details
         if "API key" in error_msg.lower() or "authentication" in error_msg.lower():
@@ -1210,6 +1253,12 @@ If the UPC is not in your knowledge base or you cannot identify it, return found
                 status_code=429,
                 detail=QUOTA_EXCEEDED_MESSAGE
             )
+        # Check for service unavailable error
+        if is_service_unavailable_error(e):
+            raise HTTPException(
+                status_code=503,
+                detail=SERVICE_UNAVAILABLE_MESSAGE
+            )
         # Don't expose internal error details
         if "API key" in error_msg.lower() or "authentication" in error_msg.lower():
             raise HTTPException(
@@ -1425,6 +1474,7 @@ def parse_qr_scan_response(response_text: str) -> QRScanResult:
 @router.post("/scan-qr", response_model=QRScanResult)
 async def scan_qr_code(
     file: UploadFile = File(..., description="Image of a QR code to scan"),
+    current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -1495,8 +1545,16 @@ Example format if no QR is found:
         raise HTTPException(status_code=503, detail="AI detection is not available. Required package not installed.")
     except Exception as e:
         logger.exception("Error during QR image scanning")
+        error_msg = str(e)
         if is_quota_error(e):
             raise HTTPException(status_code=429, detail=QUOTA_EXCEEDED_MESSAGE)
+        if is_service_unavailable_error(e):
+            raise HTTPException(status_code=503, detail=SERVICE_UNAVAILABLE_MESSAGE)
+        if "API key" in error_msg.lower() or "authentication" in error_msg.lower():
+            raise HTTPException(
+                status_code=503,
+                detail="AI service authentication failed. Please check GEMINI_API_KEY configuration."
+            )
         raise HTTPException(status_code=500, detail="Failed to scan QR code image")
 
 
@@ -1556,8 +1614,8 @@ def parse_barcode_scan_response(response_text: str) -> BarcodeScanResult:
 @router.post("/scan-barcode", response_model=BarcodeScanResult)
 async def scan_barcode_image(
     file: UploadFile = File(..., description="Image of a barcode to scan"),
-    # Parameter to enable/disable plugin usage
     use_plugin: bool = True,
+    current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
     """
@@ -1690,6 +1748,12 @@ Important:
                 status_code=429,
                 detail=QUOTA_EXCEEDED_MESSAGE
             )
+        # Check for service unavailable error
+        if is_service_unavailable_error(e):
+            raise HTTPException(
+                status_code=503,
+                detail=SERVICE_UNAVAILABLE_MESSAGE
+            )
         # Don't expose internal error details
         if "API key" in error_msg.lower() or "authentication" in error_msg.lower():
             raise HTTPException(
@@ -1785,7 +1849,10 @@ If you cannot determine a reasonable estimate, return: {{"estimated_value": null
         if is_quota_error(e):
             logger.warning(f"Gemini API quota exceeded while estimating value for item {item.id}")
             raise QuotaExceededError(QUOTA_EXCEEDED_MESSAGE)
-        logger.warning(f"Failed to estimate value for item {item.id}: {e}")
+        if is_service_unavailable_error(e):
+            logger.warning(f"Gemini API temporarily unavailable while estimating value for item {item.id} (503)")
+        else:
+            logger.warning(f"Failed to estimate value for item {item.id}: {e}")
         return None
 
 
@@ -2015,7 +2082,10 @@ Example format:
         if is_quota_error(e):
             logger.warning("Gemini API quota exceeded during data tag enrichment")
             raise QuotaExceededError(QUOTA_EXCEEDED_MESSAGE)
-        logger.warning(f"Failed to enrich item from data tag: {e}")
+        if is_service_unavailable_error(e):
+            logger.warning("Gemini API temporarily unavailable during data tag enrichment (503)")
+        else:
+            logger.warning(f"Failed to enrich item from data tag: {e}")
         return False, None, None, None, None
 
 
