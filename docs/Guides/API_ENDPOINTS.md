@@ -23,6 +23,7 @@ This document provides comprehensive documentation for all API endpoints in the 
 - [Logs](#logs)
 - [System Status](#system-status)
 - [System Settings](#system-settings)
+- [Agents (Categorization)](#agents-categorization)
 - [Printer (NIIMBOT)](#printer-niimbot)
 - [Printer Profiles (Phase 2D)](#printer-profiles-phase-2d)
 - [Error Responses](#error-responses)
@@ -1909,6 +1910,138 @@ Endpoints for managing global system settings.
   "Garage",
   "Attic"
 ]
+```
+
+## Agents (Categorization)
+
+Endpoints for the RL-based CategoryAgent that predicts item series/categories and learns from user feedback. All endpoints require authentication; seed and reset are admin-only.
+
+### Predict Category
+
+#### POST /api/agents/categorize/predict
+
+Predict the series/category for an item based on its name and description.
+
+**Request:**
+```json
+{
+  "name": "Dickens Village Church",
+  "description": "Porcelain lighted building"
+}
+```
+
+**Response:**
+```json
+{
+  "series": "Dickens' Village",
+  "confidence": 0.87,
+  "top_predictions": [
+    {"series": "Dickens' Village", "confidence": 0.87},
+    {"series": "The Original Snow Village", "confidence": 0.10}
+  ]
+}
+```
+
+### Submit Feedback
+
+#### POST /api/agents/categorize/feedback
+
+Submit feedback on a prediction to train the agent. A reward of +1 is given for accepted predictions, -1 for rejected/overridden ones.
+
+**Request:**
+```json
+{
+  "item_id": "uuid",
+  "input_text": "Dickens Village Church - Porcelain lighted building",
+  "predicted_series": "Dickens' Village",
+  "accepted_series": "Dickens' Village",
+  "was_override": false,
+  "user_action": "ACCEPTED"
+}
+```
+
+**Fields:**
+- `item_id`: Optional item UUID
+- `input_text`: The text used for prediction (max 500 chars)
+- `predicted_series`: The series the agent originally predicted (optional)
+- `accepted_series`: The correct series label (must be a known series)
+- `was_override`: Whether the user overrode the prediction
+- `user_action`: `"ACCEPTED"` or `"REJECTED"` (optional)
+
+**Response:**
+```json
+{
+  "trained": true,
+  "training_samples": 42
+}
+```
+
+**Error:** `429 Too Many Requests` if the training corpus has reached capacity (50,000 samples).
+
+### Get Agent Status
+
+#### GET /api/agents/categorize/status
+
+Get the current status of the categorization agent. Admins also receive the series distribution breakdown.
+
+**Response:**
+```json
+{
+  "training_samples": 42,
+  "model_version": 3,
+  "last_trained_at": "2024-06-15T10:00:00Z"
+}
+```
+
+**Admin-only additional field:**
+```json
+{
+  "series_distribution": {
+    "Dickens' Village": 15,
+    "The Original Snow Village": 12,
+    "North Pole Series": 8
+  }
+}
+```
+
+### Seed Agent (Admin)
+
+#### POST /api/agents/categorize/seed
+
+**Admin only.** Seed the CategoryAgent from raw training data. This replaces the existing model with a freshly trained one from the provided data. No pre-built model uploads are accepted (prevents arbitrary code execution).
+
+**Request:**
+```json
+{
+  "X": ["Dickens Church - lighted building", "Snow Village House"],
+  "y": ["Dickens' Village", "The Original Snow Village"]
+}
+```
+
+**Fields:**
+- `X`: List of training input texts (max 50,000 entries, each truncated to 500 chars)
+- `y`: List of series labels (must all be known series, same length as `X`)
+
+**Response:**
+```json
+{
+  "seeded": true,
+  "training_samples": 2,
+  "model_version": 1
+}
+```
+
+### Reset Agent (Admin)
+
+#### DELETE /api/agents/categorize/reset
+
+**Admin only.** Reset the categorization agent, clearing all training data and the model.
+
+**Response:**
+```json
+{
+  "reset": true
+}
 ```
 
 ## Printer (NIIMBOT)
