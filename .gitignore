@@ -48,3 +48,7 @@ NIIMBOT/
 /docs/nimmbott/
 /docs/Resolutions/
 /docs/Phase Documents/
+
+# Claude configuration
+CLAUDE.md
+docs/CLAUDE.md
