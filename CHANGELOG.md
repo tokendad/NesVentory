@@ -1,4 +1,9 @@
 # Changelog
+n## [6.13.1] - 2026-04-03
+### Fixed
+- Automated release 6.13.1
+- Tags: Maintenance
+
 n## [6.13.0] - 2026-02-27
 ### Added
 - Automated release 6.13.0
