@@ -1187,9 +1187,9 @@ If no data tag information can be read from the image, return:
                 detail="AI service authentication failed. Please check GEMINI_API_KEY configuration."
             )
         raise HTTPException(
-1190.             status_code=500,
-1191.             detail="Failed to analyze data tag image. Please try again."
-1192.         )
+            status_code=500,
+            detail="Failed to analyze data tag image. Please try again."
+        )
 
 
 class PaintLabelInfo(BaseModel):
@@ -1334,7 +1334,10 @@ If the image does not appear to be a paint can label, return all null values."""
         raise HTTPException(
             status_code=500,
             detail="Failed to analyze paint label image. Please try again."
-        )(response_text: str) -> BarcodeLookupResult:
+        )
+
+
+def parse_barcode_lookup_response(response_text: str) -> BarcodeLookupResult:
     """
     Parse the Gemini response text for barcode lookup information.
     

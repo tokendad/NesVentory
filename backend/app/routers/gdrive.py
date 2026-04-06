@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from datetime import datetime
 import json
 import logging
+import os
 
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -29,6 +30,10 @@ logger = logging.getLogger(__name__)
 
 # Google Drive API scope for file management
 GDRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file"
+
+# Google Identity Services (GIS) appends OIDC scopes (openid, email, profile) to
+# the drive.file token response. Allow the scope superset without raising ScopeChanged.
+os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
 
 
 # --- Pydantic Models ---
@@ -278,9 +283,7 @@ async def connect_gdrive(
 
         # The GIS (Google Identity Services) library appends OIDC scopes
         # (openid, userinfo.email, userinfo.profile) to the authorization request.
-        # OAUTHLIB_RELAX_TOKEN_SCOPE allows the returned scope superset to be accepted.
-        import os
-        os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
+        # OAUTHLIB_RELAX_TOKEN_SCOPE is set at module load to accept the scope superset.
 
         # Exchange authorization code for tokens
         flow.fetch_token(code=request.code)
