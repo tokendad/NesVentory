@@ -1,5 +1,22 @@
 # Changelog
-n## [6.13.1] - 2026-04-03
+
+## [6.14.0] - 2026-04-06
+### Added
+- **Paint Colors tab** on Location details — attach paint product info (brand, color, finish, vendor, tint formula) to rooms. Multiple surface entries (Walls, Trim, Ceiling, etc.) per location. AI photo parsing support for paint can labels.
+- **Warranty tab** on Item details — dedicated tab for managing manufacturer and extended warranties with expiry status badges (Active / Expiring Soon / Expired). Replaces buried inline warranty display in the Details tab.
+- API contract document (`docs/API-CONTRACT.md`) — living document tracking API response shapes and change history for mobile app compatibility.
+
+### Changed
+- Renamed "Google OAuth / Drive Backup" admin section to "Google OAuth Configuration" to clarify its purpose.
+
+### Fixed
+- Google Drive OAuth token exchange now accepts OIDC scope supersets (fixes auth failure when using OIDC providers that add extra scopes).
+
+### API Changes
+- [additive] `warranties` array field on Item response — each entry: `type`, `provider`, `policy_number`, `duration_months`, `expiration_date`, `notes`.
+- [additive] `paint_info` array field on Location response — each entry: `id`, `room`, `vendor`, `brand`, `color_name`, `color_code`, `hex_color`, `finish`, `notes`, `photo_id`.
+
+## [6.13.1] - 2026-04-03
 ### Fixed
 - Automated release 6.13.1
 - Tags: Maintenance

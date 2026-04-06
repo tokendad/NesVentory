@@ -143,9 +143,13 @@ The application comes with pre-seeded test users:
 
 NesVentory has companion projects for extended functionality:
 
-- **[NesVentory Mobile App](https://github.com/tokendad/NesventoryApp)** - Native mobile app for iOS and Android
+- **[NesVentory Mobile App](https://github.com/tokendad/NesventoryApp)** - Native Android app
 - **[NesVentory Home Assistant Add-on](https://github.com/tokendad/Nesventory-HA-Addon)** - Home Assistant integration for smart home automation
 - **[NesVentory LLM Plugin](https://github.com/tokendad/Plugin-Nesventory-LLM)** - Custom AI/LLM plugin for enhanced item detection
+
+### Mobile App API Compatibility
+
+The mobile app communicates with this server's REST API. Breaking API changes are tracked in **[docs/API-CONTRACT.md](docs/API-CONTRACT.md)**. When contributing changes that affect API response shapes, please add an `[API]` note to the relevant CHANGELOG entry and update the contract doc.
 
 ## 📄 License
 
