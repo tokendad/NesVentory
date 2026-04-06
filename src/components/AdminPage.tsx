@@ -2265,9 +2265,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
         <>
           {/* Google OAuth / Google Drive Settings */}
           <div className="form-group" style={{ paddingBottom: "1rem", marginBottom: "1rem", borderBottom: "1px solid var(--border-subtle)" }}>
-            <label>☁️ Google OAuth / Drive Backup</label>
+            <label>☁️ Google OAuth Configuration</label>
             <small style={{ color: "var(--muted)", fontSize: "0.875rem", display: "block", marginBottom: "0.75rem" }}>
-              Google OAuth enables "Sign in with Google" and Google Drive backup.
+              Configure Google OAuth credentials to enable "Sign in with Google" and Google Drive backup.
               {configStatus?.google_from_env ? " Configured via environment variables (read-only)." : " Configure below or in your .env file."}
             </small>
             
