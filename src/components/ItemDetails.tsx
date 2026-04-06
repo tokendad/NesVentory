@@ -4,6 +4,7 @@ import { getApiBaseUrl, enrichItem, uploadPhoto } from "../lib/api";
 import { formatPhotoType, formatCurrency, formatDate, formatDateTime, getLocationPath } from "../lib/utils";
 import { RELATIONSHIP_LABELS, LIVING_TAG_NAME, DOCUMENT_TYPES, PHOTO_TYPES } from "../lib/constants";
 import MaintenanceTab from "./MaintenanceTab";
+import WarrantyTab from "./WarrantyTab";
 import PhotoModal from "./PhotoModal";
 import EnrichmentModal from "./EnrichmentModal";
 import QRLabelPrint from "./QRLabelPrint";
@@ -18,7 +19,7 @@ interface ItemDetailsProps {
   onPhotoUpdated: () => void;
 }
 
-type TabType = 'details' | 'maintenance';
+type TabType = 'details' | 'maintenance' | 'warranty';
 
 const ItemDetails: React.FC<ItemDetailsProps> = ({
   item,
@@ -155,6 +156,19 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
         >
           Maintenance
         </button>
+        {!isLivingItem && (
+          <button
+            className={`tab-button ${activeTab === 'warranty' ? 'active' : ''}`}
+            onClick={() => setActiveTab('warranty')}
+          >
+            🛡️ Warranty
+            {(item.warranties?.some(w => {
+              if (!w.expiration_date) return false;
+              const days = Math.ceil((new Date(w.expiration_date).getTime() - Date.now()) / 86_400_000);
+              return days >= 0 && days <= 90;
+            })) && <span className="warranty-tab-badge" aria-label="warranty alert">!</span>}
+          </button>
+        )}
       </div>
 
       {activeTab === 'details' && (
@@ -348,54 +362,6 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
             </div>
           )}
 
-          {/* Warranty Information - only show for non-living items */}
-          {!isLivingItem && item.warranties && item.warranties.length > 0 && (
-            <div className="details-section">
-              <h3>Warranty Information</h3>
-              {item.warranties.map((warranty, index) => (
-                <div key={index} className="warranty-item">
-                  <div className="details-grid">
-                    <div className="detail-item">
-                      <span className="detail-label">Type:</span>
-                      <span className="detail-value">{warranty.type}</span>
-                    </div>
-                    {warranty.provider && (
-                      <div className="detail-item">
-                        <span className="detail-label">Provider:</span>
-                        <span className="detail-value">{warranty.provider}</span>
-                      </div>
-                    )}
-                    {warranty.policy_number && (
-                      <div className="detail-item">
-                        <span className="detail-label">Policy Number:</span>
-                        <span className="detail-value">{warranty.policy_number}</span>
-                      </div>
-                    )}
-                    {warranty.duration_months && (
-                      <div className="detail-item">
-                        <span className="detail-label">Duration:</span>
-                        <span className="detail-value">{warranty.duration_months} months</span>
-                      </div>
-                    )}
-                    {warranty.expiration_date && (
-                      <div className="detail-item">
-                        <span className="detail-label">Expiration Date:</span>
-                        <span className="detail-value">{formatDate(warranty.expiration_date)}</span>
-                      </div>
-                    )}
-                    {warranty.notes && (
-                      <div className="detail-item full-width">
-                        <span className="detail-label">Notes:</span>
-                        <span className="detail-value">{warranty.notes}</span>
-                      </div>
-                    )}
-                  </div>
-                  {index < item.warranties!.length - 1 && <hr className="warranty-separator" />}
-                </div>
-              ))}
-            </div>
-          )}
-
           {/* Photos/Images Section - Always show, even if empty */}
           <div className="details-section">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -519,6 +485,12 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
       {activeTab === 'maintenance' && (
         <div className="item-details">
           <MaintenanceTab itemId={item.id.toString()} />
+        </div>
+      )}
+
+      {activeTab === 'warranty' && (
+        <div className="item-details">
+          <WarrantyTab item={item} onUpdate={onPhotoUpdated} />
         </div>
       )}
 

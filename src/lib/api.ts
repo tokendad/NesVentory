@@ -10,6 +10,7 @@ export interface LoginResponse {
 }
 
 export interface Warranty {
+  id?: string;
   type: 'manufacturer' | 'extended';
   provider?: string | null;
   policy_number?: string | null;
