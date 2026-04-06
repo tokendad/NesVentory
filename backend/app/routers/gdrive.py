@@ -275,7 +275,13 @@ async def connect_gdrive(
             scopes=[GDRIVE_SCOPE],
             redirect_uri="postmessage"
         )
-        
+
+        # The GIS (Google Identity Services) library appends OIDC scopes
+        # (openid, userinfo.email, userinfo.profile) to the authorization request.
+        # OAUTHLIB_RELAX_TOKEN_SCOPE allows the returned scope superset to be accepted.
+        import os
+        os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"
+
         # Exchange authorization code for tokens
         flow.fetch_token(code=request.code)
         credentials = flow.credentials
