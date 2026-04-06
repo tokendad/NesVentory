@@ -41,7 +41,8 @@ def run_migrations():
                        "ai_schedule_enabled", "ai_schedule_interval_days", "ai_schedule_last_run",
                        "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "ai_providers", "document_type", "color", 
                        "supports_image_processing", "gemini_model", "must_change_password", "niimbot_printer_config",
-                       "additional_info", "thumbnail_path", "location_category", "custom_location_categories"}
+                       "additional_info", "thumbnail_path", "location_category", "custom_location_categories",
+                       "paint_info"}
     ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "VARCHAR(64)", "VARCHAR(7)", "VARCHAR(100)", "BOOLEAN DEFAULT FALSE", "BOOLEAN DEFAULT TRUE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT", "JSON", "VARCHAR(1024)", "VARCHAR(50)"}
     
     # Define migrations: (table_name, column_name, column_definition)
@@ -87,6 +88,8 @@ def run_migrations():
         ("location_photos", "thumbnail_path", "VARCHAR(1024)"),
         # Location model: location category
         ("locations", "location_category", "VARCHAR(50)"),
+        # Location model: paint color records per surface (walls, trim, ceiling, etc.)
+        ("locations", "paint_info", "JSON"),
     ]
     
     with engine.begin() as conn:

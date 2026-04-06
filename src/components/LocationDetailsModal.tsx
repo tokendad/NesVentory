@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import type { Location, LocationCreate, Item } from "../lib/api";
 import { updateLocation, getLocationCategories } from "../lib/api";
 import InsuranceTab from "./InsuranceTab";
+import PaintColorsTab from "./PaintColorsTab";
 import QRLabelPrint from "./QRLabelPrint";
 
 interface LocationDetailsModalProps {
@@ -12,7 +13,7 @@ interface LocationDetailsModalProps {
   onUpdate: () => void;
 }
 
-type TabType = "details" | "insurance";
+type TabType = "details" | "insurance" | "paint";
 
 const LOCATION_TYPES = [
   { value: "residential", label: "Residential" },
@@ -226,23 +227,29 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
           </div>
         </div>
 
-        {/* Tabs - Only show Insurance tab for primary locations */}
-        {formData.is_primary_location && (
-          <div className="settings-tabs" style={{ marginBottom: "1rem" }}>
-            <button
-              className={`settings-tab ${activeTab === "details" ? "active" : ""}`}
-              onClick={() => setActiveTab("details")}
-            >
-              📝 Details
-            </button>
+        {/* Tabs - Paint Colors available for all; Insurance only for primary locations */}
+        <div className="settings-tabs" style={{ marginBottom: "1rem" }}>
+          <button
+            className={`settings-tab ${activeTab === "details" ? "active" : ""}`}
+            onClick={() => setActiveTab("details")}
+          >
+            📝 Details
+          </button>
+          <button
+            className={`settings-tab ${activeTab === "paint" ? "active" : ""}`}
+            onClick={() => setActiveTab("paint")}
+          >
+            🎨 Paint Colors
+          </button>
+          {formData.is_primary_location && (
             <button
               className={`settings-tab ${activeTab === "insurance" ? "active" : ""}`}
               onClick={() => setActiveTab("insurance")}
             >
               🏠 Insurance
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {formError && <div className="error-banner">{formError}</div>}
 
@@ -413,6 +420,13 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
         {activeTab === "insurance" && location.is_primary_location && (
           <div style={{ maxHeight: "70vh", overflowY: "auto", padding: "0.5rem" }}>
             <InsuranceTab location={location} items={items} allLocations={allLocations} onUpdate={onUpdate} />
+          </div>
+        )}
+
+        {/* Paint Colors Tab - Available for all locations */}
+        {activeTab === "paint" && (
+          <div style={{ maxHeight: "70vh", overflowY: "auto", padding: "0.5rem" }}>
+            <PaintColorsTab location={location} onUpdate={onUpdate} />
           </div>
         )}
       </div>

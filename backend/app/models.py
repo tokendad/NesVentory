@@ -223,6 +223,27 @@ class Location(Base):
     #   "notes": "..."
     # }
     insurance_info = Column(JSON, nullable=True)
+
+    # Paint color records for surfaces in this location — stored as JSON array
+    # Each entry represents one surface (Walls, Trim, Ceiling, Exterior, Other):
+    # [{
+    #   "id": "uuid",
+    #   "surface": "Walls",
+    #   "brand": "Valspar",
+    #   "product_line": "Interior Signature",
+    #   "color_name": "Antique White",
+    #   "color_code": "7002-20",
+    #   "base_code": "1206-A",
+    #   "finish": "Satin",
+    #   "vendor": "Lowe's #1206",
+    #   "size": "1 Gallon",
+    #   "date_mixed": "2021-03-08",
+    #   "tint_formula": "105-10, 111-8, 115-2",
+    #   "barcode": "1206-A-20210308181051",
+    #   "hex_color": "#F5F0E8",
+    #   "notes": ""
+    # }]
+    paint_info = Column(JSON, nullable=True)
     
     estimated_property_value = Column(Numeric(12, 2), nullable=True)
     estimated_value_with_items = Column(Numeric(12, 2), nullable=True)

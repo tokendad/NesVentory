@@ -1187,12 +1187,154 @@ If no data tag information can be read from the image, return:
                 detail="AI service authentication failed. Please check GEMINI_API_KEY configuration."
             )
         raise HTTPException(
-            status_code=500,
-            detail="Failed to analyze data tag image. Please try again."
+1190.             status_code=500,
+1191.             detail="Failed to analyze data tag image. Please try again."
+1192.         )
+
+
+class PaintLabelInfo(BaseModel):
+    """Schema for parsed paint can label information."""
+    brand: Optional[str] = None
+    product_line: Optional[str] = None
+    color_name: Optional[str] = None
+    color_code: Optional[str] = None
+    base_code: Optional[str] = None
+    finish: Optional[str] = None
+    vendor: Optional[str] = None
+    size: Optional[str] = None
+    date_mixed: Optional[str] = None
+    tint_formula: Optional[str] = None
+    barcode: Optional[str] = None
+    raw_response: Optional[str] = None
+
+
+def parse_paint_label_response(response_text: str) -> PaintLabelInfo:
+    """Parse the Gemini response text for paint can label information."""
+    result = PaintLabelInfo()
+
+    try:
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if json_match:
+            parsed = json.loads(json_match.group())
+            if isinstance(parsed, dict):
+                result.brand = parsed.get("brand")
+                result.product_line = parsed.get("product_line") or parsed.get("product_name")
+                result.color_name = parsed.get("color_name") or parsed.get("color")
+                result.color_code = parsed.get("color_code") or parsed.get("color_number")
+                result.base_code = parsed.get("base_code") or parsed.get("base")
+                result.finish = parsed.get("finish") or parsed.get("sheen")
+                result.vendor = parsed.get("vendor") or parsed.get("store") or parsed.get("retailer")
+                result.size = parsed.get("size") or parsed.get("container_size")
+                result.date_mixed = parsed.get("date_mixed") or parsed.get("date") or parsed.get("mix_date")
+                result.tint_formula = parsed.get("tint_formula") or parsed.get("formula") or parsed.get("tint_codes")
+                result.barcode = parsed.get("barcode") or parsed.get("barcode_number") or parsed.get("label_number")
+    except (json.JSONDecodeError, AttributeError):
+        result.raw_response = sanitize_raw_response(response_text)
+
+    return result
+
+
+@router.post("/parse-paint-label", response_model=PaintLabelInfo)
+async def parse_paint_label(
+    file: UploadFile = File(..., description="Photo of a paint can label to parse"),
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Analyze an uploaded photo of a paint can label using Gemini AI.
+
+    Extracts brand, color name/code, finish, tint formula, vendor, date mixed,
+    and other paint-specific information from the label.
+    """
+    gemini_api_key = get_effective_gemini_api_key(db)
+    if not gemini_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="AI detection is not configured. Please set GEMINI_API_KEY in environment or configure it in the admin panel."
         )
 
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed types: {', '.join(ALLOWED_IMAGE_TYPES)}"
+        )
 
-def parse_barcode_lookup_response(response_text: str) -> BarcodeLookupResult:
+    try:
+        import google.genai as genai
+        from google.genai import types
+        from ..settings_service import get_effective_gemini_model
+
+        image_data = await read_limited(file, MAX_IMAGE_BYTES)
+        gemini_model = get_effective_gemini_model(db)
+        client = genai.Client(api_key=gemini_api_key)
+
+        prompt = """Analyze this photo of a paint can label or lid.
+
+Extract the following information if visible:
+1. brand: The paint brand (e.g., "Valspar", "Glidden", "Sherwin-Williams", "Benjamin Moore")
+2. product_line: The product line or series name (e.g., "Interior Signature", "Glidden Duo", "Duration")
+3. color_name: The color name (e.g., "Antique White", "Agreeable Gray")
+4. color_code: The color code or color number (e.g., "7002-20", "GLD2011", "SW 7029")
+5. base_code: The base or store code on the label (e.g., "1206-A", "STR#2681")
+6. finish: The paint finish/sheen (e.g., "Flat", "Eggshell", "Satin", "Semi-Gloss", "Gloss")
+7. vendor: The store name and/or store number where it was mixed (e.g., "Lowe's #1206", "Home Depot STR#2681")
+8. size: The container size (e.g., "1 Gallon", "Quart", "5 Gallon")
+9. date_mixed: The date the paint was mixed or purchased (format as YYYY-MM-DD if possible)
+10. tint_formula: The tint formula codes printed on the label (e.g., "105-10, 111-8, 115-2" or "AXL:112 CL:144 LL:108")
+11. barcode: The barcode number or label identifier printed on the sticker
+
+Return ONLY a JSON object with these exact field names. Use null for any field not visible or determinable.
+
+Example:
+{
+  "brand": "Valspar",
+  "product_line": "Interior Signature",
+  "color_name": "Antique White",
+  "color_code": "7002-20",
+  "base_code": "1206-A",
+  "finish": "Satin",
+  "vendor": "Lowe's #1206",
+  "size": "1 Gallon",
+  "date_mixed": "2021-03-08",
+  "tint_formula": "105-10, 111-8, 115-2",
+  "barcode": "1206-A-20210308181051"
+}
+
+If the image does not appear to be a paint can label, return all null values."""
+
+        image_part = types.Part.from_bytes(data=image_data, mime_type=file.content_type)
+        response = client.models.generate_content(model=gemini_model, contents=[prompt, image_part])
+        result = parse_paint_label_response(response.text)
+
+        if not any([result.brand, result.color_name, result.color_code, result.finish]):
+            result.raw_response = sanitize_raw_response(response.text)
+
+        return result
+
+    except HTTPException:
+        raise
+    except ImportError:
+        logger.error("google-genai package not installed")
+        raise HTTPException(
+            status_code=503,
+            detail="AI detection is not available. Required package not installed."
+        )
+    except Exception as e:
+        logger.exception("Error during AI paint label parsing")
+        if is_quota_error(e):
+            raise HTTPException(status_code=429, detail=QUOTA_EXCEEDED_MESSAGE)
+        if is_service_unavailable_error(e):
+            raise HTTPException(status_code=503, detail=SERVICE_UNAVAILABLE_MESSAGE)
+        error_msg = str(e)
+        if "API key" in error_msg.lower() or "authentication" in error_msg.lower():
+            raise HTTPException(
+                status_code=503,
+                detail="AI service authentication failed. Please check GEMINI_API_KEY configuration."
+            )
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to analyze paint label image. Please try again."
+        )(response_text: str) -> BarcodeLookupResult:
     """
     Parse the Gemini response text for barcode lookup information.
     

@@ -242,12 +242,46 @@ export interface Location {
   landlord_info?: LandlordInfo | null;
   tenant_info?: TenantInfo | null;
   insurance_info?: InsuranceInfo | null;
+  paint_info?: PaintEntry[] | null;
   estimated_property_value?: number | null;
   estimated_value_with_items?: number | null;
   location_type?: string | null;
   children?: Location[];
   videos?: Video[];
   location_photos?: LocationPhoto[];
+}
+
+export interface PaintEntry {
+  id: string;
+  surface: string;
+  brand: string;
+  product_line?: string;
+  color_name?: string;
+  color_code?: string;
+  base_code?: string;
+  finish?: string;
+  vendor?: string;
+  size?: string;
+  date_mixed?: string;
+  tint_formula?: string;
+  barcode?: string;
+  hex_color?: string;
+  notes?: string;
+}
+
+export interface PaintLabelInfo {
+  brand?: string | null;
+  product_line?: string | null;
+  color_name?: string | null;
+  color_code?: string | null;
+  base_code?: string | null;
+  finish?: string | null;
+  vendor?: string | null;
+  size?: string | null;
+  date_mixed?: string | null;
+  tint_formula?: string | null;
+  barcode?: string | null;
+  raw_response?: string | null;
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -354,6 +388,7 @@ export interface LocationCreate {
   landlord_info?: LandlordInfo | null;
   tenant_info?: TenantInfo | null;
   insurance_info?: InsuranceInfo | null;
+  paint_info?: PaintEntry[] | null;
   estimated_property_value?: number | null;
   estimated_value_with_items?: number | null;
   location_type?: string | null;
@@ -1233,6 +1268,21 @@ export async function parseDataTagImage(file: File): Promise<DataTagInfo> {
     body: formData,
   });
   return handleResponse<DataTagInfo>(res);
+}
+
+export async function parsePaintLabel(file: File): Promise<PaintLabelInfo> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_BASE_URL}/api/ai/parse-paint-label`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+    },
+    credentials: "include",
+    body: formData,
+  });
+  return handleResponse<PaintLabelInfo>(res);
 }
 
 export async function lookupBarcode(upc: string): Promise<BarcodeLookupResult> {

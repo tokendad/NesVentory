@@ -265,6 +265,7 @@ class LocationBase(BaseModel):
     landlord_info: Optional[dict] = None
     tenant_info: Optional[dict] = None
     insurance_info: Optional[dict] = None
+    paint_info: Optional[list] = None
     estimated_property_value: Optional[Decimal] = None
     estimated_value_with_items: Optional[Decimal] = None
     location_type: Optional[str] = None
@@ -287,6 +288,7 @@ class LocationUpdate(BaseModel):
     landlord_info: Optional[dict] = None
     tenant_info: Optional[dict] = None
     insurance_info: Optional[dict] = None
+    paint_info: Optional[list] = None
     estimated_property_value: Optional[Decimal] = None
     estimated_value_with_items: Optional[Decimal] = None
     location_type: Optional[str] = None
