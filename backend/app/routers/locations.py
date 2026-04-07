@@ -60,8 +60,28 @@ def delete_location(location_id: UUID, db: Session = Depends(get_db)):
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
 
+    # Protect Home location from deletion (required for living items)
+    if loc.name == "Home" and loc.is_primary_location:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete Home location - it is required for people and pets"
+        )
+
     # Get the parent location ID (will be None if this is a top-level location)
     parent_location_id = loc.parent_id
+    
+    # Check if any living items (people/pets) would be orphaned
+    living_items_count = db.query(models.Item).filter(
+        models.Item.location_id == location_id,
+        models.Item.is_living == True,
+        models.Item.relationship_type != "plant"
+    ).count()
+    
+    if living_items_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete location - it contains {living_items_count} people/pets. Move them to Home first."
+        )
     
     # Move all items from this location to the parent location using bulk update
     db.query(models.Item).filter(models.Item.location_id == location_id).update(

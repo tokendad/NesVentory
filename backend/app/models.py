@@ -296,7 +296,7 @@ class Item(Base):
     warranties = Column(JSON, nullable=True)
     
     # Living item fields (for people, pets, plants, etc.)
-    is_living = Column(Boolean, default=False, nullable=False)
+    is_living = Column(Boolean, default=False, nullable=False, index=True)
     birthdate = Column(Date, nullable=True)
     # Contact information stored as JSON for flexibility
     # {
@@ -312,7 +312,7 @@ class Item(Base):
     additional_info = Column(JSON, nullable=True)
 
     # Relationship to logged-in user (e.g., "mother", "father", "sister", "pet", "plant")
-    relationship_type = Column(String(100), nullable=True)
+    relationship_type = Column(String(100), nullable=True, index=True)
     # Flag if this living item is the currently logged-in user themselves
     is_current_user = Column(Boolean, default=False, nullable=False)
     # Reference to the user account if this living item is associated with a user

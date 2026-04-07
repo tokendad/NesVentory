@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-02-28T19:17:09.194Z",
+  "projectRoot": "/data/NesVentory",
+  "structure": {
+    "hasPackageJson": true,
+    "hasTsConfig": true,
+    "hasClaudeConfig": true,
+    "hasClaudeFlow": true
+  },
+  "scannedAt": 1772306229194
+}

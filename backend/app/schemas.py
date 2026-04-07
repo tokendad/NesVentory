@@ -1,7 +1,7 @@
 from datetime import datetime, date
 from typing import Optional, List
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, model_validator
 from decimal import Decimal
 
 
@@ -458,6 +458,32 @@ class ItemBase(BaseModel):
 
 class ItemCreate(ItemBase):
     tag_ids: Optional[List[UUID]] = None
+    
+    @model_validator(mode='after')
+    def validate_living_item_fields(self):
+        """Validate that living and non-living fields don't conflict."""
+        if self.is_living:
+            # Living items should not have typical inventory fields
+            if self.purchase_price is not None:
+                raise ValueError('Living items cannot have a purchase_price')
+            if self.retailer:
+                raise ValueError('Living items cannot have a retailer')
+            if self.upc:
+                raise ValueError('Living items cannot have a UPC code')
+            if self.serial_number:
+                raise ValueError('Living items cannot have a serial number')
+        else:
+            # Non-living items should not have living-specific fields
+            if self.birthdate is not None:
+                raise ValueError('Only living items can have a birthdate')
+            if self.contact_info is not None:
+                raise ValueError('Only living items can have contact information')
+            if self.relationship_type:
+                raise ValueError('Only living items can have a relationship type')
+            if self.is_current_user:
+                raise ValueError('Only living items can be associated with the current user')
+        
+        return self
 
 
 class ItemUpdate(BaseModel):
@@ -489,6 +515,34 @@ class ItemUpdate(BaseModel):
     associated_user_id: Optional[UUID] = None
     # Dynamic fields
     additional_info: Optional[List[dict]] = None
+    
+    @model_validator(mode='after')
+    def validate_living_item_fields(self):
+        """Validate that living and non-living fields don't conflict on update."""
+        # Only validate if is_living is being set
+        if self.is_living is not None:
+            if self.is_living:
+                # Living items should not have typical inventory fields
+                if self.purchase_price is not None:
+                    raise ValueError('Living items cannot have a purchase_price')
+                if self.retailer:
+                    raise ValueError('Living items cannot have a retailer')
+                if self.upc:
+                    raise ValueError('Living items cannot have a UPC code')
+                if self.serial_number:
+                    raise ValueError('Living items cannot have a serial number')
+            else:
+                # Non-living items should not have living-specific fields
+                if self.birthdate is not None:
+                    raise ValueError('Only living items can have a birthdate')
+                if self.contact_info is not None:
+                    raise ValueError('Only living items can have contact information')
+                if self.relationship_type:
+                    raise ValueError('Only living items can have a relationship type')
+                if self.is_current_user:
+                    raise ValueError('Only living items can be associated with the current user')
+        
+        return self
 
 
 class Item(ItemBase):

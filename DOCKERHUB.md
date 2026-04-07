@@ -15,7 +15,9 @@
 
 ## Supported Tags
 
-- `latest` - Latest stable release (6.7.3)
+- `latest` - Latest stable release (6.15.0)
+- `6.15.0` - Living Items feature release
+- `6.14.0` - Warranties & Paint Tracking
 - `6.x.x` - Version 6 series tags
 - `5.x.x` - Version 5 series tags (legacy)
 
@@ -30,6 +32,7 @@ NesVentory is a self-hosted home inventory management system built with:
 ### Key Features
 
 - **Inventory Management** - Track all household items with detailed information
+- **Living Items** - Track people, pets, and plants with birthdates, contacts, and relationships
 - **AI Photo Detection** - Scan rooms with Google Gemini AI to detect and add items automatically
 - **AI Data Tag Parsing** - Extract product info from data tag photos
 - **Location Hierarchy** - Organize items by properties, rooms, and sub-locations

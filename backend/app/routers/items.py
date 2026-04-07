@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, timezone
 import logging
@@ -16,15 +16,66 @@ MAX_ERROR_MESSAGE_LENGTH = 100
 
 
 @router.get("/", response_model=List[schemas.Item])
-def list_items(db: Session = Depends(get_db)):
-    return db.query(models.Item).all()
+def list_items(
+    is_living: Optional[bool] = Query(None, description="Filter by living items"),
+    relationship_type: Optional[str] = Query(None, description="Filter by relationship type"),
+    location_id: Optional[UUID] = Query(None, description="Filter by location"),
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
+    """List items with optional filters for living items, relationship type, and location. Scoped to user's access."""
+    query = db.query(models.Item)
+    
+    # Filter by user's location access (admins see all)
+    if current_user.role != "admin":
+        allowed_location_ids = [loc.id for loc in current_user.allowed_locations] if current_user.allowed_locations else []
+        query = query.filter(
+            (models.Item.location_id.in_(allowed_location_ids)) | 
+            (models.Item.associated_user_id == current_user.id)
+        )
+    
+    if is_living is not None:
+        query = query.filter(models.Item.is_living == is_living)
+    
+    if relationship_type:
+        query = query.filter(models.Item.relationship_type == relationship_type)
+    
+    if location_id:
+        # Verify user has access to this location
+        if current_user.role != "admin":
+            has_access = any(loc.id == location_id for loc in current_user.allowed_locations)
+            if not has_access:
+                raise HTTPException(status_code=403, detail="Access to this location denied")
+        query = query.filter(models.Item.location_id == location_id)
+    
+    return query.all()
 
 
 @router.post("/", response_model=schemas.Item, status_code=status.HTTP_201_CREATED)
-def create_item(payload: schemas.ItemCreate, db: Session = Depends(get_db)):
+def create_item(
+    payload: schemas.ItemCreate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
     # Extract tag_ids from payload
     tag_ids = payload.tag_ids
     payload_dict = payload.model_dump(exclude={'tag_ids'})
+    
+    # Validate living items (people/pets) are assigned to Home location
+    if payload_dict.get('is_living') and payload_dict.get('relationship_type') != 'plant':
+        location_id = payload_dict.get('location_id')
+        if location_id:
+            location = db.query(models.Location).filter(models.Location.id == location_id).first()
+            if location and location.name != "Home":
+                raise HTTPException(
+                    status_code=400,
+                    detail="People and pets must be assigned to the 'Home' location"
+                )
+        else:
+            # Auto-assign to Home if no location specified
+            home_location = db.query(models.Location).filter(models.Location.name == "Home").first()
+            if home_location:
+                payload_dict['location_id'] = home_location.id
     
     item = models.Item(**payload_dict)
     
@@ -40,10 +91,24 @@ def create_item(payload: schemas.ItemCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{item_id}", response_model=schemas.Item)
-def get_item(item_id: UUID, db: Session = Depends(get_db)):
+def get_item(
+    item_id: UUID,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
     item = db.query(models.Item).filter(models.Item.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
+    
+    # Verify user has access to this item
+    if current_user.role != "admin":
+        has_access = (
+            item.location_id in [loc.id for loc in current_user.allowed_locations] if current_user.allowed_locations else False
+        ) or item.associated_user_id == current_user.id
+        
+        if not has_access:
+            raise HTTPException(status_code=403, detail="Access to this item denied")
+    
     return item
 
 
@@ -51,15 +116,79 @@ def get_item(item_id: UUID, db: Session = Depends(get_db)):
 def update_item(
     item_id: UUID,
     payload: schemas.ItemUpdate,
+    current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
     item = db.query(models.Item).filter(models.Item.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
+    
+    # Verify user has access to this item
+    if current_user.role != "admin":
+        has_access = (
+            item.location_id in [loc.id for loc in current_user.allowed_locations] if current_user.allowed_locations else False
+        ) or item.associated_user_id == current_user.id
+        
+        if not has_access:
+            raise HTTPException(status_code=403, detail="Access to this item denied")
 
     # Extract tag_ids from payload
     tag_ids = payload.tag_ids
     data = payload.model_dump(exclude_unset=True, exclude={'tag_ids'})
+    
+    # Validate living items (people/pets) location if being updated
+    if 'location_id' in data or 'is_living' in data or 'relationship_type' in data:
+        # Determine if this is/will be a person or pet
+        is_living = data.get('is_living', item.is_living)
+        relationship_type = data.get('relationship_type', item.relationship_type)
+        
+        if is_living and relationship_type != 'plant':
+            location_id = data.get('location_id', item.location_id)
+            if location_id:
+                location = db.query(models.Location).filter(models.Location.id == location_id).first()
+                if location and location.name != "Home":
+                    raise HTTPException(
+                        status_code=400,
+                        detail="People and pets must be assigned to the 'Home' location"
+                    )
+    
+    # Check for field conflicts when toggling is_living status
+    if 'is_living' in data:
+        new_is_living = data['is_living']
+        
+        # If converting TO living item, ensure no conflicting non-living fields remain
+        if new_is_living and not item.is_living:
+            conflicting_fields = []
+            if item.purchase_price is not None:
+                conflicting_fields.append('purchase_price')
+            if item.retailer:
+                conflicting_fields.append('retailer')
+            if item.upc:
+                conflicting_fields.append('upc')
+            if item.serial_number:
+                conflicting_fields.append('serial_number')
+            
+            if conflicting_fields:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot convert to living item: existing fields {', '.join(conflicting_fields)} must be cleared first"
+                )
+        
+        # If converting FROM living item, ensure no conflicting living fields remain
+        if not new_is_living and item.is_living:
+            conflicting_fields = []
+            if item.birthdate:
+                conflicting_fields.append('birthdate')
+            if item.contact_info:
+                conflicting_fields.append('contact_info')
+            if item.relationship_type:
+                conflicting_fields.append('relationship_type')
+            
+            if conflicting_fields:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Cannot convert to non-living item: existing fields {', '.join(conflicting_fields)} must be cleared first"
+                )
     
     for key, value in data.items():
         setattr(item, key, value)
@@ -75,10 +204,26 @@ def update_item(
 
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_item(item_id: UUID, db: Session = Depends(get_db)):
+def delete_item(
+    item_id: UUID,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
     item = db.query(models.Item).filter(models.Item.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
+    
+    # Verify user has access to this item
+    if current_user.role != "admin":
+        has_access = (
+            item.location_id in [loc.id for loc in current_user.allowed_locations] if current_user.allowed_locations else False
+        ) or item.associated_user_id == current_user.id
+        
+        if not has_access:
+            raise HTTPException(status_code=403, detail="Access to this item denied")
+    
+    db.delete(item)
+    db.commit()
 
     db.delete(item)
     db.commit()
@@ -88,14 +233,25 @@ def delete_item(item_id: UUID, db: Session = Depends(get_db)):
 @router.post("/bulk-delete", response_model=schemas.BulkDeleteResponse)
 def bulk_delete_items(
     payload: schemas.BulkDeleteRequest,
+    current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
     """Delete multiple items at once."""
     items = db.query(models.Item).filter(models.Item.id.in_(payload.item_ids)).all()
-    deleted_count = len(items)
     
+    deleted_count = 0
     for item in items:
+        # Verify user has access to this item
+        if current_user.role != "admin":
+            has_access = (
+                item.location_id in [loc.id for loc in current_user.allowed_locations] if current_user.allowed_locations else False
+            ) or item.associated_user_id == current_user.id
+            
+            if not has_access:
+                continue  # Skip items user doesn't have access to
+        
         db.delete(item)
+        deleted_count += 1
     
     db.commit()
     return schemas.BulkDeleteResponse(
@@ -107,6 +263,7 @@ def bulk_delete_items(
 @router.post("/bulk-update-tags", response_model=schemas.BulkUpdateTagsResponse)
 def bulk_update_tags(
     payload: schemas.BulkUpdateTagsRequest,
+    current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
     """Update tags on multiple items at once."""
@@ -115,6 +272,15 @@ def bulk_update_tags(
     
     updated_count = 0
     for item in items:
+        # Verify user has access to this item
+        if current_user.role != "admin":
+            has_access = (
+                item.location_id in [loc.id for loc in current_user.allowed_locations] if current_user.allowed_locations else False
+            ) or item.associated_user_id == current_user.id
+            
+            if not has_access:
+                continue  # Skip items user doesn't have access to
+        
         if payload.mode == "replace":
             item.tags = tags
         elif payload.mode == "add":
@@ -136,10 +302,12 @@ def bulk_update_tags(
 @router.post("/bulk-update-location", response_model=schemas.BulkUpdateLocationResponse)
 def bulk_update_location(
     payload: schemas.BulkUpdateLocationRequest,
+    current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
     """Update location on multiple items at once."""
     # Verify location exists if provided
+    location = None
     if payload.location_id:
         location = db.query(models.Location).filter(
             models.Location.id == payload.location_id
@@ -149,8 +317,33 @@ def bulk_update_location(
     
     items = db.query(models.Item).filter(models.Item.id.in_(payload.item_ids)).all()
     
+    # SECURITY: Validate living items location constraint
+    if location and location.name != "Home":
+        living_people_or_pets = [
+            item for item in items 
+            if item.is_living and item.relationship_type != 'plant'
+        ]
+        if living_people_or_pets:
+            names = [item.name for item in living_people_or_pets[:3]]
+            names_str = ", ".join(names)
+            if len(living_people_or_pets) > 3:
+                names_str += f" and {len(living_people_or_pets) - 3} more"
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot move people/pets ({names_str}) to non-Home location. People and pets must be at Home."
+            )
+    
     updated_count = 0
     for item in items:
+        # Verify user has access to this item
+        if current_user.role != "admin":
+            has_access = (
+                item.location_id in [loc.id for loc in current_user.allowed_locations] if current_user.allowed_locations else False
+            ) or item.associated_user_id == current_user.id
+            
+            if not has_access:
+                continue  # Skip items user doesn't have access to
+        
         item.location_id = payload.location_id
         updated_count += 1
     

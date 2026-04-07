@@ -40,16 +40,40 @@ Each item object includes these fields. Fields marked ⚠️ were added after th
 | `retailer` | string \| null | |
 | `upc` | string \| null | |
 | `location_id` | UUID string \| null | |
-| `is_living` | boolean | `true` for people/pets/plants |
-| `birthdate` | date string \| null | living items only |
-| `relationship_type` | string \| null | living items only |
-| `contact_info` | object \| null | living items only |
+| `is_living` | boolean | ⚠️ `true` for people/pets/plants (added v6.15) |
+| `birthdate` | date string \| null | ⚠️ living items only (added v6.15) |
+| `relationship_type` | string \| null | ⚠️ living items only (added v6.15) |
+| `is_current_user` | boolean | ⚠️ links to user account (added v6.15) |
+| `associated_user_id` | UUID string \| null | ⚠️ user relationship (added v6.15) |
+| `contact_info` | object \| null | ⚠️ living items only (added v6.15), see below |
 | `additional_info` | array \| null | custom key/value fields |
 | `warranties` | array \| null | ⚠️ see Warranty Object below |
 | `tags` | array of Tag | |
 | `photos` | array of Photo | |
 | `created_at` | datetime string | ISO 8601 |
 | `updated_at` | datetime string | ISO 8601 |
+
+#### Contact Info Object (Living Items)
+
+Structure of `contact_info` JSON field for people/pets:
+
+```json
+{
+  "phone": "555-1234",
+  "email": "john@example.com",
+  "address": "123 Main St",
+  "notes": "Prefers text",
+  "emergency_contacts": [
+    {
+      "name": "Jane Doe",
+      "phone": "555-5678",
+      "relationship": "spouse"
+    }
+  ]
+}
+```
+
+All fields are optional. `emergency_contacts` array is for people only.
 
 #### Warranty Object
 
@@ -194,6 +218,8 @@ See `/api/openapi.json` for the full list with request/response schemas.
 
 | Version | Date | Type | Description |
 |---|---|---|---|
+| **6.15.0** | **2026-04-07** | **additive** | **Living Items Feature**: Added `is_living`, `birthdate`, `relationship_type`, `is_current_user`, `associated_user_id`, `contact_info` fields to `Item` response. See [Living Items](#living-items) section below. |
+| **6.15.0** | **2026-04-07** | **behavior** | **People/pets location constraint**: Items with `is_living=true` and `relationship_type != "plant"` MUST have `location.name == "Home"`. Backend enforces validation. Plants (`relationship_type == "plant"`) can be in any location. |
 | 6.14.0 | 2026-04-06 | additive | `warranties` array field added to `Item` response. Each entry has `type`, `provider`, `policy_number`, `duration_months`, `expiration_date`, `notes`. |
 | 6.14.0 | 2026-04-06 | additive | `paint_info` array field added to `Location` response. Each entry has `id`, `room`, `vendor`, `brand`, `color_name`, `color_code`, `hex_color`, `finish`, `notes`, `photo_id`. |
 | 6.x | prior | additive | `gdrive_*` fields added to User object (`gdrive_refresh_token` server-side only; `gdrive_last_backup` exposed in `/gdrive/status`). |
@@ -201,3 +227,59 @@ See `/api/openapi.json` for the full list with request/response schemas.
 | 6.7.0 | prior | additive | `location_category` field added to Location. |
 
 > Older history not recorded. Document starts from v6.14.0.
+
+---
+
+## Living Items
+
+**Added in v6.15.0** — NesVentory now supports tracking people, pets, and plants as "living items" with special fields.
+
+### Item Type Detection
+
+There is NO explicit `type` field. Type is inferred from `relationship_type`:
+
+- `relationship_type === "pet"` → **Pet**
+- `relationship_type === "plant"` → **Plant**  
+- All other values → **Person** (e.g., "self", "spouse", "father", "child", etc.)
+
+### Location Rules
+
+**Critical constraint enforced by backend:**
+
+- **People and Pets**: MUST have `location.name == "Home"`
+  - Backend auto-assigns to Home if location_id is null on creation
+  - Backend returns 400 error if attempting to assign to non-Home location
+  - Frontend displays people/pets in "Living" tab on Home location
+  
+- **Plants**: Can be assigned to ANY location (no restriction)
+  - Treated as regular items with `is_living = true`
+  - Displayed in normal inventory alongside non-living items
+
+### API Filtering
+
+New query parameters on `GET /api/items/`:
+
+- `?is_living=true` — returns only living items
+- `?relationship_type=pet` — returns only pets
+- `?location_id=<uuid>` — filters by location
+
+Example: Get all people and pets at Home location:
+```
+GET /api/items/?is_living=true&location_id=<home-location-id>
+```
+
+### Field Validation
+
+**Living items (`is_living=true`) CANNOT have:**
+- `purchase_price`
+- `retailer`
+- `upc`
+- `serial_number`
+
+**Non-living items (`is_living=false`) CANNOT have:**
+- `birthdate`
+- `contact_info`
+- `relationship_type`
+- `is_current_user`
+
+Backend enforces these rules via Pydantic validators. Returns 422 error on violation.

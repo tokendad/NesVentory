@@ -3,6 +3,7 @@ import type { Location, LocationCreate, Item } from "../lib/api";
 import { updateLocation, getLocationCategories } from "../lib/api";
 import InsuranceTab from "./InsuranceTab";
 import PaintColorsTab from "./PaintColorsTab";
+import LivingTab from "./LivingTab";
 import QRLabelPrint from "./QRLabelPrint";
 
 interface LocationDetailsModalProps {
@@ -13,7 +14,7 @@ interface LocationDetailsModalProps {
   onUpdate: () => void;
 }
 
-type TabType = "details" | "insurance" | "paint";
+type TabType = "details" | "insurance" | "paint" | "living";
 
 const LOCATION_TYPES = [
   { value: "residential", label: "Residential" },
@@ -227,7 +228,7 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
           </div>
         </div>
 
-        {/* Tabs - Paint Colors available for all; Insurance only for primary locations */}
+        {/* Tabs - Paint Colors available for all; Insurance & Living only for primary locations */}
         <div className="settings-tabs" style={{ marginBottom: "1rem" }}>
           <button
             className={`settings-tab ${activeTab === "details" ? "active" : ""}`}
@@ -247,6 +248,14 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
               onClick={() => setActiveTab("insurance")}
             >
               🏠 Insurance
+            </button>
+          )}
+          {location.name === "Home" && (
+            <button
+              className={`settings-tab ${activeTab === "living" ? "active" : ""}`}
+              onClick={() => setActiveTab("living")}
+            >
+              👥 Living
             </button>
           )}
         </div>
@@ -427,6 +436,13 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
         {activeTab === "paint" && (
           <div style={{ maxHeight: "70vh", overflowY: "auto", padding: "0.5rem" }}>
             <PaintColorsTab location={location} onUpdate={onUpdate} />
+          </div>
+        )}
+
+        {/* Living Tab - Only for Home location */}
+        {activeTab === "living" && location.name === "Home" && (
+          <div style={{ maxHeight: "70vh", overflowY: "auto" }}>
+            <LivingTab location={location} onUpdate={onUpdate} />
           </div>
         )}
       </div>

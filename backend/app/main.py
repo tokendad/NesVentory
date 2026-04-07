@@ -42,8 +42,9 @@ def run_migrations():
                        "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "ai_providers", "document_type", "color", 
                        "supports_image_processing", "gemini_model", "must_change_password", "niimbot_printer_config",
                        "additional_info", "thumbnail_path", "location_category", "custom_location_categories",
-                       "paint_info"}
-    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "VARCHAR(64)", "VARCHAR(7)", "VARCHAR(100)", "BOOLEAN DEFAULT FALSE", "BOOLEAN DEFAULT TRUE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT", "JSON", "VARCHAR(1024)", "VARCHAR(50)"}
+                       "paint_info", "is_living", "birthdate", "contact_info", "relationship_type", 
+                       "is_current_user", "associated_user_id"}
+    ALLOWED_TYPES = {"VARCHAR(255)", "VARCHAR(20)", "VARCHAR(64)", "VARCHAR(7)", "VARCHAR(100)", "BOOLEAN DEFAULT FALSE", "BOOLEAN DEFAULT TRUE", "INTEGER DEFAULT 7", "TIMESTAMP", "TEXT", "JSON", "VARCHAR(1024)", "VARCHAR(50)", "DATE", "UUID"}
     
     # Define migrations: (table_name, column_name, column_definition)
     migrations = [
@@ -90,6 +91,13 @@ def run_migrations():
         ("locations", "location_category", "VARCHAR(50)"),
         # Location model: paint color records per surface (walls, trim, ceiling, etc.)
         ("locations", "paint_info", "JSON"),
+        # Item model: Living items support (people, pets, plants)
+        ("items", "is_living", "BOOLEAN DEFAULT FALSE"),
+        ("items", "birthdate", "DATE"),
+        ("items", "contact_info", "JSON"),
+        ("items", "relationship_type", "VARCHAR(100)"),
+        ("items", "is_current_user", "BOOLEAN DEFAULT FALSE"),
+        ("items", "associated_user_id", "UUID"),
     ]
     
     with engine.begin() as conn:
@@ -347,6 +355,36 @@ def auto_seed_category_agent():
 
 
 auto_seed_category_agent()
+
+
+def ensure_home_location():
+    """
+    Ensure a 'Home' location exists for living items (people/pets).
+    Creates it if missing. This location is required for the Living Items feature.
+    """
+    try:
+        db = SessionLocal()
+        
+        # Check if Home location already exists
+        home_location = db.query(models.Location).filter(models.Location.name == "Home").first()
+        
+        if not home_location:
+            # Create Home location
+            home_location = models.Location(
+                name="Home",
+                description="Default location for people and pets",
+                location_category="home"
+            )
+            db.add(home_location)
+            db.commit()
+            print("✓ Created 'Home' location for living items")
+        
+        db.close()
+    except Exception as e:
+        print(f"Warning: Could not ensure Home location exists: {e}")
+
+
+ensure_home_location()
 
 app = FastAPI(
     title="Nesventory API",

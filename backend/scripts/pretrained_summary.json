@@ -1,0 +1,16 @@
+{
+  "training_samples": 7221,
+  "model_version": 2,
+  "series_distribution": {
+    "Alpine Village": 127,
+    "Christmas in the City": 377,
+    "Dickens' Village": 631,
+    "Figurines": 3069,
+    "General Village Accessories": 703,
+    "New England Village": 256,
+    "North Pole Series": 489,
+    "The Original Snow Village": 955,
+    "Snow Village Halloween": 614
+  },
+  "seed_file": "/data/NesVentory/backend/scripts/pretrained_seed.json"
+}

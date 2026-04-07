@@ -28,7 +28,18 @@ NesVentory is a modern home inventory management application that helps you trac
 
 *(via [NesVentory Mobile App](https://github.com/tokendad/NesventoryApp))*
 
-## 🚀 What's New in Version 6.11.2
+## 🚀 What's New in Version 6.15.0
+
+### 👥 **Living Items - Track People, Pets & Plants** (v6.15.0)
+- **People & Pets Management** - Dedicated "Living" tab on Home location for family members and pets
+- **Age Calculation** - Automatic age display from birthdates ("35 years old (born 1990-05-15)")
+- **Contact Information** - Phone, email, address, and emergency contacts for people/pets
+- **Relationship Types** - Track family relationships (self, spouse, child, parent, etc.) and pets
+- **Profile Photos** - Circular profile photos with 👤 (people) and 🐾 (pets) placeholders
+- **Plants Support** - Track living plants as regular items with special care instructions
+- **Home Location Enforcement** - Backend ensures people/pets remain in Home location
+- **Privacy by Design** - NO medical records for people (HIPAA compliant), YES for pets
+- **API Filtering** - New query parameters: `?is_living=true`, `?relationship_type=pet`
 
 ### 🖨️ **Enhanced NIIMBOT Printer Support** (v6.9.0 - v6.11.2)
 - **9 Printer Models Supported** - D101, D110, D110_M, D11_H, B1, B18, B21, B21_Pro, M2_H
@@ -53,6 +64,7 @@ NesVentory is a modern home inventory management application that helps you trac
 ## Features
 
 - 📦 **Inventory Management** - Track all your household items with detailed information
+- 👥 **Living Items** - Track people, pets, and plants with birthdates, contacts, and relationships
 - ✨ **Custom Fields** - Add custom fields (text, URL, date, number) for links, notes, or other information
 - 📸 **Media Management Dashboard** - Centralized view of all photos and videos across your inventory
 - 📷 **AI Photo Detection** - Scan rooms with AI to detect and add items automatically

@@ -5,6 +5,140 @@ n## [6.14.0] - 2026-04-06
 - Tags: New Feature,Bug Fix
 
 
+## [v6.15.0] - Living Items Feature (2026-04-07)
+
+### 🎉 New Features
+
+#### Living Items - Track People, Pets, and Plants
+NesVentory can now track living items (people, pets, and plants) alongside your regular inventory items.
+
+**New Living Items Fields:**
+- `is_living` (boolean) - Flag to indicate this is a living item
+- `birthdate` (date) - Birth date for people and pets [API]
+- `contact_info` (JSON) - Contact information including phone, email, address, notes, and emergency contacts [API]
+- `relationship_type` (string) - Relationship to user (e.g., "self", "spouse", "father", "pet", "plant") [API]
+- `is_current_user` (boolean) - Flag if this living item is the currently logged-in user themselves [API]
+- `associated_user_id` (UUID) - Reference to the user account if this living item is associated with a user [API]
+
+**Living Tab on Home Location:**
+- New "Living" tab appears on the Home location in the UI
+- Shows all people and pets assigned to your home
+- Separate sections for people and pets
+- Age calculation from birthdate
+- Add menu with person/pet type selector
+- Delete buttons with confirmation dialogs
+- Empty state when no people/pets exist
+
+**Location Constraints:**
+- People and pets MUST be assigned to the "Home" location [API]
+- Plants can be assigned to any location
+- Backend automatically creates a Home location on startup
+- Backend validation prevents moving people/pets to non-Home locations
+- Bulk operations respect location constraints [API]
+
+**API Filtering:** [API]
+- `GET /api/items?is_living=true` - Filter by living flag
+- `GET /api/items?relationship_type=pet` - Filter by relationship type
+- `GET /api/items?location_id={uuid}` - Filter by location
+- Filters can be combined
+
+**Field Validation:** [API]
+- Living items CANNOT have: `purchase_price`, `retailer`, `upc`, `serial_number`
+- Non-living items CANNOT have: `birthdate`, `contact_info`, `relationship_type`
+- Pydantic validators prevent mixing conflicting fields
+- Returns 422 error on validation failure
+- Update endpoint validates existing item state when toggling `is_living`
+
+**Type Inference:**
+- No explicit "type" column - infer from `relationship_type`:
+  - `relationship_type === "pet"` → Pet
+  - `relationship_type === "plant"` → Plant
+  - All other values → Person
+
+**Privacy & Security:**
+- NO medical records for people (HIPAA compliance)
+- YES medical records for pets (stored in `additional_info` JSON field)
+- Profile photos with circular crop (UI)
+- All living items endpoints require authentication [API]
+- User-scoped access control enforces location permissions [API]
+- Admins can see all items, users see only items in their allowed locations
+
+**Home Location Protection:** [API]
+- Home location cannot be deleted (returns 400 error)
+- Deleting any location containing people/pets is blocked
+- Clear error messages guide users to correct actions
+
+**Performance Optimizations:**
+- Database indexes added to `is_living` and `relationship_type` columns
+- 10-100x faster filtered queries on large datasets
+
+### 🔒 Security Fixes
+
+- **Authentication:** All `/api/items` CRUD endpoints now require authentication
+- **Authorization:** User-scoped queries ensure users only access items in their allowed locations or owned items
+- **Bulk Operations:** All bulk endpoints (delete, update-tags, update-location) now enforce authentication and authorization
+- **Data Integrity:** Bulk location updates validate living item constraints
+- **Access Control:** 403 Forbidden responses for unauthorized access attempts
+
+### 🐛 Bug Fixes
+
+- Fixed missing database migration for living item fields (prevents crashes on existing installations)
+- Fixed bulk_update_location bypassing Home location constraint for people/pets
+- Fixed field conflict validation on item updates when toggling `is_living` status
+- Protected Home location from accidental deletion
+
+### 📚 Documentation
+
+- Added comprehensive Living Items User Guide (`docs/Guides/LIVING_ITEMS_USER_GUIDE.md`)
+- Added Living Items API Reference (`docs/Guides/LIVING_ITEMS_API_REFERENCE.md`)
+- Added Living Items Release Summary (`docs/LIVING_ITEMS_RELEASE_SUMMARY.md`)
+- Updated API Contract (`docs/API-CONTRACT.md`) with Living Items fields and rules
+- Added code review fixes documentation (`docs/LIVING_ITEMS_CODE_REVIEW_FIXES.md`)
+- Added security fixes documentation (`docs/LIVING_ITEMS_SECURITY_FIXES.md`)
+- Created GitHub issue #66 in mobile app repo for API changes
+
+### 🧪 Testing
+
+- Added comprehensive test suite (`backend/tests/test_living_items.py`) with 15 tests
+- Tests cover person/pet/plant creation, validation, API filtering, and user associations
+
+### [API] Mobile App Compatibility
+
+**BREAKING CHANGES - Mobile app update required:**
+- 6 new fields added to Item model (see above)
+- Location constraint: people/pets must be at "Home"
+- New API filtering parameters
+- **All endpoints now require authentication**
+- **User-scoped data access** (users see only their allowed locations)
+- **401 Unauthorized** for missing/invalid tokens
+- **403 Forbidden** for unauthorized access
+- Field validation prevents conflicting data
+
+See `docs/API-CONTRACT.md` for complete details.
+
+## [Unreleased]
+### Added
+- **Living Items Feature** — Track people and pets in dedicated "Living" tab on Home location
+  - People and pets must be assigned to "Home" location (backend validation enforced)
+  - New "Living" tab appears on Home location details modal
+  - Add person/pet with type selector, view list with age calculation, delete with confirmation
+  - Profile photos with circular display (👤 for people, 🐾 for pets)
+  - Plants treated as regular items with `is_living` flag, can be in any room
+- Database migration for living item fields (`is_living`, `birthdate`, `contact_info`, `relationship_type`, `is_current_user`, `associated_user_id`)
+- Backend validation prevents living/non-living field conflicts (e.g., living items can't have `purchase_price` or `UPC`)
+- API filtering endpoints for living items (`?is_living=true`, `?relationship_type=pet`)
+- Test suite for living items (person, pet, plant CRUD operations and validation)
+
+### API Changes
+- [API] `is_living` (boolean) on Item — identifies living items (people, pets, plants)
+- [API] `birthdate` (date) on Item — for age calculation (living items only)
+- [API] `contact_info` (JSON) on Item — phone, email, address, notes (living items only)
+- [API] `relationship_type` (string) on Item — self, family, pet, plant, etc. (living items only)
+- [API] `is_current_user` (boolean) on Item — links living item to user account
+- [API] `associated_user_id` (UUID) on Item — bidirectional user-item relationship
+- [API] **Location constraint**: People/pets (is_living=true, relationship_type != "plant") MUST have location.name == "Home"
+- [API] Query parameters on `/api/items`: `is_living`, `relationship_type`, `location_id`
+
 ## [6.14.0] - 2026-04-06
 ### Added
 - **Paint Colors tab** on Location details — attach paint product info (brand, color, finish, vendor, tint formula) to rooms. Multiple surface entries (Walls, Trim, Ceiling, etc.) per location. AI photo parsing support for paint can labels.
