@@ -1,4 +1,9 @@
 # Changelog
+n## [6.15.0] - 2026-04-07
+### Added
+- Automated release 6.15.0
+- Tags: New Feature
+
 n## [6.14.0] - 2026-04-06
 ### Added
 - Automated release 6.14.0
