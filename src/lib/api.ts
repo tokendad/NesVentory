@@ -2803,7 +2803,7 @@ export interface CollectionMembershipResult {
 export async function fetchCollections(parentId?: string | null): Promise<Collection[]> {
   const params = new URLSearchParams();
   if (parentId !== undefined && parentId !== null) params.set('parent_id', parentId);
-  const res = await fetch(`${API_BASE_URL}/api/collections?${params}`, { credentials: 'include' });
+  const res = await fetch(`${API_BASE_URL}/api/collections/?${params}`, { credentials: 'include' });
   if (!res.ok) {
     if (res.status === 401) window.dispatchEvent(new Event('auth:unauthorized'));
     throw new Error('Failed to fetch collections');
@@ -2848,7 +2848,7 @@ export async function fetchCollectionDetail(id: string): Promise<CollectionDetai
 }
 
 export async function createCollection(data: CollectionCreate): Promise<CollectionDetail> {
-  const res = await fetch(`${API_BASE_URL}/api/collections`, {
+  const res = await fetch(`${API_BASE_URL}/api/collections/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
