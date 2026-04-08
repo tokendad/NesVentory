@@ -53,7 +53,18 @@ Each item object includes these fields. Fields marked ⚠️ were added after th
 | `created_at` | datetime string | ISO 8601 |
 | `updated_at` | datetime string | ISO 8601 |
 
-#### Contact Info Object (Living Items)
+#### Query Parameters — `GET /api/items/`
+
+| Param | Type | Description |
+|---|---|---|
+| `location_id` | UUID | Filter by location |
+| `is_living` | boolean | `true` = living items only |
+| `relationship_type` | string | e.g. `pet`, `plant`, `spouse` |
+| `collection_id` | UUID | ⚠️ Items directly in this collection (v7.0.0) |
+| `collection_id_recursive` | boolean | ⚠️ Include sub-collection items (v7.0.0) |
+| `search` | string | Full-text search on name/description |
+
+
 
 Structure of `contact_info` JSON field for people/pets:
 
@@ -155,6 +166,7 @@ GET    /api/items/{id}               Get single item
 PUT    /api/items/{id}               Full update
 PATCH  /api/items/{id}               Partial update
 DELETE /api/items/{id}               Delete item
+GET    /api/items/{id}/collections   Collections containing this item (v7.0.0)
 
 GET    /api/locations/               List all locations
 POST   /api/locations/               Create location
@@ -184,6 +196,18 @@ POST   /api/ai/barcode-lookup        UPC barcode lookup
 
 GET    /api/printer/system/printers  List CUPS printers
 POST   /api/printer/print            Print label (NIIMBOT or CUPS)
+
+# Collections (v7.0.0)
+GET    /api/collections/             List collections (?parent_id= / ?search=)
+GET    /api/collections/tree         Full hierarchy tree
+POST   /api/collections/             Create collection (editor+)
+GET    /api/collections/{id}         Get collection detail
+PUT    /api/collections/{id}         Update collection (editor+)
+DELETE /api/collections/{id}         Delete collection (?cascade=true) (admin)
+GET    /api/collections/{id}/items   Items in collection
+POST   /api/collections/{id}/items   Add items to collection (editor+, max 100)
+DELETE /api/collections/{id}/items/{item_id}  Remove item (editor+)
+POST   /api/collections/{id}/cover-image      Upload cover image (editor+)
 ```
 
 See `/api/openapi.json` for the full list with request/response schemas.
@@ -218,6 +242,7 @@ See `/api/openapi.json` for the full list with request/response schemas.
 
 | Version | Date | Type | Description |
 |---|---|---|---|
+| **7.0.0** | **2026-04-08** | **additive** | **Collections Feature**: 11 new endpoints under `/api/collections/`. New `Collection` resource supporting two-level hierarchy. `GET /api/items/` gains `collection_id` and `collection_id_recursive` params. `GET /api/items/{id}/collections` added. See [Collections](#collections----get-apicollections--️-added-v700) section below. |
 | **6.15.0** | **2026-04-07** | **additive** | **Living Items Feature**: Added `is_living`, `birthdate`, `relationship_type`, `is_current_user`, `associated_user_id`, `contact_info` fields to `Item` response. See [Living Items](#living-items) section below. |
 | **6.15.0** | **2026-04-07** | **behavior** | **People/pets location constraint**: Items with `is_living=true` and `relationship_type != "plant"` MUST have `location.name == "Home"`. Backend enforces validation. Plants (`relationship_type == "plant"`) can be in any location. |
 | 6.14.0 | 2026-04-06 | additive | `warranties` array field added to `Item` response. Each entry has `type`, `provider`, `policy_number`, `duration_months`, `expiration_date`, `notes`. |
