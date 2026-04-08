@@ -90,17 +90,17 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
     );
     
     const totalPurchasePrice = itemsAtLocation.reduce(
-      (sum, item) => sum + (item.purchase_price || 0),
+      (sum, item) => sum + (Number(item.purchase_price) || 0),
       0
     );
     
     const totalEstimatedValue = itemsAtLocation.reduce(
-      (sum, item) => sum + (item.estimated_value || 0),
+      (sum, item) => sum + (Number(item.estimated_value) || 0),
       0
     );
     
-    const propertyPurchasePrice = insuranceInfo.purchase_price || 0;
-    const propertyValue = location.estimated_property_value || 0;
+    const propertyPurchasePrice = Number(insuranceInfo.purchase_price) || 0;
+    const propertyValue = Number(location.estimated_property_value) || 0;
     
     return {
       totalValueWithItems: propertyPurchasePrice + totalPurchasePrice,
@@ -204,8 +204,8 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
         <p><strong>Email:</strong> ${escapeHtml(insuranceInfo.primary_holder?.email) || "N/A"}</p>
         
         <h3>Property Values</h3>
-        <p><strong>Total Value:</strong> $${calculatedValues.totalValueWithItems.toLocaleString()}</p>
-        <p><strong>Estimated Value:</strong> $${calculatedValues.estimatedValueWithItems.toLocaleString()}</p>
+        <p><strong>Total Value:</strong> $${calculatedValues.totalValueWithItems.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+        <p><strong>Estimated Value:</strong> $${calculatedValues.estimatedValueWithItems.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
       </div>
     `;
 
@@ -320,8 +320,8 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
         <p><strong>Email:</strong> ${escapeHtml(insuranceInfo.primary_holder?.email) || "N/A"}</p>
         
         <h3>Property Values</h3>
-        <p><strong>Total Value:</strong> $${calculatedValues.totalValueWithItems.toLocaleString()}</p>
-        <p><strong>Estimated Value:</strong> $${calculatedValues.estimatedValueWithItems.toLocaleString()}</p>
+        <p><strong>Total Value:</strong> $${calculatedValues.totalValueWithItems.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+        <p><strong>Estimated Value:</strong> $${calculatedValues.estimatedValueWithItems.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
       </div>
     `;
 
@@ -782,7 +782,7 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
               <label>Total Value (Property + Items Purchase Price)</label>
               <input
                 type="text"
-                value={`$${calculatedValues.totalValueWithItems.toLocaleString()}`}
+                value={`$${calculatedValues.totalValueWithItems.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
                 disabled
                 style={{ backgroundColor: "rgba(78, 205, 196, 0.1)", fontWeight: "bold" }}
               />
@@ -791,7 +791,7 @@ const InsuranceTab: React.FC<InsuranceTabProps> = ({ location, items, allLocatio
               <label>Estimated Value (Property + Items Estimated Value)</label>
               <input
                 type="text"
-                value={`$${calculatedValues.estimatedValueWithItems.toLocaleString()}`}
+                value={`$${calculatedValues.estimatedValueWithItems.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
                 disabled
                 style={{ backgroundColor: "rgba(78, 205, 196, 0.1)", fontWeight: "bold" }}
               />
