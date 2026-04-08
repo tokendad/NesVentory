@@ -1,4 +1,9 @@
 # Changelog
+n## [6.15.1] - 2026-04-08
+### Fixed
+- Automated release 6.15.1
+- Tags: Bug Fix
+
 n## [6.15.0] - 2026-04-07
 ### Added
 - Automated release 6.15.0
