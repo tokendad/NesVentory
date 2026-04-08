@@ -1,4 +1,9 @@
 # Changelog
+n## [6.15.2] - 2026-04-08
+### Fixed
+- Living tab now appears in InventoryPage (active component) for Primary locations — previously the fix was only applied to the legacy LocationsPage
+- Fixed syntax error in LivingTab.tsx (`try:` → `try {`) that would have prevented the component from loading
+
 n## [6.15.1] - 2026-04-08
 ### Fixed
 - Automated release 6.15.1

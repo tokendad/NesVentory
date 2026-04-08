@@ -14,6 +14,7 @@ import {
 } from "../lib/api";
 import QRLabelPrint, { PRINT_MODE_OPTIONS, type PrintMode } from "./QRLabelPrint";
 import InsuranceTab from "./InsuranceTab";
+import LivingTab from "./LivingTab";
 
 interface InventoryPageProps {
   items: Item[];
@@ -135,7 +136,7 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
   const [showQRPrint, setShowQRPrint] = useState<Location | null>(null);
   const [printModeFromEdit, setPrintModeFromEdit] = useState<PrintMode>("qr_with_items");
   // Location Settings tabs
-  const [locationSettingsTab, setLocationSettingsTab] = useState<"details" | "media" | "insurance">("details");
+  const [locationSettingsTab, setLocationSettingsTab] = useState<"details" | "media" | "insurance" | "living">("details");
   // Media upload/display state
   const [locationPhotos, setLocationPhotos] = useState<LocationPhoto[]>([]);
   const [locationVideos, setLocationVideos] = useState<Video[]>([]);
@@ -1039,6 +1040,16 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                     🏠 Insurance
                   </button>
                 )}
+                {/* Living tab - only show for primary locations */}
+                {(editingLocation?.location_category === "Primary" || editingLocation?.is_primary_location) && (
+                  <button
+                    type="button"
+                    className={`tab-button ${locationSettingsTab === "living" ? "active" : ""}`}
+                    onClick={() => setLocationSettingsTab("living")}
+                  >
+                    👥 Living
+                  </button>
+                )}
               </div>
             )}
 
@@ -1442,6 +1453,17 @@ const InventoryPage: React.FC<InventoryPageProps> = ({
                     onRefreshLocations();
                     setShowLocationSettings(null);
                   }} 
+                />
+              </div>
+            )}
+            {/* Living Tab - Only for primary locations */}
+            {locationSettingsTab === "living" && (editingLocation?.location_category === "Primary" || editingLocation?.is_primary_location) && (
+              <div style={{ maxHeight: "70vh", overflowY: "auto", padding: "0.5rem" }}>
+                <LivingTab
+                  location={editingLocation}
+                  onUpdate={() => {
+                    onRefreshLocations();
+                  }}
                 />
               </div>
             )}

@@ -59,7 +59,7 @@ const LivingTab: React.FC<LivingTabProps> = ({ location, onUpdate }) => {
   };
 
   const handleAddPet = async () => {
-    try:
+    try {
       setError(null);
       await createItem({
         name: "New Pet",
