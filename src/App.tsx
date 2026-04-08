@@ -1,11 +1,5 @@
 /**
- * NesVentory v5.0.0 - Main Application Component
- * 
- * Legacy components that can be removed in future cleanup:
- * - DashboardCards.tsx (functionality merged into InventoryPage)
- * - ItemsTable.tsx (functionality merged into InventoryPage)
- * - LocationsPage.tsx (functionality merged into InventoryPage)
- * - LocationsTree.tsx (removed from sidebar navigation)
+ * NesVentory - Main Application Component
  */
 
 import React, { useEffect, useState } from "react";
