@@ -19,6 +19,7 @@ import EncircleImport from "./components/EncircleImport";
 import CSVImport from "./components/CSVImport";
 import AIDetection from "./components/AIDetection";
 import MediaManagement from "./components/MediaManagement";
+import CollectionsDashboard from "./components/CollectionsDashboard";
 import {
   fetchItems,
   fetchLocations,
@@ -42,9 +43,9 @@ import {
 import { PHOTO_TYPES } from "./lib/constants";
 import type { PhotoUpload, DocumentUpload } from "./lib/types";
 
-type View = "inventory" | "media" | "user-settings" | "calendar" | "admin";
+type View = "inventory" | "media" | "user-settings" | "calendar" | "admin" | "collections";
 
-const APP_VERSION = "6.15.2";
+const APP_VERSION = "7.0.0";
 
 const App: React.FC = () => {
   const isMobile = useIsMobile();
@@ -409,6 +410,12 @@ const App: React.FC = () => {
         📦 Inventory
       </button>
       <button
+        className={view === "collections" ? "nav-link active" : "nav-link"}
+        onClick={() => setView("collections")}
+      >
+        🗂️ Collections
+      </button>
+      <button
         className={view === "media" ? "nav-link active" : "nav-link"}
         onClick={() => setView("media")}
       >
@@ -474,6 +481,11 @@ const App: React.FC = () => {
           />
         )}
         {view === "media" && <MediaManagement />}
+        {view === "collections" && (
+          <CollectionsDashboard
+            currentUser={currentUser}
+          />
+        )}
         {view === "user-settings" && currentUser && (
           <UserSettings
             user={currentUser}
@@ -532,6 +544,8 @@ const App: React.FC = () => {
             onDelete={handleDeleteItem}
             onClose={() => setSelectedItem(null)}
             onPhotoUpdated={loadItems}
+            onCollectionUpdated={loadItems}
+            currentUser={currentUser}
           />
         )}
         {selectedItem && editingItem && (

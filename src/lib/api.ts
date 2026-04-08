@@ -2742,4 +2742,203 @@ export async function resetCategoryAgent(): Promise<void> {
   });
 }
 
+// ─── Collections ──────────────────────────────────────────────────────────────
+
+export interface CollectionSharedProperties {
+  vendor?: string;
+  category?: string;
+  notes?: string;
+  custom_fields?: Array<{ label: string; value: string; type: string }>;
+}
+
+export interface Collection {
+  id: string;
+  name: string;
+  description?: string;
+  parent_id?: string | null;
+  color?: string | null;
+  icon?: string | null;
+  cover_image_path?: string | null;
+  shared_properties?: CollectionSharedProperties | null;
+  item_count: number;
+  sub_collection_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CollectionDetail extends Collection {
+  parent?: Collection | null;
+  children: Collection[];
+  created_by?: string | null;
+}
+
+export interface CollectionTreeNode extends Collection {
+  children: CollectionTreeNode[];
+  total_item_count: number;
+}
+
+export interface CollectionCreate {
+  name: string;
+  description?: string;
+  parent_id?: string | null;
+  color?: string;
+  icon?: string;
+  shared_properties?: CollectionSharedProperties;
+}
+
+export interface CollectionUpdate {
+  name?: string;
+  description?: string;
+  parent_id?: string | null;
+  color?: string;
+  icon?: string;
+  shared_properties?: CollectionSharedProperties;
+}
+
+export interface CollectionMembershipResult {
+  added: number;
+  already_members: string[];
+}
+
+export async function fetchCollections(parentId?: string | null): Promise<Collection[]> {
+  const params = new URLSearchParams();
+  if (parentId !== undefined && parentId !== null) params.set('parent_id', parentId);
+  const res = await fetch(`${API_BASE_URL}/api/collections?${params}`, { credentials: 'include' });
+  if (!res.ok) {
+    if (res.status === 401) window.dispatchEvent(new Event('auth:unauthorized'));
+    throw new Error('Failed to fetch collections');
+  }
+  return res.json();
+}
+
+export async function fetchAllCollections(): Promise<Collection[]> {
+  const res = await fetch(`${API_BASE_URL}/api/collections/tree`, { credentials: 'include' });
+  if (!res.ok) {
+    if (res.status === 401) window.dispatchEvent(new Event('auth:unauthorized'));
+    throw new Error('Failed to fetch collections tree');
+  }
+  const tree: CollectionTreeNode[] = await res.json();
+  const flat: Collection[] = [];
+  function flatten(nodes: CollectionTreeNode[]) {
+    for (const n of nodes) {
+      flat.push(n);
+      if (n.children?.length) flatten(n.children);
+    }
+  }
+  flatten(tree);
+  return flat;
+}
+
+export async function fetchCollectionTree(): Promise<CollectionTreeNode[]> {
+  const res = await fetch(`${API_BASE_URL}/api/collections/tree`, { credentials: 'include' });
+  if (!res.ok) {
+    if (res.status === 401) window.dispatchEvent(new Event('auth:unauthorized'));
+    throw new Error('Failed to fetch collection tree');
+  }
+  return res.json();
+}
+
+export async function fetchCollectionDetail(id: string): Promise<CollectionDetail> {
+  const res = await fetch(`${API_BASE_URL}/api/collections/${id}`, { credentials: 'include' });
+  if (!res.ok) {
+    if (res.status === 401) window.dispatchEvent(new Event('auth:unauthorized'));
+    throw new Error('Failed to fetch collection');
+  }
+  return res.json();
+}
+
+export async function createCollection(data: CollectionCreate): Promise<CollectionDetail> {
+  const res = await fetch(`${API_BASE_URL}/api/collections`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    if (res.status === 401) window.dispatchEvent(new Event('auth:unauthorized'));
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any).detail || 'Failed to create collection');
+  }
+  return res.json();
+}
+
+export async function updateCollection(id: string, data: CollectionUpdate): Promise<CollectionDetail> {
+  const res = await fetch(`${API_BASE_URL}/api/collections/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    if (res.status === 401) window.dispatchEvent(new Event('auth:unauthorized'));
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any).detail || 'Failed to update collection');
+  }
+  return res.json();
+}
+
+export async function deleteCollection(id: string, cascade?: boolean): Promise<void> {
+  const url = cascade
+    ? `${API_BASE_URL}/api/collections/${id}?cascade=true`
+    : `${API_BASE_URL}/api/collections/${id}`;
+  const res = await fetch(url, { method: 'DELETE', credentials: 'include' });
+  if (!res.ok) {
+    if (res.status === 401) window.dispatchEvent(new Event('auth:unauthorized'));
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any).detail || 'Failed to delete collection');
+  }
+}
+
+export async function fetchCollectionItems(
+  id: string,
+  recursive?: boolean,
+): Promise<{ collection: Collection; items: Item[]; total: number }> {
+  const params = new URLSearchParams();
+  if (recursive) params.set('recursive', 'true');
+  const res = await fetch(`${API_BASE_URL}/api/collections/${id}/items?${params}`, { credentials: 'include' });
+  if (!res.ok) {
+    if (res.status === 401) window.dispatchEvent(new Event('auth:unauthorized'));
+    throw new Error('Failed to fetch collection items');
+  }
+  return res.json();
+}
+
+export async function addItemsToCollection(
+  collectionId: string,
+  itemIds: string[],
+): Promise<CollectionMembershipResult> {
+  const res = await fetch(`${API_BASE_URL}/api/collections/${collectionId}/items`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ item_ids: itemIds }),
+  });
+  if (!res.ok) {
+    if (res.status === 401) window.dispatchEvent(new Event('auth:unauthorized'));
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any).detail || 'Failed to add items to collection');
+  }
+  return res.json();
+}
+
+export async function removeItemFromCollection(collectionId: string, itemId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/collections/${collectionId}/items/${itemId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    if (res.status === 401) window.dispatchEvent(new Event('auth:unauthorized'));
+    throw new Error('Failed to remove item from collection');
+  }
+}
+
+export async function fetchItemCollections(itemId: string): Promise<Collection[]> {
+  const res = await fetch(`${API_BASE_URL}/api/items/${itemId}/collections`, { credentials: 'include' });
+  if (!res.ok) {
+    if (res.status === 401) window.dispatchEvent(new Event('auth:unauthorized'));
+    throw new Error('Failed to fetch item collections');
+  }
+  return res.json();
+}
+
 

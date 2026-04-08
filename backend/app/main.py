@@ -22,6 +22,7 @@ from .seed_data import seed_database
 from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins, location_photos, csv_import, media, oidc, printer, printer_profiles
 from .routers import settings as settings_router
 from .routers import agents as agents_router
+from .routers import collections as collections_router
 from .routers.auth import perform_password_login
 from .middleware import RequestTracingMiddleware, DynamicCORSMiddleware
 
@@ -36,7 +37,7 @@ def run_migrations():
     """
     # Whitelist of allowed table and column names for security
     # Only these exact names are permitted in migrations
-    ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks", "videos", "plugins", "system_settings", "location_photos"}
+    ALLOWED_TABLES = {"users", "items", "locations", "photos", "documents", "tags", "maintenance_tasks", "videos", "plugins", "system_settings", "location_photos", "collections", "collection_items"}
     ALLOWED_COLUMNS = {"google_id", "oidc_id", "estimated_value_ai_date", "estimated_value_user_date", "estimated_value_user_name",
                        "ai_schedule_enabled", "ai_schedule_interval_days", "ai_schedule_last_run",
                        "gdrive_refresh_token", "gdrive_last_backup", "upc_databases", "ai_providers", "document_type", "color", 
@@ -430,6 +431,7 @@ app.include_router(printer.router)
 app.include_router(printer_profiles.router)
 app.include_router(settings_router.router, prefix="/api")
 app.include_router(agents_router.router, prefix="/api")
+app.include_router(collections_router.router, prefix="/api")
 
 # Root-level /token endpoint for backward compatibility with mobile apps
 @app.post("/token", response_model=Token)

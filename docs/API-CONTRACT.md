@@ -283,3 +283,52 @@ GET /api/items/?is_living=true&location_id=<home-location-id>
 - `is_current_user`
 
 Backend enforces these rules via Pydantic validators. Returns 422 error on violation.
+
+---
+
+## Collections — `GET /api/collections/` ⚠️ Added v7.0.0
+
+Collections are virtual groups that organize items without moving them from their locations. They support two levels of hierarchy (master group → sub-group).
+
+### Collection Object
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | UUID string | |
+| `name` | string | Max 200 chars |
+| `description` | string \| null | |
+| `color` | string \| null | Hex color `#RRGGBB` |
+| `icon` | string \| null | Emoji or icon name |
+| `parent_id` | UUID string \| null | Parent collection; null = top-level |
+| `cover_image_path` | string \| null | Server-relative path |
+| `item_count` | integer | Direct members only |
+| `total_item_count` | integer | Includes sub-collection items |
+| `children` | array | Sub-collections (CollectionSummary) |
+| `created_at` | datetime string | ISO 8601 |
+| `updated_at` | datetime string | ISO 8601 |
+| `shared_properties` | object \| null | Arbitrary JSON metadata |
+
+### Endpoints Added in v7.0.0
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/collections/` | any | List collections; `?parent_id=` or `?search=` |
+| GET | `/api/collections/tree` | any | Full hierarchy tree |
+| POST | `/api/collections/` | editor+ | Create collection |
+| GET | `/api/collections/{id}` | any | Collection detail |
+| PUT | `/api/collections/{id}` | editor+ | Update collection |
+| DELETE | `/api/collections/{id}` | admin | Delete; `?cascade=true` for deep delete |
+| GET | `/api/collections/{id}/items` | any | Items in collection |
+| POST | `/api/collections/{id}/items` | editor+ | Add items (max 100 per call) |
+| DELETE | `/api/collections/{id}/items/{item_id}` | editor+ | Remove item |
+| POST | `/api/collections/{id}/cover-image` | editor+ | Upload cover image |
+| GET | `/api/items/{id}/collections` | any | Collections containing this item |
+
+### Items Endpoint Extensions (v7.0.0)
+
+`GET /api/items/` now accepts two new optional query parameters:
+
+| Param | Type | Description |
+|---|---|---|
+| `collection_id` | UUID | Return only items directly in this collection |
+| `collection_id_recursive` | boolean | When true, include items in all sub-collections |

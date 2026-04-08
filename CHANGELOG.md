@@ -1,4 +1,23 @@
 # Changelog
+n## [7.0.0] - 2026-04-08
+### Added
+- [API] Collections feature: virtual grouping layer over inventory items with hierarchical support (max 2 levels)
+- [API] GET /api/collections/ — list collections (filter by parent_id, search)
+- [API] GET /api/collections/tree — full collection hierarchy as nested tree
+- [API] POST /api/collections/ — create collection (editor+)
+- [API] GET /api/collections/{id} — collection detail with sub-groups and item count
+- [API] PUT /api/collections/{id} — update collection (editor+)
+- [API] DELETE /api/collections/{id} — delete collection; cascade option for admin
+- [API] GET /api/collections/{id}/items — list items in collection
+- [API] POST /api/collections/{id}/items — add items to collection (batch, max 100)
+- [API] DELETE /api/collections/{id}/items/{item_id} — remove item from collection
+- [API] POST /api/collections/{id}/cover-image — upload cover image
+- [API] GET /api/items/{id}/collections — list collections an item belongs to
+- [API] GET /api/items/?collection_id= — filter items by collection
+- [API] GET /api/items/?collection_id_recursive=true — filter items including all sub-collections
+- Collections dashboard view in the UI (🗂️ nav button)
+- Collections tab on item detail panel showing membership and add/remove controls
+
 n## [6.15.2] - 2026-04-08
 ### Fixed
 - Living tab now appears in InventoryPage (active component) for Primary locations — previously the fix was only applied to the legacy LocationsPage

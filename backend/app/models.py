@@ -620,3 +620,50 @@ class AgentTrainingLog(Base):
     source = Column(String(50), default='nesventory', nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+
+# Association table for many-to-many between collections and items
+# ON DELETE CASCADE on both sides: removing a collection or an item removes its memberships
+collection_items = Table(
+    'collection_items',
+    Base.metadata,
+    Column('collection_id', UUID(), ForeignKey('collections.id', ondelete='CASCADE'), primary_key=True),
+    Column('item_id', UUID(), ForeignKey('items.id', ondelete='CASCADE'), primary_key=True),
+    Column('added_at', DateTime, default=datetime.utcnow, nullable=False),
+    Column('added_by', UUID(), ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
+    Column('sort_order', Integer, default=0, nullable=True),
+    Column('notes', Text, nullable=True),
+)
+
+
+class Collection(Base):
+    __tablename__ = "collections"
+
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    # Self-referencing FK; NULL = root collection; ON DELETE RESTRICT (block cascade, enforced in app)
+    parent_id = Column(UUID(), ForeignKey('collections.id', ondelete='RESTRICT'), nullable=True, index=True)
+    cover_image_path = Column(String(1024), nullable=True)  # Relative path, same convention as photos.file_path
+    color = Column(String(7), nullable=True)   # Hex color, e.g. "#E63946"
+    icon = Column(String(100), nullable=True)  # Icon identifier / emoji
+    # shared_properties JSON shape:
+    # {
+    #   "vendor": str,
+    #   "category": str,
+    #   "notes": str,
+    #   "custom_fields": [{"label": str, "value": str, "type": str}]
+    # }
+    shared_properties = Column(JSON, nullable=True)
+    created_by = Column(UUID(), ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Self-referencing relationships
+    parent = relationship("Collection", remote_side="Collection.id", back_populates="children", foreign_keys=[parent_id])
+    children = relationship("Collection", back_populates="parent", foreign_keys=[parent_id], lazy="selectin")
+
+    # M2M with items via collection_items association table
+    items = relationship("Item", secondary=collection_items, backref="collections", lazy="select")
+
+    creator = relationship("User", foreign_keys=[created_by])
+

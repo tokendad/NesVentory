@@ -20,6 +20,8 @@ def list_items(
     is_living: Optional[bool] = Query(None, description="Filter by living items"),
     relationship_type: Optional[str] = Query(None, description="Filter by relationship type"),
     location_id: Optional[UUID] = Query(None, description="Filter by location"),
+    collection_id: Optional[UUID] = Query(None, description="Filter items to those in this specific collection"),
+    collection_id_recursive: Optional[UUID] = Query(None, description="Filter items to those in this collection or any descendant"),
     current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -47,6 +49,34 @@ def list_items(
             if not has_access:
                 raise HTTPException(status_code=403, detail="Access to this location denied")
         query = query.filter(models.Item.location_id == location_id)
+
+    if collection_id:
+        col_items = models.collection_items
+        member_ids = db.execute(
+            col_items.select().where(col_items.c.collection_id == collection_id)
+        ).fetchall()
+        item_ids = [row.item_id for row in member_ids]
+        query = query.filter(models.Item.id.in_(item_ids))
+
+    if collection_id_recursive:
+        all_cols = db.query(models.Collection.id, models.Collection.parent_id).all()
+        parent_to_children: dict = {}
+        for cid, pid in all_cols:
+            if pid is not None:
+                parent_to_children.setdefault(pid, []).append(cid)
+        all_ids = [collection_id_recursive]
+        queue = [collection_id_recursive]
+        while queue:
+            current = queue.pop()
+            for child_id in parent_to_children.get(current, []):
+                all_ids.append(child_id)
+                queue.append(child_id)
+        col_items = models.collection_items
+        member_rows = db.execute(
+            col_items.select().where(col_items.c.collection_id.in_(all_ids))
+        ).fetchall()
+        item_ids = list({row.item_id for row in member_rows})
+        query = query.filter(models.Item.id.in_(item_ids))
     
     return query.all()
 
@@ -648,3 +678,47 @@ Important:
         logger.exception(f"Error enriching item {item.id} with Gemini: {e}")
         return None
 
+
+
+@router.get("/{item_id}/collections", response_model=List[schemas.CollectionSummary])
+def get_item_collections(
+    item_id: UUID,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get all collections that directly contain this item."""
+    item = db.query(models.Item).filter(models.Item.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    col_items_table = models.collection_items
+    rows = db.execute(
+        col_items_table.select().where(col_items_table.c.item_id == item_id)
+    ).fetchall()
+    collection_ids = [row.collection_id for row in rows]
+
+    if not collection_ids:
+        return []
+
+    collections = db.query(models.Collection).filter(models.Collection.id.in_(collection_ids)).all()
+
+    result = []
+    for col in collections:
+        col_items = db.execute(
+            col_items_table.select().where(col_items_table.c.collection_id == col.id)
+        ).fetchall()
+        sub_count = db.query(models.Collection).filter(models.Collection.parent_id == col.id).count()
+        result.append(schemas.CollectionSummary(
+            id=col.id,
+            name=col.name,
+            description=col.description,
+            parent_id=col.parent_id,
+            color=col.color,
+            icon=col.icon,
+            cover_image_path=col.cover_image_path,
+            item_count=len(col_items),
+            sub_collection_count=sub_count,
+            created_at=col.created_at,
+            updated_at=col.updated_at,
+        ))
+    return result

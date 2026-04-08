@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, date
 from typing import Optional, List
 from uuid import UUID
@@ -767,4 +768,169 @@ class UserPrinterConfigResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ===== Collection Schemas =====
+
+class CollectionCustomField(BaseModel):
+    label: str
+    value: str
+    type: str = "text"  # "text", "url", "number"
+
+
+class CollectionSharedProperties(BaseModel):
+    """Validated sub-model for collection shared_properties JSON column."""
+    model_config = {"extra": "forbid"}
+
+    vendor: Optional[str] = None
+    category: Optional[str] = None
+    notes: Optional[str] = None
+    custom_fields: Optional[List[CollectionCustomField]] = None
+
+
+class CollectionBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    parent_id: Optional[UUID] = None
+    color: Optional[str] = None
+    icon: Optional[str] = None
+    shared_properties: Optional[CollectionSharedProperties] = None
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("name must not be empty")
+        if len(v) > 255:
+            raise ValueError("name must be 255 characters or fewer")
+        return v.strip()
+
+    @field_validator("description")
+    @classmethod
+    def validate_description(cls, v: Optional[str]) -> Optional[str]:
+        if v and len(v) > 2000:
+            raise ValueError("description must be 2000 characters or fewer")
+        return v
+
+    @field_validator("color")
+    @classmethod
+    def validate_color(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            if not re.match(r'^#[0-9a-fA-F]{6}$', v):
+                raise ValueError("color must be a 7-character hex string like #E63946")
+        return v
+
+    @field_validator("icon")
+    @classmethod
+    def validate_icon(cls, v: Optional[str]) -> Optional[str]:
+        if v and len(v) > 4:
+            raise ValueError("icon must be 4 characters or fewer (emoji)")
+        return v
+
+
+class CollectionCreate(CollectionBase):
+    """cover_image_path is intentionally excluded — set only via the upload endpoint."""
+    pass
+
+
+class CollectionUpdate(BaseModel):
+    """All fields optional for partial update."""
+    name: Optional[str] = None
+    description: Optional[str] = None
+    parent_id: Optional[UUID] = None
+    color: Optional[str] = None
+    icon: Optional[str] = None
+    shared_properties: Optional[CollectionSharedProperties] = None
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            if not v.strip():
+                raise ValueError("name must not be empty")
+            if len(v) > 255:
+                raise ValueError("name must be 255 characters or fewer")
+            return v.strip()
+        return v
+
+    @field_validator("color")
+    @classmethod
+    def validate_color(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            if not re.match(r'^#[0-9a-fA-F]{6}$', v):
+                raise ValueError("color must be a 7-character hex string like #E63946")
+        return v
+
+    @field_validator("icon")
+    @classmethod
+    def validate_icon(cls, v: Optional[str]) -> Optional[str]:
+        if v and len(v) > 4:
+            raise ValueError("icon must be 4 characters or fewer (emoji)")
+        return v
+
+
+class CollectionSummary(BaseModel):
+    """Lightweight collection response for list endpoints and tree nodes."""
+    id: UUID
+    name: str
+    description: Optional[str] = None
+    parent_id: Optional[UUID] = None
+    color: Optional[str] = None
+    icon: Optional[str] = None
+    cover_image_path: Optional[str] = None
+    item_count: int = 0
+    sub_collection_count: int = 0
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CollectionDetail(CollectionSummary):
+    """Full collection detail including parent summary and immediate children."""
+    shared_properties: Optional[CollectionSharedProperties] = None
+    parent: Optional[CollectionSummary] = None
+    children: List[CollectionSummary] = []
+    created_by: Optional[UUID] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CollectionTreeNode(CollectionSummary):
+    """Recursive tree node — children are fully expanded."""
+    children: List['CollectionTreeNode'] = []
+    total_item_count: int = 0  # direct + all descendant items
+
+    class Config:
+        from_attributes = True
+
+CollectionTreeNode.model_rebuild()
+
+
+class CollectionItemsAdd(BaseModel):
+    """Add items to a collection — max 100 per call."""
+    item_ids: List[UUID]
+    notes: Optional[str] = None
+    sort_order: Optional[int] = None
+
+    @field_validator("item_ids")
+    @classmethod
+    def validate_item_ids(cls, v: List[UUID]) -> List[UUID]:
+        if not v:
+            raise ValueError("item_ids must not be empty")
+        if len(v) > 100:
+            raise ValueError("item_ids must contain 100 items or fewer per call")
+        return v
+
+
+class CollectionItemUpdate(BaseModel):
+    sort_order: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class CollectionMembershipResult(BaseModel):
+    added: int
+    already_members: List[UUID] = []
 

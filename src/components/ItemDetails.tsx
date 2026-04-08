@@ -1,6 +1,7 @@
-import React, { useState, useRef } from "react";
-import type { Item, Location, Photo, EnrichedItemData } from "../lib/api";
-import { getApiBaseUrl, enrichItem, uploadPhoto } from "../lib/api";
+import React, { useState, useRef, useEffect } from "react";
+import type { Item, Location, Photo, EnrichedItemData, User } from "../lib/api";
+import { getApiBaseUrl, enrichItem, uploadPhoto, fetchItemCollections, fetchCollections, addItemsToCollection, removeItemFromCollection } from "../lib/api";
+import type { Collection } from "../lib/api";
 import { formatPhotoType, formatCurrency, formatDate, formatDateTime, getLocationPath } from "../lib/utils";
 import { RELATIONSHIP_LABELS, LIVING_TAG_NAME, DOCUMENT_TYPES, PHOTO_TYPES } from "../lib/constants";
 import MaintenanceTab from "./MaintenanceTab";
@@ -17,9 +18,223 @@ interface ItemDetailsProps {
   onDelete: () => Promise<void>;
   onClose: () => void;
   onPhotoUpdated: () => void;
+  onCollectionUpdated?: () => void;
+  currentUser?: User | null;
 }
 
-type TabType = 'details' | 'maintenance' | 'warranty';
+type TabType = 'details' | 'maintenance' | 'warranty' | 'collections';
+
+// ─── CollectionsTab ───────────────────────────────────────────────────────────
+
+interface CollectionsTabProps {
+  itemId: string;
+  currentUser: User | null;
+  itemCollections: Collection[];
+  setItemCollections: React.Dispatch<React.SetStateAction<Collection[]>>;
+  collectionsLoading: boolean;
+  setCollectionsLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  allCollections: Collection[];
+  setAllCollections: React.Dispatch<React.SetStateAction<Collection[]>>;
+  showAddToCollection: boolean;
+  setShowAddToCollection: React.Dispatch<React.SetStateAction<boolean>>;
+  addingToCollection: boolean;
+  setAddingToCollection: React.Dispatch<React.SetStateAction<boolean>>;
+  removingFromCollection: string | null;
+  setRemovingFromCollection: React.Dispatch<React.SetStateAction<string | null>>;
+  collectionsError: string | null;
+  setCollectionsError: React.Dispatch<React.SetStateAction<string | null>>;
+  onCollectionUpdated?: () => void;
+}
+
+function CollectionsTab({
+  itemId,
+  currentUser,
+  itemCollections,
+  setItemCollections,
+  collectionsLoading,
+  setCollectionsLoading,
+  allCollections,
+  setAllCollections,
+  showAddToCollection,
+  setShowAddToCollection,
+  addingToCollection,
+  setAddingToCollection,
+  removingFromCollection,
+  setRemovingFromCollection,
+  collectionsError,
+  setCollectionsError,
+  onCollectionUpdated,
+}: CollectionsTabProps) {
+  const [selectedCollectionId, setSelectedCollectionId] = useState('');
+  const canEdit = currentUser?.role === 'admin' || currentUser?.role === 'editor';
+
+  useEffect(() => {
+    setCollectionsLoading(true);
+    setCollectionsError(null);
+    fetchItemCollections(itemId)
+      .then(data => setItemCollections(data))
+      .catch(e => setCollectionsError(e instanceof Error ? e.message : 'Failed to load collections'))
+      .finally(() => setCollectionsLoading(false));
+  }, [itemId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleOpenAddModal = async () => {
+    setCollectionsError(null);
+    try {
+      const all = await fetchCollections();
+      setAllCollections(all);
+      setSelectedCollectionId('');
+      setShowAddToCollection(true);
+    } catch (e: unknown) {
+      setCollectionsError(e instanceof Error ? e.message : 'Failed to load collections');
+    }
+  };
+
+  const handleAdd = async () => {
+    if (!selectedCollectionId) return;
+    setAddingToCollection(true);
+    setCollectionsError(null);
+    try {
+      await addItemsToCollection(selectedCollectionId, [itemId]);
+      const updated = await fetchItemCollections(itemId);
+      setItemCollections(updated);
+      setShowAddToCollection(false);
+      onCollectionUpdated?.();
+    } catch (e: unknown) {
+      setCollectionsError(e instanceof Error ? e.message : 'Failed to add to collection');
+    } finally {
+      setAddingToCollection(false);
+    }
+  };
+
+  const handleRemove = async (collectionId: string) => {
+    setRemovingFromCollection(collectionId);
+    setCollectionsError(null);
+    try {
+      await removeItemFromCollection(collectionId, itemId);
+      setItemCollections(prev => prev.filter(c => c.id !== collectionId));
+      onCollectionUpdated?.();
+    } catch (e: unknown) {
+      setCollectionsError(e instanceof Error ? e.message : 'Failed to remove from collection');
+    } finally {
+      setRemovingFromCollection(null);
+    }
+  };
+
+  // Filter out already-member collections
+  const memberIds = new Set(itemCollections.map(c => c.id));
+  const available = allCollections.filter(c => !memberIds.has(c.id));
+
+  return (
+    <div className="item-details">
+      <div className="details-section">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h3 style={{ margin: 0 }}>Collections</h3>
+          {canEdit && (
+            <button className="btn-outline" style={{ fontSize: 12 }} onClick={handleOpenAddModal}>
+              + Add to Collection
+            </button>
+          )}
+        </div>
+
+        {collectionsError && (
+          <div className="error-message" style={{ marginBottom: 10 }}>{collectionsError}</div>
+        )}
+
+        {collectionsLoading ? (
+          <div style={{ color: '#888', padding: '12px 0' }}>Loading…</div>
+        ) : itemCollections.length === 0 ? (
+          <div style={{ color: '#888', padding: '12px 0' }}>
+            This item is not in any collections yet.
+          </div>
+        ) : (
+          <div>
+            {itemCollections.map(col => (
+              <div
+                key={col.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '7px 10px',
+                  borderRadius: 6,
+                  marginBottom: 6,
+                  background: `${col.color ?? '#457B9D'}11`,
+                  borderLeft: `3px solid ${col.color ?? '#457B9D'}`,
+                }}
+              >
+                <span style={{ fontSize: 18 }}>{col.icon ?? '🗂️'}</span>
+                <span style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>{col.name}</span>
+                {canEdit && (
+                  <button
+                    className="btn-outline"
+                    style={{ fontSize: 12, padding: '2px 7px', color: '#c0392b', borderColor: '#c0392b' }}
+                    onClick={() => handleRemove(col.id)}
+                    disabled={removingFromCollection === col.id}
+                    title={`Remove from ${col.name}`}
+                  >
+                    {removingFromCollection === col.id ? '…' : '× Remove'}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Add to collection picker */}
+      {showAddToCollection && (
+        <div className="modal-overlay" onClick={() => setShowAddToCollection(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+            <div className="modal-header">
+              <h2>Add to Collection</h2>
+              <button className="modal-close" onClick={() => setShowAddToCollection(false)}>×</button>
+            </div>
+            <div style={{ padding: '16px 0' }}>
+              {available.length === 0 ? (
+                <p style={{ color: '#888' }}>This item is already in all available collections.</p>
+              ) : (
+                <>
+                  <label htmlFor="collection-pick" style={{ fontSize: 14, fontWeight: 500 }}>
+                    Select a collection
+                  </label>
+                  <select
+                    id="collection-pick"
+                    className="form-input"
+                    value={selectedCollectionId}
+                    onChange={e => setSelectedCollectionId(e.target.value)}
+                    style={{ marginTop: 8 }}
+                  >
+                    <option value="">— Choose —</option>
+                    {available.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.icon ? `${c.icon} ` : ''}{c.name}
+                      </option>
+                    ))}
+                  </select>
+                  {collectionsError && (
+                    <div className="error-message" style={{ marginTop: 8 }}>{collectionsError}</div>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="collection-modal-footer" style={{ padding: '0 0 8px' }}>
+              <button className="btn-outline" onClick={() => setShowAddToCollection(false)}>Cancel</button>
+              {available.length > 0 && (
+                <button
+                  className="btn-primary"
+                  onClick={handleAdd}
+                  disabled={!selectedCollectionId || addingToCollection}
+                >
+                  {addingToCollection ? 'Adding…' : 'Add'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const ItemDetails: React.FC<ItemDetailsProps> = ({
   item,
@@ -29,6 +244,8 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
   onDelete,
   onClose,
   onPhotoUpdated,
+  onCollectionUpdated,
+  currentUser,
 }) => {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -38,6 +255,15 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
   const [enrichmentError, setEnrichmentError] = useState<string | null>(null);
   const [enrichmentData, setEnrichmentData] = useState<EnrichedItemData[] | null>(null);
   const [showQRPrint, setShowQRPrint] = useState(false);
+
+  // Collections tab state
+  const [itemCollections, setItemCollections] = useState<Collection[]>([]);
+  const [collectionsLoading, setCollectionsLoading] = useState(false);
+  const [allCollections, setAllCollections] = useState<Collection[]>([]);
+  const [showAddToCollection, setShowAddToCollection] = useState(false);
+  const [addingToCollection, setAddingToCollection] = useState(false);
+  const [removingFromCollection, setRemovingFromCollection] = useState<string | null>(null);
+  const [collectionsError, setCollectionsError] = useState<string | null>(null);
   
   // Photo upload state
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -169,6 +395,12 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
             })) && <span className="warranty-tab-badge" aria-label="warranty alert">!</span>}
           </button>
         )}
+        <button
+          className={`tab-button ${activeTab === 'collections' ? 'active' : ''}`}
+          onClick={() => setActiveTab('collections')}
+        >
+          🗂️ Collections
+        </button>
       </div>
 
       {activeTab === 'details' && (
@@ -492,6 +724,28 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({
         <div className="item-details">
           <WarrantyTab item={item} onUpdate={onPhotoUpdated} />
         </div>
+      )}
+
+      {activeTab === 'collections' && (
+        <CollectionsTab
+          itemId={item.id.toString()}
+          currentUser={currentUser ?? null}
+          itemCollections={itemCollections}
+          setItemCollections={setItemCollections}
+          collectionsLoading={collectionsLoading}
+          setCollectionsLoading={setCollectionsLoading}
+          allCollections={allCollections}
+          setAllCollections={setAllCollections}
+          showAddToCollection={showAddToCollection}
+          setShowAddToCollection={setShowAddToCollection}
+          addingToCollection={addingToCollection}
+          setAddingToCollection={setAddingToCollection}
+          removingFromCollection={removingFromCollection}
+          setRemovingFromCollection={setRemovingFromCollection}
+          collectionsError={collectionsError}
+          setCollectionsError={setCollectionsError}
+          onCollectionUpdated={onCollectionUpdated}
+        />
       )}
 
       <div className="panel-actions">
