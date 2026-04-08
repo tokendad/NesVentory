@@ -250,7 +250,7 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
               🏠 Insurance
             </button>
           )}
-          {location.name === "Home" && (
+          {(location.location_category === "Primary" || location.is_primary_location) && (
             <button
               className={`settings-tab ${activeTab === "living" ? "active" : ""}`}
               onClick={() => setActiveTab("living")}
@@ -439,8 +439,8 @@ const LocationDetailsModal: React.FC<LocationDetailsModalProps> = ({
           </div>
         )}
 
-        {/* Living Tab - Only for Home location */}
-        {activeTab === "living" && location.name === "Home" && (
+        {/* Living Tab - Only for Primary category locations */}
+        {activeTab === "living" && (location.location_category === "Primary" || location.is_primary_location) && (
           <div style={{ maxHeight: "70vh", overflowY: "auto" }}>
             <LivingTab location={location} onUpdate={onUpdate} />
           </div>
