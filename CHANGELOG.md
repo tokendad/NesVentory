@@ -1,4 +1,9 @@
 # Changelog
+n## [7.0.1] - 2026-04-09
+### Fixed
+- Automated release 7.0.1
+- Tags: Bug Fix
+
 n## [7.0.0] - 2026-04-08
 ### Added
 - [API] Collections feature: virtual grouping layer over inventory items with hierarchical support (max 2 levels)
