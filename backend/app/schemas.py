@@ -24,6 +24,11 @@ class UserCreate(UserBase):
     password: str
 
 
+class FirstAdminCreate(UserBase):
+    """Schema for creating the first admin account during initial setup."""
+    password: str
+
+
 # Schema for admin to create users with custom role and approval status
 class AdminUserCreate(UserBase):
     password: str  # Always required - temporary password when require_password_change is True
@@ -933,4 +938,51 @@ class CollectionItemUpdate(BaseModel):
 class CollectionMembershipResult(BaseModel):
     added: int
     already_members: List[UUID] = []
+
+
+# ── Network Discovery Schemas ────────────────────────────────────────────────
+
+class DiscoveredDevice(BaseModel):
+    ip: str
+    mac: Optional[str] = None
+    hostname: Optional[str] = None
+    manufacturer: Optional[str] = None
+    os_guess: Optional[str] = None
+    open_ports: List[int] = []
+    services: List[str] = []
+    device_type_guess: Optional[str] = None  # "router", "camera", "computer", etc.
+    existing_item_id: Optional[str] = None   # UUID if a match was found
+    existing_item_name: Optional[str] = None # Name of the matched item
+
+
+class NetworkScanRequest(BaseModel):
+    subnet: Optional[str] = None  # e.g. "192.168.1.0/24"; None = auto-detect
+
+
+class NetworkScanResponse(BaseModel):
+    subnet_scanned: str
+    scan_duration_seconds: float
+    devices_found: int
+    devices: List[DiscoveredDevice]
+    scan_method: str  # "nmap" or "fallback"
+    error: Optional[str] = None
+
+
+class NetworkImportDevice(BaseModel):
+    action: str  # "create", "update", or "skip"
+    device: DiscoveredDevice
+    item_id: Optional[str] = None   # for "update" action
+    item_name: Optional[str] = None # custom name override for "create"
+
+
+class NetworkImportRequest(BaseModel):
+    location_id: str
+    devices: List[NetworkImportDevice]
+
+
+class NetworkImportResponse(BaseModel):
+    created: int
+    updated: int
+    skipped: int
+    errors: List[str] = []
 

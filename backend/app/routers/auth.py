@@ -50,6 +50,7 @@ def perform_password_login(db: Session, username: str, password: str) -> dict:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your account is pending approval by an administrator",
+            headers={"X-Error-Code": "PENDING_APPROVAL"},
         )
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -89,7 +90,28 @@ class RegistrationStatus(BaseModel):
     enabled: bool
 
 
-@router.get("/auth/registration/status", response_model=RegistrationStatus)
+class SetupStatus(BaseModel):
+    """Response model for initial setup status."""
+    setup_required: bool
+
+
+@router.get("/auth/setup/status", response_model=SetupStatus)
+async def setup_status(db: Session = Depends(get_db)):
+    """
+    Check whether initial admin setup is required.
+
+    Returns setup_required=True when there are no approved admin accounts, which
+    signals the frontend to show the first-run setup wizard instead of the normal
+    login screen.  This endpoint is intentionally public (no auth required).
+    """
+    approved_admin_count = db.query(models.User).filter(
+        models.User.role == models.UserRole.ADMIN,
+        models.User.is_approved == True
+    ).count()
+    return {"setup_required": approved_admin_count == 0}
+
+
+
 async def registration_status():
     """
     Check if new user registration is enabled.
@@ -209,6 +231,7 @@ async def google_auth(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your account is pending approval by an administrator",
+            headers={"X-Error-Code": "PENDING_APPROVAL"},
         )
 
     # Generate access token

@@ -298,7 +298,10 @@ async function handleResponse<T>(res: Response): Promise<T> {
     } catch {
       // ignore
     }
-    throw new Error(message || `HTTP ${res.status}`);
+    const errorCode = res.headers.get("x-error-code");
+    const err = new Error(message || `HTTP ${res.status}`) as Error & { code?: string };
+    if (errorCode) err.code = errorCode;
+    throw err;
   }
   return res.json() as Promise<T>;
 }
@@ -2939,6 +2942,143 @@ export async function fetchItemCollections(itemId: string): Promise<Collection[]
     throw new Error('Failed to fetch item collections');
   }
   return res.json();
+}
+
+// ─── Onboarding / Setup helpers ─────────────────────────────────────────────
+
+export interface SetupStatus {
+  setup_required: boolean;
+}
+
+export async function checkSetupStatus(): Promise<SetupStatus> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/setup/status`);
+  return handleResponse<SetupStatus>(res);
+}
+
+export interface FirstAdminPayload {
+  email: string;
+  full_name: string;
+  password: string;
+}
+
+export async function createFirstAdmin(payload: FirstAdminPayload): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/users/setup/first-admin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<User>(res);
+}
+
+export interface HomeSetupPayload {
+  home_name: string;
+  rooms: { name: string; location_category?: string }[];
+}
+
+export interface HomeSetupResult {
+  home_id: string;
+  home_name: string;
+  rooms_created: number;
+}
+
+export async function createHomeSetup(payload: HomeSetupPayload): Promise<HomeSetupResult> {
+  const res = await fetch(`${API_BASE_URL}/api/onboarding/home`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(payload),
+  });
+  return handleResponse<HomeSetupResult>(res);
+}
+
+export async function getPendingUsers(): Promise<User[]> {
+  const res = await fetch(`${API_BASE_URL}/api/users/pending`, {
+    headers: { "Accept": "application/json", ...authHeaders() },
+    credentials: "include",
+  });
+  return handleResponse<User[]>(res);
+}
+
+export async function approveUser(userId: string): Promise<User> {
+  const res = await fetch(`${API_BASE_URL}/api/users/${userId}/approve`, {
+    method: "POST",
+    headers: { "Accept": "application/json", ...authHeaders() },
+    credentials: "include",
+  });
+  return handleResponse<User>(res);
+}
+
+export async function rejectUser(userId: string): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/api/users/${userId}/reject`, {
+    method: "POST",
+    headers: { "Accept": "application/json", ...authHeaders() },
+    credentials: "include",
+  });
+  return handleResponse<void>(res);
+}
+
+// ── Network Discovery ────────────────────────────────────────────────────────
+
+export interface DiscoveredDevice {
+  ip: string;
+  mac: string | null;
+  hostname: string | null;
+  manufacturer: string | null;
+  os_guess: string | null;
+  open_ports: number[];
+  services: string[];
+  device_type_guess: string | null;
+  existing_item_id: string | null;
+  existing_item_name: string | null;
+}
+
+export interface NetworkScanResponse {
+  subnet_scanned: string;
+  scan_duration_seconds: number;
+  devices_found: number;
+  devices: DiscoveredDevice[];
+  scan_method: string;
+  error: string | null;
+}
+
+export interface NetworkImportDevice {
+  action: "create" | "update" | "skip";
+  device: DiscoveredDevice;
+  item_id?: string;
+  item_name?: string;
+}
+
+export interface NetworkImportRequest {
+  location_id: string;
+  devices: NetworkImportDevice[];
+}
+
+export interface NetworkImportResponse {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+}
+
+export async function scanNetwork(subnet?: string): Promise<NetworkScanResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/network/scan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json", ...authHeaders() },
+    credentials: "include",
+    body: JSON.stringify({ subnet: subnet || null }),
+  });
+  return handleResponse<NetworkScanResponse>(res);
+}
+
+export async function importNetworkDevices(req: NetworkImportRequest): Promise<NetworkImportResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/network/import`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json", ...authHeaders() },
+    credentials: "include",
+    body: JSON.stringify(req),
+  });
+  return handleResponse<NetworkImportResponse>(res);
 }
 
 

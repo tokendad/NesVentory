@@ -52,6 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     util-linux \
     fonts-dejavu \
     libcups2-dev \
+    nmap \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

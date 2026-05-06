@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import NetworkDiscoveryWizard from "./onboarding/NetworkDiscoveryWizard";
 import {
   fetchUsers,
   updateUser,
@@ -245,6 +246,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
   const [aiTestResult, setAiTestResult] = useState<AIConnectionTestResponse | null>(null);
 
   // Plugin states
+  const [showNetworkScan, setShowNetworkScan] = useState(false);
   const [plugins, setPlugins] = useState<Plugin[]>([]);
   const [pluginsLoading, setPluginsLoading] = useState(false);
   const [pluginsError, setPluginsError] = useState<string | null>(null);
@@ -3381,6 +3383,34 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
         Configure custom LLM plugins for AI-powered features like data tag parsing and barcode lookup.
       </p>
 
+      {/* Network Discovery card */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        padding: '1rem 1.25rem',
+        border: '1px solid var(--border-color, #e5e7eb)',
+        borderRadius: '10px',
+        background: 'var(--card-bg, #fff)',
+        marginBottom: '1.5rem',
+        gap: '1rem',
+      }}>
+        <div>
+          <h4 style={{ margin: '0 0 0.25rem', fontWeight: 600 }}>🔍 Network Discovery</h4>
+          <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-text-secondary, #6b7280)' }}>
+            Scan your local network to automatically discover and import connected devices
+            (computers, cameras, IoT devices, routers) into your inventory.
+          </p>
+        </div>
+        <button
+          className="btn btn-primary"
+          onClick={() => setShowNetworkScan(true)}
+          style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+        >
+          Scan Network
+        </button>
+      </div>
+
       {/* Plugin-Gemini deprecation banner */}
       {!pluginGeminiBannerDismissed &&
         plugins.some(p => /plugin-gemini/i.test(p.endpoint_url)) && (
@@ -4099,7 +4129,18 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
   );
 
   if (embedded) {
-    return <div>{content}</div>;
+    return (
+      <>
+        <div>{content}</div>
+        {showNetworkScan && (
+          <NetworkDiscoveryWizard
+            locations={locations}
+            onComplete={() => setShowNetworkScan(false)}
+            onSkip={() => setShowNetworkScan(false)}
+          />
+        )}
+      </>
+    );
   }
 
   return (
@@ -4107,6 +4148,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ onClose, currentUserId, embedded 
       <div className="modal-content" style={{ maxWidth: "1100px", maxHeight: "90vh", overflowY: "auto" }}>
         {content}
       </div>
+      {showNetworkScan && (
+        <NetworkDiscoveryWizard
+          locations={locations}
+          onComplete={() => setShowNetworkScan(false)}
+          onSkip={() => setShowNetworkScan(false)}
+        />
+      )}
     </div>
   );
 };

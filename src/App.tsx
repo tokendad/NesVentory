@@ -20,6 +20,12 @@ import CSVImport from "./components/CSVImport";
 import AIDetection from "./components/AIDetection";
 import MediaManagement from "./components/MediaManagement";
 import CollectionsDashboard from "./components/CollectionsDashboard";
+import SetupWizard from "./components/onboarding/SetupWizard";
+import HomeOnboardingWizard from "./components/onboarding/HomeOnboardingWizard";
+import PendingApprovalQueue from "./components/onboarding/PendingApprovalQueue";
+import ItemOnboardingWizard from "./components/onboarding/ItemOnboardingWizard";
+import PostHomeChoiceWizard from "./components/onboarding/PostHomeChoiceWizard";
+import NetworkDiscoveryWizard from "./components/onboarding/NetworkDiscoveryWizard";
 import {
   fetchItems,
   fetchLocations,
@@ -31,9 +37,11 @@ import {
   uploadDocument,
   uploadDocumentFromUrl,
   getCurrentUser,
+  checkSetupStatus,
   bulkDeleteItems,
   bulkUpdateTags,
   bulkUpdateLocation,
+  getPendingUsers,
   type Item,
   type ItemCreate,
   type Location,
@@ -82,6 +90,14 @@ const App: React.FC = () => {
   const [showAIDetection, setShowAIDetection] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [setupStatus, setSetupStatus] = useState<"checking" | "required" | "done">("checking");
+  const [showHomeWizard, setShowHomeWizard] = useState(false);
+  const [showItemWizard, setShowItemWizard] = useState(false);
+  const [showPostHomeChoice, setShowPostHomeChoice] = useState(false);
+  const [showNetworkDiscovery, setShowNetworkDiscovery] = useState(false);
+  const [pendingHomeId, setPendingHomeId] = useState<string | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [showPendingQueue, setShowPendingQueue] = useState(false);
 
   useEffect(() => {
     const handleUnauthorized = () => {
@@ -89,6 +105,17 @@ const App: React.FC = () => {
     };
     window.addEventListener("auth:unauthorized", handleUnauthorized);
     return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
+  }, []);
+
+  useEffect(() => {
+    checkSetupStatus()
+      .then((status) => {
+        setSetupStatus(status.setup_required ? "required" : "done");
+      })
+      .catch(() => {
+        // If the endpoint fails, assume setup is done and let normal auth handle it
+        setSetupStatus("done");
+      });
   }, []);
 
   async function loadItems() {
@@ -152,11 +179,31 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!token) return;
+    if (setupStatus !== "done") return;
     loadItems();
     loadLocations();
     loadTags();
     loadCurrentUser();
-  }, [token]);
+  }, [token, setupStatus]);
+
+  // Fetch pending user count for admins; auto-trigger home wizard if no locations yet.
+  useEffect(() => {
+    if (!currentUser || !token || setupStatus !== "done") return;
+
+    if (currentUser.role === "admin") {
+      getPendingUsers()
+        .then((pending) => setPendingCount(pending.length))
+        .catch(() => {});
+    }
+  }, [currentUser, token, setupStatus]);
+
+  // After locations load, show home wizard if admin has none yet.
+  useEffect(() => {
+    if (!currentUser || locationsLoading) return;
+    if (currentUser.role === "admin" && locations.length === 0 && setupStatus === "done") {
+      setShowHomeWizard(true);
+    }
+  }, [locations, locationsLoading, currentUser, setupStatus]);
 
   function handleLogout() {
     // Call logout endpoint to clear httponly cookie on server
@@ -173,6 +220,7 @@ const App: React.FC = () => {
     setCurrentUser(null);
     setItems([]);
     setLocations([]);
+    setPendingCount(0);
   }
 
   async function handleCreateItem(item: ItemCreate, photos: PhotoUpload[], documents: DocumentUpload[]) {
@@ -317,6 +365,26 @@ const App: React.FC = () => {
       })
     : items;
 
+  if (setupStatus === "checking") {
+    return (
+      <div className="app-root" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
+        <span style={{ color: "var(--muted)", fontSize: "0.95rem" }}>Loading…</span>
+      </div>
+    );
+  }
+
+  if (setupStatus === "required") {
+    return (
+      <div className="app-root">
+        <SetupWizard
+          onSetupComplete={() => {
+            setSetupStatus("done");
+          }}
+        />
+      </div>
+    );
+  }
+
   if (!token) {
     // Check if we are handling an OIDC callback
     const urlParams = new URLSearchParams(window.location.search);
@@ -434,12 +502,37 @@ const App: React.FC = () => {
         📅 Maintenance Calendar
       </button>
       {currentUser?.role === "admin" && (
-        <button
-          className={view === "admin" ? "nav-link active" : "nav-link"}
-          onClick={() => setView("admin")}
-        >
-          🔐 Admin
-        </button>
+        <>
+          <button
+            className={view === "admin" ? "nav-link active" : "nav-link"}
+            onClick={() => setView("admin")}
+          >
+            🔐 Admin
+          </button>
+          {pendingCount > 0 && (
+            <button
+              className="nav-link"
+              style={{ color: "var(--warning, orange)" }}
+              onClick={() => setShowPendingQueue(true)}
+            >
+              👤 Pending Approvals
+              <span
+                style={{
+                  marginLeft: "0.5rem",
+                  background: "var(--warning, orange)",
+                  color: "#000",
+                  borderRadius: "999px",
+                  padding: "0 0.45rem",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  lineHeight: 1.6,
+                }}
+              >
+                {pendingCount}
+              </span>
+            </button>
+          )}
+        </>
       )}
       <div style={{ flex: 1 }} />
       <button className="btn-outline" onClick={handleLogout} style={{ marginTop: "auto" }}>
@@ -588,6 +681,56 @@ const App: React.FC = () => {
           />
         )}
       </Layout>
+      {showHomeWizard && (
+        <HomeOnboardingWizard
+          onComplete={(homeId, _homeName) => {
+            setShowHomeWizard(false);
+            loadLocations();
+            setPendingHomeId(homeId);
+            setShowPostHomeChoice(true);
+          }}
+          onSkip={() => setShowHomeWizard(false)}
+        />
+      )}
+      {showPostHomeChoice && (
+        <PostHomeChoiceWizard
+          onScanNetwork={() => {
+            setShowPostHomeChoice(false);
+            setShowNetworkDiscovery(true);
+          }}
+          onAddItem={() => {
+            setShowPostHomeChoice(false);
+            setShowItemWizard(true);
+          }}
+          onSkip={() => setShowPostHomeChoice(false)}
+        />
+      )}
+      {showNetworkDiscovery && (
+        <NetworkDiscoveryWizard
+          locations={locations}
+          defaultLocationId={pendingHomeId || undefined}
+          onComplete={() => {
+            setShowNetworkDiscovery(false);
+            loadItems();
+          }}
+          onSkip={() => setShowNetworkDiscovery(false)}
+        />
+      )}
+      {showItemWizard && (
+        <ItemOnboardingWizard
+          onAddItem={() => {
+            setShowItemWizard(false);
+            setShowAddItemModal(true);
+          }}
+          onSkip={() => setShowItemWizard(false)}
+        />
+      )}
+      {showPendingQueue && (
+        <PendingApprovalQueue
+          onClose={() => setShowPendingQueue(false)}
+          onCountChange={(count) => setPendingCount(count)}
+        />
+      )}
     </div>
   );
 };

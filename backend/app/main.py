@@ -19,7 +19,7 @@ setup_logging()
 from . import models
 from .database import Base, engine, SessionLocal
 from .seed_data import seed_database
-from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins, location_photos, csv_import, media, oidc, printer, printer_profiles
+from .routers import items, locations, auth, status, photos, users, tags, encircle, ai, gdrive, logs, documents, videos, maintenance, plugins, location_photos, csv_import, media, oidc, printer, printer_profiles, onboarding, network_discovery
 from .routers import settings as settings_router
 from .routers import agents as agents_router
 from .routers import collections as collections_router
@@ -293,24 +293,36 @@ Base.metadata.create_all(bind=engine)
 # Run migrations to add any missing columns to existing tables
 run_migrations()
 
-# Seed the database with test data if it's empty
-try:
-    db = SessionLocal()
-    seed_database(db)
-    
-    # Verify seed data was created
-    def warn_missing_data(entity_name: str, count: int):
-        """Log warning if entity count is zero."""
-        if count == 0:
-            print(f"⚠️  WARNING: No {entity_name} found in database after seeding!")
-            print("   This may indicate a seeding issue. See SEEDING.md for troubleshooting.")
-    
-    warn_missing_data("items", db.query(models.Item).count())
-    warn_missing_data("locations", db.query(models.Location).count())
-    
-    db.close()
-except Exception as e:
-    print(f"Error seeding database: {e}")
+# Seed the database with demo data only when AUTO_SEED is explicitly enabled.
+# WARNING: seed accounts use well-known credentials — never enable AUTO_SEED in production.
+if settings.AUTO_SEED:
+    try:
+        db = SessionLocal()
+        seed_database(db)
+
+        def warn_missing_data(entity_name: str, count: int):
+            """Log warning if entity count is zero after seeding."""
+            if count == 0:
+                print(f"⚠️  WARNING: No {entity_name} found after seeding! See SEEDING.md for troubleshooting.")
+
+        warn_missing_data("items", db.query(models.Item).count())
+        warn_missing_data("locations", db.query(models.Location).count())
+        db.close()
+    except Exception as e:
+        print(f"Error seeding database: {e}")
+else:
+    # Warn operators when the database is empty and no admin account has been created
+    try:
+        db = SessionLocal()
+        admin_count = db.query(models.User).filter(
+            models.User.role == models.UserRole.ADMIN,
+            models.User.is_approved == True
+        ).count()
+        if admin_count == 0:
+            print("ℹ️  No approved admin account found. Open the app to complete initial setup.")
+        db.close()
+    except Exception as e:
+        print(f"Startup check warning: {e}")
 
 
 def auto_seed_category_agent():
@@ -428,10 +440,12 @@ app.include_router(csv_import.router, prefix="/api")
 app.include_router(media.router, prefix="/api")
 app.include_router(oidc.router, prefix="/api")
 app.include_router(printer.router)
+app.include_router(onboarding.router, prefix="/api")
 app.include_router(printer_profiles.router)
 app.include_router(settings_router.router, prefix="/api")
 app.include_router(agents_router.router, prefix="/api")
 app.include_router(collections_router.router, prefix="/api")
+app.include_router(network_discovery.router, prefix="/api")
 
 # Root-level /token endpoint for backward compatibility with mobile apps
 @app.post("/token", response_model=Token)

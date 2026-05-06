@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
-from .. import models, schemas
+from .. import models, schemas, auth
 from ..deps import get_db
 from ..logging_config import get_logger
 
@@ -17,7 +17,11 @@ def list_locations(db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=schemas.Location, status_code=status.HTTP_201_CREATED)
-def create_location(payload: schemas.LocationCreate, db: Session = Depends(get_db)):
+def create_location(
+    payload: schemas.LocationCreate,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
     loc = models.Location(**payload.model_dump())
     db.add(loc)
     db.commit()
@@ -38,6 +42,7 @@ def get_location(location_id: UUID, db: Session = Depends(get_db)):
 def update_location(
     location_id: UUID,
     payload: schemas.LocationUpdate,
+    current_user: models.User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
     loc = db.query(models.Location).filter(models.Location.id == location_id).first()
@@ -55,7 +60,11 @@ def update_location(
 
 
 @router.delete("/{location_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_location(location_id: UUID, db: Session = Depends(get_db)):
+def delete_location(
+    location_id: UUID,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db)
+):
     loc = db.query(models.Location).filter(models.Location.id == location_id).first()
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")

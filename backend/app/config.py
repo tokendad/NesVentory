@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     # Registration settings
     DISABLE_SIGNUPS: bool = False
 
+    # Seed data: when True, populate the DB with demo users/items on first startup.
+    # WARNING: seed accounts use well-known credentials — never enable in production.
+    AUTO_SEED: bool = False
+
     # Document URL security settings
     # Controls host validation when uploading documents from external URLs
     # Set DOCUMENT_URL_HOST_VALIDATION=false to allow any public URL (SSRF IP protection still applies)

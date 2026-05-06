@@ -13,6 +13,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick, onMus
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingApproval, setPendingApproval] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [googleClientId, setGoogleClientId] = useState<string | null>(null);
   const [googleScriptLoaded, setGoogleScriptLoaded] = useState(false);
@@ -113,6 +114,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick, onMus
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setPendingApproval(false);
     setLoading(true);
     try {
       const resp = await login(email, password);
@@ -129,7 +131,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick, onMus
       // The actual token value doesn't matter since it's in the cookie, but must be truthy
       onSuccess("authenticated", email);
     } catch (err: any) {
-      setError(err.message || "Login failed");
+      if (err?.code === "PENDING_APPROVAL") {
+        setPendingApproval(true);
+      } else {
+        setError(err.message || "Login failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -203,6 +209,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick, onMus
             />
           </label>
           {error && <div className="error-banner">{error}</div>}
+          {pendingApproval && (
+            <div className="info-banner">
+              ⏳ Your account is awaiting admin approval. You'll be able to sign in once an
+              administrator reviews your registration.
+            </div>
+          )}
           <button className="btn-primary" type="submit" disabled={loading}>
             {loading ? "Signing in..." : "Sign in"}
           </button>
