@@ -102,6 +102,36 @@ def test_create_plant():
     assert data["relationship_type"] == "plant"
 
 
+def test_create_vehicle():
+    """Test creating a vehicle item with vehicle-specific fields"""
+    vehicle_data = {
+        "name": "Ford F-250",
+        "description": "Work truck",
+        "is_vehicle": True,
+        "brand": "Ford",
+        "model_number": "F-250",
+        "vehicle_year": 2021,
+        "vin": "1FT7W2BT4MEC12345",
+        "license_plate": "ABC-1234",
+        "mileage": 48250,
+        "purchase_date": "2022-04-10",
+        "purchase_price": 42000.00,
+        "retailer": "Local Ford Dealer",
+    }
+
+    response = client.post("/items", json=vehicle_data)
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "Ford F-250"
+    assert data["is_vehicle"] is True
+    assert data["brand"] == "Ford"
+    assert data["model_number"] == "F-250"
+    assert data["vehicle_year"] == 2021
+    assert data["vin"] == "1FT7W2BT4MEC12345"
+    assert data["license_plate"] == "ABC-1234"
+    assert data["mileage"] == 48250
+
+
 def test_living_item_cannot_have_purchase_price():
     """Test that living items cannot have purchase_price"""
     invalid_data = {
@@ -143,6 +173,45 @@ def test_living_item_cannot_have_upc():
     response = client.post("/items", json=invalid_data)
     assert response.status_code == 422
     assert "upc" in response.text.lower()
+
+
+def test_vehicle_cannot_have_living_fields():
+    """Test that vehicles cannot include living-only fields"""
+    invalid_data = {
+        "name": "Test Vehicle",
+        "is_vehicle": True,
+        "birthdate": "2020-01-01",
+    }
+
+    response = client.post("/items", json=invalid_data)
+    assert response.status_code == 422
+    assert "birthdate" in response.text.lower()
+
+
+def test_item_cannot_be_both_living_and_vehicle():
+    """Test that an item cannot be marked as both living and vehicle"""
+    invalid_data = {
+        "name": "Impossible Item",
+        "is_living": True,
+        "is_vehicle": True,
+        "relationship_type": "pet",
+    }
+
+    response = client.post("/items", json=invalid_data)
+    assert response.status_code == 422
+    assert "both living and a vehicle" in response.text.lower()
+
+
+def test_non_vehicle_item_cannot_have_vin():
+    """Test that non-vehicle items cannot have vehicle-only fields"""
+    invalid_data = {
+        "name": "Regular Item",
+        "vin": "1FT7W2BT4MEC12345",
+    }
+
+    response = client.post("/items", json=invalid_data)
+    assert response.status_code == 422
+    assert "vin" in response.text.lower()
 
 
 def test_non_living_item_cannot_have_birthdate():
