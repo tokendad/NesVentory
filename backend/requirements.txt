@@ -14,10 +14,10 @@ python-multipart>=0.0.32
 python-dotenv==1.2.3
 httpx==0.28.1
 openpyxl==3.1.5
-google-genai>=2.20.0,<3.0.0
-google-api-python-client==2.199.0
+google-genai>=2.22.0,<3.0.0
+google-api-python-client==2.200.0
 google-auth-oauthlib==1.4.1
-boto3>=1.43.83
+boto3>=1.43.89
 # NIIMBOT printer support
 pillow>=12.3.0
 pyserial==3.5
